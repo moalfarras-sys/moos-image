@@ -1,0 +1,22 @@
+{
+    "KPackageStructure": "KWin/Effect",
+    "KPlugin": {
+        "Authors": [
+            {"Name": "MoOS contributors"},
+            {"Name": "Vlad Zahorodnii", "Email": "vlad.zahorodnii@kde.org"}
+        ],
+        "Category": "Window Open/Close Animation",
+        "Description": "A short, reversible lift for MoOS windows, following the desktop motion setting",
+        "Description[ar]": "انسياب قصير وقابل للعكس لنوافذ MoOS يتبع إعداد حركة سطح المكتب",
+        "EnabledByDefault": false,
+        "Icon": "preferences-system-windows-effect-scale",
+        "Id": "moos-quiet-lift",
+        "License": "GPL-2.0-or-later",
+        "Name": "MoOS · Quiet Lift",
+        "Name[ar]": "MoOS · انسياب النوافذ",
+        "Version": "1.0"
+    },
+    "X-KDE-Ordering": 60,
+    "X-KWin-Exclusive-Category": "toplevel-open-close-animation",
+    "X-Plasma-API": "javascript"
+}

@@ -102,6 +102,14 @@ COPY tests/test_greeter_autofingerprint.py tests/test_fingerprint_login.py /src/
 RUN bash /src/build_files/plasma_login/build.sh prepare
 RUN bash /src/build_files/plasma_login/build.sh compile
 
+# P0/P5.8: Qt's reviewed item-view lifetime backport, with the original spec.
+FROM base AS qtquick-build
+RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
+    'dnf5-command(builddep)' python3 curl qt6-qtdeclarative qt6-qtdeclarative-devel
+COPY build_files/qtquick/ /src/build_files/qtquick/
+RUN bash /src/build_files/qtquick/build.sh prepare
+RUN bash /src/build_files/qtquick/build.sh compile
+
 # P0.7: native vendor RPM rebuild; SDK and regression evidence never ship.
 FROM base AS plymouth-build
 RUN dnf5 -y install --setopt=install_weak_deps=False gcc libasan rpm-build cpio patch \
@@ -371,6 +379,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,sharing=locked,dst=/var/cache \
     --mount=type=cache,sharing=locked,dst=/var/log \
     if [ "$IMAGE_NAME" != moos-cloud ]; then python3 /ctx/plasma_login/rpms.py install /plasma-login-rpms; fi
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,from=qtquick-build,source=/out/qtquick,target=/qtquick-rpms \
+    --mount=type=cache,sharing=locked,dst=/var/cache \
+    --mount=type=cache,sharing=locked,dst=/var/log \
+    python3 /ctx/qtquick/rpms.py install /qtquick-rpms
 COPY system_files/ /
 COPY --from=moremote-build /out/ /usr/lib/mo-remote/
 # Keep the vendored app's standalone icon byte-identical to MoOS's new

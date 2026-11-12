@@ -423,6 +423,8 @@ check:
     python3 tests/test_login_appearance.py
     python3 tests/test_welcome_viewports.py
     python3 tests/test_moos_motion.py
+    python3 tests/test_quiet_lift.py
+    python3 tests/test_qtquick_lifetime.py
     python3 tests/test_moos_clock_keyboard.py
     # One answer to "is this session Arabic". Four surfaces read
     # Qt.application.layoutDirection, which follows a translator and not the
