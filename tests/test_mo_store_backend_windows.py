@@ -28,6 +28,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 import zipfile
@@ -670,6 +671,299 @@ class PortableData(WindowsFixture):
         self.assertEqual(result[0], 1, result)
         for p, data in before.items(): self.assertEqual(p.read_bytes(), data)
         self.assertFalse((paths.base / ".app.previous").exists())
+
+
+class LegacyInventory(WindowsFixture):
+    """Same publisher pin, real files/locks/rollback; no host install or publisher requests."""
+
+    def legacy(self):
+        recipe = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe(tail=b"one"),
+                                     "TinyTerm/readme.txt": b"publisher"}))
+        controller = self.controller(recipe)
+        self.assertEqual(controller.install([APP])[0], 0)
+        paths = MODULE.windows_paths(APP)
+        record = json.loads(paths.record.read_text())
+        record.pop("publisher_files")
+        paths.record.write_text(json.dumps(record))
+        return paths, controller, recipe
+
+    @contextlib.contextmanager
+    def authority(self, controller, recipe, *, unsafe=None):
+        """Only the private catalogue's root metadata is simulated, not its reads.
+
+        A non-root test cannot chown its fixtures. All directory-FD traversal,
+        no-follow opens, file bytes, stability checks and pin verification are real.
+        Negative controls independently remove ownership or writable-mode trust.
+        """
+        catalogue = self.base / "immutable/usr/share/moos/store/catalog.json"
+        catalogue.parent.mkdir(parents=True, exist_ok=True)
+        catalogue.write_text(json.dumps({"apps": [recipe]}))
+        nodes = {(q.stat().st_dev, q.stat().st_ino): q for q in (catalogue, *catalogue.parents)}
+        real_fstat = os.fstat
+        def fixture_stat(fd):
+            s = real_fstat(fd)
+            path = nodes.get((s.st_dev, s.st_ino))
+            if path is None:
+                return s
+            values = {name: getattr(s, name) for name in dir(s) if name.startswith("st_")}
+            values.update(st_uid=0, st_mode=s.st_mode & ~0o022)
+            if unsafe is not None:
+                unsafe(path, catalogue, values)
+            return SimpleNamespace(**values)
+        original = controller.catalog_path
+        controller.catalog_path = catalogue
+        try:
+            with mock.patch.object(MODULE, "DEFAULT_CATALOG", catalogue), \
+                    mock.patch.object(os, "fstat", side_effect=fixture_stat):
+                yield catalogue
+        finally:
+            controller.catalog_path = original
+
+    def state(self, paths):
+        portable = MODULE.Controller._library("moos_windows_portable")
+        return (portable.snapshot(paths.app), paths.app.stat().st_mode & 0o777,
+                paths.record.read_bytes(), paths.launcher.read_bytes(),
+                (paths.prefix / "user.reg").read_bytes())
+
+    def test_same_pin_migrates_before_overlay_and_next_update_keeps_data(self):
+        paths, controller, recipe = self.legacy()
+        document = paths.app / "مستند عربي.txt"
+        document.write_text("معيار MoOS")
+        settings = paths.app / "preferences.ini"
+        settings.write_bytes(b"private settings"); settings.chmod(0o600)
+        (paths.app / "private").mkdir(mode=0o700)
+        (paths.app / "private/nested.txt").write_bytes(b"private nested data")
+        paths.app.chmod(0o700)
+        before = self.state(paths)
+        with self.authority(controller, recipe):
+            result = controller.install([APP])
+        self.assertEqual(result[0], 0, result)
+        after = self.state(paths)
+        self.assertEqual(after[:2], before[:2])
+        self.assertEqual(after[3:], before[3:])
+        inventory = json.loads(paths.record.read_text())["publisher_files"]
+        self.assertEqual(set(inventory), {"TinyTerm", "TinyTerm/tinyterm.exe", "TinyTerm/readme.txt"})
+        recovery, = (paths.base / "recovery").iterdir()
+        self.assertEqual(json.loads((recovery / "receipt.json").read_text()), json.loads(before[2]))
+        portable = MODULE.Controller._library("moos_windows_portable")
+        self.assertEqual(portable.snapshot(recovery / "app"), before[0])
+        newer = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe(tail=b"two"),
+                                    "TinyTerm/readme.txt": b"new publisher"}), version="2.0")
+        self.assertEqual(self.controller(newer).install([APP])[0], 0)
+        self.assertEqual(document.read_text(), "معيار MoOS")
+        self.assertEqual(settings.read_bytes(), b"private settings")
+        self.assertEqual(settings.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(paths.app.stat().st_mode & 0o777, 0o700)
+        self.assertNotIn("preferences.ini", json.loads(paths.record.read_text())["publisher_files"])
+
+    def test_every_mismatched_legacy_identity_field_refuses_before_download(self):
+        paths, controller, recipe = self.legacy()
+        record = json.loads(paths.record.read_text())
+        mismatches = {"schema": True, "id": "other", "launcher": "other.desktop",
+                      "exe": "other.exe", "version": "0.9", "url": "https://other.example/app.zip",
+                      "sha256": "0" * 64}
+        with self.authority(controller, recipe), mock.patch.object(self.opener, "open") as download:
+            for key, value in mismatches.items():
+                with self.subTest(field=key):
+                    paths.record.write_text(json.dumps({**record, key: value}))
+                    before = self.state(paths)
+                    result = controller.install([APP])
+                    self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+                    self.assertEqual(self.state(paths), before)
+            download.assert_not_called()
+
+    def test_present_invalid_manifest_is_not_treated_as_legacy(self):
+        paths, controller, recipe = self.legacy()
+        record = json.loads(paths.record.read_text())
+        with self.authority(controller, recipe), mock.patch.object(self.opener, "open") as download:
+            for invalid in (None, {}, [], {"../escape": {}}):
+                with self.subTest(manifest=invalid):
+                    paths.record.write_text(json.dumps({**record, "publisher_files": invalid}))
+                    before = self.state(paths)
+                    result = controller.install([APP])
+                    self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+                    self.assertEqual(self.state(paths), before)
+            download.assert_not_called()
+
+    def test_different_old_pin_cannot_be_reconstructed_from_new_publisher(self):
+        paths, _, _ = self.legacy()
+        newer = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe(tail=b"two")}), version="2.0")
+        controller = self.controller(newer)
+        before = self.state(paths)
+        with self.authority(controller, newer), mock.patch.object(self.opener, "open") as download:
+            result = controller.install([APP])
+            self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+            download.assert_not_called()
+        self.assertEqual(self.state(paths), before)
+
+    def test_custom_catalogue_and_recipe_drift_cannot_authorize_a_baseline(self):
+        paths, controller, recipe = self.legacy()
+        before = self.state(paths)
+        with self.authority(controller, recipe) as catalogue, \
+                mock.patch.object(self.opener, "open") as download:
+            custom = self.base / "copied-catalogue.json"
+            custom.write_bytes(catalogue.read_bytes())
+            controller.catalog_path = custom
+            result = controller.install([APP])
+            self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+            controller.catalog_path = catalogue
+            with mock.patch.object(controller, "_catalog", return_value={APP: {**recipe, "en": "changed"}}):
+                result = controller.install([APP])
+            self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+            # Python's ordinary object equality considers 1 and True equal;
+            # the full authoritative JSON recipe must retain their distinction.
+            typed_recipe = {**recipe, "review_revision": 1}
+            catalogue.write_text(json.dumps({"apps": [typed_recipe]}))
+            with mock.patch.object(controller, "_catalog", return_value={APP: {**typed_recipe, "review_revision": True}}):
+                result = controller.install([APP])
+            self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+            download.assert_not_called()
+        self.assertEqual(self.state(paths), before)
+
+    def test_catalogue_and_parent_require_root_ownership_and_safe_modes(self):
+        paths, controller, recipe = self.legacy()
+        before = self.state(paths)
+        for target in ("file", "parent"):
+            for field in ("owner", "writable"):
+                with self.subTest(target=target, field=field):
+                    def unsafe(path, catalogue, values):
+                        if path == (catalogue if target == "file" else catalogue.parent):
+                            if field == "owner": values["st_uid"] = 12345
+                            else: values["st_mode"] |= 0o020
+                    with self.authority(controller, recipe, unsafe=unsafe), \
+                            mock.patch.object(self.opener, "open") as download:
+                        result = controller.install([APP])
+                        self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+                        download.assert_not_called()
+                    self.assertEqual(self.state(paths), before)
+
+    def test_catalogue_symlink_and_linked_ancestor_are_refused(self):
+        paths, controller, recipe = self.legacy()
+        before = self.state(paths)
+        for parent_link in (False, True):
+            with self.subTest(parent_link=parent_link), self.authority(controller, recipe) as catalogue:
+                target = catalogue.parent if parent_link else catalogue
+                moved = target.with_name(target.name + ".saved")
+                target.rename(moved); target.symlink_to(moved.name)
+                try:
+                    with mock.patch.object(self.opener, "open") as download:
+                        result = controller.install([APP])
+                        self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+                        download.assert_not_called()
+                finally:
+                    target.unlink(); moved.rename(target)
+                self.assertEqual(self.state(paths), before)
+
+    def test_modified_publisher_and_casefold_collision_are_preserved(self):
+        paths, controller, recipe = self.legacy()
+        changed = paths.app / "TinyTerm/readme.txt"
+        with self.authority(controller, recipe):
+            for casefold in (False, True):
+                with self.subTest(casefold=casefold):
+                    if casefold: changed.rename(changed.with_name("README.txt"))
+                    else: changed.write_bytes(b"the person's edited readme")
+                    before = self.state(paths)
+                    result = controller.install([APP])
+                    self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_conflict", result)
+                    self.assertEqual(self.state(paths), before)
+
+    def test_shared_lease_refuses_legacy_reinstall_before_download(self):
+        paths, controller, recipe = self.legacy()
+        portable = MODULE.Controller._library("moos_windows_portable")
+        before = self.state(paths)
+        with self.authority(controller, recipe), portable.lease(paths.base, exclusive=False), \
+                mock.patch.object(self.opener, "open") as download:
+            result = controller.install([APP])
+            self.assertEqual(result[1]["items"][0]["message_key"], "vendor_app_in_use", result)
+            download.assert_not_called()
+        self.assertEqual(self.state(paths), before)
+
+    def test_failed_download_cancel_and_publication_preserve_legacy_bytes(self):
+        paths, controller, recipe = self.legacy()
+        (paths.app / "مستند.txt").write_bytes(b"private document")
+        before = self.state(paths)
+        portable = MODULE.Controller._library("moos_windows_portable")
+        with self.authority(controller, recipe):
+            url = recipe["install"]["downloads"]["x86_64"]["url"]
+            body = self.opener.files[url]
+            self.opener.files[url] = b"X" + body[1:]
+            self.assertEqual(controller.install([APP])[0], 1)
+            self.assertEqual(self.state(paths), before)
+            self.opener.files[url] = body
+            carry = portable.carry
+            cancelled = self.base / "cancel"
+            def cancel_after_copy(*args):
+                result = carry(*args); cancelled.touch(); return result
+            with mock.patch.object(controller, "_cancelled", side_effect=lambda job: cancelled.exists()), \
+                    mock.patch.object(portable, "carry", side_effect=cancel_after_copy):
+                result = controller.install([APP])
+            cancelled.unlink()
+            self.assertEqual((result[0], result[1]["state"]), (130, "cancelled"), result)
+            self.assertEqual(self.state(paths), before)
+            write = MODULE._write_json
+            def fail_record(path, *args, **kwargs):
+                if path == paths.record: raise OSError("injected publication failure")
+                return write(path, *args, **kwargs)
+            with mock.patch.object(MODULE, "_write_json", side_effect=fail_record):
+                self.assertEqual(controller.install([APP])[0], 1)
+            self.assertEqual(self.state(paths), before)
+
+    def test_receipt_or_tree_changes_during_download_are_refused_without_reverting_them(self):
+        paths, controller, recipe = self.legacy()
+        download = controller._download_pinned
+        with self.authority(controller, recipe):
+            for receipt_change in (True, False):
+                with self.subTest(receipt_change=receipt_change):
+                    changed = {}
+                    def mutate(*args, **kwargs):
+                        archive = download(*args, **kwargs)
+                        if receipt_change:
+                            record = json.loads(paths.record.read_text()); record["name"] = "external edit"
+                            paths.record.write_text(json.dumps(record))
+                        else:
+                            (paths.app / "external.txt").write_bytes(b"external data")
+                        changed["state"] = self.state(paths)
+                        return archive
+                    with mock.patch.object(controller, "_download_pinned", side_effect=mutate):
+                        result = controller.install([APP])
+                    self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unsafe", result)
+                    self.assertEqual(self.state(paths), changed["state"])
+
+    def test_late_receipt_change_is_refused_before_swap_and_preserved(self):
+        paths, controller, recipe = self.legacy()
+        portable = MODULE.Controller._library("moos_windows_portable")
+        carry = portable.carry
+        changed = {}
+        def late_change(*args):
+            result = carry(*args)
+            record = json.loads(paths.record.read_text()); record["name"] = "late external edit"
+            paths.record.write_text(json.dumps(record))
+            changed["state"] = self.state(paths)
+            return result
+        with self.authority(controller, recipe), mock.patch.object(portable, "carry", side_effect=late_change):
+            result = controller.install([APP])
+        self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unsafe", result)
+        self.assertEqual(self.state(paths), changed["state"])
+
+    def test_retained_and_interrupted_legacy_trees_remain_ineligible(self):
+        paths, controller, recipe = self.legacy()
+        with self.authority(controller, recipe), mock.patch.object(self.opener, "open") as download:
+            previous = paths.base / ".app.previous"
+            paths.app.rename(previous)
+            receipt = paths.record.read_bytes()
+            result = controller.install([APP])
+            self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+            self.assertTrue(previous.is_dir()); self.assertFalse(paths.app.exists())
+            self.assertEqual(paths.record.read_bytes(), receipt)
+            previous.rename(paths.app)
+            self.assertEqual(controller.remove(APP)[0], 0)
+            retained = paths.base / "retained-app"
+            marker = (paths.base / ".retained.json").read_bytes()
+            result = controller.install([APP])
+            self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+            self.assertTrue(retained.is_dir())
+            self.assertEqual((paths.base / ".retained.json").read_bytes(), marker)
+            download.assert_not_called()
 
 
 @unittest.skipUnless(Path("/bin/bash").exists() and shutil.which("python3", path="/usr/bin:/bin"),
