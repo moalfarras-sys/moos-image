@@ -103,18 +103,7 @@ No other product, API, DNS, WAF, authentication or billing setting changed.
 ## Oracle A1 development station
 
 Native aarch64, 2vCPU/11.6GiB, no GPU; Arabic Wayland virtual1280×720 at100%. The actual native boot is 44.20261109.908, with signed890 rollback and boot/backend receipts above. Temporary updater repair retirement has exact recovery; owner wallet Off and existing services return within the native receipt scope. Earlier tagged-cache ancestor retirement and unavailable old registry digests remain a material exception; no new pruning or owner input/security policy change occurs. [Native signed delivery](docs/releases/2026-11-09-oracle-native-upgrade-proof.json).
-Earlier `.775` measurements and its preserved transient-unit/probe failures belong
-to [their receipt](docs/releases/2026-10-14-oracle-775-native-proof.json), not `.792` acceptance.
-The following installed small-video journey belongs to the earlier .763 boot.
-Installed /usr/lib/moplayer (no source override) opens encoded Arabic file URI,
-plays actual MPEG4 frames, reports 20 s/CanSeek and paused +5 s seek. Rendered
-finite controls/timecodes pass; owned unit closed. RSS=578.4 MiB with Remote
-active; one small silent sample is not a codec/server/GPU/endurance matrix.
-Earlier signed boots also proved native KCM/Remote .NET components and
-GTK/decorations agreement within their recorded scope. Private Remote/public
-Community TLS pass; pre-login stays explicitly off.
-Gateway is live with an owner-selected paid policy; no paid inference or key
-read was performed. A prior free synthetic reply on NVIDIA was a separate proof.
+Earlier .775 diagnostics and .763 small-silent-video URI/play/pause/seek evidence remain historical in [their receipt](docs/releases/2026-10-14-oracle-775-native-proof.json). Those bounded player, native KCM/.NET and private TLS controls are not GPU/audio/endurance or current908 qualification. Pre-login remains off; the previously selected paid gateway policy was not exercised or inspected for secrets.
 
 Seven exact unused audit images retired only after container/ancestry/replacement
 checks: total physical free-space gain 33,544,560,640 bytes (~31.2 GiB).
