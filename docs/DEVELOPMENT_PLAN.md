@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-10. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-12. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -28,76 +28,42 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-PR280's exact39afe tree is merged as9e975 and fully promoted: signed x86
-1133 and ARM903 pass all first-attempt image/artifact boot/promotion proofs.
-Do not repeat that cycle. The owner-requested wallet controls, root updater
-repair and Meyar3 reverse named-family pairing are in those artifacts; actual
-installed acceptance remains separate.
+Nov12 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. Current
+source joins all previously unique branches: native control-launch/display
+confidence, exact QtQuick lifetime backport, selectable Quiet Lift, Windows
+same-pin legacy data preservation, bounded fresh-dispatch metadata recovery
+and Remote image-path coverage. The combined source is not signed delivery.
+Freeze one final SHA after integration, run `just check` and a full current-base
+local image, then PR gates and the single canonical release cycle.
 
-PR281's exact04b tree is merged asfe58 after native complete source
-0/1520.243s, full ARM image0/1414.031s, ten immutable matches and successful
-first-attempt repository/ARM/x86 PR gates. Native Flatpak virtual handlers
-preserve result/error bits; the bounded Store popup/focus regression and its
-executed old negative pass. ARM42526063618 independently completes signing,
-final UEFI first/second boot, clean poweroff and promotion as906. Its exact
-signature, small artifact archive and MoOS pre-login pixels are verified.
-The main x86 run42526063620 correctly refuses NVIDIA before driver composition:
-the native Mo Remote recovery test receives no restarted H264 frame. The other
-x86 editions sign, but this is not a qualified x86 release. No failed workflow
-is rerun and no second signed cycle is dispatched. [Source/API qualification](reviews/2026-11-08-native-flatpak-signal-proof.json).
+Production remains independently cosign-verified x861139 (exact8075 tree,
+merged2bf) and ARM917 (2bf). The original first-attempt signed artifact boots and
+promotions are complete; do not repeat that old cycle. V3 currently boots1139
+with signed1136 rollback and pinned1078. Native kernel7.2.15, KWin6.8.2-3 and
+vendor Qt6.11.2-2 are installed; the pending source backport is not on the host.
+A timed-out DrKonqi processing unit is retained, not reset to manufacture health.
+The Nov11 scheduled ARM43043346615 failed runner DNS before images; no retry
+or promotion was performed from it.
 
-The active P2.14/P0 delivery repair stays in the existing PortalBridge/Python
-helper. A quiet original native run passes; deliberately delivering ten frames
-before stdout codec metadata reproduces the loss. Each private packet now
-carries its pipeline's immutable actual codec; late stdout cannot relabel it.
-A native old-routing control still fails with only the new length mask adapted;
-fixed controls pass51 portal/394 total assertions, including fragmented packets,
-H264/JPEG/H264 and withheld/stale announcements. The real helper writer and
-native GStreamer encode/transport/decode three JPEG and three H264 pictures.
-This proves the ordering class; the failed CI run lacks its internal frame
-trace, so do not attribute every earlier failure to it. Full new source/image,
-PR CI, signed release and installed Remote acceptance remain required.
-[Refusals and packet evidence](reviews/2026-11-09-remote-frame-order-proof.json).
+The existing native SDK completed the whole original Qt vendor RPM build in
+2837.462s with packaged teardown marker; clean-stage development headers and
+private motion-bus activation are now corrected. Motion old/fixed/reduced/broken
+controls pass with unchanged owner compositor/portal readback. The long socket
+path refusal is retained. Source/image/installed package and physical login
+acceptance remain distinct. Native Blender5.2's1,003,522-triangle scene and
+Windows OpenSCAD2021.01 CGAL export retain workload-specific results; broader
+Linux/Windows/Android lifecycle, input, GPU and endurance work stays in P4/P5.
 
-Oracle still boots890 with884 rollback;906 is staged through the canonical
-signed backend, command0/492.298s with old boot/rollback retained and no reboot. The newly authenticated x86 peer is the Gigabyte
-RTX2080SUPER NVIDIA station on1127/1119 rollback, not the V3. Its actual Arabic
-Wayland desktop is visually read back at4096x2160/275%, with no failed units.
-Preserve its owner windows and current session. V3/tablet acceptance remains
-unavailable; do not transfer Oracle or NVIDIA evidence to it.
-
-The owner's wallet is Off on the installed session; encrypted collections and
-all authentication boundaries remain intact. Native Settings provides full
-opt-in/out in qualified source, with twelve private lifecycle controls and
-actual compiled Wayland review. The root app updater's private-bus repair is
-live; retire only the exact temporary drop-in after signed canonical readback.
-Neither source previews nor a local image establish installed UI acceptance.
-
-Meyar3 resolves the measured LibreOffice361 em-dash fallbacks to0 and retains
-named-family/user-order/cache/mono metadata controls in four native runtimes.
-Actual Chrome157 CDP glyph readback still paints DejaVu for named Meyar Sans
-Arabic, despite correct Fontconfig queries. A private generic prototype also
-fails personal precedence and mono-cell acceptance; do not ship it. Browser
-fallback/defaults remain P2.3 work. Real GIMP3.2.8 has8.3MP editing/XCF/pixel
-roundtrip and canonical close/new-process reopen proof. LibreOffice26.8.2.2
-preserves ODT/DOCX/PDF and5000-row ODS/XLSX formulas; ordinary13pt Calc rows
-clip both Meyar/Noto, while wrapped measured rows pass save/reopen. English
-onboarding, the retained modal hang, full input/GPU/endurance stay open. VLC,
-Curtail and Ptyxis retain their earlier bounded native journeys; do not repeat
-them as missing features. Owner regional/font settings are preserved.
-
-Photo/SMB containers and encrypted local backup are healthy. Preserve both
-material incidents: the clipboard's complete original text was not recovered,
-and an accidentally retired tagged native-base cache ancestor cannot be
-restored from its unavailable old digests. Their recorded causes/limits remain
-in evidence; do not claim universal preservation or run the legacy pointer
-bridge again. No further blanket cache retirement is authorized by this batch.
-
-Ordinary account authentication, earlier greeter crashes, Android native
-sizing/lifetime, tablet/USB4/pen/suspend, accessibility/phone/endurance and
-broader compatibility remain open. The owner rejected component-only polish
-as a complete desktop redesign. Existing delivered Meyar143/appearance/UI
-owners remain authoritative; continue their actual installed acceptance.
+Earlier Oracle908 wallet-Off/canonical-updater boot, Krita4K and browser evidence
+is preserved in the merged receipts, not re-labelled as current V3 evidence.
+See [Qt/motion/workloads](reviews/2026-11-11-native-motion-qt-workloads.json),
+[control launch](reviews/2026-11-11-control-launch-display-proof.json),
+[Oracle native delivery](releases/2026-11-09-oracle-native-upgrade-proof.json),
+[Krita](reviews/2026-11-09-native-krita-proof.json) and
+[browser](reviews/2026-11-09-native-browser-proof.json).
+Meyar browser fallback, physical fingerprint/rotation/USB4/suspend, Android
+sizing/input/endurance and full daily desktop journeys remain open. Preserve
+the clipboard recovery and tagged-cache incidents and all original refusals.
 
 ## Product acceptance
 
@@ -247,7 +213,7 @@ For every task:
 ## Ordered execution
 
 Owner Nov9: MoOS Quiet Glass supersedes the visual product direction while retaining the existing UI2/KDE owners and P2/P5 queue. The authoritative visual contract now defines its material roles and connected acceptance slice. No new palette, installed surface or performance improvement is qualified by that contract alone.
-Nov10 P2.5/P2.7/P2.8/P2.10 slice: shared live material/motion source passes complete check at23e20c5e; PR285's repo/review/x86/ARM gates pass. The next independent branch supplies Quiet Glass dark/light on unchanged Aurora IDs, matching native shell/window/icon/GTK/Konsole/wallpaper/Welcome resources with THEME_REV148. Actual Kirigami readback passes eight private native popup cases and refuses mismatched native style; original input negatives remain. Source UI245/design-core7 and26×18 secondary contrast pass. Complete147 source check passes0. Physical user-local dark/light desktop/launcher and Arabic KWrite edit/save are exercised with preserved fonts, motion and layout. Owner explicitly selects Quiet Glass Light. A fresh canonical-theme/personal-tray health refusal is repaired in a follow-up through the existing validator, retaining native old1/fixed0/strict1 controls; its complete source gate passes0. The boot migrator also needs the same validated-layout protection independently of appearance customization; guarded native old-write-attempt/fixed-no-write controls pass in a follow-up, with final complete source/image/cold-boot evidence pending. Both a5 local/ARM images correctly refuse the family rename. Restore exact original package/selector names and preflight them from the unchanged identity table;45 UI2 methods and the old-source refusal pass. PR286 final current-base image gates, the whole daily journey, user-feedback/performance and signed delivery remain open; previous1136 readbacks do not qualify the new immutable assets.
+Nov10 P2.5/P2.7/P2.8/P2.10 slice: shared live material/motion source passes complete check at23e20c5e; PR285's repo/review/x86/ARM gates pass. The next independent branch supplies Quiet Glass dark/light on unchanged Aurora IDs, matching native shell/window/icon/GTK/Konsole/wallpaper/Welcome resources with THEME_REV148. Actual Kirigami readback passes eight private native popup cases and refuses mismatched native style; original input negatives remain. Source UI245/design-core7 and26×18 secondary contrast pass. Complete147 source check passes0. Physical user-local dark/light desktop/launcher and Arabic KWrite edit/save are exercised with preserved fonts, motion and layout. Owner explicitly selects Quiet Glass Light. A fresh canonical-theme/personal-tray health refusal is repaired in a follow-up through the existing validator, retaining native old1/fixed0/strict1 controls; its complete source gate passes0. The boot migrator also needs the same validated-layout protection independently of appearance customization; guarded native old-write-attempt/fixed-no-write controls pass in a follow-up, with final complete source/image/cold-boot evidence pending. Both a5 local/ARM images correctly refuse the family rename. Restore exact original package/selector names and preflight them from the unchanged identity table;45 UI2 methods and the old-source refusal pass. PR286 final current-base image gates, the whole daily journey, user-feedback/performance and signed delivery remain open; previous1136 readbacks do not qualify the new immutable assets. Subsequent qualification: exact8075 full148 source0, current-base local image0/11 byte matches and fresh PR x86/ARM gates pass; PR286 merges as2bf8339f with equal tree. Canonical signed cycle passes three x86 QCOW2/offline ISO and branch ARM proofs; promotion42819743075 publishes1139 and V3 stages it0 with old signed deployments/recovery retained. Physical reboot/installed journey and main ARM42819720603 promotion remain pending. Native official Qt teardown reproducer old139/private fixed0 now prioritizes P0 greeter/library qualification; a private Quick target is not a complete RPM or signed repair. See docs/releases/2026-11-10-quiet-glass-1139-signed-stage-proof.json.
 
 Nov9 V3 audit slice (P0.6/P6.5): installed1136/source28f642f8, independently signed1119 rollback/pinned1078 and signed recovery ISO are remeasured. Failed-manager diagnostics are repaired on a topic branch with old-failing/fixed-passing controls; the first full source run refuses JSON-escaped Arabic paths in the native archive fixture. Literal native CMake bracket arguments retain every original transfer assertion and pass all6 controls with Arabic/special-character paths. Complete source rerun exits0; first refusal remains preserved. All PR gates pass and PR284 merges as12741233; main x86 run42721350606 and ARM run42721350565 are building. Signed delivery remains pending. Native43/0+3notes and46/0, installed identity gates and actual Arabic Settings/editor/Store frames pass within their scope. Current greeter screenRemoved crash, SMBus/framebuffer/sensor errors and complete login/lock/power journeys remain open. Root SMART/boot inspection needs authentication; ChatGPT update is safely refused while in use. Inventory is not cleanup approval; all images/containers/recovery are preserved.
 
@@ -356,15 +322,15 @@ M0 evidence as measured performance or require another local VM image.
 ابدأ من هذه الخطة ومن الحالة الفعلية، ولا تنشئ خطة موازية أو تعِد كتابة المكوّنات
 الموجودة. اقرأ `AGENTS.md` و`PROJECT_STATE.md` ومهارة الهندسة، ثم اتبع الآتي:
 
-1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. مصدرPR277 هوfc97،
-   وإصداره1119/884 منشور ومثبت إقلاع النسخ الأربع؛ لا تُعِد دورته أو تبدأ من الصفر.
+1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. مصدرPR286 هو8075،
+   ومصدرmain هو2bf؛1139/917 منشور ومثبت الإقلاع، فلا تُعِد دورته أو تبدأ من الصفر.
    دفعة الأمان والخطوط ومهام الذكاء ومراجعةKWin التالية في فرع مستقل؛ اقرأ حالتها
    الفعلية واختباراتها قبل الدمج، واحفظ تغييرات أي جلسة أخرى.
 2. تحقّق من الجهاز الجاري والـdigest والـrollback وWayland والمقياس والمسارات
-   المحمّلة. آخر قراءةV3 على1119 مع1114 للرجوع و1078 مثبت؛93 ملفًا مطابقًا،
+   المحمّلة. آخر قراءةV3 على1139 مع1136 للرجوع و1078 مثبت؛ تحقق من الملفات الفعلية،
    ومعيار من/usr ومظهر المالك محفوظ. القراءة مرجع وليست أمرًا لفرض إعداد قديم.
 3. أكمل قبول الدفعة التالية علىSHA ثابت: فحص المصدر الكامل والصورة الحالية
-   وبواباتCI، ثم دورة إصدار موقّعة واحدة. لا تنسب إصلاحات الفرع إلى1119.
+   وبواباتCI، ثم دورة إصدار موقّعة واحدة. لا تنسب إصلاحات الفرع إلى1139.
    احتفظ برفض عرض معيار داخلChromium وبالاختبارات السلبية الأصلية؛ مطابقة
    fc-match وحدها لا تثبت الخط المرسوم. مزودMo AI غير مُعد وفق حالة منقّحة؛
    إعدادGemini المنقّح غائب أيضاً في قراءةNov4؛ تصحيح عرض الجاهزية اجتاز
@@ -397,10 +363,10 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Exacte4cab x861127/ARM895 artifact promotion passes. Oracle boots890 with895 staged/884 rollback and56/0 postcheck; no new reboot. Earlier physical V31119/Meyar143 evidence is historical. New wallet/updater source, ordinary authentication and broad hardware acceptance remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | Exact28f642f8fd84 four-edition signing/artifact boot/promotion passes; Oracle actually boots44.20261109.908 with890 rollback, immutable/selfcheck/post-update/production-codec receipts. Wallet Off and canonical updater read back; actual widget/authentication/hardware/endurance remain open; pending app updates=1 | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
-| P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded. Native audit adds the omitted moplayer/** x86 PR trigger; the new input gate fails against the old workflow and passes fixed. ARM already watches the in-tree player. No publishing permission added; final x86/ARM image CI and signed cycle pass | PR generic image gates block real image failures; no signing/publishing from PR. |
+| P0.9 | Run image-only gates before the merge | Remote-only PR282 exposes the missing x86 path. The existing exact4303 unsigned image gate completes, and the source correction covers four real inputs on x86/ARM with seven passing workflow controls and unchanged no-publish constraints. Exact-head follow-up CI is required before normal merge | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
 | P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Public1046 remains last anonymous qualification. Qualified1127 ISO is locally archived:5817565184bytes, SHA2566303b2147a9ed271180a6b63d86d8e6d48bee23b90a1cadec5b02617b112075f, detached signature verified. New hosting/account access and anonymous full/range acceptance remain open | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
@@ -427,7 +393,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | P2.4 | Keyboard and screen-reader operation | Source Island correction passes 48 native Qt configurations and original-source controls; full shell/Orca acceptance remains | Real keyboard traversal/focus and Orca Arabic/English on all primary flows. |
 | P2.5 | Visual, contrast, scale and reduced-motion matrix | Native audit reproduces a lost blur/clarity file update with the real producer. Atomic generation publication and unchanged finite event readback pass 480 native transitions, invalid/ambiguous/absent and broken-reader controls; THEME_REV/fingerprint=103 in source. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; full visual/scale/motion matrix remains open | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |
-| P2.7 | Horizon feedback, clock input and system sound | Open / acceptance not complete | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
+| P2.7 | Horizon feedback, clock input and system sound | Nov11 shared-role Quiet Lift KWin effect passes native open/close/reversal/reduced/broken controls and is session-loaded on V3; complete source/signed/default/frame-time qualification pending. Existing shell and sound acceptance remain open. See docs/reviews/2026-11-11-native-motion-qt-workloads.json | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
 | P2.8 | MoOS Bar, Search and Island as one shell | Island visible-context arrows, Return/Enter and retired-domain correction pass native isolated Qt and signed .1046/.775 qualification; [Actual installed inventories](releases/2026-10-14-running-shell-components.json) show one active Bar per station with one Brand/Island/clock and native KDE task/tray integration; keyboard/render/Orca acceptance remains | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
 | P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
 | P2.10 | Readable text and glyph contrast on every palette | Open / acceptance not complete | All schemes meet role-specific contrast; actual glyph/card/pointer frames instead of token names. |
@@ -471,13 +437,13 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P5.1 | Hardware qualification lab | Open: actual1119 has continuing USB4c6:00.5 timeouts,40NHI WARN and3IOMMU faults; earlier1114 no-repro retained, no proven kernel/dock cause. Current WD19 USB/DP routes are separate; no reset/blacklist/firmware change. Station USB capture overruns and Home Assistant Bluetooth/DHCP/duplicate/first-start faults remain | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
-| P5.2 | Laptop policy | Open / acceptance not complete | Three laptop classes, lid/battery/brightness/power and two suspend cycles each. |
-| P5.3 | Touch/tablet policy | Open / acceptance not complete | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
+| P5.2 | Laptop policy | Nov11 V3 signed1139: canonical balanced-battery readback and unchanged MoKernel pass; short active-desktop power sample is inconclusive. BIOS1.06/no available firmware update; suspend, endurance and repeated boots remain open. See docs/hardware/V3_20261111_AR.md | Three laptop classes, lid/battery/brightness/power and two suspend cycles each. |
+| P5.3 | Touch/tablet policy | Nov11 V3 native Wayland fixture:50 completed touches,1053 moves,4 contacts; KWin tablet mode active. No pen available; SMOCF05 unbound/rotation unavailable. Full edges/gestures/keyboard/suspend acceptance remains open | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
 | P5.4 | Performance budgets per hardware tier | Historical active-workload samples and local index repairs are retained in PROJECT_STATE/evidence; they are not controlled current idle or comparative OS benchmarks. Establish comparable baselines before choosing optimization work | Record workload, power/thermal state, background work, sample count/duration and refresh rate; compare cold/warm launch p50/p95, frame misses, boot, PSS/CPU/wakeups, battery and mixed-engine load. Declare tolerances before the change, repeat against the same baseline and reject material regressions in another critical metric. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
 | P5.6 | Storage lifecycle | Earlier42GiB local OCI commit exhausted disk and crashed Chrome/ChatGPT; real failure/unsaved-state boundary preserved. Scoped build cleanup recovered owner app units without profile deletion. Oct18 owner-delegated retirement removes44,583,870,472 file/cache bytes after cold-success retirement of the1,913,401,344-byte old derived index; superseded generic image+2 exclusive parents yields separately observed3,677,118,464 writable bytes; Bazaar/Chess/temporaryNotepad4 removed with data/prefixes retained. Sources/dirty trees/full bundle/SDKs/databases/17 containers/current signed ISO/rollback survive. About83.5GiB free after new boot/readback. New guarded full image passes60GiB/5GiB preflight and8GiB/1GiB continuous floors. Private helper is not shipped low-space protection; durable build/cache retention/recovery and3 lint warnings remain open | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
 | P5.7 | Qualify kernel policy and driver transitions | Nov3 installed1119 MoKernel15/15 readback and selected TuneD profile agree; current native KWin/Wayland/EIS status is available, not a full device/input journey. New local image7.2.14 is unbooted on hardware. Source adds ARM's missing vendor oomd-defaults, final-image guard and actual native-monitor readback in both disk boot proofs. Eight compose controls, native ARM package install, and bounded native negative/positive pressure controls pass on both stations (256 MiB cap; no kernel OOM; protected sentinel survives). Signed ARM .756 and NVIDIA .1026 are booted and prove actual system/native-user monitoring. System-wide recovery/weak-hardware frame latency remains open | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
-| P5.8 | Qualify Wayland and compositor lifetime | Open / acceptance not complete; Oracle .752 retains bootupd metadata/accountsd SELinux warnings, while bootloader update returns success/latest and no unit fails | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak; review native SELinux warnings without disabling enforcement or guessing labels. |
+| P5.8 | Qualify Wayland and compositor lifetime | Nov11 native control-launch old-dead/fixed-alive and actual immutable Arabic Settings journey pass through canonical app ownership; finite early0/7/refusal controls retained. Same30 display failures remain fatal with unavailable-journal refusal. Full source passes0/1058.893s with frozen inputs; signed acceptance pending. See docs/reviews/2026-11-11-control-launch-display-proof.json. Open / acceptance not complete; Oracle .752 retains bootupd metadata/accountsd SELinux warnings, while bootloader update returns success/latest and no unit fails | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak; review native SELinux warnings without disabling enforcement or guessing labels. |
 
 ## P6 — Long-term release trust
 

@@ -878,7 +878,7 @@ check_failed_units system
 check_failed_units user
 # END failed-unit diagnostics
 
-head_ "The session won its race with the compositor"
+head_ "The session display journal"
 
 # WHAT THIS CATCHES, AND WHY THE CHECK ABOVE CANNOT. The failed-unit check filters
 # drkonqi-coredump-* on purpose: those template units fail as noise. But that filter also
@@ -896,16 +896,26 @@ head_ "The session won its race with the compositor"
 # time and a coredump storm (harmless only because 10-moos-cap.conf caps it at 1G).
 #
 # Boots -4/-3/-2 scored 0 and boots -1/0 scored 8 and 25+, so this is a RACE, not a
-# constant. Zero is the correct expectation; any hit means the session lost it.
-aborts="$(journalctl --user -b --no-pager 2>/dev/null | grep -c "could not connect to display")"
-if [ "${aborts:-0}" -eq 0 ]; then
-    ok "no session process aborted for want of a display"
+# constant. Keep every hit a failure. Later app/tool crashes can produce the
+# same message, however: Nov11's 30 hits were Chromium-owned at +1563..1571s,
+# not session startup. The message alone proves neither a compositor race nor
+# a restart. An unreadable journal is unknown, never a clean session.
+# BEGIN session-display diagnostics
+if display_journal="$(LC_ALL=C journalctl --user -b --no-pager -o short-monotonic 2>/dev/null)"; then
+    aborts="$(printf '%s\n' "$display_journal" | grep -c "could not connect to display" || true)"
+    if [ "${aborts:-0}" -eq 0 ]; then
+        ok "no display-connection failures recorded in the user journal"
+    else
+        bad "$aborts display-connection failure(s) recorded this boot"
+        printf '      review process/unit ownership and timestamps before attributing these to session startup:\n'
+        printf '%s\n' "$display_journal" | grep "could not connect to display" \
+            | sed -E 's/^.* ([a-z0-9_-]+)\[[0-9]+\]:.*/\1/' | sort -u | sed 's/^/      /' | head -8
+    fi
 else
-    bad "$aborts session start(s) aborted with 'could not connect to display' this boot"
-    printf '      the compositor lost its race; these processes SIGABRTed and were restarted:\n'
-    journalctl --user -b --no-pager 2>/dev/null | grep "could not connect to display" \
-        | sed -E 's/^.* ([a-z0-9_-]+)\[[0-9]+\]:.*/\1/' | sort -u | sed 's/^/      /' | head -8
+    bad "user-session display journal is unavailable"
 fi
+unset display_journal
+# END session-display diagnostics
 
 printf '\n\033[1m%d passed, %d failed\033[0m\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

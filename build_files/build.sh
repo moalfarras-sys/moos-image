@@ -4960,6 +4960,7 @@ unset -v _rival_wants
 bash /ctx/verify_settings_modules.sh || exit 1
 
 python3 /ctx/plasma_logout/rpms.py verify
+python3 /ctx/qtquick/rpms.py verify
 python3 /ctx/verify_memory_policy.py --root /
 # The optional wallet must work against final /usr bytes, not only draw a switch.
 bash /ctx/verify_wallet_preference.sh

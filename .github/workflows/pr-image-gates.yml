@@ -30,6 +30,8 @@ on:
       - "Containerfile"
       - "build_files/**"
       - "system_files/**"
+      # The native agent/helper, controller bundle and recovery tests ship in both images.
+      - "moremote/**"
       # MoPlayer is compiled and tested from this in-tree source on both architectures.
       - "moplayer/**"
       # The native System Settings modules compile in the Containerfile's qmlshell-build

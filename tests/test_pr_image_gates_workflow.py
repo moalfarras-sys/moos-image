@@ -19,6 +19,7 @@ stay true of it, and neither is visible in a green run:
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import unittest
 from pathlib import Path
@@ -34,6 +35,26 @@ def code(text: str) -> str:
 
 
 class SameImage(unittest.TestCase):
+    def test_remote_changes_build_both_images_before_merge(self) -> None:
+        for containerfile in ('Containerfile', 'Containerfile.arm'):
+            self.assertIn('COPY moremote/', (ROOT / containerfile).read_text())
+        workflow = code(PR)
+        x86 = workflow[workflow.index('  pull_request:'):workflow.index('  workflow_dispatch:')]
+        arm = code(ARM)
+        trigger = arm[arm.index('on:'):arm.index('\nenv:')]
+        push = trigger[trigger.index('  push:'):trigger.index('  pull_request:')]
+        pull_request = trigger[trigger.index('  pull_request:'):]
+        inputs = ('moremote/agent-linux/PortalBridge.cs',
+                  'moremote/agent-linux/mo-remote-portal.py',
+                  'moremote/tests/MoRemote.Tests/PortalRecoveryTests.cs',
+                  'moremote/controller/package-lock.json')
+        for lane, block in (('x86 PR', x86), ('ARM push', push), ('ARM PR', pull_request)):
+            paths = re.findall(r'^\s*- "([^"]+)"\s*$', block, re.M)
+            for path in inputs:
+                with self.subTest(lane=lane, path=path):
+                    self.assertTrue(any(fnmatch.fnmatchcase(path, pattern) for pattern in paths),
+                                    f'{lane} omits shipped Remote input {path}')
+
     def test_moplayer_changes_build_both_images_before_merge(self) -> None:
         for containerfile in ('Containerfile', 'Containerfile.arm'):
             self.assertIn('COPY moplayer/', (ROOT / containerfile).read_text())

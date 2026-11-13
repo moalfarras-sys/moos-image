@@ -75,6 +75,14 @@ RUN dnf5 -y install --setopt=install_weak_deps=False dbus-daemon \
     && python3 /src/rpms.py collect /work/plasma-logout-rpmbuild/RPMS /out \
     && bash /src/native-proof.sh
 
+# Same Qt lifetime fix and complete vendor spec, compiled on the native ARM runner.
+FROM base AS qtquick-build
+RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
+    'dnf5-command(builddep)' python3 curl qt6-qtdeclarative qt6-qtdeclarative-devel
+COPY build_files/qtquick/ /src/build_files/qtquick/
+RUN bash /src/build_files/qtquick/build.sh prepare
+RUN bash /src/build_files/qtquick/build.sh compile
+
 # Same reviewed vendor source and fix, compiled natively on the ARM runner.
 FROM base AS plymouth-build
 RUN dnf5 -y install --setopt=install_weak_deps=False gcc libasan rpm-build cpio patch \
@@ -318,6 +326,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=system-files,source=/,target=/moos-overlay \
     --mount=type=bind,from=plymouth-build,source=/out,target=/plymouth-rpms \
     --mount=type=bind,from=plasma-logout-build,source=/out,target=/plasma-logout-rpms \
+    --mount=type=bind,from=qtquick-build,source=/out/qtquick,target=/qtquick-rpms \
     --mount=type=cache,sharing=locked,dst=/var/cache \
     --mount=type=cache,sharing=locked,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \

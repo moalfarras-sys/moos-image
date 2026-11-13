@@ -1,0 +1,214 @@
+{
+  "date": "2026-11-11",
+  "base_sha": "d292791f",
+  "plan": [
+    "P0.6",
+    "P2.7",
+    "P4.3",
+    "P5.4",
+    "P5.8"
+  ],
+  "integration_owner": "Codex on physical V3",
+  "installed_release": "44.20261110.1139",
+  "rollback": "1136; pinned1078",
+  "source_status": "development; Qt package qualification running, no signed delivery",
+  "motion": {
+    "name": "MoOS Quiet Lift",
+    "native_effect_api": "KWin JavaScript AnimationEffect; exclusive open/close category",
+    "design": "96% scale/at most18px lift/220ms arrival;98.5% scale/half lift/160ms exit at factor1; shared motion roles",
+    "native_controls": {
+      "stock": {
+        "mode": "old",
+        "events": [
+          "MOOS_NATIVE_WINDOW {\"visible\":true,\"managed\":true,\"normal\":true,\"dialog\":false,\"fullScreen\":false,\"fullEffect\":false,\"time\":220}",
+          "MOOS_NATIVE_ANIMATE {\"duration\":200,\"ids\":[1,2]}",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_CANCEL [1,2]",
+          "MOOS_NATIVE_ANIMATE {\"duration\":200,\"ids\":[3,4]}",
+          "MOOS_NATIVE_WINDOW {\"visible\":true,\"managed\":true,\"normal\":true,\"dialog\":false,\"fullScreen\":false,\"fullEffect\":false,\"time\":220}",
+          "MOOS_NATIVE_ANIMATE {\"duration\":200,\"ids\":[5,6]}",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_CANCEL [5,6]",
+          "MOOS_NATIVE_ANIMATE {\"duration\":200,\"ids\":[7,8]}",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END"
+        ],
+        "private_compositor_alive": true,
+        "owner_session_used": false,
+        "physical_input": false
+      },
+      "fixed": {
+        "mode": "fixed",
+        "events": [
+          "MOOS_NATIVE_WINDOW {\"visible\":true,\"managed\":true,\"normal\":true,\"dialog\":false,\"fullScreen\":false,\"fullEffect\":false,\"time\":220}",
+          "MOOS_NATIVE_ANIMATE {\"duration\":220,\"ids\":[1,2,3]}",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_ANIMATE {\"duration\":160,\"ids\":[4,5,6]}",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_WINDOW {\"visible\":true,\"managed\":true,\"normal\":true,\"dialog\":false,\"fullScreen\":false,\"fullEffect\":false,\"time\":220}",
+          "MOOS_NATIVE_ANIMATE {\"duration\":220,\"ids\":[7,8,9]}",
+          "MOOS_NATIVE_REDIRECT true",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END",
+          "MOOS_NATIVE_END"
+        ],
+        "private_compositor_alive": true,
+        "owner_session_used": false,
+        "physical_input": false
+      },
+      "reduced": {
+        "mode": "reduced",
+        "events": [
+          "MOOS_NATIVE_WINDOW {\"visible\":true,\"managed\":true,\"normal\":true,\"dialog\":false,\"fullScreen\":false,\"fullEffect\":false,\"time\":1}",
+          "MOOS_NATIVE_WINDOW {\"visible\":true,\"managed\":true,\"normal\":true,\"dialog\":false,\"fullScreen\":false,\"fullEffect\":false,\"time\":1}"
+        ],
+        "private_compositor_alive": true,
+        "owner_session_used": false,
+        "physical_input": false
+      },
+      "broken": {
+        "mode": "broken",
+        "events": [],
+        "private_compositor_alive": true,
+        "owner_session_used": false,
+        "physical_input": false
+      }
+    },
+    "initial_refusals": [
+      "fixed-first and fixed-trace lacked events: private instrumentation used print, absent from ScriptedEffect ConsoleExtension; corrected to console.info, production bytes unchanged"
+    ],
+    "live_copy": {
+      "source_base": "d292791f",
+      "prior_loaded_effects": [
+        "shakecursor",
+        "outputlocator",
+        "colorpicker",
+        "zoom",
+        "screenedge",
+        "blur",
+        "sessionquit",
+        "logout",
+        "login",
+        "slidingpopups",
+        "slidingnotifications",
+        "windowaperture",
+        "slide",
+        "squash",
+        "scale",
+        "maximize",
+        "fullscreen",
+        "frozenapp",
+        "fadingpopups",
+        "dimscreen",
+        "windowview",
+        "tileseditor",
+        "overview",
+        "highlightwindow",
+        "blendchanges",
+        "startupfeedback",
+        "systembell",
+        "screentransform",
+        "kscreen"
+      ],
+      "files": [
+        {
+          "path": "/var/home/moos/.local/share/kwin/effects/moos-quiet-lift/metadata.json",
+          "bytes": 930,
+          "sha256": "364d8a64ed55c2b003947d56b9aab299c098f25beae66e59ed99da99f70eadd9"
+        },
+        {
+          "path": "/var/home/moos/.local/share/kwin/effects/moos-quiet-lift/contents/code/main.js",
+          "bytes": 5064,
+          "sha256": "00c6a99a644a63e28cba642095c37836f3ea23305cc5c1577aa91dc9e649a67e"
+        }
+      ],
+      "scope": "new user-local KWin effect, session activation only; no preferences overwritten",
+      "retirement": "normal kpackagetool6 removal after exact matching signed delivery; unload and reload prior scale for immediate session recovery"
+    },
+    "live_state": "loaded on owner KWin; scale unloaded for this session only; unchanged saved settings; activeEffects settles to blur only",
+    "physical_journey": "actual installed Blender project and Windows OpenSCAD launch under current native effect; private captures retained, no physical touch or frame-time claim"
+  },
+  "qt": {
+    "issue": "QTBUG-150769",
+    "upstream": "https://github.com/qt/qtdeclarative/commit/83d091dcb160d3f0c4a8bc9df8b8a9a934ac82a1",
+    "base": "6.11.2-2.fc44",
+    "fixed": "6.11.2-2.1.moos1.fc44",
+    "prepare": {
+      "phase": "prepare",
+      "exit": 0,
+      "seconds": 24.633
+    },
+    "old_native_exit": -11,
+    "build": "complete original vendor RPM passed0/2837.462s; installed image qualification pending",
+    "full_image": "not run yet",
+    "compile_receipt": {
+      "phase": "complete-vendor-rpm",
+      "exit": 0,
+      "seconds": 2837.462
+    }
+  },
+  "workloads": {
+    "blender-cycles": {
+      "app": "5.2.0 LTS",
+      "engine": "CYCLES",
+      "device": "CPU",
+      "samples": 32,
+      "resolution": [
+        1920,
+        1080
+      ],
+      "mesh_objects": 50,
+      "triangles": 1003522,
+      "setup_s": 2.198,
+      "render_s": 51.107,
+      "concurrent_workload": "Qt package compiler:4 CPU/8GiB cap; live desktop",
+      "scope": "native installed Blender production render/save; no claim of GPU or GUI input acceptance"
+    },
+    "blender-reopen": {
+      "reopened": true,
+      "triangles": 1003522,
+      "reopen_s": 0.389,
+      "hip_devices": [
+        {
+          "name": "AMD Ryzen 7 8840U",
+          "type": "CPU"
+        }
+      ],
+      "render_engines": [
+        "BLENDER_EEVEE"
+      ],
+      "eevee_render_s": 3.847,
+      "gpu": {
+        "vendor": "AMD",
+        "renderer": "AMD Radeon 780M Graphics (radeonsi, phoenix, ACO, DRM 3.64, 7.2.15-200.fc44.x86_64)",
+        "backend": "OPENGL"
+      }
+    },
+    "windows-cad": {
+      "app": "OpenSCAD Windows",
+      "version": "2021.01",
+      "exit": 0,
+      "seconds": 88.152,
+      "export_bytes": 6829172,
+      "scope": "publisher Windows CAD binary, installed Wine/prefix and canonical shared lifecycle lease; CLI model import and CGAL STL export",
+      "source_sha256": "4ede6c8d198ea1a3c021c6f408d8183c1c99996bfab2a2f7b68b27436292e995"
+    }
+  },
+  "checks": {
+    "qt_package_boundaries": "10 methods pass",
+    "motion_callbacks": "2 methods pass",
+    "full_source": "pending"
+  },
+  "limitations": [
+    "user-local effect is not signed immutable delivery",
+    "no universal Windows/Android support claim",
+    "fingerprint/rotation/suspend and USB4 remain open",
+    "Blender HIP exposes only CPU, initialization missing HIP dynamic library; Eevee OpenGL is independently measured"
+  ]
+}

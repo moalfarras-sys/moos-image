@@ -190,6 +190,7 @@ python3 /ctx/plymouth_rpms.py install /plymouth-rpms
 
 # Preserve the vendor package ownership and every Plasma/authentication seam.
 python3 /ctx/plasma_logout/rpms.py install /plasma-logout-rpms
+python3 /ctx/qtquick/rpms.py install /qtquick-rpms
 
 # Both ARM images use the same reviewed upstream binary, verified before exec.
 bash /ctx/install_cosign_arm.sh /usr/bin/cosign
@@ -1669,6 +1670,7 @@ rm -rf /var/cache/* /var/log/* /tmp/* || true
 find /var -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'tmp' -exec rm -rf {} + 2>/dev/null || true
 
 python3 /ctx/plasma_logout/rpms.py verify
+python3 /ctx/qtquick/rpms.py verify
 python3 /ctx/finalize_canary_base.py --root /
 python3 /ctx/finalize_dbus_state.py --root /
 python3 /ctx/finalize_image_state.py --root /

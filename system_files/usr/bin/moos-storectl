@@ -2776,6 +2776,62 @@ class Controller:
         with self._windows_lifecycle(app_id) as portable:
             self._install_windows_portable_locked(job, app_id, recipe, portable)
 
+    def _windows_legacy_pin(self, app_id: str, recipe: dict[str, Any], record: dict[str, Any],
+                            portable: Any) -> None:
+        """Only the current immutable catalogue can reconstruct an absent inventory.
+
+        A custom catalogue can install programs, but cannot supply this ownership
+        baseline. Read the native authority independently, without following any
+        ancestor links; a user-written receipt is never a download authority.
+        """
+        if self.catalog_path != DEFAULT_CATALOG or not DEFAULT_CATALOG.is_absolute():
+            raise portable.Error("ownership_unknown")
+        fd = None
+        try:
+            fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            parts = DEFAULT_CATALOG.parts[1:]
+            for index, name in enumerate(parts):
+                parent = os.fstat(fd)
+                if not stat.S_ISDIR(parent.st_mode) or parent.st_uid != 0 or parent.st_mode & 0o022:
+                    raise portable.Error("ownership_unknown")
+                flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+                if index < len(parts) - 1:
+                    flags |= os.O_DIRECTORY
+                child = os.open(name, flags, dir_fd=fd)
+                os.close(fd)
+                fd = child
+            before = os.fstat(fd)
+            limit = 32 * 1024 * 1024
+            # Immutable image files may legitimately have multiple hard links.
+            if (not stat.S_ISREG(before.st_mode) or before.st_uid != 0
+                    or before.st_mode & 0o022 or before.st_size > limit):
+                raise portable.Error("ownership_unknown")
+            with os.fdopen(os.dup(fd), "rb") as stream:
+                payload = stream.read(limit + 1)
+            if len(payload) > limit or portable._identity(os.fstat(fd)) != portable._identity(before):
+                raise portable.Error("ownership_unknown")
+            document = json.loads(payload)
+            apps = document["apps"]
+            if not isinstance(apps, list):
+                raise portable.Error("ownership_unknown")
+            matches = [app for app in apps if isinstance(app, dict) and app.get("id") == app_id]
+            if (len(matches) != 1
+                    or json.dumps(matches[0], sort_keys=True) != json.dumps(recipe, sort_keys=True)):
+                raise portable.Error("ownership_unknown")
+            install = matches[0]["install"]
+            pin = pinned_artifact(app_id, install)
+            expected = {"schema": 1, "id": app_id, "launcher": windows_paths(app_id).launcher.name,
+                        "exe": install["exe"], "version": install["version"],
+                        "url": pin.url, "sha256": pin.sha256}
+            if any(type(record.get(key)) is not type(value) or record.get(key) != value
+                   for key, value in expected.items()):
+                raise portable.Error("ownership_unknown")
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise portable.Error("ownership_unknown") from error
+        finally:
+            if fd is not None:
+                os.close(fd)
+
     def _install_windows_portable_locked(self, job: Job, app_id: str, recipe: dict[str, Any],
                                          portable: Any) -> None:
         """A portable 64-bit Windows program: its own folder, its own prefix, a MoOS launcher.
@@ -2818,6 +2874,7 @@ class Controller:
         previous = paths.base / ".app.previous"
         retained = paths.base / "retained-app"
         retention = paths.base / ".retained.json"
+        record_identity = portable._identity(paths.record.lstat()) if had_record else None
         old_record = portable.read_receipt(paths.record) if had_record else {}
         valid_record = (old_record.get("schema") == 1 and old_record.get("id") == app_id
                         and old_record.get("launcher") == paths.launcher.name
@@ -2827,6 +2884,22 @@ class Controller:
                 or retained.is_symlink() or retention.is_symlink()
                 or (previous.exists() and paths.app.exists())):
             raise portable.Error("ownership_unknown")
+        legacy_inventory = had_record and "publisher_files" not in old_record
+        legacy_receipt_identity = legacy_tree_identity = legacy_snapshot = None
+        if legacy_inventory:
+            # A retained marker or interrupted predecessor lacks the complete
+            # installed provenance needed here. Do not recover/rename it first.
+            if not paths.app.is_dir() or previous.exists() or retained.exists() or retention.exists():
+                raise portable.Error("ownership_unknown")
+            self._windows_legacy_pin(app_id, recipe, old_record, portable)
+            legacy_receipt_identity = record_identity
+
+        def check_legacy_receipt() -> None:
+            if legacy_inventory and (portable.read_receipt(paths.record) != old_record
+                    or portable._identity(paths.record.lstat()) != legacy_receipt_identity):
+                raise portable.Error("data_changed")
+
+        check_legacy_receipt()
         # Recover the last working program before a download can fail or cancel.
         if not paths.app.exists() and previous.exists():
             if not valid_record:
@@ -2849,8 +2922,12 @@ class Controller:
         if source.exists():
             if source == paths.app and not valid_record:
                 raise portable.Error("ownership_unknown")
-            portable.validate_manifest(baseline)
-            portable.snapshot(source, lambda: self._cancelled(job))
+            if not legacy_inventory:
+                portable.validate_manifest(baseline)
+            legacy_tree_identity = portable._identity(source.lstat()) if legacy_inventory else None
+            preflight = portable.snapshot(source, lambda: self._cancelled(job))
+            if legacy_inventory:
+                legacy_snapshot = preflight
         elif had_record or retention.exists():
             raise portable.Error("ownership_unknown")
         # Preserve exact receipts through a failed launcher/record publication too.
@@ -2859,10 +2936,11 @@ class Controller:
             if target.exists() or target.is_symlink():
                 portable._owned(target.lstat())
                 metadata[target] = (target.read_bytes(), stat.S_IMODE(target.stat().st_mode))
+        check_legacy_receipt()
         download = self._download_pinned(job, app_id, pin, kind="windows",
                                          message="Downloading from the publisher",
                                          message_key="downloading_file")
-        swapped = committed = stage_created = False
+        swapped = committed = stage_created = metadata_started = False
         recovery_destination = None
         old_snapshot = None
         try:
@@ -2906,8 +2984,18 @@ class Controller:
             # Inventory the publisher BEFORE carrying any saved files. Repeated
             # updates must never turn the person's document into disposable payload.
             if source.exists():
+                if legacy_inventory:
+                    check_legacy_receipt()
+                    if (portable._identity(source.lstat()) != legacy_tree_identity
+                            or portable.snapshot(source, lambda: self._cancelled(job)) != legacy_snapshot):
+                        raise portable.Error("data_changed")
+                    # Same exact pin: pristine verified publisher bytes are both
+                    # the old baseline and the new payload, before any data copy.
+                    baseline = portable.snapshot(staging, lambda: self._cancelled(job))
                 publisher, old_snapshot = portable.carry(
                     source, staging, baseline, lambda: self._cancelled(job))
+                if legacy_inventory and old_snapshot != legacy_snapshot:
+                    raise portable.Error("data_changed")
                 # Reserve and write the recovery receipt before exposing a new
                 # program/record. An occupied, read-only or full destination must
                 # leave the working installation at its original launch path.
@@ -2929,6 +3017,9 @@ class Controller:
             if self._cancelled(job):
                 raise CancelledError("Cancelled")
             portable.observed_idle(paths.base)
+            check_legacy_receipt()
+            if legacy_inventory and portable._identity(source.lstat()) != legacy_tree_identity:
+                raise portable.Error("data_changed")
             if old_snapshot is not None and portable.snapshot(source) != old_snapshot:
                 raise portable.Error("data_changed")
             if paths.app.exists():
@@ -2939,6 +3030,7 @@ class Controller:
                 app_id, display_text(recipe.get("en"), 80) or app_id,
                 display_text(recipe.get("ar"), 80),
                 str(paths.icon) if has_icon else WINDOWS_FALLBACK_ICON, wm_class, categories)
+            metadata_started = True
             _atomic_bytes(paths.launcher, launcher.encode("utf-8"), 0o644, private_parent=False)
             _write_json(paths.record, {
                 "schema": 1, "id": app_id, "name": display_text(recipe.get("en"), 80) or app_id,
@@ -2980,13 +3072,16 @@ class Controller:
                     original = paths.app if source == paths.app else retained
                     if not original.exists():
                         (recovery_destination / "app").rename(original)
-                for target in (paths.record, paths.launcher):
-                    if target in metadata:
-                        payload, mode = metadata[target]
-                        if not target.is_file() or target.read_bytes() != payload:
-                            _atomic_bytes(target, payload, mode, private_parent=target == paths.record)
-                    elif target.exists() and not target.is_symlink():
-                        target.unlink()
+                # Before publication we own no metadata changes to undo. In
+                # particular, preserve an external edit that triggered refusal.
+                if metadata_started:
+                    for target in (paths.record, paths.launcher):
+                        if target in metadata:
+                            payload, mode = metadata[target]
+                            if not target.is_file() or target.read_bytes() != payload:
+                                _atomic_bytes(target, payload, mode, private_parent=target == paths.record)
+                        elif target.exists() and not target.is_symlink():
+                            target.unlink()
                 if not had_record:
                     # A first install that did not finish leaves nothing of itself behind.
                     with contextlib.suppress(Exception):

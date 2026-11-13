@@ -41,11 +41,23 @@ trap 'rm -rf -- "$work"' EXIT
 # never evidence that no build exists; callers must fail closed rather than
 # dispatching another candidate. Mutation commands stay outside this helper.
 gh_read() {
+    local dispatched_id=""
+    # Only dispatch() supplies this context, after its single successful POST.
+    # A newly returned run can briefly be absent from the run-view endpoint.
+    # Ordinary reads/listings must still treat 404 as a permanent refusal.
+    if [ "${1:-}" = --dispatched-run ]; then
+        if ! [[ "${2:-}" =~ ^[0-9]+$ ]] || [ "${3:-}:${4:-}" != run:view ] \
+            || [ "${5:-}" != "${2:-}" ]; then
+            echo "release-candidate: refusing mismatched dispatched-run read" >&2
+            return 2
+        fi
+        dispatched_id="$2"; shift 2
+    fi
     case "${1:-}:${2:-}" in
         run:view|run:list) ;;
         *) echo "release-candidate: refusing non-metadata retry" >&2; return 2 ;;
     esac
-    local read_dir attempt status=1 delay=2
+    local read_dir attempt retryable status=1 delay=2
     read_dir="$(mktemp -d "$work/read.XXXXXX")" || return 1
     for attempt in 1 2 3; do
         if timeout --kill-after=5s 30s gh "$@" > "$read_dir/out" 2> "$read_dir/err"; then
@@ -57,8 +69,14 @@ gh_read() {
             status=$?
         fi
         cat "$read_dir/err" >&2
-        if [ "$attempt" -eq 3 ] || { [ "$status" -ne 124 ] && [ "$status" -ne 137 ] &&
-            ! grep -Eiq 'HTTP (408|429|5[0-9]{2})|TLS handshake timeout|i/o timeout|connection (reset|refused)|unexpected EOF|temporary failure|no such host|network is unreachable' "$read_dir/err"; }; then
+        retryable=0
+        if [ "$status" -eq 124 ] || [ "$status" -eq 137 ] ||
+            grep -Eiq 'HTTP (408|429|5[0-9]{2})|TLS handshake timeout|i/o timeout|connection (reset|refused)|unexpected EOF|temporary failure|no such host|network is unreachable' "$read_dir/err"; then
+            retryable=1
+        elif [ -n "$dispatched_id" ] && grep -Eiq 'HTTP 404([^0-9]|$)' "$read_dir/err"; then
+            retryable=1
+        fi
+        if [ "$attempt" -eq 3 ] || [ "$retryable" -eq 0 ]; then
             break
         fi
         echo "release-candidate: metadata read failed; retry $((attempt + 1))/3 in ${delay}s" >&2
@@ -71,7 +89,7 @@ gh_read() {
 
 dispatch() {
     local workflow="$1"; shift
-    local output url id
+    local output url id head_sha
     output="$(gh workflow run "$workflow" --ref "$ref" "$@" 2>&1)" || {
         echo "release-candidate: dispatch of $workflow failed: $output" >&2
         return 1
@@ -81,8 +99,13 @@ dispatch() {
     id="${url##*/}"
     # Keep the already-created run visible even if its subsequent GET fails.
     echo "release-candidate: dispatched $workflow run $id: $url" >&2
+    if ! head_sha="$(gh_read --dispatched-run "$id" run view "$id" --json headSha --jq .headSha)" \
+        || [ -z "$head_sha" ] || [ "$head_sha" = null ]; then
+        echo "release-candidate: metadata for created run $id of $workflow is unreadable; refusing redispatch" >&2
+        return 1
+    fi
     # A run for another revision would make every later proof meaningless.
-    [ "$(gh_read run view "$id" --json headSha --jq .headSha)" = "$revision" ] || {
+    [ "$head_sha" = "$revision" ] || {
         echo "release-candidate: run $id of $workflow is not on $revision" >&2
         return 1
     }

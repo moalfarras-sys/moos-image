@@ -361,6 +361,8 @@ the wrong-style control must fail even with the intended Qt colour file. Keep
 existing theme IDs, all input negatives, the user's font/motion choices and exact
 live-copy recovery. Private native pixels are not signed installation or login.
 
+**A zero exit without a destruction marker is not Qt acceptance.** The actual vendor6.11.2-2 official QTBUG-150769 fixture crashes in removeItemChangeListener/ItemView/ListView teardown. A private Quick-only upstream backport returns0 while QML markers remain absent; retain those refusals. A native QQuickView property read and stdio marker establish old139/fixed0 with exact loaded Quick and unchanged vendor Core/Qml. Keep the vendor payload/DSO matches and normalized-timestamp-only rpm-V refusal separate. Private target compilation is not a complete RPM, signed repair, or proof of every physical screen-removal trigger; preserve authentication and canonical package/image/boot gates.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly
@@ -510,6 +512,14 @@ These are not conventions, they are gates. The image build fails if you break th
   `docs/MCP.md`.
 
 ## A green build proves nothing about what the user sees
+
+**A compiled source tree can be missing from a PR's path filter.** Remote-only
+PR282 ran repository, controller and native ARM checks, but never started the
+x86 image gate: `moremote/**` was absent. Preserve that live omission and the
+four executed old-workflow input failures. Both architectures must cover the
+actual agent, Python helper, recovery tests and controller lock; retain the
+unsigned workflow's existing no-publish constraints. A manual gate on the exact
+frozen source qualifies that source, not the missing future PR trigger.
 
 **A light colour scheme is not a complete light Plasma theme.** The native
 launcher fixture selected Light colours while inheriting Aurora's dark Plasma
@@ -1799,3 +1809,14 @@ font-default change. Private headless pixels are not installed desktop input.
 **A healthy live panel still needs protection in the revision migrator.** Selecting a curated Light palette made changed-only appearance detection false; the original boot block would call canonical bar apply over a valid personal tray. Retain actual guarded old-write-attempt/fixed-no-write controls. Before that write, the existing migration owner may preserve only a layout whose installed components and original live session validator pass. Keep personal-theme behaviour, structural repair, strict apply/image checks and every failed/unknown probe distinct; this guarded branch proof is not a full cold boot.
 
 **A design language does not rename the locked family contract.** a5’s actual local/ARM images refused Quiet Glass package names where the identity gate requires exact MoOS UI/Aurora names. Keep those first refusals, restore the original names in generated source and leave all three identity gates unchanged. Source preflight reads the original authoritative name table, not a second allow-list. A no-delta QML/SVG fingerprint record is not a refusal; metadata generations still need their reviewed cache revision.
+
+
+**A detached control process is not a graphical application owner.** Native Nov11 control
+launches lost their child when the short caller unit ended and inherited its C locale.
+Use the existing canonical app launcher, retaining cgroup/session lifetime and a waiting
+client for the finite early-error observation. Keep the actual old-dead/fixed-alive,
+manager-refusal, missing-helper and native0/7 controls plus the real immutable Settings
+Arabic journey. A scoped source PATH is development evidence, never signed installation.
+Display-connection journal failures remain fatal, but a message alone does not identify
+startup or prove a restart: the native30 Chromium-owned failures occurred at+1563..1571s.
+Preserve those failures and refuse unavailable/partial journal queries.
