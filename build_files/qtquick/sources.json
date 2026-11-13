@@ -1,14 +1,17 @@
 {
   "schema": 1,
-  "base": "6.11.2-2.fc44",
-  "fixed": "6.11.2-2.1.moos1.fc44",
+  "base": "6.11.2-3.fc44",
+  "fixed": "6.11.2-3.1.moos1.fc44",
+  "installed_bases": ["6.11.2-2.fc44", "6.11.2-3.fc44"],
   "architectures": ["x86_64", "aarch64"],
-  "source_url": "https://kojipkgs.fedoraproject.org/packages/qt6-qtdeclarative/6.11.2/2.fc44/data/signed/6d9f90a6/src/qt6-qtdeclarative-6.11.2-2.fc44.src.rpm",
-  "source_sha256": "69053ff691edc997c9bc413c4bd5fcec8054c8a25eda3769879f681522ce5bbb",
+  "source_url": "https://kojipkgs.fedoraproject.org/packages/qt6-qtdeclarative/6.11.2/3.fc44/data/signed/6d9f90a6/src/qt6-qtdeclarative-6.11.2-3.fc44.src.rpm",
+  "source_sha256": "315002eaae4e0372b510c75cde822719f72f13fe6a11b27803381d703cef2f9e",
   "source_signer": "36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6",
-  "spec_sha256": "a13f931a3514355ee53f9748433a17304a395c7df814c098c070d43bf62d49f3",
+  "spec_sha256": "c380198f95facfddcc4c3ef2513e2a99169f9c62e4db7a7f45290aa03002dc49",
   "archive_sha256": "215b7b70517e380123eabc6b92243f3c47b6f016a91d126057dbe53551c6b430",
   "upstream_commit": "83d091dcb160d3f0c4a8bc9df8b8a9a934ac82a1",
   "original_itemview_sha256": "6d54e5de003c7c7d152068b963bcdb47400cf4490acedc82fba95714d4cc31dd",
-  "fixed_itemview_sha256": "19a1da7a5c619768a78d294a15295708d4a493e33ad863250b6322e9a4bfbb8f"
+  "fixed_itemview_sha256": "19a1da7a5c619768a78d294a15295708d4a493e33ad863250b6322e9a4bfbb8f",
+  "vendor_pixmap_commit": "7214a32024be080099ad05c596ee778623ed66d8",
+  "fixed_pixmap_sha256": "7429d37b1c930170a18bf0c5a09fc2d17a540c306587529b3c92e421285d30ac"
 }

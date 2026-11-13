@@ -32,12 +32,18 @@ Nov13 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. PR288
 merged as e39495b9, preserving tested34812648 ancestry and exact tree. Local
 source0/1147.113s, complete image0/6095.204s and x86/ARM PR gates pass; direct
 image readback confirms kernel7.3.3 and the fixed native QtQuick RPM/payload.
-Canonical signed x86 build43389925377 and main ARM43389825093 are active.
-Freeze main until the exact artifact boots/promotion; physical update is pending.
-A separate P5 display branch fixes zero-size sysfs EDID identity and refuses
-failed DDC probes without rewriting current policy/stamping success. Ten process
-controls and native old/fixed readback pass; full source/image/CI, signed delivery
-and actual brightness/hotplug acceptance remain separate. See
+Canonical signed x86 build43389925377 failed all three editions on unreviewed Qt -3; the failed attempt is retained without promotion.
+Main ARM43389825093 and PR289 ARM43390997323 refuse the new vendor Qt -3;
+PR x8643390997369 refuses an i686 development-package transaction. The local
+coordinator is stopped to prevent dispatching unchanged ARM source again.
+Review the exact signed -3 source, preserve its pixmap hang fix, retain native
+unpatched itemview SIGSEGV/fixed0 executed marker and qualify the complete combined3.1 RPM before delivery. [Native Qt proof](reviews/2026-11-13-qt-vendor3-proof.json).
+A separate P5 display branch df560 passed full source0/1119.129s. Its local
+image was deliberately stopped after970.029s for newly reproduced virtual-bus
+and exit0-with-stderr errors. Corrected policy proves each virtual DRM owner,
+reads actual EDID bytes and preserves failed/uncertain probes for retry.
+Final integrated source/image/CI, signed delivery and physical brightness/
+hotplug acceptance remain separate. See
 [Nov13 evidence](reviews/2026-11-13-hardware-display-proof.json).
 Production remains independently cosign-verified x861139 (exact8075 tree,
 merged2bf) and ARM917 (2bf). The original first-attempt signed artifact boots and

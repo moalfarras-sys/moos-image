@@ -371,6 +371,17 @@ stamp. Retire only the exact owned drop-in; personal contents, links and untrust
 destinations remain intact. Preserve native old/fixed signatures and false-success
 controls. The existing post-login/daily timer is not immediate hotplug acceptance,
 and a valid unsupported result is not proof of a universal driver limitation.
+A virtual connector still has an EDID: prove every connected output's native
+virtual GPU owner before skipping a physical DDC bus. Mixed or unknown drivers
+must keep the probe. Native ddcutil can return0 plus no displays and bus errors;
+retain bounded stderr as unknown and reap the private process group on refusal.
+
+**A newer vendor Qt release can preserve an older crash.** Signed6.11.2-3 adds
+QuickPixmapReader teardown repair while native itemview teardown still SIGSEGVs.
+Keep both independent upstream fixes, exact signed source/spec/archive readback,
+consistent native transaction inputs and the original crash/executed-marker
+controls. A multilib SDK conflict is not permission to force DNF or loosen RPM
+admission; qualify the actual composed base and architecture-specific packages.
 
 ## Where the rest of the knowledge is
 

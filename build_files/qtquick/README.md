@@ -25,3 +25,19 @@ The native probe requires the reviewed `qt6-qtdeclarative-devel` package in both
 clean build stages, separately from the vendor RPM's own BuildRequires. A reused
 SDK already carrying QQuickView headers is not a clean-stage dependency proof.
 No source or test command installs RPMs on the physical workstation.
+
+The Nov13 native ARM builds refused the newly published vendor
+`6.11.2-3.fc44` before compilation. That source keeps the same upstream archive
+and adds [Qt's QuickPixmapReader teardown fix](https://codereview.qt-project.org/c/qtdeclarative/+/777121)
+(`7214a32024be080099ad05c596ee778623ed66d8`). It repairs a separate shutdown
+hang; the signed vendor -3 runtime still crashes the item-view fixture. The
+reviewed rebuild is now `6.11.2-3.1.moos1.fc44`, retaining both vendor patches
+and checking both affected source files after preparation. Earlier -2 crash,
+fixed -2.1 and image receipts remain historical evidence.
+
+The clean SDK requires native-architecture -3 runtime and development headers.
+The final image transaction may upgrade an internally consistent, exact vendor
+-2 or -3 package set to -3.1, recording the original input. This accommodates a
+composed immutable base lagging the package repository without discarding the
+new vendor fix. Mixed architectures/releases, earlier local rebuilds and unknown
+vendor versions still refuse; no version range or silent downgrade is accepted.

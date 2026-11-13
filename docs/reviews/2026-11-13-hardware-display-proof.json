@@ -77,15 +77,32 @@
     "display_process": "passed",
     "hardware_availability": "passed",
     "hardware_lifecycle": "passed",
-    "full_source": "pending",
-    "image": "pending"
+    "full_source": {
+      "source": "df560bbd2ed7630b29e738c0e948ad644a5de66e",
+      "exit": 0,
+      "seconds": 1119.129,
+      "scope": "earlier source passed; final18-method correction requires fresh full check"
+    },
+    "image": {
+      "state": "deliberately stopped",
+      "seconds": 970.029,
+      "exit": 1,
+      "reason": "obsolete source after independent virtual-DDC/diagnostic review; no image acceptance"
+    }
   },
   "delivery": {
     "prior_batch_pr": 288,
     "merged_revision": "e39495b9644391bce224e4785c4e7de7549be5ca",
     "signed_build_run": 43389925377,
     "arm_run": 43389825093,
-    "state": "running; separate from this display correction"
+    "state": "failed before artifacts/promotion; preserve first attempt, fix source for fresh cycle",
+    "failures": {
+      "signed_x86": 43389925377,
+      "main_arm": 43389825093,
+      "pr289_arm": 43390997323,
+      "pr289_x86": 43390997369
+    },
+    "coordinator": "stopped only own local coordinator; prevented unchanged ARM redispatch"
   },
   "upstream_review": [
     {
@@ -115,5 +132,44 @@
     "No new boot artwork or measured boot speedup",
     "No firmware/bootloader/kernel policy mutation",
     "Source branch not a signed four-edition update"
-  ]
+  ],
+  "followup": {
+    "date": "2026-11-13",
+    "source_base": "df560bbd2ed7630b29e738c0e948ad644a5de66e",
+    "display_process_methods": 18,
+    "status": "passed",
+    "native_no_i2c": {
+      "exit": 1,
+      "confidence": "unknown, no success stamp"
+    },
+    "native_bus_diagnostics": {
+      "exit": 0,
+      "stdout": "No displays found.",
+      "stderr": "inaccessible physical I2C devices in private namespace",
+      "confidence": "unknown, no mutation/stamp"
+    },
+    "old_fixed_controls": {
+      "virtual_no_bus": {
+        "old_exit": 1,
+        "fixed_exit": 0,
+        "fixed_policy": null,
+        "fixed_stamp": true
+      },
+      "exit_zero_with_stderr": {
+        "old_exit": 0,
+        "old_policy": "disabled DDC",
+        "old_stamp": true,
+        "fixed_exit": 1,
+        "fixed_policy": null,
+        "fixed_stamp": false
+      }
+    },
+    "virtual_scope": "each connected output must resolve to native qxl, bochs-drm or virtio_gpu child; passed-through/missing/unknown owners still probe",
+    "bounds": "131072 bytes per stream,30s native timeout/35s deadline, private process group reaped even after leader exits",
+    "native_v3_scope": "probe",
+    "host_mutated": false,
+    "source_sha256": "328414b8b1ba17662a3214a997ea68cf49b7572228f42f898e2887843ac9f4a6",
+    "full_source": "pending",
+    "image": "pending"
+  }
 }

@@ -17,6 +17,7 @@ DEBUG = {NAME + '-debugsource'} | {name + '-debuginfo' for name in PACKAGES}
 QUICK = Path('/usr/lib64/libQt6Quick.so.6.11.2')
 RECEIPT = Path('/usr/share/moos/qtquick-itemview-lifetime.json')
 ITEMVIEW = Path('src/quick/items/qquickitemview.cpp')
+PIXMAP = Path('src/quick/util/qquickpixmapcache.cpp')
 
 
 def require(value, message):
@@ -34,17 +35,21 @@ def sha(path):
 
 def review(base):
     data = json.loads((HERE / 'sources.json').read_text())
-    require(data['schema'] == 1 and base == data['base'] == '6.11.2-2.fc44',
+    require(data['schema'] == 1 and base == data['base'] == '6.11.2-3.fc44',
             f'unreviewed Qt source: {base}')
-    require(data['fixed'] == '6.11.2-2.1.moos1.fc44', 'unexpected Qt fixed NVR')
+    require(data['fixed'] == '6.11.2-3.1.moos1.fc44', 'unexpected Qt fixed NVR')
+    require(data['installed_bases'] == ['6.11.2-2.fc44', '6.11.2-3.fc44'],
+            'unreviewed Qt transaction input')
     require(data['architectures'] == ['x86_64', 'aarch64'], 'unreviewed Qt architecture')
     require(data['upstream_commit'] == '83d091dcb160d3f0c4a8bc9df8b8a9a934ac82a1',
             'unexpected Qt upstream correction')
+    require(data['vendor_pixmap_commit'] == '7214a32024be080099ad05c596ee778623ed66d8',
+            'unexpected Qt vendor pixmap correction')
     require(data['source_signer'] == '36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6',
             'unreviewed Qt publisher key')
     require(data['source_url'] == ('https://kojipkgs.fedoraproject.org/packages/'
-            'qt6-qtdeclarative/6.11.2/2.fc44/data/signed/6d9f90a6/src/'
-            'qt6-qtdeclarative-6.11.2-2.fc44.src.rpm'), 'unreviewed Qt source URL')
+            'qt6-qtdeclarative/6.11.2/3.fc44/data/signed/6d9f90a6/src/'
+            'qt6-qtdeclarative-6.11.2-3.fc44.src.rpm'), 'unreviewed Qt source URL')
     for key, value in data.items():
         if key.endswith('_sha256'):
             require(isinstance(value, str) and re.fullmatch('[a-f0-9]{64}', value), key)
@@ -53,25 +58,27 @@ def review(base):
 
 def architecture():
     arch = command(['rpm', '--eval', '%{_arch}'])
-    require(arch in review('6.11.2-2.fc44')['architectures'], f'unreviewed architecture: {arch}')
+    require(arch in review('6.11.2-3.fc44')['architectures'], f'unreviewed architecture: {arch}')
     return arch
 
 
 def sdk(base):
     data = review(base)
+    arch = architecture()
     for name in (NAME, NAME + '-devel'):
-        require(command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', name]) == data['base'],
+        require(command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE} %{ARCH}\n', name])
+                == f'{data["base"]} {arch}',
                 f'native Qt proof SDK differs from reviewed runtime: {name}')
     require(command(['pkg-config', '--modversion', 'Qt6Quick']) == '6.11.2',
             'native Qt proof requires the reviewed Qt6Quick development package')
 
 
 def prepare_spec(source, destination):
-    data = review('6.11.2-2.fc44')
+    data = review('6.11.2-3.fc44')
     require(sha(source) == data['spec_sha256'], 'vendor Qt spec drift')
     text = source.read_text()
-    require(text.count('Release: 2%{?dist}') == 1, 'vendor Qt release drift')
-    text = text.replace('Release: 2%{?dist}', 'Release: 2.1.moos1%{?dist}')
+    require(text.count('Release: 3%{?dist}') == 1, 'vendor Qt release drift')
+    text = text.replace('Release: 3%{?dist}', 'Release: 3.1.moos1%{?dist}')
     require(text.count('%description\n') == 1 and text.count('%build\n') == 1,
             'vendor Qt spec section drift')
     text = text.replace('%description\n', 'Patch2001: moos-itemview-lifetime.patch\n\n%description\n', 1)
@@ -82,8 +89,11 @@ def prepare_spec(source, destination):
 
 
 def prepared():
-    require(sha(ITEMVIEW) == review('6.11.2-2.fc44')['fixed_itemview_sha256'],
+    data = review('6.11.2-3.fc44')
+    require(sha(ITEMVIEW) == data['fixed_itemview_sha256'],
             'prepared Qt item-view source differs from reviewed upstream backport')
+    require(sha(PIXMAP) == data['fixed_pixmap_sha256'],
+            'prepared Qt pixmap source lost the reviewed vendor backport')
     print('MoOS: exact Qt item-view upstream backport verified')
 
 
@@ -164,10 +174,11 @@ def owned_packages(data, arch):
         if fields[0] not in PACKAGES:
             continue
         name, version, target, source = fields
-        require(name not in owned and version == data['base'] and target == arch
-                and source == f'{NAME}-{data["base"]}.src.rpm', f'installed Qt drift: {row}')
+        require(name not in owned and version in data['installed_bases'] and target == arch
+                and source == f'{NAME}-{version}.src.rpm', f'installed Qt drift: {row}')
         owned[name] = fields
     require(NAME in owned, 'native QtDeclarative runtime is unavailable')
+    require(len({row[1] for row in owned.values()}) == 1, 'mixed installed Qt package inputs')
     return owned
 
 
@@ -205,6 +216,11 @@ def install(folder):
     require(Path('/run/.containerenv').exists() or Path('/.dockerenv').exists(),
             'Qt RPM installation is image-build-only; never mutate the physical host')
     data, manifest, selected = validate_manifest(folder)
+    # The composed base can still carry -2 while the clean SDK has the reviewed
+    # vendor -3. Upgrade either exact, internally consistent input to -3.1;
+    # never downgrade -3 to the earlier -2.1 backport or admit an unknown NVR.
+    input_packages = owned_packages(data, manifest['arch'])
+    input_base = input_packages[NAME][1]
     core = Path('/usr/lib64/libQt6Core.so.6').resolve()
     core_digest = sha(core)
     subprocess.run(['dnf5', '-y', 'install', '--setopt=install_weak_deps=False',
@@ -218,6 +234,7 @@ def install(folder):
     proof = native(folder / 'teardown-probe', folder / 'teardown.qml', QUICK,
                    Path('/usr/lib64/qt6/qml'))
     record = {**data, 'arch': manifest['arch'], 'packages': sorted(selected),
+              'input_base': input_base,
               'quick_sha256': sha(QUICK), 'native_proof': proof}
     RECEIPT.parent.mkdir(parents=True, exist_ok=True)
     RECEIPT.write_text(json.dumps(record, indent=2) + '\n')
@@ -237,6 +254,7 @@ def verify():
     data = review(record['base'])
     require(all(record.get(key) == value for key, value in data.items()), 'Qt final source receipt drift')
     require(record['arch'] == architecture(), 'Qt final architecture drift')
+    require(record['input_base'] in data['installed_bases'], 'Qt final input provenance drift')
     names = record['packages']
     require(isinstance(names, list) and NAME in names and len(set(names)) == len(names)
             and set(names) <= PACKAGES, 'Qt final package set drift')

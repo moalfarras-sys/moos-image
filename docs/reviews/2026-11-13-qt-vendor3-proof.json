@@ -1,0 +1,176 @@
+{
+  "source_sha_before": "df560bbd2ed7630b29e738c0e948ad644a5de66e",
+  "prior_ci_refusals": [
+    43389825093,
+    43390997323
+  ],
+  "signed_source_sha256": "315002eaae4e0372b510c75cde822719f72f13fe6a11b27803381d703cef2f9e",
+  "signer": "36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6",
+  "old_source_exit": 1,
+  "prepared_exit": 0,
+  "spec_changes": [
+    "Release3 to3.1.moos1",
+    "MoOS itemview Patch2001",
+    "pre-build source readback"
+  ],
+  "vendor_spec_sha256": "c380198f95facfddcc4c3ef2513e2a99169f9c62e4db7a7f45290aa03002dc49",
+  "vendor_archive_sha256": "215b7b70517e380123eabc6b92243f3c47b6f016a91d126057dbe53551c6b430",
+  "vendor_runtime_sha256": "02182f619d0af5d89ba05d278214b8ec56399c6f4bf8f26ac9ebfd7207cb595b",
+  "initial_refusals": [
+    "relative LD_LIBRARY_PATH in review caller loaded host Quick; not accepted",
+    "patch not on host PATH; reused existing SDK patch",
+    "incremental link refused absent RPM_ARCH",
+    "incremental link refused absent RPM_PACKAGE_RELEASE; restored all original RPM package-note environment without removing compiler guards"
+  ],
+  "limitations": [
+    "no physical Qt mutation",
+    "full RPM and image/signing/boot qualifications pending"
+  ],
+  "native_fixed_build_log_sha256": "1bd64371f67fa55122fe8a600fc23e3e7cdfd5001810f042ab6e2d099e4ba78c",
+  "resource_scope": {
+    "sdk": "moos-v3-plm-native-sdk",
+    "memory": 8589934592,
+    "cpu_quota": 400000,
+    "cpu_period": 100000,
+    "parallel_jobs": 4
+  },
+  "date": "2026-11-13",
+  "plan": [
+    "P0.6",
+    "P5.8",
+    "P6.7"
+  ],
+  "integration_owner": "Codex",
+  "installed_qt_mutated": false,
+  "native_old": {
+    "exit": -11,
+    "destruction_executed": false,
+    "loaded_quick": "exact extracted signed6.11.2-3 vendor RPM",
+    "quick_sha256": "5c17bb467f8d3e406316575857b9560bd5a055ec1d0ae018dd8a1201cf60f026"
+  },
+  "native_fixed": {
+    "exit": 0,
+    "destruction_executed": true,
+    "scope": "Private incremental Quick target; not complete vendor RPM or image",
+    "quick_sha256": "280511ceba3527dd964e0259a918ca8e28bd4f7fe4b252e091bee6c77c842431",
+    "source": {
+      "src/quick/items/qquickitemview.cpp": "19a1da7a5c619768a78d294a15295708d4a493e33ad863250b6322e9a4bfbb8f",
+      "src/quick/util/qquickpixmapcache.cpp": "7429d37b1c930170a18bf0c5a09fc2d17a540c306587529b3c92e421285d30ac"
+    },
+    "qml_core": "unchanged SDK vendor bytes via exact private symlinks"
+  },
+  "source_admission": {
+    "source": "6.11.2-3.fc44",
+    "fixed": "6.11.2-3.1.moos1.fc44",
+    "image_inputs": [
+      "6.11.2-2.fc44",
+      "6.11.2-3.fc44"
+    ],
+    "mixed_or_unknown": "refused",
+    "tests": {
+      "methods": 13,
+      "exit": 0
+    }
+  },
+  "failed_attempts": {
+    "signed_x86": 43389925377,
+    "main_arm": 43389825093,
+    "pr289_arm": 43390997323,
+    "pr289_x86": 43390997369,
+    "result": "no artifacts promoted",
+    "note": "x86 PR also preserved i686 DNF transaction conflict"
+  },
+  "upstream": [
+    {
+      "url": "https://github.com/qt/qtdeclarative/commit/7214a32024be080099ad05c596ee778623ed66d8",
+      "purpose": "vendor pixmap reader shutdown hang repair retained"
+    },
+    {
+      "url": "https://github.com/qt/qtdeclarative/commit/83d091dcb160d3f0c4a8bc9df8b8a9a934ac82a1",
+      "purpose": "independent item-view dangling entry lifetime repair retained"
+    }
+  ],
+  "qualification": {
+    "full_source": "pending",
+    "complete_rpm": "pending",
+    "image": "pending",
+    "signed_artifact_boots": "pending",
+    "installed": "unchanged1139"
+  },
+  "native_sdk_transaction": {
+    "schema": 1,
+    "recorded_at": "2026-11-13T11:56:15.303138+00:00",
+    "scope": "x86_64 native Qt SDK DNF transaction only; no full RPM/image/signed/installed or ARM qualification",
+    "upstream_base": "sha256:c748808b58a8dedcb1f5cb24bf74437096ab89289ca7c5df1ab0ec0449906c2f",
+    "composed_base": "sha256:3b48018439c773736310926c4609af43959df249410d2d8ecc3889a73fc867cd",
+    "preserved_ci_failure": {
+      "path": "test-results/execution-20261113/pr289-x86-failed.log",
+      "lines": [
+        28003,
+        28006,
+        28635,
+        28638
+      ],
+      "outcome": "failed",
+      "reason": "matching native devel-3 absent from stage metadata; unqualified request selects i686 devel-2 and conflicts with native declarative-3 and qtbase-devel"
+    },
+    "raw_base_original": {
+      "exit_code": 0,
+      "outcome": "no-repro",
+      "runtime": "6.11.2-2.fc44.x86_64",
+      "devel": "6.11.2-2.fc44.x86_64"
+    },
+    "composed_base_original": {
+      "dnf_exit_code": 0,
+      "fixture_exit_code": 1,
+      "outcome": "no-repro retained; fixture refused the expected-old-failure assertion",
+      "runtime": "6.11.2-3.fc44.x86_64",
+      "devel": "6.11.2-3.fc44.x86_64",
+      "subsequent_fixed_command": "exit0 no-op; not independent fixed proof"
+    },
+    "fresh_fixed_transaction": {
+      "exit_code": 0,
+      "outcome": "passed",
+      "command_source": "Containerfile qtquick-build first RUN, extracted verbatim",
+      "runtime": "6.11.2-3.fc44.x86_64",
+      "devel": "6.11.2-3.fc44.x86_64",
+      "qtbase_devel": "6.11.2-3.fc44.x86_64",
+      "marker": "MOOS_NATIVE_SDK_FIXED_FRESH_PASS",
+      "package_download_count": 77
+    },
+    "limits": {
+      "memory": "3g",
+      "memory_swap": "3g",
+      "cpus": 2,
+      "disposable_container": true,
+      "host_packages_changed": false
+    },
+    "checks": {
+      "shell_line_continuations": 0,
+      "git_diff_check": 0
+    },
+    "limitations": [
+      "Current mirrors supply native devel-3, so original CI solver failure was not reproduced locally.",
+      "Native requests prevent i686 fallback but do not override missing or incompatible packages; such metadata must still fail.",
+      "ARM stanza uses native rpm architecture but ARM native transaction not executed in this proof."
+    ],
+    "files": {
+      "Containerfile": "d1113e7b5e1c59acc44ebcd70de44a8daad00e4f05a4e859ca5e3159a78dc0f1",
+      "Containerfile.arm": "496b6031bc69ac7f2a8b0ade7738c1d70eb12457f5015f8d6df6c3ef4f4dfec9"
+    },
+    "logs": {
+      "local-original.log": {
+        "path": "test-results/execution-20261113/qtquick-sdk-native/local-original.log",
+        "sha256": "9a2221704bdde066a98cd043afc4d7916d93b49aa5cb96602731d54ce797e624"
+      },
+      "old-fixed.log": {
+        "path": "test-results/execution-20261113/qtquick-sdk-native/old-fixed.log",
+        "sha256": "c802d937d5858910a4a200395e74c7dbe8468ab8fc10d05d6b708e388b23b99b"
+      },
+      "fixed-fresh.log": {
+        "path": "test-results/execution-20261113/qtquick-sdk-native/fixed-fresh.log",
+        "sha256": "ff0653980eb6b8ca6b26f8361b090d3c69a5fb5faa9a67857cdf9b28a8648dcc"
+      }
+    }
+  }
+}
