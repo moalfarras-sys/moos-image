@@ -91,7 +91,7 @@ esac
 
 def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes: int = 0,
             show_fails: bool = False, optional_state: str = "not-found",
-            intel: bool = False, enable_fails: bool = False, script=SCRIPT) -> dict:
+            intel: bool = False, enable_fails: bool = False, script=SCRIPT, prepare=None) -> dict:
     tmp = Path(tempfile.mkdtemp(prefix="hwadapt-zram-"))
     root, sysfs, procfs, bindir = tmp / "root", tmp / "sys", tmp / "proc", tmp / "bin"
     for d in (root / "etc", root / "run", sysfs / "class/power_supply", sysfs / "bus/pci/devices",
@@ -149,6 +149,8 @@ def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes:
         path = bindir / name
         path.write_text(body)
         path.chmod(0o755)
+    if prepare is not None:
+        prepare(tmp, env)
     result = subprocess.run([str(bindir / "bash"), str(script)], env=env,
                             capture_output=True, text=True, timeout=60)
     log = tmp / "calls.log"
@@ -156,6 +158,7 @@ def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes:
     return {
         "tmp": tmp,
         "root": root,
+        "env": env,
         "result": result,
         "calls": [line for line in lines if not line.startswith("FAILED ")],
         "refused": [line[len("FAILED "):] for line in lines if line.startswith("FAILED ")],

@@ -1,0 +1,119 @@
+{
+  "source_base": "348126483feb33e13b8747461483aae44c9cfb65",
+  "host_mutated": false,
+  "native_edid": [
+    {
+      "connector": "card1-DP-11",
+      "stat_size": 0,
+      "bytes": 256,
+      "sha256": "6b1006fdc2c4c7b82b9a56cde5f0db08e3f178d928b93583d9e8bb5cf974b118"
+    },
+    {
+      "connector": "card1-eDP-1",
+      "stat_size": 0,
+      "bytes": 256,
+      "sha256": "10c6711daf6277860a5f9e74cf6715c08a6ab0c3b591df7d28a6e6e608df1c34"
+    }
+  ],
+  "old_fixed": {
+    "old": {
+      "native_signature_exit": 0,
+      "native_signature": "card1-DP-11:no-edid,card1-eDP-1:no-edid,",
+      "timeout": {
+        "exit": 0,
+        "stamp": true,
+        "policy": "# Written by moos-hardware-adapt: no DDC/CI display answered on this\n# machine, and probing for one cost 6.5s of every login. Reversible —\n# delete this file (or attach a DDC-capable monitor and bump HW_REV).\n[Service]\nEnvironment=POWERDEVIL_NO_DDCUTIL=1\n"
+      },
+      "failed_partial": {
+        "exit": 0,
+        "stamp": true,
+        "policy": null
+      },
+      "custom_policy": {
+        "exit": 0,
+        "stamp": true,
+        "policy": null
+      }
+    },
+    "fixed": {
+      "native_signature_exit": 0,
+      "native_signature": "card1-DP-11:6b1006fdc2c4c7b82b9a56cde5f0db08e3f178d928b93583d9e8bb5cf974b118,card1-Writeback-1:unknown,card1-eDP-1:10c6711daf6277860a5f9e74cf6715c08a6ab0c3b591df7d28a6e6e608df1c34,",
+      "timeout": {
+        "exit": 1,
+        "stamp": false,
+        "policy": null
+      },
+      "failed_partial": {
+        "exit": 1,
+        "stamp": false,
+        "policy": null
+      },
+      "custom_policy": {
+        "exit": 0,
+        "stamp": true,
+        "policy": "[Service]\nEnvironment=PERSONAL=1\n"
+      }
+    }
+  },
+  "date": "2026-11-13",
+  "plan": [
+    "P5.1",
+    "P5.7"
+  ],
+  "integration_owner": "Codex",
+  "booted_version": "44.20261110.1139",
+  "kernel": "7.2.15-200.fc44.x86_64",
+  "display": "DP-11 3840x2160@60 scale2.5; internal panel connected/disabled",
+  "native_ddc": {
+    "version": "3.0.2",
+    "exit": 0,
+    "valid_displays": 0,
+    "invalid_displays": 2,
+    "stderr_bytes": 0,
+    "meaning": "No DDC display answered this probe; physical support/brightness remains unqualified"
+  },
+  "tests": {
+    "display_process_methods": 10,
+    "display_process": "passed",
+    "hardware_availability": "passed",
+    "hardware_lifecycle": "passed",
+    "full_source": "pending",
+    "image": "pending"
+  },
+  "delivery": {
+    "prior_batch_pr": 288,
+    "merged_revision": "e39495b9644391bce224e4785c4e7de7549be5ca",
+    "signed_build_run": 43389925377,
+    "arm_run": 43389825093,
+    "state": "running; separate from this display correction"
+  },
+  "upstream_review": [
+    {
+      "url": "https://www.kernel.org/",
+      "observed": "Stable7.3.4 published2026-11-10;7.2.15 upstream EOL. Current native MoOS base carries vendor7.3.3, already locally built. Qualify it through signed image/artifact delivery; raw upstream tarball is not a signed downstream kernel."
+    },
+    {
+      "url": "https://docs.kernel.org/filesystems/sysfs.html",
+      "observed": "Kernel attribute reads invoke native callbacks; native EDID byte readback, not inode size, determines identity."
+    },
+    {
+      "url": "https://lvfs.readthedocs.io/en/latest/security.html",
+      "observed": "Keep vendor-ID matching and signed LVFS metadata. Automatic metadata/device discovery is distinct from applying device firmware."
+    },
+    {
+      "url": "https://github.com/rockowitz/ddcutil/issues/653",
+      "observed": "Upstream reports3.x DP-to-HDMI detection regressions. This is a lead, not proof of the V3 dock/monitor root cause; no speculative downgrade or DDC override applied."
+    },
+    {
+      "url": "https://freedesktop.org/software/systemd/man/latest/systemd-analyze.html",
+      "observed": "Use critical-chain/time with service dependency context. Current21.759s sample is not a repeatable performance comparison."
+    }
+  ],
+  "limitations": [
+    "No installed adapter mutation or hardware brightness acceptance",
+    "No new instant hotplug daemon; existing timer notices changed identity at its next run",
+    "No new boot artwork or measured boot speedup",
+    "No firmware/bootloader/kernel policy mutation",
+    "Source branch not a signed four-edition update"
+  ]
+}

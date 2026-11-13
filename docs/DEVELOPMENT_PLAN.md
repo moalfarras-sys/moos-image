@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-12. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-13. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -28,20 +28,26 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-Nov12 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. Current
-source joins all previously unique branches: native control-launch/display
-confidence, exact QtQuick lifetime backport, selectable Quiet Lift, Windows
-same-pin legacy data preservation, bounded fresh-dispatch metadata recovery
-and Remote image-path coverage. The combined source is not signed delivery.
-Freeze one final SHA after integration, run `just check` and a full current-base
-local image, then PR gates and the single canonical release cycle.
-
+Nov13 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. PR288
+merged as e39495b9, preserving tested34812648 ancestry and exact tree. Local
+source0/1147.113s, complete image0/6095.204s and x86/ARM PR gates pass; direct
+image readback confirms kernel7.3.3 and the fixed native QtQuick RPM/payload.
+Canonical signed x86 build43389925377 and main ARM43389825093 are active.
+Freeze main until the exact artifact boots/promotion; physical update is pending.
+A separate P5 display branch fixes zero-size sysfs EDID identity and refuses
+failed DDC probes without rewriting current policy/stamping success. Ten process
+controls and native old/fixed readback pass; full source/image/CI, signed delivery
+and actual brightness/hotplug acceptance remain separate. See
+[Nov13 evidence](reviews/2026-11-13-hardware-display-proof.json).
 Production remains independently cosign-verified x861139 (exact8075 tree,
 merged2bf) and ARM917 (2bf). The original first-attempt signed artifact boots and
 promotions are complete; do not repeat that old cycle. V3 currently boots1139
 with signed1136 rollback and pinned1078. Native kernel7.2.15, KWin6.8.2-3 and
 vendor Qt6.11.2-2 are installed; the pending source backport is not on the host.
-A timed-out DrKonqi processing unit is retained, not reset to manufacture health.
+The current Nov13 boot is21.759s; a global kernel OOM killed a Java process in
+an editor scope under mixed workload. The invoking qemu thread is not proof of
+sole cause; preserve the failure and keep local builds bounded. No speculative
+oomd/sysctl/driver policy change or claimed boot speedup follows from one sample.
 The Nov11 scheduled ARM43043346615 failed runner DNS before images; no retry
 or promotion was performed from it.
 
