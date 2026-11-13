@@ -260,6 +260,7 @@ check:
     python3 tests/test_firewall_migration.py
     python3 tests/test_hardware_adapt_lifecycle.py
     python3 tests/test_hardware_adapt_zram_availability.py
+    python3 tests/test_hardware_display_probe.py
     # Execute the real signed-origin parser against rpm-ostree-shaped fixtures;
     # string checks cannot detect a JSON path that is absent on deployed MoOS.
     python3 tests/test_moos_verify_origin.py

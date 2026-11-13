@@ -77,8 +77,11 @@ RUN dnf5 -y install --setopt=install_weak_deps=False dbus-daemon \
 
 # Same Qt lifetime fix and complete vendor spec, compiled on the native ARM runner.
 FROM base AS qtquick-build
-RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
-    'dnf5-command(builddep)' python3 curl qt6-qtdeclarative qt6-qtdeclarative-devel
+# Resolve the native RPM architecture, keeping this SDK identical in scope to x86.
+RUN qtquick_arch="$(rpm --eval '%{_arch}')" \
+    && dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
+        'dnf5-command(builddep)' python3 curl \
+        "qt6-qtdeclarative.${qtquick_arch}" "qt6-qtdeclarative-devel.${qtquick_arch}"
 COPY build_files/qtquick/ /src/build_files/qtquick/
 RUN bash /src/build_files/qtquick/build.sh prepare
 RUN bash /src/build_files/qtquick/build.sh compile

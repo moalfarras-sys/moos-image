@@ -363,6 +363,26 @@ live-copy recovery. Private native pixels are not signed installation or login.
 
 **A zero exit without a destruction marker is not Qt acceptance.** The actual vendor6.11.2-2 official QTBUG-150769 fixture crashes in removeItemChangeListener/ItemView/ListView teardown. A private Quick-only upstream backport returns0 while QML markers remain absent; retain those refusals. A native QQuickView property read and stdio marker establish old139/fixed0 with exact loaded Quick and unchanged vendor Core/Qml. Keep the vendor payload/DSO matches and normalized-timestamp-only rpm-V refusal separate. Private target compilation is not a complete RPM, signed repair, or proof of every physical screen-removal trigger; preserve authentication and canonical package/image/boot gates.
 
+**A zero-size sysfs EDID is not an empty display identity.** Native V3 reads
+256 bytes from each connected display despite stat size0. Read bounded bytes;
+retain missing/empty versus failed/changed read confidence. A failed or timed-out
+DDC probe must preserve current policy and remain retryable without a success
+stamp. Retire only the exact owned drop-in; personal contents, links and untrusted
+destinations remain intact. Preserve native old/fixed signatures and false-success
+controls. The existing post-login/daily timer is not immediate hotplug acceptance,
+and a valid unsupported result is not proof of a universal driver limitation.
+A virtual connector still has an EDID: prove every connected output's native
+virtual GPU owner before skipping a physical DDC bus. Mixed or unknown drivers
+must keep the probe. Native ddcutil can return0 plus no displays and bus errors;
+retain bounded stderr as unknown and reap the private process group on refusal.
+
+**A newer vendor Qt release can preserve an older crash.** Signed6.11.2-3 adds
+QuickPixmapReader teardown repair while native itemview teardown still SIGSEGVs.
+Keep both independent upstream fixes, exact signed source/spec/archive readback,
+consistent native transaction inputs and the original crash/executed-marker
+controls. A multilib SDK conflict is not permission to force DNF or loosen RPM
+admission; qualify the actual composed base and architecture-specific packages.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly

@@ -60,7 +60,7 @@ class PackageAdmission(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.folder = Path(self.temp.name)
-        self.data = rpm.review("6.11.2-2.fc44")
+        self.data = rpm.review("6.11.2-3.fc44")
         self.manifest = {**self.data, "arch": "x86_64", "packages": [],
                          "quick_sha256": "a" * 64,
                          "native_proof": {"exit": 0, "destruction_executed": True}}
@@ -130,15 +130,55 @@ class PackageAdmission(unittest.TestCase):
             self.validate(metadata=lambda path: [path.stem, self.data["fixed"], "aarch64", "bad.src.rpm"])
 
     def test_unknown_installed_base_is_not_downgraded(self):
-        for value in ("6.11.2-3.fc44", "6.12.0-1.fc44", "", self.data["fixed"]):
+        # -2 remains a reviewed transaction input, never the new SDK/source.
+        for value in ("6.11.2-2.fc44", "6.11.2-4.fc44", "6.12.0-1.fc44", "", self.data["fixed"]):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 rpm.review(value)
 
+    def test_exact_old_and_current_vendor_inputs_upgrade_without_mixed_packages(self):
+        def row(name, version, arch="x86_64", source=None):
+            return f"{name} {version} {arch} {source or 'qt6-qtdeclarative-' + version + '.src.rpm'}"
+        for version in ("6.11.2-2.fc44", "6.11.2-3.fc44"):
+            rows = "\n".join(row(name, version) for name in (rpm.NAME, rpm.NAME + "-devel"))
+            with self.subTest(version=version), patch.object(rpm, "command", return_value=rows):
+                owned = rpm.owned_packages(self.data, "x86_64")
+                self.assertEqual({value[1] for value in owned.values()}, {version})
+        base = row(rpm.NAME, "6.11.2-3.fc44")
+        refused = (
+            row(rpm.NAME, "6.11.2-4.fc44"),
+            row(rpm.NAME, "6.12.0-1.fc44"),
+            row(rpm.NAME, "6.11.2-2.1.moos1.fc44"),
+            row(rpm.NAME, self.data["fixed"]),
+            row(rpm.NAME, "6.11.2-3.fc44", "i686"),
+            row(rpm.NAME, "6.11.2-3.fc44", source="unknown.src.rpm"),
+            base + "\n" + row(rpm.NAME + "-devel", "6.11.2-2.fc44"),
+            base + "\n" + row(rpm.NAME, "6.11.2-3.fc44", "i686"),
+            base + "\n" + base,
+            row(rpm.NAME + "-devel", "6.11.2-3.fc44"),
+        )
+        for rows in refused:
+            with self.subTest(rows=rows), patch.object(rpm, "command", return_value=rows):
+                with self.assertRaises(ValueError):
+                    rpm.owned_packages(self.data, "x86_64")
+
+    def test_prepared_source_keeps_both_independent_teardown_repairs(self):
+        def digest(path):
+            return self.data["fixed_itemview_sha256" if path == rpm.ITEMVIEW else "fixed_pixmap_sha256"]
+        with patch.object(rpm, "sha", side_effect=digest):
+            rpm.prepared()
+        for missing in (rpm.ITEMVIEW, rpm.PIXMAP):
+            with self.subTest(missing=missing), patch.object(
+                    rpm, "sha", side_effect=lambda path: "0" * 64 if path == missing else digest(path)):
+                with self.assertRaises(ValueError):
+                    rpm.prepared()
+
     def test_native_probe_requires_exact_development_headers(self):
         def available(argv):
-            return "6.11.2" if argv[0] == "pkg-config" else "6.11.2-2.fc44"
+            if argv[:2] == ["rpm", "--eval"]:
+                return "x86_64"
+            return "6.11.2" if argv[0] == "pkg-config" else "6.11.2-3.fc44 x86_64"
         with patch.object(rpm, "command", side_effect=available):
-            rpm.sdk("6.11.2-2.fc44")
+            rpm.sdk("6.11.2-3.fc44")
         for missing in ("qt6-qtdeclarative-devel", "Qt6Quick"):
             def refusal(argv):
                 if missing in argv:
@@ -146,10 +186,16 @@ class PackageAdmission(unittest.TestCase):
                 return available(argv)
             with self.subTest(missing=missing), patch.object(rpm, "command", side_effect=refusal):
                 with self.assertRaises(subprocess.CalledProcessError):
-                    rpm.sdk("6.11.2-2.fc44")
+                    rpm.sdk("6.11.2-3.fc44")
         with patch.object(rpm, "command", return_value="6.12.0-1.fc44"):
             with self.assertRaises(ValueError):
-                rpm.sdk("6.11.2-2.fc44")
+                rpm.sdk("6.11.2-3.fc44")
+        for runtime in ("6.11.2-2.fc44 x86_64", "6.11.2-3.fc44 i686",
+                        "6.11.2-3.fc44 x86_64\n6.11.2-3.fc44 i686"):
+            with self.subTest(runtime=runtime), patch.object(
+                    rpm, "command", side_effect=lambda argv: runtime if argv[-1] == rpm.NAME else available(argv)):
+                with self.assertRaises(ValueError):
+                    rpm.sdk("6.11.2-3.fc44")
         for filename in ("Containerfile", "Containerfile.arm"):
             stage = (ROOT / filename).read_text().split("FROM base AS qtquick-build\n", 1)[1].split("\nFROM ", 1)[0]
             self.assertIn("qt6-qtdeclarative-devel", stage.split("RUN bash", 1)[0])

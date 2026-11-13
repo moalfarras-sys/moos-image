@@ -130,6 +130,7 @@ python3 tests/test_pr_image_gates_workflow.py
 python3 tests/test_firewall_migration.py
 python3 tests/test_hardware_adapt_lifecycle.py
 python3 tests/test_hardware_adapt_zram_availability.py
+python3 tests/test_hardware_display_probe.py
 python3 tests/test_moos_verify_origin.py
 python3 tests/test_theme_shadow_cleanup.py
 python3 tests/test_docs_privacy.py

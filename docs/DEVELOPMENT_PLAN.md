@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-12. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-13. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -28,20 +28,32 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-Nov12 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. Current
-source joins all previously unique branches: native control-launch/display
-confidence, exact QtQuick lifetime backport, selectable Quiet Lift, Windows
-same-pin legacy data preservation, bounded fresh-dispatch metadata recovery
-and Remote image-path coverage. The combined source is not signed delivery.
-Freeze one final SHA after integration, run `just check` and a full current-base
-local image, then PR gates and the single canonical release cycle.
-
+Nov13 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. PR288
+merged as e39495b9, preserving tested34812648 ancestry and exact tree. Local
+source0/1147.113s, complete image0/6095.204s and x86/ARM PR gates pass; direct
+image readback confirms kernel7.3.3 and the fixed native QtQuick RPM/payload.
+Canonical signed x86 build43389925377 failed all three editions on unreviewed Qt -3; the failed attempt is retained without promotion.
+Main ARM43389825093 and PR289 ARM43390997323 refuse the new vendor Qt -3;
+PR x8643390997369 refuses an i686 development-package transaction. The local
+coordinator is stopped to prevent dispatching unchanged ARM source again.
+Review the exact signed -3 source, preserve its pixmap hang fix, retain native
+unpatched itemview SIGSEGV/fixed0 executed marker and qualify the complete combined3.1 RPM before delivery. [Native Qt proof](reviews/2026-11-13-qt-vendor3-proof.json).
+A separate P5 display branch df560 passed full source0/1119.129s. Its local
+image was deliberately stopped after970.029s for newly reproduced virtual-bus
+and exit0-with-stderr errors. Corrected policy proves each virtual DRM owner,
+reads actual EDID bytes and preserves failed/uncertain probes for retry.
+Final integrated source/image/CI, signed delivery and physical brightness/
+hotplug acceptance remain separate. See
+[Nov13 evidence](reviews/2026-11-13-hardware-display-proof.json).
 Production remains independently cosign-verified x861139 (exact8075 tree,
 merged2bf) and ARM917 (2bf). The original first-attempt signed artifact boots and
 promotions are complete; do not repeat that old cycle. V3 currently boots1139
 with signed1136 rollback and pinned1078. Native kernel7.2.15, KWin6.8.2-3 and
 vendor Qt6.11.2-2 are installed; the pending source backport is not on the host.
-A timed-out DrKonqi processing unit is retained, not reset to manufacture health.
+The current Nov13 boot is21.759s; a global kernel OOM killed a Java process in
+an editor scope under mixed workload. The invoking qemu thread is not proof of
+sole cause; preserve the failure and keep local builds bounded. No speculative
+oomd/sysctl/driver policy change or claimed boot speedup follows from one sample.
 The Nov11 scheduled ARM43043346615 failed runner DNS before images; no retry
 or promotion was performed from it.
 

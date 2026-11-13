@@ -31,7 +31,7 @@ set -uo pipefail
 
 # Revision 4 replaces the image-digest stamp with a hardware-policy signature and
 # stops overriding the power profile selected by the owner/desktop environment.
-HW_REV=5
+HW_REV=6
 
 ROOT="${MOOS_HW_ROOT:-}"
 STATE="${MOOS_HW_STATE:-${ROOT}/etc/moos/hardware-adapt.state}"
@@ -152,26 +152,97 @@ has_intel_gpu=0; case "$gpu_vendors" in *0x8086*) has_intel_gpu=1 ;; esac
 booted_img="$(booted_image)"
 is_nvidia_edition=0; case "$booted_img" in *moos-nvidia*) is_nvidia_edition=1 ;; esac
 
-# Include connected-display identity because the DDC decision below changes when
-# a monitor is replaced or hot-plugged. Missing EDID is still a stable connector
-# identity. Sorting makes the signature independent of sysfs enumeration order.
-display_signature="$({
-    for status in "$SYS"/class/drm/card*-*/status; do
-        [ -r "$status" ] || continue
-        [ "$(cat "$status" 2>/dev/null)" = "connected" ] || continue
-        connector="$(basename "${status%/status}")"
-        edid="${status%/status}/edid"
-        if [ -s "$edid" ]; then
-            printf '%s:%s\n' "$connector" "$(sha256sum "$edid" 2>/dev/null | awk '{print $1}')"
-        else
-            printf '%s:no-edid\n' "$connector"
-        fi
-    done
-} | sort | tr '\n' ',' )"
-display_signature="${display_signature:-none}"
+# Sysfs EDID attributes report st_size=0 even with a real monitor's bytes.
+# Read them, bounded to the EDID maximum (base + 255 extension blocks), rather
+# than using -s. Unreadable/changing detection must not become a success stamp.
+read_display_signature() {
+    python3 - "$SYS" <<'PY'
+import hashlib
+from pathlib import Path
+import sys
+
+rows = []
+try:
+    for status in sorted((Path(sys.argv[1]) / 'class/drm').glob('card*-*/status')):
+        state = status.read_text().strip()
+        if state == 'disconnected':
+            continue
+        if state == 'unknown':
+            rows.append(status.parent.name + ':unknown')
+            continue
+        if state != 'connected':
+            raise ValueError('unknown connector state')
+        try:
+            with status.with_name('edid').open('rb') as stream:
+                data = stream.read(32769)
+        except FileNotFoundError:
+            data = b''
+        if len(data) > 32768 or status.read_text().strip() != state:
+            raise ValueError('oversized EDID or changed connector')
+        identity = hashlib.sha256(data).hexdigest() if data else 'no-edid'
+        rows.append(status.parent.name + ':' + identity)
+except (OSError, ValueError):
+    sys.exit('display identity unavailable; retry required')
+print(','.join(rows) + ',' if rows else 'none')
+PY
+}
+if ! display_signature="$(read_display_signature)"; then
+    log "display identity unavailable — preserving hardware policy for retry"
+    exit 1
+fi
+# DDC is a physical-monitor protocol. Virtual DRM outputs still have a connected
+# EDID, but virtio/QXL/Bochs have no physical I2C monitor bus. Prove their native
+# driver ownership rather than treating a missing /dev/i2c node as healthy.
+# A VM can contain a passed-through physical GPU: every connected output must
+# qualify separately. Unknown outputs/drivers retain the normal probe/refusal.
+read_ddc_scope() {
+    python3 - "$SYS" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+root = Path(sys.argv[1])
+drm = root / 'class/drm'
+virtual_pci = {root / 'bus/pci/drivers/qxl', root / 'bus/pci/drivers/bochs-drm'}
+virtio_gpu = root / 'bus/virtio/drivers/virtio_gpu'
+scope = 'none'
+try:
+    for status in sorted(drm.glob('card*-*/status')):
+        state = status.read_text().strip()
+        name = status.parent.name
+        # DRM writeback connectors are capture destinations, not monitors.
+        if state == 'disconnected' or re.fullmatch(r'card[0-9]+-Writeback-[0-9]+', name):
+            continue
+        if state != 'connected':
+            scope = 'probe'
+            break
+        device = drm / name.split('-', 1)[0] / 'device'
+        try:
+            driver = (device / 'driver').resolve(strict=True)
+            virtual = driver in virtual_pci
+            # virtgpu_drv.c assigns DRM to the transport parent. On PCI/MMIO,
+            # device/driver names the transport; its bound virtio child owns GPU.
+            if not virtual:
+                virtual = any((child / 'driver').resolve(strict=True) == virtio_gpu
+                              for child in device.glob('virtio[0-9]*'))
+        except OSError:
+            virtual = False
+        if not virtual:
+            scope = 'probe'
+            break
+        scope = 'virtual'
+except (OSError, RuntimeError):
+    sys.exit('DDC/CI topology unavailable; retry required')
+print(scope)
+PY
+}
+if ! ddc_scope="$(read_ddc_scope)"; then
+    log "DDC/CI topology unavailable — preserving hardware policy for retry"
+    exit 1
+fi
 gpu_signature="$(printf '%s\n' $gpu_vendors 2>/dev/null | sed '/^$/d' | sort -u | tr '\n' ',' )"
 gpu_signature="${gpu_signature:-none}"
-want_stamp="rev=${HW_REV} cpu=${cpu_vendor:-unknown} ram=${mem_gib} chassis=${chassis:-unknown} battery=${have_battery} gpu=${gpu_signature} display=${display_signature}"
+want_stamp="rev=${HW_REV} cpu=${cpu_vendor:-unknown} ram=${mem_gib} chassis=${chassis:-unknown} battery=${have_battery} gpu=${gpu_signature} display=${display_signature} ddc=${ddc_scope}"
 if [ -r "$STATE" ] && grep -qxF "$want_stamp" "$STATE" 2>/dev/null; then
     log "already adapted for this hardware-policy revision — nothing to do"
     exit 0
@@ -353,31 +424,154 @@ fi
 # POWERDEVIL_NO_DDCUTIL is powerdevil's own switch (present in the shipped
 # libpowerdevilcore), so this is configuration, not a fork. It is NOT set
 # blindly: a machine whose monitor DOES speak DDC/CI must keep hardware
-# brightness control, which is a real feature. Probe once per HW_REV, and write
-# the drop-in only when the probe finds nothing — plug a DDC-capable monitor in
-# later and the next revision bump re-probes and removes it.
+# brightness control, which is a real feature. Probe per hardware signature;
+# the existing post-login/daily timer notices a changed monitor on its next run.
+# A timeout/error is unknown, never evidence that the monitor lacks DDC/CI.
 #
 # Laptops are unaffected either way: their panel uses the kernel backlight, a
 # different powerdevil path entirely.
 _ddc_dropin="${ROOT}/etc/systemd/user/plasma-powerdevil.service.d/50-moos-ddc.conf"
-if command -v ddcutil >/dev/null 2>&1; then
-    _ddc_result="$(timeout 30 ddcutil detect --brief 2>/dev/null || true)"
-    if grep -qE '^Display [0-9]' <<<"$_ddc_result"; then
+# Only retire/rewrite the exact adapter-owned policy. Personal contents and
+# linked/untrusted destinations are not ours to change.
+ddc_policy_state() {
+    python3 - "$_ddc_dropin" "${ROOT}/etc" <<'PY'
+import os
+from pathlib import Path
+import stat
+import sys
+
+path, boundary = map(Path, sys.argv[1:])
+expected = ('# Written by moos-hardware-adapt: no DDC/CI display answered on this\n'
+            '# machine, and probing for one cost 6.5s of every login. Reversible —\n'
+            '# delete this file (or attach a DDC-capable monitor and bump HW_REV).\n'
+            '[Service]\nEnvironment=POWERDEVIL_NO_DDCUTIL=1\n').encode()
+try:
+    for parent in (path.parent, *path.parent.parents):
+        try:
+            info = parent.lstat()
+        except FileNotFoundError:
+            if parent == boundary:
+                raise ValueError('missing configuration root')
+        else:
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o022:
+                raise ValueError('untrusted configuration directory')
+        if parent == boundary:
+            break
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        print('absent')
+    else:
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_nlink != 1 or info.st_mode & 0o022:
+            raise ValueError('untrusted configuration file')
+        with path.open('rb') as stream:
+            data = stream.read(len(expected) + 1)
+        print('owned' if data == expected else 'personal')
+except (OSError, ValueError):
+    sys.exit('DDC/CI policy destination unavailable; preserving it')
+PY
+}
+if [ "$ddc_scope" = none ]; then
+    log "DDC/CI: no connected display — preserving policy until a display is detected"
+elif [ "$ddc_scope" = virtual ]; then
+    log "DDC/CI: connected outputs use native virtual GPU drivers — preserving policy (no physical monitor bus)"
+elif command -v ddcutil >/dev/null 2>&1; then
+    # ddcutil's detect command can exit 0 after reporting inaccessible buses on
+    # stderr. Preserve those diagnostics as unknown confidence, even alongside
+    # an Invalid display line. Never put serials or raw monitor output in logs.
+    _ddc_result="$(python3 - <<'PY'
+import os
+import re
+import selectors
+import signal
+import subprocess
+import time
+
+process = None
+try:
+    process = subprocess.Popen(['timeout', '--kill-after=2s', '30', 'ddcutil', 'detect', '--brief'],
+                               env={**os.environ, 'LC_ALL': 'C'}, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, start_new_session=True)
+    streams = {'stdout': bytearray(), 'stderr': bytearray()}
+    deadline = time.monotonic() + 35
+    with selectors.DefaultSelector() as selector:
+        selector.register(process.stdout, selectors.EVENT_READ, 'stdout')
+        selector.register(process.stderr, selectors.EVENT_READ, 'stderr')
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError('probe deadline')
+            for key, _ in selector.select(min(remaining, 1)):
+                data = os.read(key.fileobj.fileno(), 8192)
+                if not data:
+                    selector.unregister(key.fileobj)
+                    continue
+                streams[key.data].extend(data)
+                if len(streams[key.data]) > 131072:
+                    raise ValueError('probe output bound')
+    code = process.wait(timeout=max(0.1, deadline - time.monotonic()))
+    if code:
+        print('failed:' + str(code))
+    elif streams['stderr'].strip():
+        print('diagnostics')
+    elif re.search(rb'^Display [0-9]+[ \t]*$', streams['stdout'], re.MULTILINE):
+        print('available')
+    elif re.search(rb'^(Invalid display|No displays found\.?)[ \t]*$', streams['stdout'], re.MULTILINE):
+        print('none')
+    else:
+        print('unrecognized')
+except ValueError:
+    print('oversized')
+except (OSError, TimeoutError, subprocess.TimeoutExpired):
+    print('unavailable')
+finally:
+    if process is not None:
+        # The wrapper can exit while a descendant still holds a pipe; retire
+        # our entire private process group even when its leader has exited.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait(timeout=3)
+        process.stdout.close()
+        process.stderr.close()
+PY
+)" || _ddc_result=unavailable
+    _ddc_known=0
+    _ddc_signature="$(read_display_signature)" || _ddc_signature=unavailable
+    _ddc_scope="$(read_ddc_scope)" || _ddc_scope=unavailable
+    _ddc_policy_state="$(ddc_policy_state)" || _ddc_policy_state=refused
+    if [ "$_ddc_result" != available ] && [ "$_ddc_result" != none ]; then
+        mutation_failed "DDC/CI probe ${_ddc_result}; keeping current policy for retry" || true
+    elif [ "$_ddc_signature" != "$display_signature" ] || [ "$_ddc_scope" != "$ddc_scope" ]; then
+        mutation_failed "DDC/CI display changed during the probe; keeping current policy for retry" || true
+    elif [ "$_ddc_policy_state" = refused ]; then
+        mutation_failed "DDC/CI policy destination refused; preserving it" || true
+    elif [ "$_ddc_policy_state" = personal ]; then
+        log "DDC/CI: preserving administrator policy"
+    elif [ "$_ddc_result" = available ]; then
+        _ddc_known=1
         # A real DDC/CI display answered: make sure a stale opt-out is gone.
         if [ -e "$_ddc_dropin" ]; then
-            do_run rm -f "$_ddc_dropin"
-            log "DDC/CI: a display answered — brightness control restored"
+            if do_run rm -f "$_ddc_dropin"; then
+                log "DDC/CI: a display answered — brightness control restored on next login"
+            fi
         else
             log "DDC/CI: a display answered — leaving powerdevil untouched"
         fi
-    else
-        if [ "$DRYRUN" != "1" ]; then
-            mkdir -p "$(dirname "$_ddc_dropin")" 2>/dev/null || true
-            printf '# Written by moos-hardware-adapt: no DDC/CI display answered on this\n# machine, and probing for one cost 6.5s of every login. Reversible —\n# delete this file (or attach a DDC-capable monitor and bump HW_REV).\n[Service]\nEnvironment=POWERDEVIL_NO_DDCUTIL=1\n' \
-                > "$_ddc_dropin" 2>/dev/null \
-                || mutation_failed "could not write ${_ddc_dropin}" || true
+    elif [ "$_ddc_result" = none ]; then
+        _ddc_known=1
+        if [ "$DRYRUN" = "1" ]; then
+            log "DRYRUN: would skip unanswered DDC/CI probing on next login"
+        elif mkdir -p "$(dirname "$_ddc_dropin")" 2>/dev/null \
+            && printf '# Written by moos-hardware-adapt: no DDC/CI display answered on this\n# machine, and probing for one cost 6.5s of every login. Reversible —\n# delete this file (or attach a DDC-capable monitor and bump HW_REV).\n[Service]\nEnvironment=POWERDEVIL_NO_DDCUTIL=1\n' \
+                > "$_ddc_dropin" 2>/dev/null; then
+            log "DDC/CI: no display answered — powerdevil will skip the probe on next login"
+        else
+            mutation_failed "could not write ${_ddc_dropin}" || true
         fi
-        log "DDC/CI: no display answered — powerdevil will skip the probe (saves ~6s per login)"
+    else
+        mutation_failed "DDC/CI probe returned no recognized result; keeping current policy for retry" || true
     fi
 
     # A drop-in the user manager never re-reads is a drop-in that does nothing.
@@ -394,7 +588,7 @@ if command -v ddcutil >/dev/null 2>&1; then
     # and this must never fail the adaptation. Deliberately a reload and NOT a
     # restart of powerdevil — bouncing power management under someone who is
     # working is not worth six seconds they have already paid this boot.
-    if command -v loginctl >/dev/null 2>&1 && [ "$DRYRUN" != "1" ]; then
+    if [ "$_ddc_known" = 1 ] && command -v loginctl >/dev/null 2>&1 && [ "$DRYRUN" != "1" ]; then
         for _uid in $(loginctl list-users --no-legend 2>/dev/null | awk '$1 >= 1000 {print $1}'); do
             systemctl --user --machine="${_uid}@" daemon-reload >>"$LOG" 2>&1 \
                 && log "DDC/CI: asked uid ${_uid}'s user manager to re-read its units" \
@@ -406,6 +600,13 @@ else
 fi
 
 # ── record state (idempotency) ───────────────────────────────────────────────
+# A hotplug while probing must not stamp the earlier hardware as completed.
+if ! _final_display_signature="$(read_display_signature)" || [ "$_final_display_signature" != "$display_signature" ]; then
+    mutation_failed "display identity changed during adaptation; policy will be retried" || true
+fi
+if ! _final_ddc_scope="$(read_ddc_scope)" || [ "$_final_ddc_scope" != "$ddc_scope" ]; then
+    mutation_failed "DDC/CI topology changed during adaptation; policy will be retried" || true
+fi
 if [ "$DRYRUN" != "1" ] && [ "$FAILURES" -eq 0 ]; then
     mkdir -p "$(dirname "$STATE")" 2>/dev/null || true
     printf '%s\n' "$want_stamp" > "$STATE" 2>/dev/null \

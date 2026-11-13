@@ -104,8 +104,12 @@ RUN bash /src/build_files/plasma_login/build.sh compile
 
 # P0/P5.8: Qt's reviewed item-view lifetime backport, with the original spec.
 FROM base AS qtquick-build
-RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
-    'dnf5-command(builddep)' python3 curl qt6-qtdeclarative qt6-qtdeclarative-devel
+# This is a native SDK. An unqualified request can select an older i686 Qt
+# beside the composed x86_64 runtime and fail RPM's shared-tool checks.
+RUN qtquick_arch="$(rpm --eval '%{_arch}')" \
+    && dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
+        'dnf5-command(builddep)' python3 curl \
+        "qt6-qtdeclarative.${qtquick_arch}" "qt6-qtdeclarative-devel.${qtquick_arch}"
 COPY build_files/qtquick/ /src/build_files/qtquick/
 RUN bash /src/build_files/qtquick/build.sh prepare
 RUN bash /src/build_files/qtquick/build.sh compile
