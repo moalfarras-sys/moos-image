@@ -143,7 +143,9 @@ ColumnLayout {
                         y: qrBox.offset + modelData[1] * qrBox.cell
                         width: modelData[2] * qrBox.cell
                         height: qrBox.cell
-                        color: Theme.bg0
+                        // A pairing code has its own optical contrast. Native light
+                        // palettes must not turn dark modules into pale window ink.
+                        color: "black"
                         antialiasing: false
                     }
                 }

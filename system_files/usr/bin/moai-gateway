@@ -1035,6 +1035,7 @@ class Handler(BaseHTTPRequestHandler):
     # ── POST ─────────────────────────────────────────────────────────────────
 
     def do_POST(self):
+        self.moai_free_only = False  # a kept-alive socket must not retain another request's policy
         if not same_user(self.connection):
             return self._err(403, "different or unknown local user")
         if self._foreign_origin():
@@ -1044,6 +1045,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(415, "content type must be application/json")
         if self.headers.get("Transfer-Encoding"):
             return self._err(400, "transfer encoding is not supported")
+        cost_headers = self.headers.get_all("X-MoAI-Cost-Policy") or []
+        if len(cost_headers) > 1 or cost_headers and cost_headers != ["free"]:
+            return self._err(400, "unsupported request cost policy")
+        self.moai_free_only = bool(cost_headers) or self.path == "/v1/free/chat/completions"
 
         # Once the headers pass, drain the body in one bounded-by-Content-Length
         # read.  Header rejections close the connection in _err(), so their
@@ -1069,7 +1074,7 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(req, dict):
             return self._err(400, "json body must be an object")
 
-        if self.path != "/v1/chat/completions":
+        if self.path not in ("/v1/chat/completions", "/v1/free/chat/completions"):
             return self._err(404, "only free chat completions are available")
         self.moai_route = "cloud"
         self.moai_route_reason = "free-cloud-only"
@@ -1085,6 +1090,10 @@ class Handler(BaseHTTPRequestHandler):
         model = (selected.removeprefix("cloud:") if selected.startswith("cloud:")
                  else selected if cloud_policy.free_model(selected)
                  else str(cfg.get("cloud_model") or cloud_policy.DEFAULT_MODEL))
+        if self.moai_free_only and meta.get("agent") is True:
+            # The separate agent has no per-turn cost receipt/propagation yet.
+            # Do not let a free-only request inherit its configured billed brain.
+            return self._err(409, "free-only agent delegation is unavailable")
         if meta.get("agent") is True and self._to_hermes(req):
             return
         req = dict(req)
@@ -1254,12 +1263,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def _to_cloud(self, req, raw, model, cfg):
         base, key, wire = self._cloud_cfg(cfg)
+        if getattr(self, "moai_free_only", False) and (
+                str(base).rstrip("/") != cloud_policy.BASE or wire != "openai"
+                or not cloud_policy.free_model(model)):
+            # Check this exact transaction input before the existing paid
+            # provider can remap openrouter/free to its own default model.
+            return self._err(409, "free-only request refused the configured cloud route")
         if not base or not key:
             return self._err(503,
                              "العقل السحابي غير مضبوط — أضف مزوّداً ومفتاحاً في إعدادات Mo AI.\n"
                              "The cloud brain is not configured — add a provider and an "
                              "API key in Mo AI's settings.")
-        paid = cloud_policy.selected_cost_policy() == "paid"
+        paid = (not getattr(self, "moai_free_only", False)
+                and cloud_policy.selected_cost_policy() == "paid")
         automatic = model == cloud_policy.DEFAULT_MODEL
         if automatic and base == cloud_policy.ZEN_BASE:
             # The free router is OpenRouter's. On OpenCode Zen "automatic" is the model

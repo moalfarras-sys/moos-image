@@ -120,6 +120,7 @@ class FakeController(QObject):
     phaseChanged = Signal(); levelChanged = Signal(); statusChanged = Signal(); captionChanged = Signal()  # noqa: E702
     moodChanged = Signal(); faceChanged = Signal(); langChanged = Signal(); servicesChanged = Signal()  # noqa: E702
     weatherChanged = Signal(); homeChanged = Signal(); echoChanged = Signal(); busyChanged = Signal()  # noqa: E702
+    settingsChanged = Signal()
     toast = Signal(str, str)
 
     def __init__(self, lang='ar'):
@@ -134,6 +135,8 @@ class FakeController(QObject):
         self._echo = {'online': True, 'voice_enabled': True, 'setup_url': 'http://192.168.3.83:8181/setup',
                       'wake_hint': 'private', 'speaker_volume': 40}
         self._busy = False
+        self._brain_key = 'set'
+        self._microphone = {'busy': False}
         self.chat = DictListModel(['role', 'text', 'time', 'status', 'title', 'tool'])
         self.devices = DictListModel(DEVICE_ROLES, key='entity_id')
         self.devices.set_rows(DEVICES)
@@ -153,6 +156,8 @@ class FakeController(QObject):
     home = _prop('QVariantMap', '_home', homeChanged)
     echo = _prop('QVariantMap', '_echo', echoChanged)
     busy = _prop(bool, '_busy', busyChanged)
+    brainKey = _prop(str, '_brain_key', settingsChanged)
+    microphone = _prop('QVariantMap', '_microphone', settingsChanged)
     chatModel = Property(QObject, lambda self: self.chat, constant=True)
     deviceModel = Property(QObject, lambda self: self.devices, constant=True)
 
@@ -750,6 +755,47 @@ class ServiceTest(QtCase):
         self.assertEqual((state['enabled'], state['state'], state['url'], state['address']), (False, 'off', '', ''))
         self.assertFalse(json.loads(svc.store.path.read_text())['enabled'])
 
+    def test_failed_save_keeps_enabled_server_and_paired_stream_intact(self):
+        controller, svc = self.service()
+        notices = []
+        svc.notice.connect(lambda kind, text: notices.append((kind, text)))
+        svc.set_enabled(True)
+        self.assertTrue(pump(lambda: svc.state()['state'] == 'running'))
+        before = svc.store.path.read_bytes()
+        token = svc.store.token
+        cookie = svc.store.session_cookie()
+        server = svc.server
+        harness = type('H', (), {'port': server.port, 'host': f'127.0.0.1:{server.port}'})()
+        stream = Stream(harness, {'Authorization': 'Bearer ' + token})
+        self.addCleanup(stream.close)
+        stream.wait('snapshot')
+        for action in (lambda: svc.set_enabled(False), svc.rotate_token):
+            with patch.object(svc.store, '_save', side_effect=OSError('private-provider-detail')):
+                action()
+            self.assertTrue(svc.store.enabled)
+            self.assertIs(svc.server, server)
+            self.assertEqual(svc.store.path.read_bytes(), before)
+            self.assertTrue(svc.store.check_token(token))
+            self.assertTrue(svc.store.check_session(cookie))
+            self.assertEqual(svc.state()['state'], 'running')
+            self.assertEqual(notices[-1], ('error', PANEL_TEXT['save_failed'][0]))
+            self.assertNotIn('private-provider-detail', notices[-1][1])
+        controller.set_phase('listening')
+        self.assertEqual(stream.wait('state', lambda d: d.get('phase') == 'listening')['phase'], 'listening')
+        self.assertFalse(stream.closed.is_set(), 'failed rotation must not sign out a phone')
+
+    def test_failed_enable_keeps_phone_off_without_a_listener(self):
+        _controller, svc = self.service()
+        notices = []
+        svc.notice.connect(lambda kind, text: notices.append((kind, text)))
+        with patch.object(svc.store, '_save', side_effect=ValueError('private detail')):
+            svc.set_enabled(True)
+        self.assertFalse(svc.store.enabled)
+        self.assertIsNone(svc.server)
+        self.assertEqual(svc.state()['state'], 'off')
+        self.assertFalse(svc.store.path.exists())
+        self.assertEqual(notices, [('error', PANEL_TEXT['save_failed'][0])])
+
     def test_it_stays_off_and_says_why_without_tailscale(self):
         folder = tempfile.TemporaryDirectory(prefix='mira-companion-svc-')
         self.addCleanup(folder.cleanup)
@@ -782,6 +828,14 @@ class ServiceTest(QtCase):
 
 class RealControllerTest(QtCase):
     """The adapter against Mira's actual controller (test mode, stand-in Echo and brain)."""
+
+    def setUp(self):
+        import brain
+        private = tempfile.TemporaryDirectory(prefix='mira-companion-credential-fixture-')
+        self.addCleanup(private.cleanup)
+        credentials = patch.object(brain, 'GEMINI_CONFIG', Path(private.name) / 'gemini.json')
+        credentials.start()
+        self.addCleanup(credentials.stop)
 
     def test_the_phone_sees_and_answers_the_owner_cards(self):
         from controller import Controller
@@ -846,9 +900,10 @@ class RealControllerTest(QtCase):
         self.assertLess(user['seq'], card['seq'])
         self.assertLess(card['seq'], reply['seq'])
 
-        # Echo not connected yet: Mira's own answer reaches the phone, not a success.
+        # No Echo/key yet: the same PC voice setup guidance reaches the authenticated phone.
         self.assertEqual(h.post('/api/talk')[0], 202)
-        self.assertEqual(stream.wait('toast')['kind'], 'error')
+        self.assertEqual(stream.wait('toast'), {'kind': 'info', 'text': controller.s['desk_needs_key']})
+        self.assertIsNone(controller.desk, 'setup guidance must not open a recorder or cloud session')
         self.assertEqual(controller.bridge.commands, [])
         controller.start()
         self.assertTrue(pump(lambda: controller.echo.get('online') is True))
@@ -861,6 +916,64 @@ class RealControllerTest(QtCase):
         stream.close()
         h.close()
         controller._wake_seq += 1          # the controller's pending 18 s wake timeout becomes a no-op
+        dispose(controller)
+
+    def test_voice_route_uses_existing_controller_owner_and_updates_over_sse(self):
+        from controller import Controller
+        from review_fakes import FakeBridge
+        QSettings('MoOS', 'Mira').clear()
+        controller = Controller(bridge_class=FakeBridge)
+        h = Harness(controller=controller, posts_per_minute=1000).ready()
+        self.addCleanup(h.close)
+        stream = Stream(h, h.bearer())
+        self.addCleanup(stream.close)
+        route = stream.wait('snapshot')['voiceRoute']
+        self.assertEqual(route, {'target': 'computer', 'state': 'setup_required', 'canStart': False,
+                                 'canStop': False, 'phoneMicrophone': False})
+        # Only the existing classified setup state is read; no key/config access.
+        with patch.object(controller, '_gemini_state', side_effect=AssertionError('no credential reads')):
+            controller._brain_key = 'set'
+            controller.settingsChanged.emit()
+            route = stream.wait('state', lambda d: d.get('voiceRoute', {}).get('state') == 'ready')['voiceRoute']
+            self.assertTrue(route['canStart'])
+            self.assertEqual(route['target'], 'computer')
+            controller._microphone['busy'] = True
+            controller.settingsChanged.emit()
+            self.assertEqual(stream.wait('state', lambda d: d.get('voiceRoute', {}).get('state') == 'busy')['voiceRoute']['canStart'], False)
+            controller._microphone['busy'] = False
+            controller.bridge.online = True
+            controller._echo['online'] = False  # actual transport owner wins stale display data
+            controller.echoChanged.emit()
+            route = stream.wait('state', lambda d: d.get('voiceRoute', {}).get('target') == 'echo')['voiceRoute']
+            self.assertTrue(route['canStart'])
+            controller._voice_owner = 'pc'
+            controller._on_desk_voice('listening', '')
+            route = stream.wait('state', lambda d: d.get('voiceRoute', {}).get('state') == 'active')['voiceRoute']
+            self.assertEqual(route['target'], 'computer', 'reconnected Echo cannot relabel an active PC turn')
+            self.assertTrue(route['canStop'])
+            self.assertFalse(route['canStart'])
+            controller._on_desk_voice('ready', '')
+            controller._brain_key = 'testing'
+            controller.settingsChanged.emit()
+            self.assertFalse(stream.wait('state', lambda d: d.get('voiceRoute', {}).get('state') == 'testing')['voiceRoute']['canStart'])
+            controller._brain_key = 'failed'
+            controller.settingsChanged.emit()
+            route = stream.wait('state', lambda d: d.get('voiceRoute', {}).get('state') == 'retry')['voiceRoute']
+            self.assertEqual(route['target'], 'echo')
+            self.assertTrue(route['canStart'], 'a failed text probe does not refuse a separate Live attempt')
+            self.assertFalse(route['canStop'])
+            controller.bridge.online = False
+            controller.echoChanged.emit()
+            route = stream.wait('state', lambda d: d.get('voiceRoute', {}).get('target') == 'computer')['voiceRoute']
+            self.assertEqual(route['state'], 'retry')
+            self.assertTrue(route['canStart'])
+            self.assertEqual(h.post('/api/talk')[0], 202)
+            self.assertIsNone(controller.desk, 'no saved fixture key: controller retains its own final admission')
+            controller._voice_phase = 'off'
+            controller.phaseChanged.emit()
+            self.assertEqual(stream.wait('state', lambda d: d.get('voiceRoute', {}).get('state') == 'off')['voiceRoute']['canStop'], False)
+        stream.close()
+        h.close()
         dispose(controller)
 
 

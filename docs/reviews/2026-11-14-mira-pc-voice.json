@@ -1,0 +1,563 @@
+{
+  "date": "2026-11-14",
+  "integration_owner": "Codex on physical V3",
+  "base_sha": "79c65bff016ad16263159316bb89944c89eb17c0",
+  "scope": "P3.1/P2.15 Mira PC microphone, private provider setup and native audio-device integration",
+  "baseline": [
+    "Booted signed1139 with vendorQt6.11.2-2; no Gemini configuration or local wake engine/model present",
+    "API field rejects AQ punctuation before a provider request; first saved key lacks mandatory voice model",
+    "Offline-but-paired Echo blocks PC fallback; old capture does not pin the selected source",
+    "Headerless PCM player lacks --raw; original native command refuses Format not recognised"
+  ],
+  "source_files": {
+    "mira/controller.py": "5fad999d927d95baaaab0787ea222799425dbb5ca7c9385573130efe503a6a3b",
+    "mira/desk_voice.py": "0155ce36059a892c0847060eb6508c72289db6c7f8f34300c4894e6293c91b91",
+    "mira/live_voice.py": "3d053f997f113d29bea92b3ac0b566129ffa2890aac2b246aedeec1869076e32",
+    "mira/api_credentials.py": "f65ea4c8435af046f9625ea5f982db7c14038862c1f7dbd4317589f348daa705",
+    "mira/audio_devices.py": "2e3a25bb3796942ba226900c4bd76e6ead0a7da8a4da06d7645ad31b62096249",
+    "mira/i18n.py": "f399a1bbec89bfeba0d867632f75a3e454dd07fb822a22a27c832b25efb2987c",
+    "mira/qml/Main.qml": "6958df1d9b8420bfb4128965fb4d87701e995b0b71316c43119256e7a6d39bed",
+    "mira/qml/Mira/SettingsSheet.qml": "e81dbe30c74e8fcf9abc1ec9ebde1a331edb6d42f33849303dc77856d980bd8b",
+    "mira/qml/Mira/MiraComboBox.qml": "a9d8d93eb7d541293ce11743aa0cea359c5fd0ffddf9f830dbe417535e45c8fc",
+    "mira/qml/Mira/qmldir": "ed97c704f4896a138ec6f31a8157b233ff835cbcd45582e05f2a3034d9d806dc"
+  },
+  "implemented": [
+    "Opaque bounded printable key preserves punctuation; private atomic0600 settings retain personal model/metadata and refuse unsafe input",
+    "Default Live model only when absent; explicit3.1/2.5 free-tier choices; model/key-bound reuse and resumption",
+    "Offline Echo PC fallback with selected/default microphone; pinned SourceWatch revocation, exact byte budget and owned recorder cleanup",
+    "Separate local-only microphone probe and setup-complete-only Live connection probe",
+    "Raw PCM playback with bounded writes, actual player reaping and failure visibility",
+    "Native event-driven source/sink/card/server observer; asynchronous catalogue refresh deferred while capture is active; explicit missing source preserved",
+    "Native Qt ComboBox palette/font/popup/RTL/focus, narrow stacked controls and real Sound settings destination"
+  ],
+  "provider_probe": {
+    "direct_rest": {
+      "state": "refused",
+      "http_status": 401,
+      "status": "UNAUTHENTICATED",
+      "reasons": [
+        "ACCESS_TOKEN_TYPE_UNSUPPORTED"
+      ],
+      "seconds": 0.104,
+      "checked_utc": "2026-11-14T05:25:54Z",
+      "secret_retained": false
+    },
+    "sdk_live": [
+      {
+        "status": "error",
+        "reason": "auth",
+        "error_type": "APIError",
+        "model": "gemini-3.1-flash-live-preview",
+        "seconds": 0.322,
+        "audio_sent": false,
+        "key_retained": false
+      },
+      {
+        "status": "error",
+        "reason": "auth",
+        "error_type": "APIError",
+        "model": "gemini-2.5-flash-native-audio-preview-12-2025",
+        "seconds": 0.125,
+        "audio_sent": false,
+        "key_retained": false
+      }
+    ],
+    "secret_saved": false,
+    "interpretation": "Google refuses authentication outside Mira; no accepted inference or Live voice claim"
+  },
+  "native_capture": {
+    "result": {
+      "devices": [
+        {
+          "source": "@DEFAULT_SOURCE@",
+          "label": "الميكروفون الافتراضي للنظام"
+        },
+        {
+          "source": "alsa_input.pci-0000_c4_00.6.analog-stereo",
+          "label": "ميكروفون الجهاز الداخلي"
+        }
+      ],
+      "source": "@DEFAULT_SOURCE@",
+      "busy": false,
+      "refreshing": false,
+      "state": "ok",
+      "message": "وصلت إشارة صوتية من الميكروفون. هذا اختبار التقاط فقط.",
+      "bytes": 96000,
+      "peak": 32768,
+      "rms": 12196.51,
+      "outputMuted": true,
+      "deviceUpdates": "observed"
+    },
+    "input_method": "QtTest mouse event on actual QQuickWindow button in physical Wayland session; no test-mode/fake bridge",
+    "audio_saved": false,
+    "audio_uploaded": false,
+    "recognition_proven": false,
+    "resolved_capture": {
+      "status": "ok",
+      "reason": "signal",
+      "source": "alsa_input.pci-0000_c4_00.6.analog-stereo",
+      "bytes": 96000,
+      "peak": 32768,
+      "rms": 8030.17,
+      "seconds": 3,
+      "elapsed_ms": 3127,
+      "audio_saved": false,
+      "audio_uploaded": false
+    }
+  },
+  "native_playback": {
+    "utc": "2026-11-14T05:40:39Z",
+    "digital_silence_bytes": 3200,
+    "pcm": "16kHz/s16/mono/0.1s",
+    "native_player_exit": 0,
+    "bytes_written": 3200,
+    "elapsed_ms": 226,
+    "default_sink_mute_before": "Mute: yes",
+    "default_sink_mute_after": "Mute: yes",
+    "scope": "Actual default-sink rawPCM digital-silence acceptance only; no audible output or speech/recognition claim, no settings/audio files/network changes"
+  },
+  "native_ui": {
+    "sizes_logical": [
+      [
+        1480,
+        764
+      ],
+      [
+        420,
+        740
+      ]
+    ],
+    "private_captures": "~/.cache/mira/pc-voice-*-20261114.png; not committed",
+    "runtime_unit": "moai-open-3385576-6595.service",
+    "source_pointer": "mira-pc-voice-20261114/mira through the existing application/controller/QML owners",
+    "copied_runtime_bytes": 0,
+    "retirement": "Stop only this scoped app unit; restore /usr/bin/mira canonical source. Retire source override after matching signed payload boots and readback passes. Preserve owner settings.",
+    "runtime_note": "Canonical /usr/bin/mira uses explicit MIRA_APP/current sourceQML pointer; no instrumented capture hook, no automatic recording."
+  },
+  "negative_controls": [
+    "Original HEAD acquire reuses old key/model: both lifecycle controls refuse; fixed same-config reuse/resume retained",
+    "Native pw-cat1.6.11 delivers96k but exits1; kept refused. Existing native parec exact budget plus owned stop exits0; generic1/7 remain refused",
+    "Original native raw PCM playback fails Format not recognised; fixed --raw reaches PipeWire; real silent playback exit0 with mute preserved",
+    "Real stubborn private capture/player cleanup reaps only owned processes; stale Echo events and old timers cannot release PC ownership",
+    "First per-process suite retains Companion error-vs-info expectation refusal; corrected expectation requires actual PC setup guidance and no recorder/cloud session",
+    "Whole-suite host import retained2 Lumen QML failures from old immutable Qt.labs.settings; current source QML prefix passes all14 without weakening warning checks. Private runner cache omission is retained separately and corrected to match the image recipe.",
+    "Native long Retry-After HTTP503 can leave curl exit0 and an old matching output; explicit final HTTP200 is now required before digest/signature admission, and the exact old refusal is retained."
+  ],
+  "targeted_check": {
+    "tests": 149,
+    "exit": 0,
+    "skipped": 1,
+    "skip_reason": "native no-link audio proof opt-in; separately executed in backend25-test qualification",
+    "log_sha256": "125ef80439adaebe4d61c7354e4ed328afc2dc26a4e1a432ee04c9337930b353"
+  },
+  "qualification_pending": [
+    "Current successor complete source/current image and exact-head CI",
+    "New first-attempt signed cycle after preserved canonical43569340198 curl35 failure; no failed job rerun",
+    "Real owner speech/recognition/audible response and clipping/SNR qualification; owner deferred testing",
+    "Physical microphone disconnect/reconnect/switch while listening",
+    "Local wake engine/model provisioning and acceptance",
+    "Signed payload boot/readback on physical V3; currentboot1139 and rollback remain untouched"
+  ],
+  "upstream_checked_2026_11_14": [
+    "https://aistudio.google.com/docs/api-key",
+    "https://aistudio.google.com/docs/pricing#gemini-3.8-live",
+    "https://aistudio.google.com/docs/pricing#gemini-2.5-flash-native-audio",
+    "https://aistudio.google.com/docs/deprecations#live-api-preview-models",
+    "https://github.com/googleapis/python-genai/blob/main/google/genai/live.py",
+    "https://github.com/PipeWire/pipewire/blob/1.6.11/src/tools/pw-cat.c"
+  ],
+  "all_mira_modules": {
+    "modules": [
+      {
+        "module": "test_tools",
+        "exit": 0,
+        "seconds": 2.251,
+        "tests": 77,
+        "sha256": "4b6c61fbab314e515319e7813e63ebc131f96dca7b858d24bae2d570d54bd74e"
+      },
+      {
+        "module": "test_brain",
+        "exit": 0,
+        "seconds": 1.831,
+        "tests": 40,
+        "sha256": "c92f047c7f65052956d63134231911393cadec9c0988607363c8cebb2c4d1445"
+      },
+      {
+        "module": "test_controller",
+        "exit": 0,
+        "seconds": 2.597,
+        "tests": 57,
+        "sha256": "36b593a609e3dc43b11dcca167a2de24b8766d0ae2e96738b263f457f527076b"
+      },
+      {
+        "module": "test_qml",
+        "exit": 0,
+        "seconds": 26.021,
+        "tests": 10,
+        "sha256": "ca039654f18a265677877070cbc4f5d99b2520e2f9c870cab1b59497bf8cf075"
+      },
+      {
+        "module": "test_mira_combo",
+        "exit": 0,
+        "seconds": 2.073,
+        "tests": 1,
+        "sha256": "7ffb54c2841668847ec464911ae35ebfa690cc58f476d8d33f350e5f2f476816"
+      },
+      {
+        "module": "test_native_appearance",
+        "exit": 0,
+        "seconds": 17.801,
+        "tests": 2,
+        "sha256": "13e1da63c76723166ff24e00a473bd76bbf2c2da99640d7c4fb99555a63d760b"
+      },
+      {
+        "module": "test_native_reading_states",
+        "exit": 0,
+        "seconds": 17.006,
+        "tests": 2,
+        "sha256": "723328329d58d60de2e9dd22c3a1da82bc2030035fb174a668b73f4643946443"
+      },
+      {
+        "module": "test_companion",
+        "exit": 0,
+        "seconds": 7.873,
+        "tests": 26,
+        "sha256": "58d54ded825a87840e1df93c10fc7967389975f5648aa4b8b7c04f838f684e9f"
+      },
+      {
+        "module": "test_systools",
+        "exit": 0,
+        "seconds": 1.319,
+        "tests": 57,
+        "sha256": "862e4d526c8d1e95e611a6b54ba84f34d39ee2b1bebe6880514bfd720e07d9e1"
+      },
+      {
+        "module": "test_live_voice_local",
+        "exit": 0,
+        "seconds": 6.457,
+        "tests": 35,
+        "sha256": "19112a2277c8f1e2b432623d1a76fff1c294c197dda7ddf3ebddc511b817c624"
+      },
+      {
+        "module": "test_live_voice_config",
+        "exit": 0,
+        "seconds": 2.236,
+        "tests": 21,
+        "sha256": "8c1a29553d2718238b7e2470c00ebf70ab2c1b5acea89f511a0171e9b1be4636"
+      },
+      {
+        "module": "test_desk_voice",
+        "exit": 0,
+        "seconds": 0.646,
+        "tests": 25,
+        "sha256": "f8c8078778e63b266d6d8568241beb42f30dab20d9ce151b89be0cd3495e9b37"
+      },
+      {
+        "module": "test_audio_devices",
+        "exit": 0,
+        "seconds": 1.734,
+        "tests": 10,
+        "sha256": "132a926714f857e64746969c7307972708564f0cc0d94d2bcfbe188c52cfbced"
+      },
+      {
+        "module": "test_mira_memory",
+        "exit": 0,
+        "seconds": 0.102,
+        "tests": 16,
+        "sha256": "c0ec1b6b748eb9881a7de9e68d2a02d12b17090d169808bac49eb5957e687c91"
+      },
+      {
+        "module": "test_group_lights",
+        "exit": 0,
+        "seconds": 0.095,
+        "tests": 7,
+        "sha256": "562ba812807853dc8ffcec7098ccfdba351d418bc1a0fae9853f5457a5152487"
+      },
+      {
+        "module": "test_moai_agent_link",
+        "exit": 0,
+        "seconds": 0.1,
+        "tests": 5,
+        "sha256": "31caf9b04b5cdc93305d4d849271f52eba6c20015db8ed0ab9fe405c7e2cae7a"
+      },
+      {
+        "module": "test_visual_tier",
+        "exit": 0,
+        "seconds": 3.684,
+        "tests": 32,
+        "sha256": "bf322de63a4385ef66a3cc6ba04546b5cd113f87bc6519011f028cc887bd5906"
+      },
+      {
+        "module": "test_initial_language",
+        "exit": 0,
+        "seconds": 0.042,
+        "tests": 3,
+        "sha256": "aece0b59f94004ff6484ed589e910c70269686c7290ca5a65d6577c9d53ceda1"
+      },
+      {
+        "module": "test_kde_integration",
+        "exit": 0,
+        "seconds": 1.756,
+        "tests": 88,
+        "sha256": "1fc9cb5b4ee836dc1925e4dc3721ca6762fa2c7b0bc0d946b7faa0fe3d2e3532"
+      },
+      {
+        "module": "test_inbox",
+        "exit": 0,
+        "seconds": 6.049,
+        "tests": 43,
+        "sha256": "19619e6f688308622e113014ddbe7504a8bb7e20d2a812f41550ad28c447e88b"
+      },
+      {
+        "module": "test_chat_ui",
+        "exit": 0,
+        "seconds": 16.724,
+        "tests": 44,
+        "sha256": "9c16bc2231b87cb3159a877c393f2bea697432817815315316a5b19c344fdecd"
+      },
+      {
+        "module": "test_moos_routes",
+        "exit": 0,
+        "seconds": 0.097,
+        "tests": 10,
+        "sha256": "48c5a427220b6255033a80cb4024927fa2c828db7bf7cb59bb28822b81fdeffe"
+      },
+      {
+        "module": "test_page_pc",
+        "exit": 0,
+        "seconds": 2.026,
+        "tests": 63,
+        "sha256": "71e9248f5b67c21dd6e0ef5eaa25236c29a93bd308a5908ea1a1d759596f8431"
+      },
+      {
+        "module": "test_page_apps",
+        "exit": 0,
+        "seconds": 0.278,
+        "tests": 44,
+        "sha256": "0a7496a9bc02d4abc59f23c78837283a9845abb03ff5d66525abb044928b47db"
+      },
+      {
+        "module": "test_page_system",
+        "exit": 0,
+        "seconds": 15.96,
+        "tests": 76,
+        "sha256": "5640838c2ae2e3c395643b2b0d759e4cc31b9d500c5788a7fb5277e134d473a0"
+      },
+      {
+        "module": "test_page_workbench",
+        "exit": 0,
+        "seconds": 0.3,
+        "tests": 81,
+        "sha256": "017775dabd5047c97a6e73853665aebd50e54f1b02bc81009e4b4918c2ed3660"
+      },
+      {
+        "module": "test_page_connect",
+        "exit": 0,
+        "seconds": 7.787,
+        "tests": 72,
+        "sha256": "ca1f3fcf9403e7376f2514ef3ba7147c3f99e219e02a38844b2af45fa3624695"
+      },
+      {
+        "module": "test_page_brain",
+        "exit": 0,
+        "seconds": 0.329,
+        "tests": 44,
+        "sha256": "63a9e79f856af8c9c82bf79415f44476241e910a11bcfba64b46513034a99b0b"
+      },
+      {
+        "module": "test_lumen",
+        "exit": 0,
+        "seconds": 9.976,
+        "tests": 40,
+        "sha256": "af47b76e1d1b0aa48b510046f138c2610399ce7beaac0036fe4671799826b9bf"
+      },
+      {
+        "module": "test_lumen_hue",
+        "exit": 0,
+        "seconds": 5.177,
+        "tests": 46,
+        "sha256": "f7a72188086849ce8b9bbcc6deb5e93e3ea941454d6320f06e023562b7dfe4d1"
+      },
+      {
+        "module": "test_lumen_sync",
+        "exit": 0,
+        "seconds": 5.663,
+        "tests": 37,
+        "sha256": "c9644cd64c722be2271b3b8bdd2d41994a56d7f4d348f4d0f45f8387e66f1d8f"
+      },
+      {
+        "module": "test_homehub",
+        "exit": 0,
+        "seconds": 1.047,
+        "tests": 44,
+        "sha256": "079ba755649b8417fa9e1104f531c0a34ed4907f04ef7def6ca4ffad74881bfd"
+      },
+      {
+        "module": "test_homesetup",
+        "exit": 0,
+        "seconds": 0.091,
+        "tests": 6,
+        "sha256": "5f7eadc47e1c00264ad4e27c90eb6707e02e8f03a8264bff3303b1aaa601fe83"
+      },
+      {
+        "module": "test_page_lumen",
+        "exit": 0,
+        "seconds": 0.676,
+        "tests": 14,
+        "sha256": "bb5471ff3e0aacdccc043d2ac45571d522a4f0157d2f1dc3dfd56cedbccc5f3e"
+      }
+    ],
+    "tests": 1178,
+    "exit": 0,
+    "seconds": 167.804,
+    "source_qml_prefix": "system_files/usr/lib64/qt6/qml",
+    "SDK": "native installed /usr/lib/mira/site",
+    "private_home_cache": true,
+    "new_producer_native_opt_in": "separately executed; 25 tests pass"
+  },
+  "qualification_83c0f9cd": {
+    "source": {
+      "source_sha": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+      "exit": 0,
+      "seconds": 1137.994,
+      "dirty_after": "",
+      "head_after": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+      "log_sha256": "283cc4371e3f65a10c22426e23d670f1cf4918edc3ea6d171831e70a164c6d66"
+    },
+    "local_image": {
+      "source_sha": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+      "state": "completed",
+      "command": [
+        "just",
+        "--no-deps",
+        "build"
+      ],
+      "source_check_reused": true,
+      "started_utc": "2026-11-14T06:20:31Z",
+      "pid": 2951730,
+      "exit": 0,
+      "seconds": 7160.148,
+      "resource_refusal": null,
+      "minimum_disk": 306847821824,
+      "dirty_after": "",
+      "head_after": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+      "log_sha256": "95c71a1319bd2bc81f433c4edfd7c8d0b0ad0ad3f17b37ec22d5ff0986a03042",
+      "image_readback": {
+        "image_id": "9a7805a95138a2cdf470ac4ddf9137d5f3c6001d40fa1ccbb79bf621dcb6af71",
+        "runtime_files": {
+          "/usr/lib/mira/app/controller.py": "9bec041096783def3aedf9fff58ff1757621e3210e14a1364c52b76a4b06ec86",
+          "/usr/lib/mira/app/desk_voice.py": "0155ce36059a892c0847060eb6508c72289db6c7f8f34300c4894e6293c91b91",
+          "/usr/lib/mira/app/live_voice.py": "3d053f997f113d29bea92b3ac0b566129ffa2890aac2b246aedeec1869076e32",
+          "/usr/lib/mira/app/api_credentials.py": "f65ea4c8435af046f9625ea5f982db7c14038862c1f7dbd4317589f348daa705",
+          "/usr/lib/mira/app/audio_devices.py": "2e3a25bb3796942ba226900c4bd76e6ead0a7da8a4da06d7645ad31b62096249",
+          "/usr/lib/mira/app/i18n.py": "e23dcff1a947abfa97dbbbecf356a1e6a9569e92fb04fd3192abe90034d63245",
+          "/usr/lib/mira/app/qml/Main.qml": "6958df1d9b8420bfb4128965fb4d87701e995b0b71316c43119256e7a6d39bed",
+          "/usr/lib/mira/app/qml/Mira/SettingsSheet.qml": "0f8c592e48e1acab1c135f30166abe63bc22b6b5324f83f820fb704939ef3b36",
+          "/usr/lib/mira/app/qml/Mira/MiraComboBox.qml": "a9d8d93eb7d541293ce11743aa0cea359c5fd0ffddf9f830dbe417535e45c8fc",
+          "/usr/lib/mira/app/qml/Mira/qmldir": "ed97c704f4896a138ec6f31a8157b233ff835cbcd45582e05f2a3034d9d806dc"
+        },
+        "runtime_bytes_equal": true,
+        "packages": [
+          "qt6-qtdeclarative-6.11.2-3.1.moos1.fc44.x86_64",
+          "qt6-qtbase-6.11.2-3.fc44.x86_64",
+          "kwin-6.8.2-3.fc44.x86_64",
+          "kernel-core-7.3.3-200.fc44.x86_64"
+        ]
+      }
+    },
+    "pr_ci": {
+      "repository": 43564493043,
+      "x86": 43564493090,
+      "arm": 43564493060,
+      "attempt": 1,
+      "all_required_jobs": "success"
+    },
+    "boundary": "Historical exact83c0f9cd; later directory/fetch/QML fixes need new qualification."
+  },
+  "provider_followup_2026_11_14": {
+    "direct_rest": {
+      "state": "accepted",
+      "http_status": 200,
+      "seconds": 0.267,
+      "checked_utc": "2026-11-14T10:27:19Z",
+      "secret_retained": false
+    },
+    "live_setups": [
+      {
+        "status": "ok",
+        "setup_complete": true,
+        "model": "gemini-3.1-flash-live-preview",
+        "seconds": 0.785,
+        "audio_sent": false,
+        "key_retained": false
+      },
+      {
+        "status": "ok",
+        "setup_complete": true,
+        "model": "gemini-2.5-flash-native-audio-preview-12-2025",
+        "seconds": 0.56,
+        "audio_sent": false,
+        "key_retained": false
+      }
+    ],
+    "text_inference": {
+      "status": "ok",
+      "model": "gemini-flash-lite-latest",
+      "elapsed_ms": 2001,
+      "config_mode": "0o600",
+      "secret_in_receipt": false
+    },
+    "native_live_audio_reply": {
+      "status": "ok",
+      "model": "gemini-3.1-flash-live-preview",
+      "input": "synthetic text through actual LiveVoice",
+      "real_microphone_test": false,
+      "reply_bytes": 138562,
+      "reply_audio_s": 4.33,
+      "player_bytes_written": 138562,
+      "playback_error": false,
+      "voice_error": false,
+      "reply_transcription_present": true,
+      "first_audio_ms": 731,
+      "connect_ms": 687,
+      "events": [
+        "activating",
+        "level",
+        "listening",
+        "mouth_level",
+        "partial_reply",
+        "ready",
+        "reply",
+        "session",
+        "speaking",
+        "stats"
+      ],
+      "failures": [],
+      "audio_saved": false,
+      "host_tool_actions_allowed": false,
+      "seconds": 5.908
+    },
+    "private_config": "0600 under owned0700 directory; no credential in receipts/Git",
+    "owner_input_journey": "Owner explicitly deferred speech/recognition/audible acceptance until later."
+  },
+  "native_output_change": {
+    "owner_scope": "Authorized Mira microphone/voice repair; low-volume reply test announced",
+    "before": "Default internal speaker muted at0",
+    "after": "Existing MoOS fixed executor sets20percent and unmute; measured native state matches",
+    "not_proven": "Owner hearing and acoustic quality"
+  },
+  "directory_followup": {
+    "observed_failure": "Private writer refuses actual owned0755 directory before any credential save",
+    "fixed": "Pin owned nonlinked directoryfd; secure0755/0750/0711 to0700 without admitting writable/unowned/read-only directories; private atomic0600 file retains existing fields and refuses measured concurrent changes",
+    "controls": "63 controller tests pass; original83method refuses0755; changed-directory, changed-file, symlink and temp replacement fixtures retained",
+    "native_readback": {
+      "owned_directory": true,
+      "symlink": false,
+      "before": "0o755",
+      "after": "0o700",
+      "contents_read": false
+    },
+    "controller_tests": 63,
+    "qml_controls": "11 source/native Qt methods including clipped-signal warning without actual microphone capture"
+  }
+}

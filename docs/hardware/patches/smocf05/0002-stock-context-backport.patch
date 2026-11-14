@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Backport of 53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb and its C99 match-table prerequisite.
+# Original authors and Signed-off-by chain are retained in 0001-upstream-smocf05.patch.
+--- a/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c
++++ b/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c
+@@ -143,8 +143,9 @@
+ MODULE_DEVICE_TABLE(of, st_lsm6dsx_i2c_of_match);
+ 
+ static const struct acpi_device_id st_lsm6dsx_i2c_acpi_match[] = {
+-	{ "SMO8B30", ST_LSM6DS3TRC_ID, },
+-	{ "SMOCF00", ST_LSM6DSO_ID, },
++	{ .id = "SMO8B30", .driver_data = ST_LSM6DS3TRC_ID },
++	{ .id = "SMOCF00", .driver_data = ST_LSM6DSO_ID },
++	{ .id = "SMOCF05", .driver_data = ST_LSM6DS3TRC_ID },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(acpi, st_lsm6dsx_i2c_acpi_match);

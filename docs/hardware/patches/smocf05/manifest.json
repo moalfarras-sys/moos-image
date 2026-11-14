@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "upstream_commit": "53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb",
+  "upstream_parent": "b48c17680f904f43b15c1c648667bfb34ab34453",
+  "upstream_url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jic23/iio/+/53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb",
+  "upstream_source_url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jic23/iio/+/53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c?format=TEXT",
+  "license": "GPL-2.0-only",
+  "scope": "Prepared backport only; not applied by image builds and not installed or module-signed. Stock signed vendor kernel containing this change remains the delivery requirement.",
+  "target_vendor_tree": "https://gitlab.com/cki-project/kernel-ark/-/blob/f03e29f2bf5f5bad488b745c5a9188f895cfde76/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c",
+  "stock_source_sha256": "0b7505a74a95808ff529f60aa2d100c5f7890e2fe60ead5e8cb2d1a67579431a",
+  "accepted_source_sha256": "5527a593fe18195c37e0c31ab04e8fda2840a85a8bb7412e3aeea4e0e3acd755",
+  "upstream_patch_sha256": "3f571216b6f4ad5f550e8c3e4f7b37750d7e4192a8734527e7cd364d8ce256ec",
+  "backport_patch_sha256": "4a6ddf3570367d2f7dadbcd54d384e9dcb39293befce4993a2001753160f3c16",
+  "matrix": "-1, 0, 0; 0, -1, 0; 0, 0, 1",
+  "matrix_owner": "existing systemd hwdb entry, already installed on V3",
+  "native_test_required": [
+    "signed vendor package/RPM/module provenance and unchanged kernel integrity",
+    "actual SMOCF05 probe and accelerometer/gyro IIO registration",
+    "SensorProxy orientation and tilt in four orientations",
+    "native internal panel rotation, scale and touchscreen coordinates",
+    "policy lock, external monitor unchanged, suspend/resume and reboot"
+  ]
+}

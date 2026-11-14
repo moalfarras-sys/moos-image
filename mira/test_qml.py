@@ -79,6 +79,46 @@ def controller_pages():
 
 
 class QmlTest(unittest.TestCase):
+    def test_voice_meter_exposes_clipping_without_opening_a_microphone(self):
+        from PySide6.QtQuick import QQuickItem
+        from unittest.mock import patch
+        import brain
+        messages = Messages()
+        previous = qInstallMessageHandler(messages)
+        with tempfile.TemporaryDirectory(prefix='mira-meter-qml-') as private, \
+                patch.object(brain, 'GEMINI_CONFIG', Path(private) / 'gemini.json'):
+            try:
+                controller = Controller(bridge_class=FakeBridge)
+                engine = QQmlApplicationEngine()
+                engine.addImageProvider('mira', FaceProvider())
+                engine.addImportPath(str(ROOT / 'qml'))
+                engine.rootContext().setContextProperty('mira', controller)
+                engine.load(QUrl.fromLocalFile(str(ROOT / 'qml' / 'Main.qml')))
+                self.assertTrue(engine.rootObjects())
+                window = engine.rootObjects()[0]
+                window.setWidth(420)
+                window.setHeight(740)
+                controller.showSheet.emit('voice-settings')
+                QCoreApplication.processEvents()
+                warning = window.findChild(QQuickItem, 'microphoneClippingWarning')
+                self.assertIsNotNone(warning)
+                self.assertFalse(warning.isVisible())
+                controller._update('_microphone', controller.settingsChanged, state='ok', peak=32768)
+                QCoreApplication.processEvents()
+                self.assertTrue(warning.isVisible())
+                self.assertEqual(warning.property('text'), controller.s['pc_mic_clipped'])
+                controller._update('_microphone', controller.settingsChanged, peak=100)
+                QCoreApplication.processEvents()
+                self.assertFalse(warning.isVisible())
+                controller._update('_microphone', controller.settingsChanged, state='error', peak=32768)
+                QCoreApplication.processEvents()
+                self.assertFalse(warning.isVisible(), 'a failed capture must retain its actual error')
+                engine.deleteLater()
+                QCoreApplication.processEvents()
+            finally:
+                qInstallMessageHandler(previous)
+        self.assertEqual(messages.fatal(), [])
+
     def test_every_route_exists(self):
         slots = set()
         meta = Controller.staticMetaObject

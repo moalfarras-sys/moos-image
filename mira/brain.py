@@ -18,7 +18,7 @@ already happened. A caller may instead pass its own `cancel_event`
 
 Which model answers is the owner's choice, kept in QSettings('MoOS', 'Mira'):
 `text_model` (one of TEXT_MODEL_IDS, the Gemini model for typed chat; it wins
-over gemini.json's `text_model`) and `cloud_model` (the model Mo AI's free
+over gemini.json's `text_model`) and `cloud_model` (the model Mo AI's configured
 cloud route asks for, sent to moai-gateway as `cloud:<id>`; empty follows Mo
 AI's own setting). Every finished answer is published to the listeners of
 `add_answer_listener` and kept as `last_answer()`: route, model, status, time.
@@ -251,13 +251,17 @@ def openai_tools() -> list:
 
 
 class GatewayUnavailable(Exception):
-    """Mo AI's free cloud brain could not answer (class names only, never provider text)."""
+    """Mo AI's configured cloud brain could not answer (class names only, never provider text)."""
 
 
-def _post_gateway(body: dict) -> dict:
-    request = urllib.request.Request(f'http://127.0.0.1:{GATEWAY_PORT}/v1/chat/completions',
+def _post_gateway(body: dict, *, free_only=True) -> dict:
+    headers = {'Content-Type': 'application/json'}
+    if free_only is not False:
+        headers['X-MoAI-Cost-Policy'] = 'free'
+    route = '/v1/free/chat/completions' if free_only is not False else '/v1/chat/completions'
+    request = urllib.request.Request(f'http://127.0.0.1:{GATEWAY_PORT}{route}',
                                      data=json.dumps(body).encode('utf-8'),
-                                     headers={'Content-Type': 'application/json'})
+                                     headers=headers)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     try:
         with opener.open(request, timeout=GATEWAY_TIMEOUT_S) as response:
@@ -286,16 +290,17 @@ def _clean_cloud_model(value) -> str:
 
 
 def preferences() -> dict:
-    """{'text_model': id or '', 'cloud_model': id or ''} — only values that pass validation.
+    """Validated model preferences and Mira's free-only/explicit selected-cost choice.
 
     QSettings is reentrant, so every thread reads its own object; a value the page just saved is
     already visible here."""
     settings = _qsettings()
     if settings is None:
-        return {'text_model': '', 'cloud_model': ''}
+        return {'text_model': '', 'cloud_model': '', 'cloud_cost_policy': 'free'}
     text_model = str(settings.value('text_model', '') or '').strip()
     return {'text_model': text_model if text_model in TEXT_MODEL_IDS else '',
-            'cloud_model': _clean_cloud_model(settings.value('cloud_model', ''))}
+            'cloud_model': _clean_cloud_model(settings.value('cloud_model', '')),
+            'cloud_cost_policy': 'selected' if settings.value('cloud_cost_policy', 'free') == 'selected' else 'free'}
 
 
 def set_text_model(model_id: str) -> str:
@@ -310,20 +315,31 @@ def set_text_model(model_id: str) -> str:
     return model_id
 
 
-def set_cloud_model(model_id: str) -> str:
-    """Keep the model Mira's free cloud route asks for; '' = follow Mo AI's own setting."""
+def set_cloud_model(model_id: str, *, allow_paid=False) -> str:
+    """Keep Mira's model; only a confirmed paid pick permits selected-provider costs.
+
+    Ordinary/free selections and following Mo AI reset the per-request boundary
+    to free-only. Global provider settings and credentials are never changed.
+    """
     settings = _qsettings()
     if settings is None:
         raise RuntimeError('settings unavailable')
     raw = str(model_id or '').strip()
     if not raw:
+        settings.setValue('cloud_cost_policy', 'free')
         settings.remove('cloud_model')
         settings.sync()
         return ''
     cleaned = _clean_cloud_model(raw)
     if not cleaned:
         raise ValueError('unknown cloud model')
+    # Drop any previous paid opt-in before publishing a free/following choice.
+    # A concurrent preference reader must never see the new model with the
+    # previous model's paid permission.
+    settings.setValue('cloud_cost_policy', 'free')
     settings.setValue('cloud_model', cleaned)
+    if allow_paid is True:
+        settings.setValue('cloud_cost_policy', 'selected')
     settings.sync()
     return cleaned
 
@@ -480,8 +496,11 @@ class TextBrain:
         return self._model or picked or configured or DEFAULT_TEXT_MODEL
 
     def _cloud_model(self) -> str:
-        """The model Mira's free cloud route asks moai-gateway for ('' = Mo AI's own setting)."""
+        """The model Mira's cloud route asks moai-gateway for ('' = Mo AI's own setting)."""
         return _clean_cloud_model(self._preferences().get('cloud_model'))
+
+    def _free_cloud_only(self) -> bool:
+        return self._preferences().get('cloud_cost_policy') != 'selected'
 
     # ── configuration ────────────────────────────────────────────────
     def _config(self) -> dict:
@@ -599,17 +618,20 @@ class TextBrain:
             return await self._cloud_then_fallback(text, say, ctx, reason, lang, city, trace, turn)
 
     async def _cloud_then_fallback(self, text, say, ctx, reason, lang, city, trace, turn=None) -> dict:
-        """The same tools on Mo AI's free cloud brain; then the router and the agent."""
+        """The same tools on Mo AI's configured cloud brain; then the router and the agent."""
         en = lang == 'en'
         note = REASONS[reason][1 if en else 0]
         turn = turn if turn is not None else {}
+        turn.setdefault('cloud_free_only', self._free_cloud_only())
         turn.update(route='moai-cloud', model=self._cloud_model(), inflight='')
         try:
             reply, model, rounds = await asyncio.wait_for(self._gateway(text, say, ctx, lang, city, trace, turn=turn),
                                                           ASK_TIMEOUT_S)
             if reason != 'config':      # without a key this IS the normal path; say nothing then
-                reply = (f'({note}; answered by Mo AI\'s free cloud brain) {reply}' if en else
-                         f'({note}؛ أجاب عقل Mo AI السحابي المجاني) {reply}')
+                # Provider/cost selection belongs to the gateway. A reply is
+                # not a pricing receipt, including for a selected paid provider.
+                reply = (f'({note}; answered by Mo AI\'s cloud brain) {reply}' if en else
+                         f'({note}؛ أجاب عقل Mo AI السحابي) {reply}')
             result = {'status': 'ok', 'reply': reply, 'route': 'moai-cloud', 'model': model or turn.get('model') or '',
                       'rounds': rounds, 'fallback_reason': reason}
             if turn.get('model_refused'):
@@ -620,30 +642,31 @@ class TextBrain:
         except Exception:
             if trace:
                 done = '; '.join(item.get('summary', '') for item in trace)
-                reply = (f'{note}, and the free cloud brain stopped before the answer. What happened: {done}' if en else
-                         f'{note}، وتوقف العقل السحابي المجاني قبل الرد. ما حدث فعلاً: {done}')
+                reply = (f'{note}, and the cloud brain stopped before the answer. What happened: {done}' if en else
+                         f'{note}، وتوقف العقل السحابي قبل الرد. ما حدث فعلاً: {done}')
                 return {'status': _worst(item.get('status') for item in trace), 'reply': reply,
                         'route': 'moai-cloud', 'model': turn.get('model') or '', 'fallback_reason': reason}
         return await self._fallback(text, say, reason, en, city, turn=turn)
 
-    async def _post(self, body: dict) -> dict:
-        """One gateway call, with one more try when a free route hiccups (busy upstream, rate limit)."""
+    async def _post(self, body: dict, *, free_only=True) -> dict:
+        """One gateway call, with one more try on a transient upstream refusal (busy upstream, rate limit)."""
         try:
-            return await asyncio.to_thread(_post_gateway, body)
+            return await asyncio.to_thread(_post_gateway, body, free_only=free_only)
         except GatewayUnavailable as exc:
             if str(exc) not in ('http_429', 'http_500', 'http_502', 'http_503', 'http_504', 'URLError', 'TimeoutError', 'timeout'):
                 raise
             await asyncio.sleep(1.2)
-            return await asyncio.to_thread(_post_gateway, body)
+            return await asyncio.to_thread(_post_gateway, body, free_only=free_only)
 
     async def _gateway(self, text, say, ctx, lang, city, trace, turn=None):
-        """The tool loop over moai-gateway (OpenAI chat completions with tools, free models only).
+        """The tool loop over moai-gateway (OpenAI chat completions with tools).
 
         The owner's chosen model goes as `model: cloud:<id>`; moai-gateway's policy still decides
         what is allowed. If the gateway refuses that model (it left the catalogue, or it is billed
         under a free-only provider), Mo AI's own setting answers and the result says so."""
         en = lang == 'en'
         turn = turn if turn is not None else {}
+        free_only = turn.setdefault('cloud_free_only', self._free_cloud_only())
         requested = self._cloud_model()
         say('thinking', 'Thinking (Mo AI cloud)…' if en else 'أفكر عبر عقل Mo AI…')
         messages = [{'role': 'system', 'content': tools.system_instruction(lang, city, channel='text')}]
@@ -660,7 +683,7 @@ class TextBrain:
             if not last:
                 body.update(tools=declared, tool_choice='auto')
             try:
-                data = await self._post(body)
+                data = await self._post(body, free_only=free_only)
             except GatewayUnavailable as exc:
                 # Only the first call, before any tool ran, can mean "that model is refused"; later a 4xx
                 # is about this conversation and must not quietly switch models halfway through.
@@ -671,7 +694,7 @@ class TextBrain:
                 requested = ''
                 turn['model'] = ''
                 body.pop('model', None)
-                data = await self._post(body)
+                data = await self._post(body, free_only=free_only)
             try:
                 message = data['choices'][0]['message']
             except (KeyError, IndexError, TypeError):
@@ -869,7 +892,8 @@ class TextBrain:
             import moai_link
             # The agent may act on this computer (its own tier and approvals decide); a stop ends only
             # the wait, so `inflight` stays set until it has answered.
-            answer = await asyncio.wait_for(asyncio.to_thread(moai_link.ask, text), AGENT_TIMEOUT_S)
+            answer = await asyncio.wait_for(asyncio.to_thread(moai_link.ask, text,
+                free_only=turn.get('cloud_free_only', self._free_cloud_only())), AGENT_TIMEOUT_S)
             turn['inflight'] = ''
             reply = (f'({note}; answered by the Mo AI agent) {answer}' if en else
                      f'({note}؛ أجاب وكيل Mo AI) {answer}')
@@ -878,6 +902,14 @@ class TextBrain:
             raise
         except Exception as exc:
             turn['inflight'] = ''
+            if (turn.get('cloud_free_only', self._free_cloud_only()) and
+                    isinstance(exc, getattr(locals().get('moai_link'), 'FreeOnlyUnavailable', ()))):
+                reply = (f'{note}. The free cloud/agent fallback is unavailable. Check the provider in Brain settings. '
+                         'No paid fallback was used.' if en else
+                         f'{note}. البديل السحابي المجاني أو وكيله غير متاح. راجع المزوّد في إعدادات العقل. '
+                         'لم يُستخدم أي بديل مدفوع.')
+                return {'status': 'error', 'reply': reply, 'route': 'none', 'fallback_reason': reason,
+                        'cloud_error': 'free_only_unavailable'}
             if _timed_out(exc):
                 reply = (f'{note}, and the Mo AI agent did not answer in time. It may still be working on your '
                          f'request, so check before asking again.' if en else

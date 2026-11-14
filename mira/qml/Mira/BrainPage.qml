@@ -735,6 +735,19 @@ PageFrame {
                     Chip { icon: "check"; tone: page.perms.approvals ? Theme.ok : Theme.amber; text: page.perms.approvals ? mira.s.br_approvals_on : mira.s.br_approvals_off }
                 }
             }
+            T {
+                Layout.fillWidth: true
+                text: mira.s.br_perm_boundary_title
+                font.pixelSize: Theme.small
+                font.weight: Font.DemiBold
+                color: Theme.ink
+            }
+            T {
+                Layout.fillWidth: true
+                text: mira.s.br_perm_boundary_note
+                font.pixelSize: Theme.small
+                color: Theme.ink2
+            }
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: ruleText.implicitHeight + 20

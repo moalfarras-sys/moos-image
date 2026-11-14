@@ -22,6 +22,8 @@ ApplicationWindow {
     readonly property bool shown: visibility !== Window.Minimized && visibility !== Window.Hidden
     readonly property bool lively: ["listening", "thinking", "speaking", "executing"].indexOf(mira.phase) >= 0 || core.hovered
     property string sheet: ""
+    property int settingsSection: 0
+    property int settingsRequest: 0
     onClosing: function(close) { if (mira.hideToTray()) { close.accepted = false; win.hide() } }
 
     // The desktop's live animation setting can stop this window immediately;
@@ -228,6 +230,11 @@ ApplicationWindow {
         }
     }
     function go(name) {
+        if (name === "voice-settings" || name === "phone-settings" || name === "settings") {
+            settingsSection = name === "voice-settings" ? 1 : name === "phone-settings" ? 5 : 0
+            settingsRequest += 1
+            name = "settings"
+        }
         win.sheet = name
         if (name !== "")
             mira.pageShown(name)
@@ -236,7 +243,9 @@ ApplicationWindow {
     Component { id: homeC; SheetFrame { icon: "home"; title: mira.s.home_title; subtitle: mira.s.home_sub; HomeSheet { anchors.fill: parent } } }
     Component { id: pcC; SheetFrame { icon: "monitor"; title: mira.s.pc_title; subtitle: mira.s.pc_sub; ComputerSheet { anchors.fill: parent } } }
     Component { id: sysC; SheetFrame { icon: "shield"; title: mira.s.sys_title; subtitle: mira.s.sys_sub; SystemSheet { anchors.fill: parent } } }
-    Component { id: setC; SheetFrame { icon: "settings"; title: mira.s.st_title; SettingsSheet { anchors.fill: parent } } }
+    Component { id: setC; SheetFrame { icon: "settings"; title: mira.s.st_title; SettingsSheet {
+        anchors.fill: parent; requestedSection: win.settingsSection; requestSerial: win.settingsRequest
+    } } }
     Component { id: soonC; PageFrame { icon: "sparkle"; title: mira.s.page_loading } }
     // the new pages (pages/*.py + qml/Mira/*Page.qml); each is used once its file exists
     Component { id: homePageC; HomePage {} }

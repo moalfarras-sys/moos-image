@@ -158,17 +158,17 @@ class TokenStore:
             else DEFAULT_PORT,
         }
 
-    def _save(self):
+    def _save(self, data):
         self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         temp = self.path.with_name(f'.{self.path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp')
         fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
             with os.fdopen(fd, 'w', encoding='utf-8') as stream:
-                json.dump(self._data, stream)
+                os.fchmod(stream.fileno(), 0o600)
+                json.dump(data, stream)
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temp, self.path)
-            os.chmod(self.path, 0o600)
         except BaseException:
             with contextlib.suppress(OSError):
                 os.unlink(temp)
@@ -192,21 +192,24 @@ class TokenStore:
     def ensure_token(self):
         with self._lock:
             if not self._data['token']:
-                self._data['token'] = secrets.token_urlsafe(32)
-                self._save()
+                candidate = {**self._data, 'token': secrets.token_urlsafe(32)}
+                self._save(candidate)
+                self._data = candidate
             return self._data['token']
 
     def set_enabled(self, enabled):
         with self._lock:
-            self._data['enabled'] = bool(enabled)
-            if self._data['enabled'] and not self._data['token']:
-                self._data['token'] = secrets.token_urlsafe(32)
-            self._save()
+            candidate = {**self._data, 'enabled': bool(enabled)}
+            if candidate['enabled'] and not candidate['token']:
+                candidate['token'] = secrets.token_urlsafe(32)
+            self._save(candidate)
+            self._data = candidate
 
     def rotate(self):
         with self._lock:
-            self._data['token'] = secrets.token_urlsafe(32)
-            self._save()
+            candidate = {**self._data, 'token': secrets.token_urlsafe(32)}
+            self._save(candidate)
+            self._data = candidate
             return self._data['token']
 
     @staticmethod

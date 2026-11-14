@@ -156,7 +156,8 @@ class ControllerAdapter(QObject):
                            ('faceChanged', self._on_face), ('langChanged', self._on_lang),
                            ('servicesChanged', self._on_services), ('weatherChanged', self._on_weather),
                            ('homeChanged', self._on_home), ('echoChanged', self._on_echo),
-                           ('busyChanged', self._on_busy), ('levelChanged', self._on_level),
+                           ('busyChanged', self._on_busy), ('settingsChanged', self._on_voice_route),
+                           ('levelChanged', self._on_level),
                            ('toast', self._on_toast)):
             signal = getattr(c, name, None)
             if signal is not None:
@@ -177,7 +178,7 @@ class ControllerAdapter(QObject):
 
         with self._lock:
             self._state = self._read(('phase', 'status', 'caption', 'captionRole', 'mood', 'faceStyle', 'lang',
-                                      's', 'services', 'weather', 'home', 'echo', 'busy', 'actions'))
+                                      's', 'services', 'weather', 'home', 'echo', 'busy', 'actions', 'voiceRoute'))
             self._state['level'] = 0.0
             self._chat = [(self._next(), _chat_row(row)) for row in _model_rows(chat)]
             self._devices = [_device_row(row) for row in _model_rows(devices)]
@@ -281,6 +282,8 @@ class ControllerAdapter(QObject):
             elif key == 'echo':
                 echo = getattr(c, 'echo', None) or {}
                 out['echo'] = {'online': echo.get('online') is True, 'voice_enabled': echo.get('voice_enabled') is not False}
+            elif key == 'voiceRoute':
+                out[key] = self._voice_route()
             elif key == 'busy':
                 out['busy'] = bool(getattr(c, 'busy', False))
             elif key == 'actions':
@@ -290,6 +293,46 @@ class ControllerAdapter(QObject):
             else:
                 out[key] = _plain(getattr(c, key, None))
         return out
+
+    def _voice_route(self):
+        """Describe the existing desktop executor, never a phone microphone.
+
+        These are controller state reads on Qt's thread. No configuration or
+        credential is opened, and eligibility is not proof of physical audio.
+        """
+        c = self.controller
+        echo = getattr(c, 'echo', None) or {}
+        bridge = getattr(c, 'bridge', None)
+        online = getattr(bridge, 'online', echo.get('online') is True) is True
+        target = 'echo' if online else 'computer'
+        phase = getattr(c, '_voice_phase', getattr(c, 'phase', ''))
+        active = phase in ('activating', 'listening', 'thinking', 'speaking', 'executing')
+        owner = getattr(c, '_voice_owner', '')
+        if active and owner in ('pc', 'echo'):
+            target = 'computer' if owner == 'pc' else 'echo'
+        mic = getattr(c, 'microphone', None) or {}
+        connection = getattr(c, 'voiceConnection', None) or {}
+        key_state = getattr(c, 'brainKey', 'missing')
+        if active:
+            state = 'active'
+        elif phase in ('off', 'offline') or online and echo.get('voice_enabled') is False:
+            state = 'off'
+        elif mic.get('busy') is True or getattr(c, 'busy', False) is True:
+            state = 'busy'
+        elif key_state == 'testing' or connection.get('busy') is True:
+            state = 'testing'
+        elif key_state == 'missing':
+            state = 'setup_required'
+        elif key_state == 'failed':
+            # This is the last typed-model probe, not Live admission. The
+            # desktop still tries the saved key; offer the same explicit retry.
+            state = 'retry'
+        elif key_state not in ('set', 'ok'):
+            state = 'unknown'
+        else:
+            state = 'ready'
+        return {'target': target, 'state': state, 'canStart': state in ('ready', 'retry'),
+                'canStop': active, 'phoneMicrophone': False}
 
     def _changed(self, keys):
         values = self._read(keys)
@@ -312,7 +355,7 @@ class ControllerAdapter(QObject):
 
     @Slot()
     def _on_phase(self):
-        self._changed(('phase',))
+        self._changed(('phase', 'voiceRoute'))
 
     @Slot()
     def _on_status(self):
@@ -348,11 +391,15 @@ class ControllerAdapter(QObject):
 
     @Slot()
     def _on_echo(self):
-        self._changed(('echo',))
+        self._changed(('echo', 'voiceRoute'))
 
     @Slot()
     def _on_busy(self):
-        self._changed(('busy',))
+        self._changed(('busy', 'voiceRoute'))
+
+    @Slot()
+    def _on_voice_route(self):
+        self._changed(('voiceRoute',))
 
     @Slot()
     def _on_level(self):
@@ -457,7 +504,7 @@ def qr_code(text):
 PANEL_TEXT = {
     'section': ('الهاتف', 'Phone'),
     'title': ('ميرا على هاتفك', 'Mira on your phone'),
-    'subtitle': ('ميرا على الـ iPhone عبر شبكة Tailscale الخاصة بك', 'Mira on your iPhone, over your private Tailscale network'),
+    'subtitle': ('ميرا على Android وiPhone عبر شبكة Tailscale الخاصة بك', 'Mira on Android and iPhone, over your private Tailscale network'),
     'enable': ('تشغيل واجهة الهاتف', 'Phone interface'),
     'state_off': ('متوقفة', 'Off'),
     'state_starting': ('تبدأ…', 'Starting…'),
@@ -478,8 +525,8 @@ PANEL_TEXT = {
     'phones_two': ('هاتفان متصلان الآن', 'Two phones connected now'),
     'phones_many': ('{n} هواتف متصلة الآن', '{n} phones connected now'),
     'pair_title': ('إقران الهاتف', 'Pair your phone'),
-    'pair_steps': ('وجّه كاميرا الـ iPhone إلى الرمز وافتح الرابط في Safari. لتبقى ميرا على الشاشة الرئيسية: مشاركة ← إضافة إلى الشاشة الرئيسية.',
-                   'Point the iPhone camera at the code and open the link in Safari. To keep Mira on your Home Screen: Share → Add to Home Screen.'),
+    'pair_steps': ('شغّل Tailscale على الهاتف، وامسح الرمز بكاميرته. افتح الرابط في Chrome على Android أو Safari على iPhone. يمكنك إضافته إلى الشاشة الرئيسية من قائمة المتصفح أو المشاركة.',
+                   'Connect Tailscale on your phone and scan the code with its camera. Open it in Chrome on Android or Safari on iPhone. Add it to your Home Screen from the browser menu or Share.'),
     'show_code': ('إظهار رمز الإقران', 'Show pairing code'),
     'hide_code': ('إخفاء الرمز', 'Hide code'),
     'code_hidden': ('الرمز مخفي حتى تطلبه، ويختفي وحده بعد دقيقتين.',
@@ -488,17 +535,19 @@ PANEL_TEXT = {
     'rotate_confirm': ('اضغط مجدداً للتأكيد', 'Press again to confirm'),
     'rotate_note': ('تغيير الرمز يفصل كل هاتف مقترن؛ امسح الرمز الجديد لإعادة الإقران.',
                     'Changing the code signs out every paired phone; scan the new code to pair again.'),
-    'qr_missing': ('لا يمكن رسم رمز QR على هذا الكمبيوتر. افتح هذا الرابط في Safari على الهاتف:',
-                   'The QR code cannot be drawn on this computer. Open this link in Safari on the phone:'),
+    'qr_missing': ('لا يمكن رسم رمز QR على هذا الكمبيوتر. افتح هذا الرابط في متصفح الهاتف:',
+                   'The QR code cannot be drawn on this computer. Open this link in your phone browser:'),
     'link': ('رابط الإقران', 'Pairing link'),
     'address': ('العنوان', 'Address'),
     'note_title': ('ما يستطيعه الهاتف', 'What the phone can do'),
-    'note': ('لا يمكن الوصول إليها إلا من شبكة Tailscale الخاصة بك. يستطيع الهاتف المحادثة والتحدّث والتحكم بالبيت؛ أما أوامر الكمبيوتر فتبقى خاضعة لقواعد التأكيد في Mo AI.',
-             "Reachable only on your Tailscale network; the phone can chat, talk and control the house; computer actions still pass Mo AI's confirmation rules."),
+    'note': ('تعمل عبر شبكة Tailscale الخاصة بك. اكتب من الهاتف أو شغّل المحادثة عبر ميكروفون الكمبيوتر أو Echo وسماعاته؛ لا يُفتح ميكروفون الهاتف. أوامر الكمبيوتر تبقى خاضعة لتأكيد Mo AI.',
+             "Use your private Tailscale network to type or start a conversation on the computer or Echo microphone and speakers. The phone microphone stays closed. Computer actions still pass Mo AI's confirmation rules."),
     'note_brain': ('ما تكتبه على الهاتف يمر بعقل ميرا نفسه كما على الكمبيوتر، وليس للهاتف طريق مباشر إلى أدوات الكمبيوتر.',
                    "What you type on the phone goes through Mira's own brain, exactly as on the desktop; the phone has no direct route to the computer's tools."),
     'last_paired': ('آخر إقران: {time}', 'Last paired: {time}'),
     'paired_notice': ('اقترن هاتف بميرا ({ip})', 'A phone paired with Mira ({ip})'),
+    'save_failed': ('تعذّر حفظ إعداد الهاتف؛ بقي الإعداد والرمز السابقان كما هما.',
+                    'Phone settings could not be saved; the previous setting and pairing code were preserved.'),
 }
 
 
@@ -564,7 +613,12 @@ class CompanionService(QObject):
     def set_enabled(self, enabled):
         enabled = bool(enabled)
         if enabled != self.store.enabled:
-            self.store.set_enabled(enabled)
+            try:
+                self.store.set_enabled(enabled)
+            except (OSError, ValueError):
+                self.notice.emit('error', panel_text(self._lang())['save_failed'])
+                self._rebuild()
+                return
         if enabled and self.server is None:
             self._start_server()
         elif not enabled and self.server is not None:
@@ -573,7 +627,12 @@ class CompanionService(QObject):
         self._rebuild()
 
     def rotate_token(self):
-        self.store.rotate()
+        try:
+            self.store.rotate()
+        except (OSError, ValueError):
+            self.notice.emit('error', panel_text(self._lang())['save_failed'])
+            self._rebuild()
+            return
         self._qr_for = (None, None)
         if self.server is not None:
             self.server.close_streams('rotated')

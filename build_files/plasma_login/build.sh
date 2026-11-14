@@ -9,7 +9,19 @@ prepare)
     python3 "$source_root/rpms.py" source "$current" > /work/plasma-login-source.json
     source_url="$(python3 -c 'import json;print(json.load(open("/work/plasma-login-source.json"))["source_url"])')"
     source_sha="$(python3 -c 'import json;print(json.load(open("/work/plasma-login-source.json"))["source_sha256"])')"
-    curl --fail --location --retry 3 --connect-timeout 30 "$source_url" -o /work/plasma-login.src.rpm
+    # TLS connection resets (curl35) are outside curl's default retry list.
+    # At mostfour attempts; the480s retry budget plus a last120s transfer also
+    # bounds server Retry-After delays, which can override the fixed2s delay.
+    # exhausted/permanent failures still stop before digest/signature admission.
+    source_http="$(curl --fail --location --retry 3 --retry-all-errors --retry-delay 2 \
+        --connect-timeout 30 --max-time 120 --retry-max-time 480 \
+        --write-out '%{http_code}' "$source_url" -o /work/plasma-login.src.rpm)"
+    # Some curl versions return0 when Retry-After exceeds the retry budget.
+    # An old matching output file must never clear a failed HTTP response.
+    if [ "$source_http" != 200 ]; then
+        echo "Refused plasma-login source HTTP status: $source_http" >&2
+        exit 22
+    fi
     echo "$source_sha  /work/plasma-login.src.rpm" | sha256sum --check
     LC_ALL=C rpmkeys --checksig --verbose /work/plasma-login.src.rpm > /work/plasma-login-source-signature.txt
     grep -F '96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb: OK' /work/plasma-login-source-signature.txt

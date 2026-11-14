@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "date": "2026-11-14",
+  "plan": [
+    "P5.1",
+    "P5.3",
+    "P5.7"
+  ],
+  "integration_owner": "Codex",
+  "scope": "Combined conversation fixes plus truthful rotation diagnostics and exact upstream backport preparation; kernel delivery remains refused until trusted signed input exists.",
+  "native": {
+    "booted_version": "44.20261110.1139",
+    "kernel": "7.2.15-200.fc44.x86_64",
+    "sensor": "SMOCF05",
+    "driver_bound": false,
+    "has_accelerometer": false,
+    "panel": {
+      "name": "eDP-1",
+      "enabled": false,
+      "mode_pixels": [
+        2560,
+        1600
+      ],
+      "scale": 1.45
+    },
+    "external": {
+      "name": "DP-11",
+      "mode_pixels": [
+        3840,
+        2160
+      ],
+      "scale": 2.5
+    }
+  },
+  "upstream": {
+    "schema": 1,
+    "upstream_commit": "53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb",
+    "upstream_parent": "b48c17680f904f43b15c1c648667bfb34ab34453",
+    "upstream_url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jic23/iio/+/53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb",
+    "upstream_source_url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jic23/iio/+/53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c?format=TEXT",
+    "license": "GPL-2.0-only",
+    "scope": "Prepared backport only; not applied by image builds and not installed or module-signed. Stock signed vendor kernel containing this change remains the delivery requirement.",
+    "target_vendor_tree": "https://gitlab.com/cki-project/kernel-ark/-/blob/f03e29f2bf5f5bad488b745c5a9188f895cfde76/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c",
+    "stock_source_sha256": "0b7505a74a95808ff529f60aa2d100c5f7890e2fe60ead5e8cb2d1a67579431a",
+    "accepted_source_sha256": "5527a593fe18195c37e0c31ab04e8fda2840a85a8bb7412e3aeea4e0e3acd755",
+    "upstream_patch_sha256": "3f571216b6f4ad5f550e8c3e4f7b37750d7e4192a8734527e7cd364d8ce256ec",
+    "backport_patch_sha256": "4a6ddf3570367d2f7dadbcd54d384e9dcb39293befce4993a2001753160f3c16",
+    "matrix": "-1, 0, 0; 0, -1, 0; 0, 0, 1",
+    "matrix_owner": "existing systemd hwdb entry, already installed on V3",
+    "native_test_required": [
+      "signed vendor package/RPM/module provenance and unchanged kernel integrity",
+      "actual SMOCF05 probe and accelerometer/gyro IIO registration",
+      "SensorProxy orientation and tilt in four orientations",
+      "native internal panel rotation, scale and touchscreen coordinates",
+      "policy lock, external monitor unchanged, suspend/resume and reboot"
+    ]
+  },
+  "corrections": [
+    "Explicit unavailable/empty I2C inventory instead of an empty success on failed enumeration",
+    "Typed SensorProxy properties: binding alone does not establish an accelerometer",
+    "Native connected internal-panel state and current-mode dimensions with rotation/fractional scale",
+    "Unavailable KScreen autoRotationPolicy is not interpreted as Never/incapable",
+    "Existing hardware action cards and daily health retain concrete rotation findings",
+    "No independent rotation/touch-mapping owner; KWin retains transformations",
+    "Headless and mismatched Qt transport skip native GUI diagnostic instead of creating a Qt abort",
+    "Strict unique current mode identity prevents false-known geometry",
+    "Optional native autoRotatePolicy0/1/2 preserves personal Never/Tablet/Always",
+    "Fractional ratios and upward-rounded KScreen bounds are explicitly derived, not compositor rectangle readback"
+  ],
+  "validation": {
+    "rotation_controls": 22,
+    "backport_controls": 2,
+    "device_plan_controls": "existing complete suite passed",
+    "daily_health_controls": 20,
+    "old_fixed": [
+      {
+        "scenario": "I2C inventory missing",
+        "old": "ready",
+        "fixed": "attention / inspection-unavailable"
+      },
+      {
+        "scenario": "bound driver, no accelerometer",
+        "old": "ready",
+        "fixed": "action-needed / accelerometer-missing"
+      }
+    ],
+    "native_source_readback": "driver-missing; exact SensorProxy false and disabled native panel identified; host display unchanged",
+    "full_source": "pending frozen combined candidate",
+    "image_signed_installed": "pending frozen combined candidate",
+    "headless_native": "Actual private headless process exits0 and skips Qt transport; original review reproduced Qt SIGABRT-6."
+  },
+  "combined_scope": {
+    "base": "bc37982ac68de58323ae1d2f1abbbddbd7ff1d7c",
+    "source_ancestors": [
+      "32410ec4d3e28c478d6a69a5efebd2965fc7815a",
+      "8768e6b6240506d2e0133a45ffb860a98761aca1",
+      "1158d6fa4387e0b9a7c7b8c126b6ca9ff12746f3"
+    ],
+    "prior_branches_pushed": 17,
+    "prior_intermediate_coordinator": "Stopped by integration owner before dispatch to batch all owner-requested fixes; active native PC image proof retained.",
+    "owner_authorization": "Complete signed release, host update and reboot explicitly requested2026-11-14. Reboot remains after exact signed promotion/stage/readback."
+  },
+  "remaining": [
+    "Actual signed kernel containing SMOCF05 match, trusted module signature and loaded-driver probe",
+    "Physical four-orientation, tilt, touch-corner, suspend and reboot acceptance",
+    "Mira owner speech/intelligibility/hearing deferred by owner; phone pairing remains untested and phone microphone transport unimplemented",
+    "Current full image/source/CI/canonical signed promotion and installed payload readback",
+    "Fingerprint/USB4 historical hardware faults and other product-plan acceptance remain open"
+  ],
+  "private_evidence": "test-results/execution-20261114-complete-release; no API credentials, audio or pairing token published",
+  "host_kernel_mutation": false,
+  "review": "Independent reviewer reproduced headless abort, missing/duplicate mode-ID false-known, optional-policy omission and geometry provenance; corrected before candidate freeze."
+}

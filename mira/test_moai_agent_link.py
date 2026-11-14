@@ -41,8 +41,27 @@ class AgentLinkTest(unittest.TestCase):
         request = open_request.call_args.args[0]
         body = json.loads(request.data)
         self.assertEqual(body['moai'], {'agent': True, 'session': 'mira-desktop-owner'})
+        self.assertTrue(request.full_url.endswith('/v1/free/chat/completions'))
+        self.assertEqual(request.get_header('X-moai-cost-policy'),'free')
         self.assertIn('أعمل على MoOS', body['messages'][0]['content'])
         self.assertEqual(body['messages'][-1]['content'], 'ما مشروعي؟')
+
+    def test_explicit_selected_cost_uses_the_existing_route(self):
+        with patch('mira_memory.profile_text', return_value=''), patch.object(
+            moai_link.OPENER, 'open', return_value=Response('hermes')) as call:
+            moai_link.ask('synthetic', free_only=False)
+        request=call.call_args.args[0]
+        self.assertTrue(request.full_url.endswith('/v1/chat/completions'))
+        self.assertIsNone(request.get_header('X-moai-cost-policy'))
+
+    def test_unknown_policy_values_stay_free_only(self):
+        for value in (None, 0, '', [], True):
+            with self.subTest(value=value), patch('mira_memory.profile_text', return_value=''), patch.object(
+                moai_link.OPENER, 'open', return_value=Response('direct-fallback')) as call:
+                moai_link.ask('synthetic', free_only=value)
+                request=call.call_args.args[0]
+                self.assertTrue(request.full_url.endswith('/v1/free/chat/completions'))
+                self.assertEqual(request.get_header('X-moai-cost-policy'),'free')
 
     def test_direct_fallback_is_not_called_agent_work(self):
         with patch('mira_memory.profile_text', return_value=''), patch.object(

@@ -39,6 +39,7 @@ if os.name == "nt":
     spec = importlib.util.spec_from_loader(loader.name, loader)
     module = importlib.util.module_from_spec(spec)
     loader.exec_module(module)
+    module.rotation_report = lambda: {"status": "not-applicable"}
 
     lspci = """01:00.0 VGA compatible controller [0300]: NVIDIA Corporation TU104 [10de:1e81]
 \tKernel driver in use: nouveau
@@ -110,6 +111,7 @@ loader = importlib.machinery.SourceFileLoader("moos_device_plan_arm", str(PLAN))
 spec = importlib.util.spec_from_loader(loader.name, loader)
 arm_module = importlib.util.module_from_spec(spec)
 loader.exec_module(arm_module)
+arm_module.rotation_report = lambda: {"status": "not-applicable"}
 arm_module.run = lambda *args, **kwargs: (
     "01:00.0 VGA compatible controller: NVIDIA Corporation Device" if args[0] == "lspci"
     else '{"status":"ok"}' if args[0] in ("bootc", "rpm-ostree")
@@ -138,6 +140,7 @@ with tempfile.TemporaryDirectory() as tmp:
     spec = importlib.util.spec_from_loader(loader.name, loader)
     sensor_module = importlib.util.module_from_spec(spec)
     loader.exec_module(sensor_module)
+    sensor_module.rotation_report = lambda: {"status": "not-applicable"}
     sensor_module.run = lambda *args, **kwargs: (
         "c4:00.0 VGA compatible controller: AMD Radeon\n\tKernel driver in use: amdgpu"
         if args[0] == "lspci" else "")
@@ -294,6 +297,7 @@ if os.name != "nt":
 loader=importlib.machinery.SourceFileLoader('private_plan',sys.argv[1])
 spec=importlib.util.spec_from_loader(loader.name,loader)
 module=importlib.util.module_from_spec(spec);loader.exec_module(module)
+module.rotation_report=lambda: {"status": "not-applicable"}
 module.i2c_driver_gaps=lambda: []
 print(json.dumps(module.detect(machine='x86_64')))
 """

@@ -1,0 +1,410 @@
+{
+  "date": "2026-11-14",
+  "scope": "P3.1/P3.5/P1.7 Mira cloud cost, native permission truth and phone companion usability",
+  "integration_owner": "Codex on physical V3",
+  "source_base": "32410ec4d3e28c478d6a69a5efebd2965fc7815a",
+  "source_files": {
+    "mira/brain.py": "048982fa56d12aa5f4792e4f9fc6a33bd2bf180d3e4e9ee014aefe4083f31d13",
+    "mira/pages/brain.py": "b81dc1c5583cbac4f1ed437c0255d4ad18d224dffa8683c87bc9683572a7b373",
+    "mira/moai_link.py": "1485e60ceee9ab98060916b4b18d7552c567faffc29d367cd4424b0f8ebe8280",
+    "mira/controller.py": "5992f715acace4d45b4bb293108496a0853cda2d66d9800bfcd084d6beb6e50a",
+    "mira/companion/adapter.py": "07353c99096e792975ddc9beb373fc789113de5e7de3bd03f54889d8c301662a",
+    "mira/companion/server.py": "5d9bb248cf3cef38e89e4c855c410ccee88e997a54a4acee073b2ad6f8b3f849",
+    "mira/companion/static/app.js": "6f827eb60f5680ce6ef4a4691604da6c87ad4e6d555146241773f102d5535ac7",
+    "mira/companion/static/app.css": "cacacd160277b54f883098d2166df29a7b4cbe000741f238c9bf246aa490b20a",
+    "mira/companion/static/index.html": "6090bbb69431f65488bfd75f4706a163d48ed4a27c15a94c67003b8177e1b29c",
+    "mira/companion/static/manifest.webmanifest": "0dbec8dbec32cdd67d95e402e52bd76531dfbc3f34f242e74295b437fd38ee98",
+    "mira/qml/Main.qml": "026ae703f278c8fbf6faa63d4e7c606b4b28bfd4c1735c180c5bacd66be83779",
+    "mira/qml/Mira/BrainPage.qml": "902823164bfe03950ba3cea71e4da97c4ec7d562d5d6b1d44bbac2ff09c5fbae",
+    "mira/qml/Mira/CompanionPanel.qml": "0d085e3858cfe2edd1063c93ec8ec08aa8887a47576b8e2e1ce555f80c04615b",
+    "system_files/usr/bin/moai-gateway": "6886ac816ea25cb3945e01afd358ff596233b1cf33ae4cac0e20a6d7e9c99c51"
+  },
+  "observed_baseline": {
+    "root": "77 fixed native tools:21read,35control,13user-confirm,8privileged-confirm; agenttierread/executionoff, no standingrootgrant. Actual system_update confirmedfalse returnsconfirm/privileged_confirm with no job; native memory_status read passes. Polkit auth_admin remains required.",
+    "cloud": "Gemini new private key answers; selected global fallback is paid OpenCodeZen/deepseek-v4-flash, while old reply/page copy unconditionally claimedfree. Old gateway can remap openrouter/free to Zenpaid model.",
+    "phone": "Companion off/unconfigured, no18770listener; TailscaleRunning with mobilepeer does not prove Mira pairing. Talk starts desktop/Echo input, no phone microphone/audio transport.",
+    "ui": "Light native QR modules1.503:1 on white. Portrait-only PWA and Echo-only dim rule obscure actual PC route. Failed token save mutates live enable/token despite unchanged disk."
+  },
+  "changes": [
+    "Neutral/dynamic cloud cost labels; unknown providerfree flag remainsunknown, notfree",
+    "Mira defaultsperrequestfree-only; onlyexistingexplicitpaidconfirmation selects provider-cost policy. Fresh free endpoint prevents old gateway ignoring header into billed route.",
+    "Existing gateway rejects free requests for billed/unknown routes and agentdelegation lacking a cost contract before proxying. Allowed explicitfree OpenRouter bodies retain max_price0. Other apps ordinaryselected-provider requests remain unchanged.",
+    "Mira retry/default-model fallback and agentfallback retain same turncostpolicy; manualfree probe uses authoritative gateway path, never a staleprovider/direct paid test.",
+    "Clarify project-agent tier/account permissions versus fixed administrator operations/ownerconfirmation/Polkit. No arbitrary root shell or authentication bypass added.",
+    "Phone voiceRoute truthfully identifies computer/Echo, missing/busy/testing/retry/off state; failedtext test permitsunverifiedvoice retry. Phone microphone remains closed.",
+    "Android/iOS pairing, orientationany andlandscapechatroom; native phone launch reaches actual pairing panel",
+    "TokenStore memory changes onlyafterprivateatomicfilecommit. Failedenable/rotationpreserves token/server/session and shows localizederror.",
+    "QR invariantblack/white21:1, quietzone/grid, hiddenexpiry andtwo-step rotate retained",
+    "Reselecting the same already-confirmed paid model is a no-op; unknown cost arguments retain the free guard."
+  ],
+  "executed_checks": {
+    "gateway_private_http": {
+      "tests": 9,
+      "exit": 0,
+      "cases": [
+        "Zenpaid/default/explicitbilledrefusedbeforeproxy",
+        "OpenRouterexplicitfreeprice0 evenpaidaccountselection",
+        "Billedautomaticcandidate refused",
+        "Agentdelegationfree refused beforeagentstart",
+        "Ordinaryexplicitpaid requests preserved",
+        "Same-socket policy reset",
+        "Malformedpolicy andUID/origin boundaries",
+        "Freeendpoint withoutheader enforced"
+      ]
+    },
+    "original_gateway_control": {
+      "failed_new_controls": 7,
+      "fixture_errors": 0,
+      "no_live_provider": true
+    },
+    "relay_lifetime": {
+      "tests": 7,
+      "exit": 0
+    },
+    "relay_streaming": "original sockettruncation/drop controls pass",
+    "brain_page_agentlink": {
+      "tests": 106,
+      "exit": 0,
+      "seconds": 1.172,
+      "log_sha256": "dce8bc0deebc37e85d8d0cf05190a7797b614b975229236b307f741b6bd68a39"
+    },
+    "controller_phone_qr": {
+      "tests": 96,
+      "exit": 0
+    },
+    "browser": {
+      "tests": 1,
+      "exit": 0,
+      "scope": "Real Chromium over private HTTP/SSE;380x780RTL/780x380LTR,chatinnerroom,pending/ready/retry,actualTalk/Stopcalls,reconnectnewsnapshot; no physicalphone"
+    },
+    "native_qr": {
+      "tests": 4,
+      "exit": 0,
+      "oldcontrast": 1.503,
+      "fixedcontrast": 21,
+      "scope": "ActualnativeKDELight/Dark +libzbar exactsyntheticpayload/blanknegative;oldpristineQRalsodecodes, no camera-failureclaim"
+    },
+    "declared_mira_modules": {
+      "modules": [
+        {
+          "module": "test_tools",
+          "exit": 0,
+          "seconds": 3.346,
+          "tests": 77,
+          "sha256": "824de9292ec3aa7365a6af55e4fbf7a4ba4a4178bc3c5c4814ed2788b4f1f1a2"
+        },
+        {
+          "module": "test_brain",
+          "exit": 0,
+          "seconds": 2.564,
+          "tests": 49,
+          "sha256": "c19b96819e00de20d3f51a4a9ff3e8e1a60caeb03e93f88625574c4d0ca5dbe1"
+        },
+        {
+          "module": "test_controller",
+          "exit": 0,
+          "seconds": 3.6,
+          "tests": 64,
+          "sha256": "5dbab3a4d9cd6af1cee5492e797ae10500c6933f7a940d14bace563b570c6974"
+        },
+        {
+          "module": "test_qml",
+          "exit": 0,
+          "seconds": 29.567,
+          "tests": 11,
+          "sha256": "38494b29c58429be7167859ac9af983df5436201af0a4477aad2e1df387e30e5"
+        },
+        {
+          "module": "test_mira_combo",
+          "exit": 0,
+          "seconds": 2.313,
+          "tests": 1,
+          "sha256": "2a850ae27ee67062bf5155092ca36451f43b73a62e3e1dbc1a7dbecd48a74c4d"
+        },
+        {
+          "module": "test_companion_qr",
+          "exit": 0,
+          "seconds": 3.69,
+          "tests": 3,
+          "sha256": "753ab46b228d75d069ac129605fb6a0ac58ff5f18fe6627f440b3d272dd3d429"
+        },
+        {
+          "module": "test_native_appearance",
+          "exit": 0,
+          "seconds": 21.712,
+          "tests": 2,
+          "sha256": "ac1c26c2fb795c6a68261728bf38935de72913bacaf4fa6447cb3d497ceb7e7c"
+        },
+        {
+          "module": "test_native_reading_states",
+          "exit": 0,
+          "seconds": 19.12,
+          "tests": 2,
+          "sha256": "1a9988d58215b271ff64ca9079c9195fe4de1db2066bfd5d411b6dea3badbcf2"
+        },
+        {
+          "module": "test_companion",
+          "exit": 0,
+          "seconds": 10.164,
+          "tests": 29,
+          "sha256": "a9cedadba5b659985b9fa499a4cd002ee61004dd945f62e15ac51339e21e5920"
+        },
+        {
+          "module": "test_systools",
+          "exit": 0,
+          "seconds": 1.911,
+          "tests": 57,
+          "sha256": "a6a626ae25586c4b0fa754fdb2e3027fd3be910d53368b4292a777a9c90cd0a9"
+        },
+        {
+          "module": "test_live_voice_local",
+          "exit": 0,
+          "seconds": 7.148,
+          "tests": 35,
+          "sha256": "260b9ce624a186367effec2dcf22ffd5d15593b81d00beb957d78ab1e4ec4bfd"
+        },
+        {
+          "module": "test_live_voice_config",
+          "exit": 0,
+          "seconds": 2.967,
+          "tests": 21,
+          "sha256": "20c2f8784389c91e5828bea017b2253712cffc801bc7dd65fe7a4403ba2173f4"
+        },
+        {
+          "module": "test_desk_voice",
+          "exit": 0,
+          "seconds": 0.757,
+          "tests": 25,
+          "sha256": "30e64e247a228fd45c21586d831941f38d39da08af160974e8ece1cc7436407f"
+        },
+        {
+          "module": "test_audio_devices",
+          "exit": 0,
+          "seconds": 1.817,
+          "tests": 10,
+          "sha256": "d0bd40b5da27d6228a8d7de17999be8195e944b69873ab11b1f3a6e7ccbaca10"
+        },
+        {
+          "module": "test_mira_memory",
+          "exit": 0,
+          "seconds": 0.162,
+          "tests": 16,
+          "sha256": "3715f241fdcbebdc7a700cc9736c2b65df091f7a7bbe025922fa8e134cbd6401"
+        },
+        {
+          "module": "test_group_lights",
+          "exit": 0,
+          "seconds": 0.154,
+          "tests": 7,
+          "sha256": "f3040cf5c7b42aef9238a479ba26d6fd1af38e5de964751d29a0d5ca96faf1d0"
+        },
+        {
+          "module": "test_moai_agent_link",
+          "exit": 0,
+          "seconds": 0.142,
+          "tests": 6,
+          "sha256": "31040335dcb488ae741858ce225ffdaf66f3a38986d6bc7587c19b114562d745"
+        },
+        {
+          "module": "test_visual_tier",
+          "exit": 0,
+          "seconds": 3.806,
+          "tests": 32,
+          "sha256": "9513ca364d16c76de622c86e3e226401750bb3b3e7bb879863ac6c5a66925e99"
+        },
+        {
+          "module": "test_initial_language",
+          "exit": 0,
+          "seconds": 0.067,
+          "tests": 3,
+          "sha256": "aece0b59f94004ff6484ed589e910c70269686c7290ca5a65d6577c9d53ceda1"
+        },
+        {
+          "module": "test_kde_integration",
+          "exit": 0,
+          "seconds": 2.584,
+          "tests": 88,
+          "sha256": "c8595ae7efa7977eb9a87ccc57ad6d590c6b28212229dfcb1123d6459e9cd674"
+        },
+        {
+          "module": "test_inbox",
+          "exit": 0,
+          "seconds": 6.828,
+          "tests": 43,
+          "sha256": "146cc8f31c8c2d03f5a67316e410a6cb99f2951854714ae018074e576bcbe11e"
+        },
+        {
+          "module": "test_chat_ui",
+          "exit": 0,
+          "seconds": 18.374,
+          "tests": 44,
+          "sha256": "a87c9abf1b284101ecd680c54ff796335afadff289d8c3dd391eb692897fdddf"
+        },
+        {
+          "module": "test_moos_routes",
+          "exit": 0,
+          "seconds": 0.134,
+          "tests": 10,
+          "sha256": "6d496acb413bc96a78e54a56b81a201ce7b4622c54d5445232f239ad5eb59414"
+        },
+        {
+          "module": "test_page_pc",
+          "exit": 0,
+          "seconds": 2.053,
+          "tests": 63,
+          "sha256": "b0acc60d8cb37ba7f9a8277842d26527c3b9d9e1ca7d876bbeaa918519958c68"
+        },
+        {
+          "module": "test_page_apps",
+          "exit": 0,
+          "seconds": 0.402,
+          "tests": 44,
+          "sha256": "262ea6382f6d43ac4e7b9d453ba00b7ab00998ffff8d2c5bf9bd6c1bc4e0f95c"
+        },
+        {
+          "module": "test_page_system",
+          "exit": 0,
+          "seconds": 19.023,
+          "tests": 76,
+          "sha256": "2128ed5fd696cd114c4dc60ef1e05ffd56c7966378c7455b07af684c528595bb"
+        },
+        {
+          "module": "test_page_workbench",
+          "exit": 0,
+          "seconds": 0.454,
+          "tests": 81,
+          "sha256": "1a5d59b1b994d2eccc85a7ca3f252902f90a56d35b8f568296075e12d03b85c8"
+        },
+        {
+          "module": "test_page_connect",
+          "exit": 0,
+          "seconds": 9.094,
+          "tests": 72,
+          "sha256": "c7762e19b5a4f2a939bc7440592376f22c632a739b898df4fbc403611e51d29c"
+        },
+        {
+          "module": "test_page_brain",
+          "exit": 0,
+          "seconds": 0.531,
+          "tests": 50,
+          "sha256": "9577ec71b87447ace212f4cfa3b2dde99646ea727cb1f1c88ee3f7786a0394ec"
+        },
+        {
+          "module": "test_lumen",
+          "exit": 0,
+          "seconds": 10.08,
+          "tests": 40,
+          "sha256": "006d408618c783dc466720f8459ccce7257e1d13d11e5d266899847b402da63c"
+        },
+        {
+          "module": "test_lumen_hue",
+          "exit": 0,
+          "seconds": 5.311,
+          "tests": 46,
+          "sha256": "ecdc19043e4931a3848a70e5b7c5cb8439d509203e20fa492d8e8b1e4a63fcf5"
+        },
+        {
+          "module": "test_lumen_sync",
+          "exit": 0,
+          "seconds": 6.258,
+          "tests": 37,
+          "sha256": "915192069526b6ce839c3cb15ddd778449f5821a201a233225836ec9665385a3"
+        },
+        {
+          "module": "test_homehub",
+          "exit": 0,
+          "seconds": 1.09,
+          "tests": 44,
+          "sha256": "a9732609850d1ce24da07379ab88097450f52a806e2f1269ce1f81bc4a8ae15c"
+        },
+        {
+          "module": "test_homesetup",
+          "exit": 0,
+          "seconds": 0.15,
+          "tests": 6,
+          "sha256": "8bdefec12696c4c5a00605b8b1977ba8de990ca566bd8db7a04d2fe78120284b"
+        },
+        {
+          "module": "test_page_lumen",
+          "exit": 0,
+          "seconds": 0.994,
+          "tests": 14,
+          "sha256": "6f2d9e6a3abb578eb5c6c2c99b9806ccf1c5b87bb6395cecd6a075941f03429c"
+        }
+      ],
+      "tests": 1208,
+      "exit": 0,
+      "seconds": 198.367,
+      "source_qml_prefix": true,
+      "private_home_cache": true,
+      "followup_changed_methods": "106 brain/page/agent-link tests pass after samepaidchoice/unknownpolicy correction"
+    }
+  },
+  "native_runtime": {
+    "gateway": {
+      "gateway_ok": true,
+      "global_cost_policy": "paid",
+      "free_refusal_http": 409,
+      "known_free_policy_refusal": true
+    },
+    "mira_free_fallback": {
+      "status": "error",
+      "route": "none",
+      "model": "",
+      "cloud_error": "free_only_unavailable",
+      "fallback_reason": "config",
+      "elapsed_s": 1.14,
+      "paid_route_used": false,
+      "configured_paid_provider_preserved": true,
+      "setup_guidance_present": true
+    },
+    "phone_http": {
+      "enabled": true,
+      "transport": "private Tailscale HTTP bound only to currenttailnetIP",
+      "port": 18770,
+      "physical_phone_proven": false,
+      "no_microphone_action": true,
+      "static": 200,
+      "unauthenticated": 401,
+      "authenticated": 200,
+      "voiceRoute": {
+        "target": "computer",
+        "state": "ready",
+        "canStart": true,
+        "canStop": false,
+        "phoneMicrophone": false
+      },
+      "token_exposed": false,
+      "foreign_origin_post": 403
+    },
+    "companion": {
+      "enabled": true,
+      "state": "running",
+      "configmode": "0600",
+      "listener": "currentTailscaleIPv4only:18770",
+      "clients": 0,
+      "QR": "left hidden on nativephone settings page",
+      "no_Remote_serve_change": true
+    },
+    "development_boundaries": [
+      "Gateway700byte-reviewcopy and runtime-onlyserviceoverride exacthashesprivate; noactive8080request at restart",
+      "Mira via canonical /usr/bin/mira MIRA_APP+sourceQML pointers; no autonomousmiccapture",
+      "No signedOSpayload/install/reboot claim from native development runtime"
+    ]
+  },
+  "remaining": [
+    "Physicalownerphonepairing/browseracceptance andrealspokenMira journey deferred byowner",
+    "Phone microphone/audio notimplemented; explicitPermissionsPolicymicrophone=() retained. Needs independentsecurecontext/consent/streaming/cleanup owner, notblind443proxy overRemote",
+    "Gemini free-tier has providerproject quotas/network limits, notalways-online or guaranteedzeroaccountcharge; no workingzero-priceOpenRoutercredential configured",
+    "GlobalpaidZencredential preserved forotherapps; Mira freerequests refuseit. Freeagentdelegation unavailable untilcontractpropagated andproven",
+    "Completecurrent sourcecheck/image/CI/signeddelivery andnativeinstalledreadback; prior324releasequalifiesonlyitsfrozenbytes",
+    "Currentprojectagenttierread/OpenClawabsent; namedfixedOSToolswork,butunrestrictedrootcontrolnotprovided",
+    "PhoneUIstilluses ownstaticdarkpalette; broadernativeappearancealignment open"
+  ],
+  "sources_checked": [
+    "https://www.freedesktop.org/software/polkit/docs/latest/pkexec.1.html",
+    "https://tailscale.com/docs/how-to/connect-to-devices",
+    "https://aistudio.google.com/docs/pricing",
+    "https://ai.google.dev/gemini-api/docs/rate-limits?hl=en"
+  ]
+}

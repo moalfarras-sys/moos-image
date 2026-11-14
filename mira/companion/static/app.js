@@ -39,11 +39,20 @@
     ar: {
       title: 'ميرا', tab_mira: 'ميرا', tab_home: 'البيت',
       talk: 'تحدّث', stop: 'إيقاف', send: 'إرسال', placeholder: 'اكتب لميرا…',
-      face_label: 'وجه ميرا · المس لتتحدث',
+      face_label: 'وجه ميرا · شغّل محادثة على الكمبيوتر أو Echo',
+      talk_computer: 'الكمبيوتر', talk_echo: 'Echo',
+      voice_computer: 'الصوت من ميكروفون الكمبيوتر وسماعاته؛ ميكروفون الهاتف لا يُفتح.',
+      voice_echo: 'الصوت من ميكروفون Echo وسماعته؛ ميكروفون الهاتف لا يُفتح.',
+      voice_setup: 'أكمل إعداد الصوت واختباره في ميرا على الكمبيوتر ← الإعدادات ← الصوت.',
+      voice_retry: 'فشل آخر اختبار نصي للمفتاح. يمكنك تجربة الصوت بشكل مستقل؛ نجاحه لم يتأكد بعد.',
+      voice_testing: 'اختبار إعداد الصوت جارٍ على الكمبيوتر؛ انتظر النتيجة.',
+      voice_busy: 'الكمبيوتر مشغول الآن؛ انتظر قبل بدء محادثة صوتية.',
+      voice_off: 'الصوت متوقف على الكمبيوتر؛ شغّله من ميرا هناك.',
+      voice_unknown: 'تعذّر تحديد مسار الصوت؛ أعد الاتصال أو حدّث ميرا على الكمبيوتر.',
       phase_idle: 'جاهزة', phase_listening: 'أسمعك…', phase_thinking: 'أفكّر…', phase_speaking: 'ميرا تتحدث',
       phase_executing: 'أنفّذ وأتحقق…', phase_error: 'حدث خطأ', phase_offline: 'الصوت متوقف',
       you: 'أنت', mira: 'ميرا', action: 'تم التحقق', pending: 'لم يتأكد', failed: 'تعذّر', noted: 'سجل',
-      empty_chat_title: 'ابدأ معي', empty_chat_body: 'تكلّم أو اكتب. كل أمر أنفّذه يظهر هنا مع نتيجته الحقيقية.',
+      empty_chat_title: 'ابدأ معي', empty_chat_body: 'اكتب هنا، أو شغّل المحادثة على ميكروفون الكمبيوتر أو Echo. تظهر نتائج الأوامر هنا.',
       svc_echo: 'Echo', svc_home: 'البيت',
       conn_connecting: 'أتصل بكمبيوتر ميرا…', conn_lost: 'انقطع الاتصال بكمبيوتر ميرا',
       conn_retry_in: 'إعادة المحاولة خلال {s} ث', conn_offline: 'الهاتف غير متصل بالشبكة', retry: 'أعد الآن',
@@ -62,7 +71,7 @@
       pair_rotated_title: 'تغيّر رمز الإقران', pair_rotated_body: 'غُيّر رمز الإقران على الكمبيوتر، ففُصل هذا الهاتف.',
       pair_invalid_title: 'رابط الإقران لم يعد صالحاً', pair_invalid_body: 'ربما غُيّر الرمز على الكمبيوتر.',
       pair_steps: ['على الكمبيوتر افتح ميرا ← الإعدادات ← الهاتف.', 'اضغط «إظهار رمز الإقران».',
-                   'امسح الرمز بكاميرا الـ iPhone وافتح الرابط في Safari.'],
+                   'شغّل Tailscale وامسح الرمز بكاميرا الهاتف. افتح الرابط في Chrome على Android أو Safari على iPhone.'],
       pair_note: 'تعمل ميرا على هاتفك عبر شبكة Tailscale الخاصة بك فقط.',
       pair_retry: 'أعد المحاولة',
       act_waiting: 'بانتظار موافقتك:', act_approve: 'موافقة', act_reject: 'إلغاء',
@@ -73,11 +82,20 @@
     en: {
       title: 'Mira', tab_mira: 'Mira', tab_home: 'Home',
       talk: 'Talk', stop: 'Stop', send: 'Send', placeholder: 'Message Mira…',
-      face_label: 'Mira’s face · tap to talk',
+      face_label: 'Mira’s face · start a conversation on the computer or Echo',
+      talk_computer: 'Computer', talk_echo: 'Echo',
+      voice_computer: 'Audio uses the computer microphone and speakers. The phone microphone stays closed.',
+      voice_echo: 'Audio uses the Echo microphone and speaker. The phone microphone stays closed.',
+      voice_setup: 'Set up and test voice in Mira on the computer → Settings → Voice.',
+      voice_retry: 'The last text test of the saved key failed. You can try voice separately; a working voice connection has not been confirmed.',
+      voice_testing: 'Voice setup is being tested on the computer. Wait for the result.',
+      voice_busy: 'The computer is busy. Wait before starting a voice conversation.',
+      voice_off: 'Voice is off on the computer. Turn it on in Mira there.',
+      voice_unknown: 'The audio route could not be identified. Reconnect or update Mira on the computer.',
       phase_idle: 'Ready', phase_listening: 'Listening…', phase_thinking: 'Thinking…', phase_speaking: 'Mira is speaking',
       phase_executing: 'Working on it…', phase_error: 'Something went wrong', phase_offline: 'Voice is off',
       you: 'You', mira: 'Mira', action: 'Verified', pending: 'Unverified', failed: 'Failed', noted: 'Noted',
-      empty_chat_title: 'Start with me', empty_chat_body: 'Talk or type. Every action I take shows up here with its real result.',
+      empty_chat_title: 'Start with me', empty_chat_body: 'Type here, or start a conversation on the computer or Echo microphone. Action results appear here.',
       svc_echo: 'Echo', svc_home: 'Home',
       conn_connecting: 'Connecting to Mira’s computer…', conn_lost: 'Lost the connection to Mira’s computer',
       conn_retry_in: 'retrying in {s} s', conn_offline: 'This phone is offline', retry: 'Retry',
@@ -96,7 +114,7 @@
       pair_rotated_title: 'The pairing code changed', pair_rotated_body: 'The code was changed on the computer, so this phone was signed out.',
       pair_invalid_title: 'This pairing link is no longer valid', pair_invalid_body: 'The code may have been changed on the computer.',
       pair_steps: ['On the computer, open Mira → Settings → Phone.', 'Press “Show pairing code”.',
-                   'Scan it with the iPhone camera and open the link in Safari.'],
+                   'Connect Tailscale and scan the code with your phone camera. Open it in Chrome on Android or Safari on iPhone.'],
       pair_note: 'Mira works on your phone only over your own Tailscale network.',
       pair_retry: 'Try again',
       act_waiting: 'Waiting for your approval:', act_approve: 'Approve', act_reject: 'Cancel',
@@ -107,7 +125,7 @@
   };
   // The desktop's words win for these keys, so the phone says exactly what Mira's window says.
   const SHARED = new Set(['talk', 'stop', 'send', 'you', 'mira', 'action', 'pending', 'failed', 'empty_chat_title',
-    'empty_chat_body', 'phase_idle', 'phase_listening', 'phase_thinking', 'phase_speaking', 'phase_executing',
+    'phase_idle', 'phase_listening', 'phase_thinking', 'phase_speaking', 'phase_executing',
     'phase_error', 'phase_offline', 'all_on', 'all_off', 'refresh', 'checking', 'no_devices', 'state_on', 'state_off',
     'state_playing', 'state_paused', 'state_idle', 'unavailable', 'brightness', 'color', 'volume', 'play', 'pause',
     'devices_available', 'lights', 'lights_on_of', 'svc_echo', 'svc_home', 'act_waiting', 'act_approve', 'act_reject',
@@ -124,7 +142,7 @@
     tabMira: $('tab-mira'), tabHome: $('tab-home'), viewMira: $('view-mira'), viewHome: $('view-home'),
     banner: $('banner'), bannerText: $('banner-text'), bannerRetry: $('banner-retry'), toasts: $('toasts'),
     core: $('core'), ring: $('ring'), faceA: $('face-a'), faceB: $('face-b'), phaseLabel: $('phase-label'),
-    caption: $('caption'), chat: $('chat'), chatEmpty: $('chat-empty'), chatEmptyTitle: $('chat-empty-title'),
+    caption: $('caption'), voiceHint: $('voice-hint'), chat: $('chat'), chatEmpty: $('chat-empty'), chatEmptyTitle: $('chat-empty-title'),
     chatEmptyBody: $('chat-empty-body'), devicesCount: $('devices-count'), chipWeather: $('chip-weather'),
     allOn: $('all-on'), allOff: $('all-off'), refresh: $('refresh'), homeMessage: $('home-message'),
     homeEmpty: $('home-empty'), devices: $('devices'), dock: $('dock'), talk: $('talk'), talkIcon: $('talk-icon'),
@@ -143,7 +161,7 @@
   const state = {
     lang: store.get('mira.lang') || ((navigator.language || '').toLowerCase().startsWith('ar') ? 'ar' : 'en'),
     s: {}, phase: 'idle', level: 0, status: '', caption: '', captionRole: '', mood: 'neutral', face: 'rose',
-    services: {}, weather: {}, home: {}, echo: {}, busy: false, devices: [], palette: [], faceFormat: 'png',
+    services: {}, weather: {}, home: {}, echo: {}, voiceRoute: {}, busy: false, devices: [], palette: [], faceFormat: 'png',
     conn: 'connecting', paired: false, view: 'mira', sending: false, pending: new Map(), byeReason: '',
   };
   if (state.lang !== 'ar' && state.lang !== 'en') state.lang = 'ar';
@@ -330,14 +348,16 @@
     if ('phase' in patch || 'mood' in patch || 'faceStyle' in patch) { renderPhase(); updateFace(); }
     if ('faceStyle' in patch) face.preload();
     if ('status' in patch || 'caption' in patch || 'captionRole' in patch) renderCaption();
-    if ('services' in patch || 'echo' in patch) { renderServices(); renderDock(); }
+    if ('services' in patch || 'echo' in patch) renderServices();
+    if ('voiceRoute' in patch || 'busy' in patch || 'echo' in patch) renderDock();
     if ('home' in patch || 'weather' in patch) { renderHome(); if ('home' in patch) settlePending(); }
     if ('actions' in patch) renderActions();
   }
 
   function applyState(data) {
     const fields = { phase: 'phase', status: 'status', caption: 'caption', captionRole: 'captionRole', mood: 'mood',
-      faceStyle: 'face', lang: 'lang', services: 'services', weather: 'weather', home: 'home', echo: 'echo', busy: 'busy' };
+      faceStyle: 'face', lang: 'lang', services: 'services', weather: 'weather', home: 'home', echo: 'echo',
+      voiceRoute: 'voiceRoute', busy: 'busy' };
     for (const [key, target] of Object.entries(fields)) if (key in data && data[key] !== null) state[target] = data[key];
     if (data.s && typeof data.s === 'object') state.s = data.s;
     if (typeof data.level === 'number') state.level = data.level;
@@ -443,14 +463,24 @@
   }
 
   function renderDock() {
-    const isActive = active();
+    const route = state.voiceRoute || {};
+    const known = route.target === 'computer' || route.target === 'echo';
+    const isActive = known && route.canStop === true;
+    const canStart = known && ['ready', 'retry'].includes(route.state) && route.canStart === true;
     el.talk.classList.toggle('active', isActive);
-    const echo = state.echo || {};
-    el.talk.classList.toggle('dim', !isActive && (echo.online !== true || echo.voice_enabled === false));
-    el.talkLabel.textContent = isActive ? t('stop') : t('talk');
-    el.talk.setAttribute('aria-label', isActive ? t('stop') : t('talk'));
+    el.talk.classList.toggle('dim', !isActive && !canStart);
+    const label = isActive ? t('stop') : t(route.target === 'echo' ? 'talk_echo' : 'talk_computer');
+    const targetHint = t(route.target === 'echo' ? 'voice_echo' : 'voice_computer');
+    const reasons = { setup_required: 'voice_setup', retry: 'voice_retry', testing: 'voice_testing', busy: 'voice_busy', off: 'voice_off' };
+    const reason = !known || !['ready', 'active'].includes(route.state) ? t(reasons[route.state] || 'voice_unknown') : '';
+    el.voiceHint.textContent = (known ? targetHint : '') + (reason ? (known ? ' ' : '') + reason : '');
+    el.talkLabel.textContent = label;
+    el.talk.setAttribute('aria-label', label + ' · ' + (known ? targetHint : t('voice_unknown')));
+    el.talk.setAttribute('aria-describedby', 'voice-hint');
+    el.core.setAttribute('aria-label', label + ' · ' + (known ? targetHint : t('voice_unknown')));
+    el.core.setAttribute('aria-disabled', String(!live() || !canStart && !isActive));
     setIcon(el.talkIcon, isActive ? 'stop' : 'mic', isActive);
-    el.talk.disabled = !live();
+    el.talk.disabled = !live() || !canStart && !isActive;
     const ready = el.field.value.trim() !== '';
     el.send.classList.toggle('ready', ready && live());
     el.send.classList.toggle('busy', state.sending);
@@ -1057,8 +1087,10 @@
   }
 
   function talkOrStop() {
+    const route = state.voiceRoute || {};
+    if (!live() || !(route.canStart === true || route.canStop === true)) return;
     ring.kick();
-    post(active() ? '/api/stop' : '/api/talk');
+    post(route.canStop === true ? '/api/stop' : '/api/talk');
   }
 
   el.tabMira.addEventListener('click', () => setView('mira'));

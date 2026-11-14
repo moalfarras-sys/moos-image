@@ -2,11 +2,13 @@
 """Produce a deterministic, read-only hardware plan for MoOS first boot."""
 import argparse
 import json
+import math
 import os
 import platform
 import re
 import shutil
 import subprocess
+import stat
 from pathlib import Path
 
 
@@ -34,21 +36,201 @@ DRIVER_CRITICAL = re.compile(
     re.I)
 
 
-def i2c_driver_gaps(sysfs=Path("/sys")):
-    """Known motion-sensor clients, never I2C adapters or arbitrary vendor interfaces.
-
-    The physical V3 exposes SMOCF05 through ACPI/I2C but has no bound driver
-    and SensorProxy reports HasAccelerometer=false. A PCI-only scan called that
-    machine ready. Report the missing binding without guessing a chip, writing
-    ACPI tables or forcing a driver meant for a different firmware ID.
-    """
+def motion_sensor_inventory(sysfs=Path("/sys")):
+    """Read known firmware clients, retaining unavailable versus empty inventory."""
+    result = {"known": False, "status": "unavailable", "clients": []}
     try:
-        clients = sorted((sysfs / "bus/i2c/devices").glob("i2c-SMOCF05:*"))
-        return [f"I2C motion sensor SMOCF05 ({client.name})"
-                for client in clients
-                if client.is_dir() and not (client / "driver").is_dir()]
+        with os.scandir(sysfs / "bus/i2c/devices") as entries:
+            names = sorted(entry.name for entry in entries
+                           if re.fullmatch(r"i2c-SMOCF05:[0-9A-Fa-f]+", entry.name))
+        for name in names:
+            client = sysfs / "bus/i2c/devices" / name
+            if not client.is_dir():
+                raise OSError("motion client disappeared")
+            driver = client / "driver"
+            # A dangling driver link is not a bound driver.
+            try:
+                bound = stat.S_ISDIR(driver.stat().st_mode)
+            except FileNotFoundError:
+                bound = False
+            result["clients"].append({"name": name, "bound": bound,
+                                       "driver": driver.resolve().name if bound else ""})
+        result.update(known=True, status="ok")
     except OSError:
-        return []
+        result["status"] = "read-failed"
+    return result
+
+
+def i2c_driver_gaps(sysfs=Path("/sys")):
+    return [f"I2C motion sensor SMOCF05 ({client['name']})"
+            for client in motion_sensor_inventory(sysfs)["clients"] if not client["bound"]]
+
+
+def json_probe(argv, timeout=5):
+    """Fixed read-only probes. Missing, failed and malformed are never false."""
+    try:
+        process = subprocess.run(argv, text=True, capture_output=True, timeout=timeout)
+        if process.returncode:
+            return None, "command-failed"
+        if len(process.stdout.encode("utf-8")) > 262144:
+            return None, "invalid-response"
+        return json.loads(process.stdout), "ok"
+    except subprocess.TimeoutExpired:
+        return None, "timeout"
+    except (OSError, subprocess.SubprocessError):
+        return None, "unavailable"
+    except (ValueError, UnicodeError):
+        return None, "invalid-response"
+
+
+def sensor_proxy_report(payload, status):
+    result = {"known": False, "status": status, "has_accelerometer": None,
+              "orientation": "undefined"}
+    try:
+        if status != "ok":
+            return result
+        if not isinstance(payload, dict) or payload.get("type") != "a{sv}":
+            raise ValueError("invalid properties")
+        data = payload["data"]
+        if not isinstance(data, list) or len(data) != 1 or not isinstance(data[0], dict):
+            raise ValueError("invalid properties data")
+        has = data[0]["HasAccelerometer"]
+        orientation = data[0]["AccelerometerOrientation"]
+        if (not isinstance(has, dict) or has.get("type") != "b"
+                or type(has.get("data")) is not bool
+                or not isinstance(orientation, dict) or orientation.get("type") != "s"
+                or orientation.get("data") not in
+                ("undefined", "normal", "bottom-up", "left-up", "right-up")):
+            raise ValueError("invalid sensor values")
+        result.update(known=True, status="ok", has_accelerometer=has["data"],
+                      orientation=orientation["data"])
+    except (KeyError, TypeError, ValueError):
+        result["status"] = "invalid-response"
+    return result
+
+
+def internal_panel_report(payload, status):
+    result = {"known": False, "status": status, "panels": []}
+    try:
+        if status != "ok":
+            return result
+        if not isinstance(payload, dict) or not isinstance(payload.get("outputs"), list):
+            raise ValueError("invalid outputs")
+        for output in payload["outputs"]:
+            if not isinstance(output, dict) or type(output.get("type")) is not int:
+                raise ValueError("invalid output type")
+            # KScreen Output::Panel == 7. Connector names are not device types.
+            if output["type"] != 7:
+                continue
+            if (type(output.get("connected")) is not bool
+                    or type(output.get("enabled")) is not bool
+                    or not isinstance(output.get("name"), str)):
+                raise ValueError("invalid panel")
+            if not output["connected"]:
+                continue
+            panel = {"name": output["name"], "enabled": output["enabled"],
+                     "geometry_known": False, "auto_rotation_policy": "unavailable"}
+            # KScreen serializes autoRotatePolicy only with AutoRotation capability.
+            # Its absence cannot establish the policy. Never is a valid personal lock.
+            if "autoRotatePolicy" in output:
+                policy = output["autoRotatePolicy"]
+                if type(policy) is not int or policy not in (0, 1, 2):
+                    raise ValueError("invalid automatic rotation policy")
+                panel["auto_rotation_policy"] = {0: "never", 1: "tablet", 2: "always"}[policy]
+            scale, rotation = output.get("scale"), output.get("rotation")
+            modes = output.get("modes")
+            if (type(scale) not in (int, float) or not 0.1 <= scale <= 16
+                    or type(rotation) is not int or rotation not in (1, 2, 4, 8, 16, 32, 64, 128)
+                    or not isinstance(modes, list)):
+                raise ValueError("invalid panel geometry")
+            current = output.get("currentModeId")
+            ids = [m.get("id") if isinstance(m, dict) else None for m in modes]
+            if (any(not isinstance(identity, str) or not identity for identity in ids)
+                    or len(set(ids)) != len(ids)):
+                raise ValueError("invalid mode identities")
+            if output["enabled"] and (not isinstance(current, str) or not current):
+                raise ValueError("active panel has no current mode identity")
+            mode = next((m for m in modes if m["id"] == current), None)
+            if mode is not None:
+                size = mode.get("size", {})
+                if not isinstance(size, dict):
+                    raise ValueError("invalid mode size")
+                width, height = size.get("width"), size.get("height")
+                if (type(width) is not int or type(height) is not int
+                        or not 1 <= width <= 32768 or not 1 <= height <= 32768):
+                    raise ValueError("invalid mode size")
+                transformed = (height, width) if rotation in (2, 8, 32, 128) else (width, height)
+                panel.update(geometry_known=True, mode_pixels={"width": width, "height": height},
+                             derived_logical_size={"width": round(transformed[0] / scale, 3),
+                                                   "height": round(transformed[1] / scale, 3)},
+                             derived_logical_bounds={"width": math.ceil(transformed[0] / scale),
+                                                     "height": math.ceil(transformed[1] / scale)},
+                             scale=scale, rotation=rotation)
+            elif output["enabled"]:
+                raise ValueError("active panel has no current mode")
+            result["panels"].append(panel)
+        result.update(known=True, status="ok")
+    except (KeyError, TypeError, ValueError):
+        result.update(known=False, status="invalid-response")
+    return result
+
+
+def graphical_session_available():
+    """Do not start a Qt GUI diagnostic in headless/early-login environments."""
+    qpa = os.environ.get("QT_QPA_PLATFORM", "").split(":", 1)[0]
+    if qpa and qpa not in ("wayland", "xcb"):
+        return False
+    session = os.environ.get("XDG_SESSION_TYPE", "")
+    if qpa and qpa != {"wayland": "wayland", "x11": "xcb"}.get(session):
+        return False
+    try:
+        if session == "wayland":
+            name, runtime = os.environ.get("WAYLAND_DISPLAY", ""), os.environ.get("XDG_RUNTIME_DIR", "")
+            if not name or not runtime or not Path(runtime).is_absolute():
+                return False
+            path = Path(name) if Path(name).is_absolute() else Path(runtime) / name
+            return stat.S_ISSOCK(path.stat().st_mode)
+        if session == "x11":
+            display = os.environ.get("DISPLAY", "")
+            match = re.fullmatch(r":([0-9]+)(?:\.[0-9]+)?", display)
+            return bool(match and stat.S_ISSOCK(
+                Path("/tmp/.X11-unix/X" + match[1]).stat().st_mode))
+    except OSError:
+        pass
+    return False
+
+
+def rotation_report(sysfs=Path("/sys")):
+    inventory = motion_sensor_inventory(sysfs)
+    payload, status = json_probe(["busctl", "--system", "--json=short", "call",
+        "net.hadess.SensorProxy", "/net/hadess/SensorProxy",
+        "org.freedesktop.DBus.Properties", "GetAll", "s", "net.hadess.SensorProxy"])
+    sensor = sensor_proxy_report(payload, status)
+    payload, status = (json_probe(["kscreen-doctor", "-j"])
+                       if graphical_session_available() else (None, "no-graphical-session"))
+    display = internal_panel_report(payload, status)
+    if any(not client["bound"] for client in inventory["clients"]):
+        state = "driver-missing"
+    elif not inventory["known"] or not display["known"]:
+        state = "inspection-unavailable"
+    elif not display["panels"]:
+        state = "not-applicable"
+    elif not sensor["known"]:
+        state = "sensor-unavailable"
+    elif sensor["has_accelerometer"] is False:
+        state = "accelerometer-missing"
+    elif not any(panel["enabled"] for panel in display["panels"]):
+        state = "panel-disabled"
+    elif all(panel["auto_rotation_policy"] == "never"
+             for panel in display["panels"] if panel["enabled"]):
+        state = "rotation-locked"
+    else:
+        # GetAll does not claim the sensor; undefined can be an idle valid value.
+        # Presence is a prerequisite, not proof of orientation/touch operation.
+        state = "available-unverified"
+    return {"status": state, "i2c": inventory, "sensor": sensor, "display": display,
+            "owner": "KWin", "physical_rotation_tested": False,
+            "touch_mapping_tested": False}
 
 
 def driver_gaps(pci=None):
@@ -187,9 +369,10 @@ def detect(machine=None):
     driver = ", ".join(dict.fromkeys(driver_hits)) or "unavailable"
     os_release = {}
     try:
-        for line in open("/etc/os-release", encoding="utf-8"):
-            if "=" in line:
-                k, v = line.rstrip().split("=", 1); os_release[k] = v.strip('"')
+        with open("/etc/os-release", encoding="utf-8") as stream:
+            for line in stream:
+                if "=" in line:
+                    k, v = line.rstrip().split("=", 1); os_release[k] = v.strip('"')
     except OSError:
         pass
     # bootc status became root-only on the installed host, so an unprivileged
@@ -200,7 +383,8 @@ def detect(machine=None):
     nvidia_image = bool(re.search(r"(?:^|/)moos-nvidia(?=[:@]|$)", image))
     mem_kib = 0
     try:
-        mem_kib = int(next(line.split()[1] for line in open("/proc/meminfo") if line.startswith("MemTotal:")))
+        with open("/proc/meminfo") as stream:
+            mem_kib = int(next(line.split()[1] for line in stream if line.startswith("MemTotal:")))
     except (OSError, StopIteration, ValueError):
         pass
     memory_gib = round(mem_kib / 1024 / 1024, 1)
@@ -249,6 +433,30 @@ def detect(machine=None):
             "detail": "لا يوجد تعريف مرتبط بهذه الأجهزة | No kernel driver is bound to: " + "; ".join(gaps[:4]),
             "url": ""
         })
+
+    rotation = rotation_report()
+    rotation_state = rotation["status"]
+    if rotation_state not in ("not-applicable", "available-unverified"):
+        if health == "ready" and rotation_state != "rotation-locked":
+            health = "action-needed" if rotation_state in ("driver-missing", "accelerometer-missing") else "attention"
+        messages = {
+            "rotation-locked": ("دوران الشاشة مقفل | Screen rotation locked",
+                "خيارك الحالي يقفل الدوران؛ يمكنك مراجعته في إعدادات العرض. | Your current preference locks rotation; review it in Display settings."),
+            "driver-missing": ("تعريف حساس الدوران مفقود | Rotation sensor driver missing",
+                "الحساس ظاهر للنظام لكن تعريف النواة غير مرتبط؛ يلزم تحديث موقّع يدعم معرّف الجهاز. | The sensor is enumerated but its kernel driver is not bound; a signed update supporting its device ID is required."),
+            "accelerometer-missing": ("حساس الدوران غير متاح | Accelerometer missing",
+                "خدمة الحساسات لا تعرض مقياس تسارع؛ ظهور تعريف وحده لا يثبت عمل الدوران. | SensorProxy exposes no accelerometer; a driver binding alone does not establish rotation."),
+            "panel-disabled": ("الشاشة الداخلية متوقفة | Internal display disabled",
+                "حساس الاتجاه متاح لكن الشاشة الداخلية متوقفة؛ افتح إعدادات العرض لمراجعتها. | The sensor is available but the internal panel is disabled; review Display settings."),
+            "sensor-unavailable": ("فحص حساس الدوران غير مكتمل | Rotation sensor inspection incomplete",
+                "تعذّر قراءة حالة خدمة الحساسات؛ جاهزية الدوران غير مؤكدة. | SensorProxy could not be read; rotation readiness is unconfirmed."),
+            "inspection-unavailable": ("فحص ربط الشاشة والحساس غير مكتمل | Display and sensor inspection incomplete",
+                "تعذّر تأكيد أجهزة I2C أو الشاشات؛ حالة الربط غير مؤكدة. | I2C devices or displays could not be verified; their association is unconfirmed.")
+        }
+        title, detail = messages[rotation_state]
+        actions.append({"id": "rotation-" + rotation_state,
+                        "severity": "important" if rotation_state in ("driver-missing", "accelerometer-missing") else "info",
+                        "title": title, "detail": detail, "url": ""})
 
     firmware_status = {}
     firmware_updates, missing_firmware = firmware_report(firmware_status)
@@ -300,7 +508,7 @@ def detect(machine=None):
         "driver_status_ar": driver_status_ar,
         "nvidia_image": nvidia_image, "memory_gib": memory_gib, "kvm": kvm,
         "secure_boot": secure_boot, "os": os_release.get("PRETTY_NAME", "MoOS"),
-        "driver_gaps": gaps,
+        "driver_gaps": gaps, "rotation": rotation,
         **firmware_status,
         "firmware_updates": firmware_updates,
         "missing_firmware": missing_firmware,
