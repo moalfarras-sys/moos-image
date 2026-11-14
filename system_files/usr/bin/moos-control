@@ -55,6 +55,7 @@ BRIGHTNESS_PATH = "/org/kde/ScreenBrightness"
 # read-only tool), so the whole read is bounded. Any single probe that cannot
 # answer inside what is left of the budget is reported unknown, never waited on.
 STATUS_BUDGET = 8.0
+BRIGHTNESS_BUDGET = 8.0
 # Every look `moos-theme` applies (its own case table), plus its three moves: auto follows the
 # sun, toggle flips the current family between light and dark, undo returns to the last one.
 # gaming, dev and study are the looks called Arena, Forge and Scholar in the theme picker.
@@ -354,39 +355,77 @@ def busctl_data(*args, timeout=30):
 def displays(timeout=30):
     names = busctl_data("get-property", BRIGHTNESS_SERVICE, BRIGHTNESS_PATH,
                         BRIGHTNESS_SERVICE, "DisplaysDBusNames", timeout=timeout)
-    found = [name for name in (names or [])
-             if isinstance(name, str) and DISPLAY_NAME.fullmatch(name)]
+    if not isinstance(names, list) or any(
+            not isinstance(name, str) or not DISPLAY_NAME.fullmatch(name) for name in names) \
+            or len(set(names)) != len(names):
+        raise Unavailable("unexpected screen brightness display list")
+    found = names
     if not found:
         raise Unavailable("no screen with adjustable brightness")
     return found
 
 
 def display_value(name, prop, timeout=30):
-    return int(busctl_data("get-property", BRIGHTNESS_SERVICE, f"{BRIGHTNESS_PATH}/{name}",
-                           BRIGHTNESS_SERVICE + ".Display", prop, timeout=timeout))
+    value = busctl_data("get-property", BRIGHTNESS_SERVICE, f"{BRIGHTNESS_PATH}/{name}",
+                        BRIGHTNESS_SERVICE + ".Display", prop, timeout=timeout)
+    if type(value) is not int or not 0 <= value <= 2147483647:
+        raise Unavailable(f"unexpected {prop} for {name}")
+    return value
 
 
 def brightness(value):
     target = None if value in ("up", "down") else level(value, 5, 100, "brightness") / 100
-    applied = []
-    for name in displays():
-        maximum = display_value(name, "MaxBrightness")
-        if maximum <= 0:
+    deadline = time.monotonic() + BRIGHTNESS_BUDGET
+
+    def left():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise Unavailable("screen brightness readback did not reach the requested level")
+        return remaining
+
+    # Validate the whole snapshot before changing any display. Native integer
+    # ranges and a single deadline apply to both the writes and their readback.
+    plans = []
+    for name in displays(left()):
+        maximum = display_value(name, "MaxBrightness", left())
+        if maximum == 0:
             continue
-        if target is None:
-            ratio = display_value(name, "Brightness") / maximum
-            ratio += STEP / 100 if value == "up" else -STEP / 100
-        else:
-            ratio = target
-        # Never all the way to black: 5% is the floor on every screen.
+        current = display_value(name, "Brightness", left())
+        if current > maximum:
+            raise Unavailable(f"unexpected brightness range for {name}")
+        ratio = target
+        if ratio is None:
+            ratio = current / maximum + (STEP / 100 if value == "up" else -STEP / 100)
         ratio = min(1.0, max(0.05, ratio))
+        plans.append((name, maximum, max(1, round(ratio * maximum))))
+    if not plans:
+        raise Unavailable("no screen with adjustable brightness")
+    for name, maximum, wanted in plans:
+        if name not in displays(left()):
+            raise Unavailable(f"screen disappeared before brightness change: {name}")
         run(["busctl", "--user", "call", BRIGHTNESS_SERVICE, f"{BRIGHTNESS_PATH}/{name}",
              BRIGHTNESS_SERVICE + ".Display", "SetBrightness", "iu",
-             str(round(ratio * maximum)), "0"])
-        applied.append(round(ratio * 100))
-    if not applied:
-        raise Unavailable("no screen with adjustable brightness")
-    return f"☀ السطوع {applied[0]}% | Brightness {applied[0]}%"
+             str(wanted), "0"], timeout=left())
+    while True:
+        active = displays(left())
+        measured = []
+        for name, maximum, wanted in plans:
+            if name not in active:
+                raise Unavailable(f"screen disappeared during brightness readback: {name}")
+            if display_value(name, "MaxBrightness", left()) != maximum:
+                raise Unavailable(f"brightness range changed for {name}")
+            actual = display_value(name, "Brightness", left())
+            if actual > maximum:
+                raise Unavailable(f"unexpected brightness range for {name}")
+            measured.append((name, actual, maximum, wanted))
+        if all(actual == wanted for _, actual, _, wanted in measured):
+            # PowerDevil reports its provider state before some asynchronous
+            # drivers finish. This is native-state readback, not a hardware ACK.
+            levels = ", ".join(f"{name}: {round(100 * actual / maximum)}%"
+                               for name, actual, maximum, _ in measured)
+            return f"☀ السطوع | Brightness {levels}"
+        remaining = left()
+        time.sleep(min(0.1, remaining))
 
 
 # ── Night light (KWin) ──────────────────────────────────────────────────────
