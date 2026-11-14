@@ -77,6 +77,8 @@ check:
     python3 tests/test_plasma_logout_packages.py
     python3 tests/verify_user_experience.py
     python3 tests/test_device_plan.py
+    python3 tests/test_rotation_readiness.py
+    python3 tests/test_rotation_backport.py
     python3 tests/test_build_cache_locking.py
     python3 tests/test_analysis_tools_profile.py
     python3 tests/test_fingerprint_login.py

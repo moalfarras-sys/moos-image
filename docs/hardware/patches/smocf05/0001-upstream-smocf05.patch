@@ -1,0 +1,58 @@
+From 53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb Mon Sep 17 00:00:00 2001
+From: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Date: Mon Sep 28 16:06:48 2026 -0500
+Subject: [PATCH] iio: imu: st_lsm6dsx: Add ACPI ID SMOCF05 for LSM6DS3TR-C
+
+The Minisforum V3 and V3 SE tablets declare their ST LSM6DS3TR-C IMU in
+the DSDT with the hardware ID SMOCF05 instead of SMO8B30, so the driver
+never binds and the accelerometer and gyroscope are missing. The
+Windows driver (version 1.0.4.3) binds the LSM6DS3TR-C to both IDs.
+
+The device has two I2C resources for the same address; the I2C core
+uses the first one.
+
+The vendor-specific SLA0/SLG0 matrix methods in the DSDT are not parsed,
+because SLA0 is not usable as a mount matrix as it is. Its X and Y signs
+are right, but it also negates Z. It follows the Windows sensor
+convention, which reports Z = -1g with the screen facing up, while
+iio-sensor-proxy uses the same X and Y signs but expects Z = +1g in that
+posture. Applied as a mount matrix, SLA0 gives correct screen rotation,
+but iio-sensor-proxy reports the tilt inverted. The actual mounting is a
+plain 180 degree rotation about Z (-1 0 0; 0 -1 0; 0 0 1), with which
+orientation and tilt are both right. As for SMOCF00, the matrix is
+therefore provided by the systemd hwdb instead.
+
+Tested on:
+ - V3 SE (Ryzen 7 7735U, BIOS 1.03) with this change.
+ - V3 (Ryzen 7 8840U, BIOS 1.06), kernel 7.2.7, with this change and
+   the stock firmware tables. The driver binds to i2c-SMOCF05:00, the
+   WHO_AM_I check passes (0x6a), and both lsm6ds3tr-c_accel and
+   lsm6ds3tr-c_gyro are registered. Screen auto-rotation and tilt work
+   with iio-sensor-proxy and the matrix above (checked with the device
+   renamed to SMO8B30 via a DSDT override, i.e. the same
+   ST_LSM6DS3TRC_ID driver data).
+
+[Jared Wuerzburger: rewrote the changelog with test results and the
+ mount matrix rationale, converted the entry to C99 initializers,
+ dropped the mount matrix patch]
+
+Closes: https://github.com/mudkipme/awesome-minisforum-v3/issues/2
+Signed-off-by: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Assisted-by: LLM
+Reviewed-by: Andy Shevchenko <andriy.shevchenko@intel.com>
+Signed-off-by: Jared Wuerzburger <jwuerz@gmail.com>
+Signed-off-by: Jonathan Cameron <jonathan.cameron@oss.qualcomm.com>
+
+---
+diff --git a/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c b/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c
+index c4097ce..11e5ec3 100644
+--- a/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c
++++ b/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c
+@@ -145,6 +145,7 @@ MODULE_DEVICE_TABLE(of, st_lsm6dsx_i2c_of_match);
+ static const struct acpi_device_id st_lsm6dsx_i2c_acpi_match[] = {
+ 	{ .id = "SMO8B30", .driver_data = ST_LSM6DS3TRC_ID },
+ 	{ .id = "SMOCF00", .driver_data = ST_LSM6DSO_ID },
++	{ .id = "SMOCF05", .driver_data = ST_LSM6DS3TRC_ID },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(acpi, st_lsm6dsx_i2c_acpi_match);

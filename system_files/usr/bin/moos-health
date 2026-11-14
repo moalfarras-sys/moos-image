@@ -622,6 +622,7 @@ def hardware_section(findings):
             action.get("title", ""), action.get("detail", ""), action.get("url", "")))
     return {"gpu": plan.get("gpu", ""), "driver_status": plan.get("driver_status", ""),
             "driver_gaps": plan.get("driver_gaps", []),
+            "rotation": plan.get("rotation", {}) if isinstance(plan.get("rotation"), dict) else {},
             "missing_firmware": plan.get("missing_firmware", [])}
 
 

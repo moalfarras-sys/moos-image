@@ -187,6 +187,8 @@ bind negatives. A private prefix replay is not a complete image qualification.
 **A missing probe is not healthy hardware, and a rollback is not the booted edition.**
 Device diagnostics must distinguish unavailable PCI evidence from a ready machine, validate firmware JSON shapes, and select only the booted deployment when identifying an edition. Respect administrator masks on optional thermald/fwupd units; a refused enable must never print success or write the adaptation stamp. Arrange shortcuts and stale menu actions must validate their active anchor too. Preserve executable old/fixed controls and private native geometry evidence; never run a review compositor on the owner's bus.
 
+**A bound motion driver is not a rotating display.** Keep separate I2C inventory confidence, native typed SensorProxy accelerometer presence and connected internal-panel state. Native KScreen6.8 JSON exposes optional autoRotatePolicy; absent policy is unavailable, present0/1/2 is Never/Tablet/Always. Preserve the personal lock, fractional scale and explicitly derived logical dimensions, and leave orientation/touch mapping to KWin. Exact accepted SMOCF0553c677fa backport preparation is not a loaded or signed kernel repair. OCI signing authority does not provide kernel trust; retain stock signed kernel admission and explicit physical four-orientation/touch/suspend acceptance.
+
 **A clipped painting rectangle is not an input failure.** A standalone44px
 Island button passed native touch controls while the actual panel painted only
 34px of its height; actual nestedKWin pointer events still reached all edges,
