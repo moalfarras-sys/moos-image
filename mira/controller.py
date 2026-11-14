@@ -9,7 +9,6 @@ import os
 import re
 import subprocess
 import stat
-import tempfile
 import threading
 import time
 from datetime import datetime
@@ -1061,37 +1060,87 @@ class Controller(QObject):
         from brain import GEMINI_CONFIG
         parent = GEMINI_CONFIG.parent
         parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        info = parent.lstat()
-        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
-            raise ValueError('Unsafe configuration directory')
-        data = {}
-        try:
-            info = GEMINI_CONFIG.lstat()
-        except FileNotFoundError:
-            pass
-        else:
-            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
-                    or info.st_nlink != 1 or info.st_mode & 0o077 or info.st_size > 16384):
-                raise ValueError('Unsafe configuration file')
-            data = json.loads(GEMINI_CONFIG.read_bytes())
-            if not isinstance(data, dict):
-                raise ValueError('Invalid configuration')
-        data.update(changes)
-        raw = json.dumps(data).encode('utf-8')
-        if len(raw) > 16384:
-            raise ValueError('Configuration is too large')
+        directory = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
         temp = None
+        temp_identity = None
         try:
-            with tempfile.NamedTemporaryFile(dir=parent, prefix='.gemini-', delete=False) as stream:
-                temp = Path(stream.name)
+            info = os.fstat(directory)
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                    or info.st_mode & 0o022 or info.st_mode & 0o700 != 0o700):
+                raise ValueError('Unsafe configuration directory')
+            # Existing owner-created0755/0750 directories are normal. Tighten
+            # only this pinned, nonlinked, non-writable-to-others directory.
+            if stat.S_IMODE(info.st_mode) != 0o700:
+                os.fchmod(directory, 0o700)
+            directory_identity = (info.st_dev, info.st_ino)
+
+            def fingerprint(state):
+                return (state.st_dev, state.st_ino, state.st_mode, state.st_uid,
+                        state.st_nlink, state.st_size, state.st_mtime_ns, state.st_ctime_ns)
+
+            def current_file():
+                try:
+                    return fingerprint(os.stat(GEMINI_CONFIG.name, dir_fd=directory, follow_symlinks=False))
+                except FileNotFoundError:
+                    return None
+
+            original = current_file()
+            data = {}
+            if original is not None:
+                descriptor = os.open(GEMINI_CONFIG.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                                     dir_fd=directory)
+                with os.fdopen(descriptor, 'rb') as stream:
+                    info = os.fstat(stream.fileno())
+                    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                            or info.st_nlink != 1 or info.st_mode & 0o077 or info.st_size > 16384
+                            or fingerprint(info) != original):
+                        raise ValueError('Unsafe configuration file')
+                    raw = stream.read(16385)
+                    if len(raw) > 16384 or fingerprint(os.fstat(stream.fileno())) != original:
+                        raise ValueError('Configuration changed while reading')
+                data = json.loads(raw)
+                if not isinstance(data, dict):
+                    raise ValueError('Invalid configuration')
+            data.update(changes)
+            raw = json.dumps(data).encode('utf-8')
+            if len(raw) > 16384:
+                raise ValueError('Configuration is too large')
+            candidate = '.gemini-' + os.urandom(12).hex()
+            descriptor = os.open(candidate, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                                 0o600, dir_fd=directory)
+            temp = candidate
+            with os.fdopen(descriptor, 'w+b') as stream:
+                temp_info = os.fstat(stream.fileno())
+                temp_identity = (temp_info.st_dev, temp_info.st_ino)
                 stream.write(raw)
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(temp, GEMINI_CONFIG)
+                stream.seek(0)
+                if stream.read(16385) != raw:
+                    raise ValueError('Temporary configuration changed')
+                written = fingerprint(os.fstat(stream.fileno()))
+            current_directory = parent.lstat()
+            if (not stat.S_ISDIR(current_directory.st_mode)
+                    or (current_directory.st_dev, current_directory.st_ino) != directory_identity
+                    or current_directory.st_uid != os.getuid() or stat.S_IMODE(current_directory.st_mode) != 0o700
+                    or current_file() != original
+                    or fingerprint(os.stat(temp, dir_fd=directory, follow_symlinks=False)) != written):
+                raise ValueError('Configuration changed before saving')
+            os.replace(temp, GEMINI_CONFIG.name, src_dir_fd=directory, dst_dir_fd=directory)
             temp = None
+            os.fsync(directory)
         finally:
-            if temp is not None:
-                temp.unlink(missing_ok=True)
+            try:
+                if temp is not None:
+                    try:
+                        remaining = os.stat(temp, dir_fd=directory, follow_symlinks=False)
+                    except FileNotFoundError:
+                        pass
+                    else:
+                        if (remaining.st_dev, remaining.st_ino) == temp_identity:
+                            os.unlink(temp, dir_fd=directory)
+            finally:
+                os.close(directory)
 
     def _live_model_selection(self):
         from live_voice import LIVE_MODEL_CHOICES, DEFAULT_LIVE_MODEL

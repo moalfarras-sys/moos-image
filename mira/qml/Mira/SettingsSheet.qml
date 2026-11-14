@@ -248,6 +248,9 @@ Item {
                                 font.pixelSize: Theme.small
                                 color: mira.microphone.state === "error" ? Theme.danger : Theme.ink2
                             }
+                            T { objectName: "microphoneClippingWarning"; Layout.fillWidth: true
+                                visible: mira.microphone.state === "ok" && mira.microphone.peak >= 32767
+                                text: mira.s.pc_mic_clipped; font.pixelSize: Theme.small; color: Theme.danger }
                             T { Layout.fillWidth: true; visible: mira.microphone.outputMuted === true
                                 text: mira.s.pc_output_muted; font.pixelSize: Theme.small; color: Theme.danger }
                             PillButton { text: mira.s.pc_audio_settings; iconName: "settings"; size: Theme.small

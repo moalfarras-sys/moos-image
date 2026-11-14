@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-14",
+  "scope": "P0 native login source transport, unchanged reviewedsource/authentication/package owners",
+  "source_base": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+  "actual_first_failure": {
+    "run": 43569340198,
+    "job": 132370089429,
+    "revision": "bc37982ac68de58323ae1d2f1abbbddbd7ff1d7c",
+    "time_utc": "2026-11-14T07:53:04Z",
+    "curl_exit": 35,
+    "message": "Recv failure: Connection reset by peer",
+    "effect": "Only canonical generic image failed; no generic manifest/boot/promotion; NVIDIA/cloud and earlier main x86/ARM pass",
+    "log_bytes": 13209506,
+    "log_sha256": "05aeba69e8c876286aada5e8b1cff1403dbb9a3991b53fcd2c767b474b5cfb4f"
+  },
+  "fixed": {
+    "retries": 3,
+    "connect_timeout_s": 30,
+    "attempt_timeout_s": 120,
+    "retry_window_s": 480,
+    "whole_upper_bound_s": 600,
+    "retry_all_errors": true,
+    "required_final_http": "200",
+    "unchanged": [
+      "Pinned URL/source digest/signer",
+      "Actual rpmkeys/signature check before archive",
+      "Reviewed package/authentication bytes and image gates"
+    ]
+  },
+  "executed_controls": {
+    "module": "tests/test_greeter_rpms.py",
+    "tests": 11,
+    "exit": 0,
+    "seconds": 15.158,
+    "log_sha256": "517cdf3ea243d2ade995c799b891db0db78d2fc76b09912b8cdd69081530c448",
+    "cases": [
+      "Actual trusted loopback TLSreset old35/1connection versus fixed0/2connections/exactbytes",
+      "Permanent TLSreset35 and HTTP40422 each4attempts remain refused",
+      "Wrong SHA or signer after one successful download remain refused",
+      "HTTP503 Retry-After86400 refuses before admission even with a previous exact output file; first native curl0/thenSHA failure kept",
+      "No TLS verification bypass, no unknown source/RPM accepted"
+    ]
+  },
+  "proof_limits": [
+    "Loopback synthetic SRPM body and signature-command control do not establish native package signature; canonical package recipe/image still must run actual rpmkeys",
+    "No failed CI job rerun; fresh successor qualification required",
+    "No host boot/authentication/signing/recovery changes"
+  ]
+}

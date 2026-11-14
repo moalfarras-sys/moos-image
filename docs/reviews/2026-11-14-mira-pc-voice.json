@@ -10,14 +10,14 @@
     "Headerless PCM player lacks --raw; original native command refuses Format not recognised"
   ],
   "source_files": {
-    "mira/controller.py": "9bec041096783def3aedf9fff58ff1757621e3210e14a1364c52b76a4b06ec86",
+    "mira/controller.py": "5fad999d927d95baaaab0787ea222799425dbb5ca7c9385573130efe503a6a3b",
     "mira/desk_voice.py": "0155ce36059a892c0847060eb6508c72289db6c7f8f34300c4894e6293c91b91",
     "mira/live_voice.py": "3d053f997f113d29bea92b3ac0b566129ffa2890aac2b246aedeec1869076e32",
     "mira/api_credentials.py": "f65ea4c8435af046f9625ea5f982db7c14038862c1f7dbd4317589f348daa705",
     "mira/audio_devices.py": "2e3a25bb3796942ba226900c4bd76e6ead0a7da8a4da06d7645ad31b62096249",
-    "mira/i18n.py": "e23dcff1a947abfa97dbbbecf356a1e6a9569e92fb04fd3192abe90034d63245",
+    "mira/i18n.py": "f399a1bbec89bfeba0d867632f75a3e454dd07fb822a22a27c832b25efb2987c",
     "mira/qml/Main.qml": "6958df1d9b8420bfb4128965fb4d87701e995b0b71316c43119256e7a6d39bed",
-    "mira/qml/Mira/SettingsSheet.qml": "0f8c592e48e1acab1c135f30166abe63bc22b6b5324f83f820fb704939ef3b36",
+    "mira/qml/Mira/SettingsSheet.qml": "e81dbe30c74e8fcf9abc1ec9ebde1a331edb6d42f33849303dc77856d980bd8b",
     "mira/qml/Mira/MiraComboBox.qml": "a9d8d93eb7d541293ce11743aa0cea359c5fd0ffddf9f830dbe417535e45c8fc",
     "mira/qml/Mira/qmldir": "ed97c704f4896a138ec6f31a8157b233ff835cbcd45582e05f2a3034d9d806dc"
   },
@@ -128,10 +128,11 @@
       ]
     ],
     "private_captures": "~/.cache/mira/pc-voice-*-20261114.png; not committed",
-    "runtime_unit": "moai-open-2883408-31766.service",
+    "runtime_unit": "moai-open-3385576-6595.service",
     "source_pointer": "mira-pc-voice-20261114/mira through the existing application/controller/QML owners",
     "copied_runtime_bytes": 0,
-    "retirement": "Stop only this scoped app unit; restore /usr/bin/mira canonical source. Retire source override after matching signed payload boots and readback passes. Preserve owner settings."
+    "retirement": "Stop only this scoped app unit; restore /usr/bin/mira canonical source. Retire source override after matching signed payload boots and readback passes. Preserve owner settings.",
+    "runtime_note": "Canonical /usr/bin/mira uses explicit MIRA_APP/current sourceQML pointer; no instrumented capture hook, no automatic recording."
   },
   "negative_controls": [
     "Original HEAD acquire reuses old key/model: both lifecycle controls refuse; fixed same-config reuse/resume retained",
@@ -139,7 +140,8 @@
     "Original native raw PCM playback fails Format not recognised; fixed --raw reaches PipeWire; real silent playback exit0 with mute preserved",
     "Real stubborn private capture/player cleanup reaps only owned processes; stale Echo events and old timers cannot release PC ownership",
     "First per-process suite retains Companion error-vs-info expectation refusal; corrected expectation requires actual PC setup guidance and no recorder/cloud session",
-    "Whole-suite host import retained2 Lumen QML failures from old immutable Qt.labs.settings; current source QML prefix passes all14 without weakening warning checks. Private runner cache omission is retained separately and corrected to match the image recipe."
+    "Whole-suite host import retained2 Lumen QML failures from old immutable Qt.labs.settings; current source QML prefix passes all14 without weakening warning checks. Private runner cache omission is retained separately and corrected to match the image recipe.",
+    "Native long Retry-After HTTP503 can leave curl exit0 and an old matching output; explicit final HTTP200 is now required before digest/signature admission, and the exact old refusal is retained."
   ],
   "targeted_check": {
     "tests": 149,
@@ -149,12 +151,12 @@
     "log_sha256": "125ef80439adaebe4d61c7354e4ed328afc2dc26a4e1a432ee04c9337930b353"
   },
   "qualification_pending": [
-    "Final complete source check and current full image/CI",
-    "New signed image promotion and installed V3 readback; ongoing bc37982 release is separate",
-    "Fresh accepted private Gemini credential and real owner speech/recognition/audible response",
-    "Physical microphone disconnect/reconnect/switch while listening; native event observation is narrower",
-    "Clear signal/SNR qualification: measured PCM peak32768; no speech quality claim",
-    "Local wake engine/model provisioning and acceptance"
+    "Current successor complete source/current image and exact-head CI",
+    "New first-attempt signed cycle after preserved canonical43569340198 curl35 failure; no failed job rerun",
+    "Real owner speech/recognition/audible response and clipping/SNR qualification; owner deferred testing",
+    "Physical microphone disconnect/reconnect/switch while listening",
+    "Local wake engine/model provisioning and acceptance",
+    "Signed payload boot/readback on physical V3; currentboot1139 and rollback remain untouched"
   ],
   "upstream_checked_2026_11_14": [
     "https://aistudio.google.com/docs/api-key",
@@ -412,5 +414,150 @@
     "SDK": "native installed /usr/lib/mira/site",
     "private_home_cache": true,
     "new_producer_native_opt_in": "separately executed; 25 tests pass"
+  },
+  "qualification_83c0f9cd": {
+    "source": {
+      "source_sha": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+      "exit": 0,
+      "seconds": 1137.994,
+      "dirty_after": "",
+      "head_after": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+      "log_sha256": "283cc4371e3f65a10c22426e23d670f1cf4918edc3ea6d171831e70a164c6d66"
+    },
+    "local_image": {
+      "source_sha": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+      "state": "completed",
+      "command": [
+        "just",
+        "--no-deps",
+        "build"
+      ],
+      "source_check_reused": true,
+      "started_utc": "2026-11-14T06:20:31Z",
+      "pid": 2951730,
+      "exit": 0,
+      "seconds": 7160.148,
+      "resource_refusal": null,
+      "minimum_disk": 306847821824,
+      "dirty_after": "",
+      "head_after": "83c0f9cd7da9878bcba55f2ddb5303edf5e722ea",
+      "log_sha256": "95c71a1319bd2bc81f433c4edfd7c8d0b0ad0ad3f17b37ec22d5ff0986a03042",
+      "image_readback": {
+        "image_id": "9a7805a95138a2cdf470ac4ddf9137d5f3c6001d40fa1ccbb79bf621dcb6af71",
+        "runtime_files": {
+          "/usr/lib/mira/app/controller.py": "9bec041096783def3aedf9fff58ff1757621e3210e14a1364c52b76a4b06ec86",
+          "/usr/lib/mira/app/desk_voice.py": "0155ce36059a892c0847060eb6508c72289db6c7f8f34300c4894e6293c91b91",
+          "/usr/lib/mira/app/live_voice.py": "3d053f997f113d29bea92b3ac0b566129ffa2890aac2b246aedeec1869076e32",
+          "/usr/lib/mira/app/api_credentials.py": "f65ea4c8435af046f9625ea5f982db7c14038862c1f7dbd4317589f348daa705",
+          "/usr/lib/mira/app/audio_devices.py": "2e3a25bb3796942ba226900c4bd76e6ead0a7da8a4da06d7645ad31b62096249",
+          "/usr/lib/mira/app/i18n.py": "e23dcff1a947abfa97dbbbecf356a1e6a9569e92fb04fd3192abe90034d63245",
+          "/usr/lib/mira/app/qml/Main.qml": "6958df1d9b8420bfb4128965fb4d87701e995b0b71316c43119256e7a6d39bed",
+          "/usr/lib/mira/app/qml/Mira/SettingsSheet.qml": "0f8c592e48e1acab1c135f30166abe63bc22b6b5324f83f820fb704939ef3b36",
+          "/usr/lib/mira/app/qml/Mira/MiraComboBox.qml": "a9d8d93eb7d541293ce11743aa0cea359c5fd0ffddf9f830dbe417535e45c8fc",
+          "/usr/lib/mira/app/qml/Mira/qmldir": "ed97c704f4896a138ec6f31a8157b233ff835cbcd45582e05f2a3034d9d806dc"
+        },
+        "runtime_bytes_equal": true,
+        "packages": [
+          "qt6-qtdeclarative-6.11.2-3.1.moos1.fc44.x86_64",
+          "qt6-qtbase-6.11.2-3.fc44.x86_64",
+          "kwin-6.8.2-3.fc44.x86_64",
+          "kernel-core-7.3.3-200.fc44.x86_64"
+        ]
+      }
+    },
+    "pr_ci": {
+      "repository": 43564493043,
+      "x86": 43564493090,
+      "arm": 43564493060,
+      "attempt": 1,
+      "all_required_jobs": "success"
+    },
+    "boundary": "Historical exact83c0f9cd; later directory/fetch/QML fixes need new qualification."
+  },
+  "provider_followup_2026_11_14": {
+    "direct_rest": {
+      "state": "accepted",
+      "http_status": 200,
+      "seconds": 0.267,
+      "checked_utc": "2026-11-14T10:27:19Z",
+      "secret_retained": false
+    },
+    "live_setups": [
+      {
+        "status": "ok",
+        "setup_complete": true,
+        "model": "gemini-3.1-flash-live-preview",
+        "seconds": 0.785,
+        "audio_sent": false,
+        "key_retained": false
+      },
+      {
+        "status": "ok",
+        "setup_complete": true,
+        "model": "gemini-2.5-flash-native-audio-preview-12-2025",
+        "seconds": 0.56,
+        "audio_sent": false,
+        "key_retained": false
+      }
+    ],
+    "text_inference": {
+      "status": "ok",
+      "model": "gemini-flash-lite-latest",
+      "elapsed_ms": 2001,
+      "config_mode": "0o600",
+      "secret_in_receipt": false
+    },
+    "native_live_audio_reply": {
+      "status": "ok",
+      "model": "gemini-3.1-flash-live-preview",
+      "input": "synthetic text through actual LiveVoice",
+      "real_microphone_test": false,
+      "reply_bytes": 138562,
+      "reply_audio_s": 4.33,
+      "player_bytes_written": 138562,
+      "playback_error": false,
+      "voice_error": false,
+      "reply_transcription_present": true,
+      "first_audio_ms": 731,
+      "connect_ms": 687,
+      "events": [
+        "activating",
+        "level",
+        "listening",
+        "mouth_level",
+        "partial_reply",
+        "ready",
+        "reply",
+        "session",
+        "speaking",
+        "stats"
+      ],
+      "failures": [],
+      "audio_saved": false,
+      "host_tool_actions_allowed": false,
+      "seconds": 5.908
+    },
+    "private_config": "0600 under owned0700 directory; no credential in receipts/Git",
+    "owner_input_journey": "Owner explicitly deferred speech/recognition/audible acceptance until later."
+  },
+  "native_output_change": {
+    "owner_scope": "Authorized Mira microphone/voice repair; low-volume reply test announced",
+    "before": "Default internal speaker muted at0",
+    "after": "Existing MoOS fixed executor sets20percent and unmute; measured native state matches",
+    "not_proven": "Owner hearing and acoustic quality"
+  },
+  "directory_followup": {
+    "observed_failure": "Private writer refuses actual owned0755 directory before any credential save",
+    "fixed": "Pin owned nonlinked directoryfd; secure0755/0750/0711 to0700 without admitting writable/unowned/read-only directories; private atomic0600 file retains existing fields and refuses measured concurrent changes",
+    "controls": "63 controller tests pass; original83method refuses0755; changed-directory, changed-file, symlink and temp replacement fixtures retained",
+    "native_readback": {
+      "owned_directory": true,
+      "symlink": false,
+      "before": "0o755",
+      "after": "0o700",
+      "contents_read": false
+    },
+    "controller_tests": 63,
+    "qml_controls": "11 source/native Qt methods including clipped-signal warning without actual microphone capture"
   }
 }

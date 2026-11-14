@@ -164,6 +164,8 @@ STRINGS = {
     'pc_audio_settings': ('إعدادات الصوت', 'Sound settings'),
     'pc_mic_testing': ('تكلّم الآن · أفحص الميكروفون لمدة 3 ثوانٍ…', 'Speak now · checking the microphone for three seconds…'),
     'pc_mic_reason_signal': ('وصلت إشارة صوتية من الميكروفون. هذا اختبار التقاط فقط.', 'The microphone delivered an audio signal. This checks capture only.'),
+    'pc_mic_clipped': ('وصلت الإشارة إلى حد التشبع وقد يتشوّه الكلام. خفّض مستوى إدخال الميكروفون من إعدادات الصوت ثم اختبر مجدداً.',
+                       'The signal reached the clipping limit and speech may distort. Lower microphone input in Sound settings and test again.'),
     'pc_mic_reason_no_signal': ('وصلت بيانات صامتة؛ تكلّم قرب الميكروفون وتحقق من مستوى الإدخال.', 'Only silent samples arrived; speak near the microphone and check its input level.'),
     'pc_mic_reason_muted': ('الميكروفون مكتوم في إعدادات الصوت.', 'The microphone is muted in Sound settings.'),
     'pc_mic_reason_missing': ('الميكروفون المحدد غير متصل؛ اختر ميكروفون الجهاز أو الافتراضي.', 'The selected microphone is disconnected; choose the internal or default microphone.'),

@@ -698,6 +698,109 @@ class ControllerTest(unittest.TestCase):
                 else:
                     self.assertEqual(self.gemini_path.read_bytes(), before)
 
+    def test_owned_readable_configuration_directory_becomes_private_without_losing_files(self):
+        original = {'model': 'personal-live-001', 'unknown': {'keep': [1, 2]}}
+        self._save_private_gemini(original)
+        unrelated = self.gemini_path.parent / 'unrelated.bin'
+        unrelated.write_bytes(b'private-fixture-preserve-all-bytes')
+        for mode in (0o755, 0o750, 0o711):
+            with self.subTest(mode=oct(mode)):
+                self.gemini_path.parent.chmod(mode)
+                self.c._write_gemini_config({'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$private-dir'})
+                self.assertEqual(self.gemini_path.parent.stat().st_mode & 0o777, 0o700)
+                self.assertEqual(self.gemini_path.stat().st_mode & 0o777, 0o600)
+                self.assertEqual(json.loads(self.gemini_path.read_bytes()),
+                                 original | {'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$private-dir'})
+                self.assertEqual(unrelated.read_bytes(), b'private-fixture-preserve-all-bytes')
+
+    def test_writable_unowned_or_linked_configuration_directory_is_refused_unchanged(self):
+        self._save_private_gemini({'model': 'personal-live-001'})
+        before = self.gemini_path.read_bytes()
+        for mode in (0o777, 0o770, 0o702, 0o555):
+            with self.subTest(mode=oct(mode)):
+                self.gemini_path.parent.chmod(mode)
+                with self.assertRaises(ValueError):
+                    self.c._write_gemini_config({'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$refused-dir'})
+                self.assertEqual(self.gemini_path.parent.stat().st_mode & 0o777, mode)
+                self.assertEqual(self.gemini_path.read_bytes(), before)
+        self.gemini_path.parent.chmod(0o755)
+        with patch.object(ctl.os, 'getuid', return_value=os.getuid() + 1), self.assertRaises(ValueError):
+            self.c._write_gemini_config({'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$refused-owner'})
+        self.assertEqual(self.gemini_path.parent.stat().st_mode & 0o777, 0o755)
+        actual = self.gemini_path.parent.with_name('actual-private')
+        self.gemini_path.parent.rename(actual)
+        self.gemini_path.parent.symlink_to(actual, target_is_directory=True)
+        with self.assertRaises(OSError):
+            self.c._write_gemini_config({'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$refused-link'})
+        self.assertTrue(self.gemini_path.parent.is_symlink())
+        self.assertEqual(actual.stat().st_mode & 0o777, 0o755)
+        self.assertEqual(self.gemini_path.read_bytes(), before)
+
+    def test_concurrent_configuration_edit_survives_refused_save(self):
+        original = {'model': 'personal-live-001', 'unknown': 'before'}
+        concurrent = {'model': 'different-personal-live-002', 'unknown': 'concurrent-edit'}
+        self._save_private_gemini(original)
+        fsync = ctl.os.fsync
+        changed = []
+
+        def concurrent_write(descriptor):
+            fsync(descriptor)
+            if not changed:
+                changed.append(True)
+                self.gemini_path.write_text(json.dumps(concurrent))
+
+        with patch.object(ctl.os, 'fsync', side_effect=concurrent_write), self.assertRaises(ValueError):
+            self.c._write_gemini_config({'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$must-not-overwrite'})
+        self.assertEqual(json.loads(self.gemini_path.read_text()), concurrent)
+        self.assertFalse(list(self.gemini_path.parent.glob('.gemini-*')))
+
+    def test_concurrent_directory_swap_does_not_write_or_clean_the_replacement(self):
+        self._save_private_gemini({'model': 'personal-live-001'})
+        original = self.gemini_path.read_bytes()
+        replacement = {'unknown': 'new-directory-owner-data'}
+        fsync = ctl.os.fsync
+        moved = self.gemini_path.parent.with_name('moved-private')
+
+        def swap_directory(descriptor):
+            fsync(descriptor)
+            if not moved.exists():
+                self.gemini_path.parent.rename(moved)
+                self.gemini_path.parent.mkdir(mode=0o700)
+                self.gemini_path.write_text(json.dumps(replacement))
+
+        with patch.object(ctl.os, 'fsync', side_effect=swap_directory), self.assertRaises(ValueError):
+            self.c._write_gemini_config({'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$must-not-cross-directory'})
+        self.assertEqual(json.loads(self.gemini_path.read_text()), replacement)
+        self.assertEqual((moved / 'gemini.json').read_bytes(), original)
+        self.assertFalse(list(moved.glob('.gemini-*')))
+
+    def test_temporary_name_collision_preserves_unknown_file(self):
+        self._save_private_gemini({'model': 'personal-live-001'})
+        original = self.gemini_path.read_bytes()
+        collision = self.gemini_path.parent / ('.gemini-' + bytes(12).hex())
+        collision.write_bytes(b'unknown-collision-must-survive')
+        with patch.object(ctl.os, 'urandom', return_value=bytes(12)), self.assertRaises(FileExistsError):
+            self.c._write_gemini_config({'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$collision'})
+        self.assertEqual(collision.read_bytes(), b'unknown-collision-must-survive')
+        self.assertEqual(self.gemini_path.read_bytes(), original)
+
+    def test_concurrent_temp_replacement_is_neither_promoted_nor_deleted(self):
+        self._save_private_gemini({'model': 'personal-live-001'})
+        original = self.gemini_path.read_bytes()
+        temp = self.gemini_path.parent / ('.gemini-' + bytes(12).hex())
+        fsync = ctl.os.fsync
+
+        def replace_temp(descriptor):
+            fsync(descriptor)
+            temp.unlink()
+            temp.write_bytes(b'unknown-concurrent-temporary-file')
+
+        with patch.object(ctl.os, 'urandom', return_value=bytes(12)), \
+                patch.object(ctl.os, 'fsync', side_effect=replace_temp), self.assertRaises(ValueError):
+            self.c._write_gemini_config({'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$temp-swap'})
+        self.assertEqual(temp.read_bytes(), b'unknown-concurrent-temporary-file')
+        self.assertEqual(self.gemini_path.read_bytes(), original)
+
     def test_voice_model_keeps_personal_choice_until_explicit_selection(self):
         import live_voice
         original = {'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$model-choice', 'model': 'personal-live-001', 'custom': [7]}
