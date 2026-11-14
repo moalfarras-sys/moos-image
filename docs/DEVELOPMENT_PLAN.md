@@ -281,6 +281,8 @@ integration owner; never mutate its inputs or count later changes as qualified.
 Each completed milestone uses the existing M0 release contract; signing,
 identity and recovery are present throughout, not postponed to M5.
 
+Nov14 runtime follow-up: ARM43622601564 passed image creation but refused Mira capture exit124 during native QCOW boot. Preserve the refusal. Model-choice settings now import lightweight metadata rather than the entire Live/audio SDK path; native original refusal/fixed pass and22 config/69 ARM-source controls pass. Bounded import/stack diagnostics preserve the unchanged120s limit and actual failure for the next first-attempt boot. Causality and new ARM acceptance remain open. See reviews/2026-11-14-mira-cold-start.json.
+
 ## Product design and implementation decisions
 
 The visual brief is a recognizable Arabic workspace: Meyar's geometric rhythm

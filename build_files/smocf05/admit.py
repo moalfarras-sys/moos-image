@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Admit the exact signed sensor module package in a compose container only.
 
-This is not enabled in image assembly until machine-trust and hardware review.
+Image assembly checks integrity; machine-trust and hardware acceptance remain required.
 It never enrolls keys or loads a module. All ordinary image/boot gates still apply.
 """
 import argparse
