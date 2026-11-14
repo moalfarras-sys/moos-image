@@ -394,6 +394,9 @@ Basic controls can cache the font and keep Kirigami Units at200: select the
 existing native engine theme and listen to QApplication fontChanged, then test
 the actual Main with global off/on/off. A fixed64px page header can overlap its
 body after a personal font change; retain that native old/fixed geometry control.
+A published material marker skips the startup Settings reader: preserve the
+actual no-publisher image warning, use QtCore.Settings URL location, and test
+encoded native paths plus unchanged config bytes without relaxing smoke logs.
 
 **A Latin prompt does not reserve Arabic line room.** Current native Plymouth
 paints Arabic unlock text into password bullets at360/480px heights despite a

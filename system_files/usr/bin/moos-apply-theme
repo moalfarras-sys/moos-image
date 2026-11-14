@@ -410,7 +410,8 @@ set -uo pipefail
 # 146: match the native greeter scene tones to the Quiet Glass family.
 # 147: qualify Quiet Glass Light alert contrast and mineral ink/shadows.
 # 148: retain the strict MoOS family names and preserve validated native layouts.
-THEME_REV=148
+# 149: use QtCore Settings for the shared startup material reader.
+THEME_REV=149
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

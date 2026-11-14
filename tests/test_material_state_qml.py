@@ -95,7 +95,7 @@ QtObject {
 class Probe:
     """A live QML engine whose reported blurActive this test can watch change."""
 
-    def __init__(self, work: Path, blur_in_config: bool):
+    def __init__(self, work: Path, blur_in_config: bool, clarity_in_config=None):
         self.work = work
         self.runtime_dir = work / "run"
         self.runtime_dir.mkdir(mode=0o700, exist_ok=True)
@@ -105,6 +105,9 @@ class Probe:
         (config / "kwinrc").write_text(
             f"[Plugins]\nblurEnabled={'true' if blur_in_config else 'false'}\n",
             encoding="utf-8")
+        if clarity_in_config is not None:
+            (config / "moos-appearancerc").write_text(
+                "[Material]\nClarity=" + clarity_in_config + "\n", encoding="utf-8")
         probe = work / "probe.qml"
         probe.write_text(PROBE, encoding="utf-8")
         self.seen: list[str] = []
@@ -209,6 +212,8 @@ class Probe:
                     break
                 continue
             text = line.decode(errors="replace").strip()
+            if "The Settings type from Qt.labs.settings is deprecated" in text:
+                raise AssertionError("deprecated material settings reader: " + text)
             if "MATERIAL " in text:
                 reported = text.split("MATERIAL ", 1)[1].strip()
                 self.seen.append(reported)
@@ -252,6 +257,19 @@ class MaterialStateInARealEngine(unittest.TestCase):
         """A greeter has no session service. Its absence must not force opaque."""
         self.run_case(True, [(None, "true observed=false clarity=clear value=0.0")])
         self.run_case(False, [(None, "false observed=false clarity=clear value=1.0")])
+
+    def test_startup_settings_read_encoded_urls_without_changing_config(self):
+        with tempfile.TemporaryDirectory(prefix="moos مادة #25% space-") as raw:
+            work = Path(raw)
+            (work / "empty-system").mkdir()
+            probe = Probe(work, True, "solid")
+            config = work / "config"
+            before = {p.name: p.read_bytes() for p in config.iterdir()}
+            try:
+                probe.expect("true observed=false clarity=solid value=1.0")
+            finally:
+                probe.close()
+            self.assertEqual({p.name: p.read_bytes() for p in config.iterdir()}, before)
 
     def test_the_live_marker_outranks_what_the_config_file_guessed(self):
         """kwinrc is a guess about the compositor; the publisher asked it."""

@@ -47,6 +47,11 @@ P2.16 Arabic unlock prompt now follows actual native text height with a bounded
 lower margin:21 private native frames and18 tests pass, old ink overlap33/5/5
 becomes0/0/0, normal artwork stays identical. Final initramfs/signed cold boot
 and actual encrypted input remain open. [Boot proof](reviews/2026-11-13-arabic-unlock-layout.json).
+PR290/afcb98c0 complete source passes0/1121.184s; its local image refuses the
+shared startup reader's deprecated Settings warning. QtCore.Settings/native URL
+location corrects the generator and module at THEME_REV149 with11 native material
+controls and5 Mira controls passing; final new-source/image/CI remain required.
+[Material proof](reviews/2026-11-14-material-settings.json).
 Independent P2/P3 Mira integration bridges its existing QML surface to KDE's
 native palette/font and shared MoOS material/live motion owner. Preserve the
 original face, service/action/authentication owners and current setup destination;

@@ -1,0 +1,75 @@
+{
+  "date": "2026-11-14",
+  "old_source_sha": "afcb98c0fabe60b72f17912161f6281e9c09f90c",
+  "old_full_source": {
+    "source_sha": "afcb98c0fabe60b72f17912161f6281e9c09f90c",
+    "exit": 0,
+    "seconds": 1121.184,
+    "dirty_after": "",
+    "head_after": "afcb98c0fabe60b72f17912161f6281e9c09f90c",
+    "log_sha256": "74dba78f4e532f5d0b10b2cce28bcb98a42c429b340b1ac9a44292e5a76b48b9"
+  },
+  "first_image_refusal": {
+    "source_sha": "afcb98c0fabe60b72f17912161f6281e9c09f90c",
+    "state": "completed",
+    "command": [
+      "podman",
+      "build",
+      "--pull=always",
+      "--cpu-period=100000",
+      "--cpu-quota=400000",
+      "--memory=8g",
+      "--memory-swap=8g",
+      "--jobs=1",
+      "--build-arg",
+      "IMAGE_NAME=moos",
+      "--build-arg",
+      "AKMODS_IMAGE=scratch",
+      "--iidfile",
+      "/var/home/moos/.cache/moos-worktrees/mira-native-appearance-20261113/test-results/execution-20261114-ui/local-image.id",
+      "-t",
+      "localhost/moos:mira-afcb98c0",
+      "."
+    ],
+    "started_utc": "2026-11-14T00:25:51Z",
+    "pid": 2234280,
+    "exit": 1,
+    "seconds": 1000.04,
+    "resource_refusal": null,
+    "minimum_disk": 371637215232,
+    "dirty_after": "",
+    "head_after": "afcb98c0fabe60b72f17912161f6281e9c09f90c",
+    "log_sha256": "741b70a749098206f3baf423c1d4856d97bf99addbefc6e95afd7557cb17bffc"
+  },
+  "cause": "Mira now consumes shared Tokens; startup without a material publisher instantiates its deprecated Qt.labs.settings Settings. Unchanged image smoke gate refuses the actual QML warning.",
+  "fix": "Generator and shared module use QtCore.Settings with native URL location, unchanged category/value reads and no persistent properties. THEME_REV149 and 68-package fingerprint updated.",
+  "official_reference": "https://doc.qt.io/qt-6.11/qml-qtcore-settings.html",
+  "proofs": {
+    "native_original_startup": {
+      "exit": 1,
+      "log_sha256": "5d7e42739e9fe2163e2100316cdc2643ade91e436227dcff1e581066c1595ac0"
+    },
+    "native_fixed_material": {
+      "exit": 0,
+      "count": 11,
+      "seconds": 15.692,
+      "log_sha256": "13f5a8afd178e99a3119f34eafa0dc541566ed3175bd5031794a4328ca42bef2"
+    },
+    "native_fixed_mira": {
+      "exit": 0,
+      "count": 5,
+      "seconds": 29.622,
+      "log_sha256": "7592ad6c0eb61a692e192ee4515c76650f6454eb246ea407f15331c760a59ec5"
+    },
+    "generator": {
+      "exit": 0,
+      "count": 7,
+      "log_sha256": "47cebf1f51534a4e0e5b46d14594288b70345896267194893ead5a6d67e96358"
+    }
+  },
+  "limitations": [
+    "Original Main with an already published material marker does not instantiate the startup reader; its passing earlier native proof is retained.",
+    "New complete source/image/CI qualification required after this correction.",
+    "No host configuration or immutable file was changed."
+  ]
+}

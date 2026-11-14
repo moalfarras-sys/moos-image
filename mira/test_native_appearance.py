@@ -223,7 +223,7 @@ QtObject {
                 output=os.environ.get('MIRA_APPEARANCE_CAPTURE_DIR')
                 if output and width==1480:
                     capture.save(str(Path(output)/(family+'-'+(page or 'chat')+'.png')))
-        fatal=[m for m in messages if any(s in m for s in ('ReferenceError','TypeError','Cannot assign','Unable to assign','is not a type'))]
+        fatal=[m for m in messages if any(s in m for s in ('ReferenceError','TypeError','Cannot assign','Unable to assign','is not a type','The Settings type from Qt.labs.settings is deprecated'))]
         assert not fatal, str(fatal)
         controller.shutdown();win.close();settle(.05)
     qInstallMessageHandler(previous)
