@@ -32,7 +32,7 @@ Item {
     readonly property bool softwareScene: GraphicsInfo.api === GraphicsInfo.Software
     readonly property real still: 1 - core.wOff * 0.6     // the ring's strength there (dim offline)
     property real lvl: level
-    Behavior on lvl { SmoothedAnimation { velocity: 3.2; duration: -1 } }
+    Behavior on lvl { enabled: core.motion && Theme.motionScale > 0; SmoothedAnimation { velocity: 3.2; duration: -1 } }
 
     // animated state weights so every state change blends instead of snapping
     property real wThink: phase === "thinking" ? 1 : 0
@@ -55,8 +55,8 @@ Item {
     property point look: Qt.point(0, 0)
     property real lookX: look.x
     property real lookY: look.y
-    Behavior on lookX { SpringAnimation { spring: 2.2; damping: 0.32; epsilon: 0.002 } }
-    Behavior on lookY { SpringAnimation { spring: 2.2; damping: 0.32; epsilon: 0.002 } }
+    Behavior on lookX { enabled: core.motion && Theme.motionScale > 0; SpringAnimation { spring: 2.2; damping: 0.32; epsilon: 0.002 } }
+    Behavior on lookY { enabled: core.motion && Theme.motionScale > 0; SpringAnimation { spring: 2.2; damping: 0.32; epsilon: 0.002 } }
 
     // ── aura ─────────────────────────────────────────────────────────
     ShaderEffect {

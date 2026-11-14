@@ -197,10 +197,13 @@ def main():
     controller = Controller(bridge_class=bridge_class)
 
     engine = QQmlApplicationEngine()
+    # Match moos-qml-shell: native Kirigami policy with explicit Basic controls.
+    engine.setProperty("_kirigamiTheme", "org.kde.desktop")
     engine.addImageProvider('mira', FaceProvider())
     engine.addImageProvider('icon', ThemeIconProvider())
     engine.addImportPath(str(ROOT / 'qml'))
     engine.rootContext().setContextProperty('mira', controller)
+    engine.rootContext().setContextProperty('miraApplication', app)
     engine.load(QUrl.fromLocalFile(str(ROOT / 'qml' / 'Main.qml')))
     if not engine.rootObjects():
         print('Mira: the interface failed to load', file=sys.stderr, flush=True)

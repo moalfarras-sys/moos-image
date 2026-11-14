@@ -112,6 +112,15 @@ integration and the candidate SHA. Kernel policy is not a custom kernel, a
 healthy API process is not a successful user flow, and available assets are
 not evidence that Plasma actually consumes them.
 
+Treat dated guidance as a hypothesis when current code or executed evidence
+disagrees. Read the exact upstream version and native implementation, retain
+the conflicting result, then repair the cause and the guidance together. Keep
+identity, authentication, signed delivery and recovery gates intact. For each
+open P-row record the reproduction, existing owner, next executable check and
+delivery boundary; do not turn a broad request into an unsupported zero-defect
+claim. At handoff, refresh the plan's current SHA/workflows and preserve dirty
+worktrees and active evidence jobs before continuing the next unblocked slice.
+
 For a requested visible improvement, identify the existing surface and a real
 interaction the owner can immediately use. Inspect its installed before/after
 rendering and exercise that interaction on the physical desktop. If the owner

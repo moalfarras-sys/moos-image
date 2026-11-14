@@ -25,7 +25,7 @@ AbstractButton {
     onDoubleClicked: orb.powerRequested()
 
     readonly property real glow: !online || !lit ? 0 : 0.35 + 0.65 * Math.min(1, level / 100)
-    readonly property bool moving: living && lit && online && mira.motion && visible
+    readonly property bool moving: living && lit && online && mira.motion && Theme.motionScale > 0 && visible
 
     background: Item {}
     contentItem: Item {
@@ -53,7 +53,7 @@ AbstractButton {
                 SequentialAnimation on scale {
                     running: orb.moving
                     loops: Animation.Infinite
-                    alwaysRunToEnd: true
+                    alwaysRunToEnd: false
                     ScaleAnimator { from: 1.0; to: 1.06; duration: 1900; easing.type: Easing.InOutSine }
                     ScaleAnimator { from: 1.06; to: 1.0; duration: 1900; easing.type: Easing.InOutSine }
                 }
@@ -93,7 +93,7 @@ AbstractButton {
                     visible: !orb.lit || !orb.online
                     name: orb.pc ? "fan" : "bulb"
                     size: orb.size * 0.42
-                    color: Theme.ink3
+                    color: "#C8CBDC"
                     opacity: orb.online ? 1 : 0.6
                 }
                 Icon {

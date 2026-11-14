@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-13",
+  "scope": "Native private QApplication/KDE component rendering with populated review data; no model invocation or system actions",
+  "source_file": "mira/test_native_reading_states.py",
+  "source_sha256": "9943e74d4edc27d001b08b073031ed87387c372f12b7677abd08e15872cc7a87",
+  "tests": {
+    "exit": 0,
+    "count": 2,
+    "seconds": 14.556,
+    "log_sha256": "de3ae1663292fe1680bdd6459599cedb2c45c89928f0366c84e55c3d0ff53929"
+  },
+  "results": [
+    {
+      "family": "MoOSUI2Aurora",
+      "painted_contrast": {
+        "output": 10.089,
+        "approval title": 13.115,
+        "approval request": 16.107,
+        "toast": 13.977,
+        "ON home device": 11.031,
+        "ON legacy device": 12.052,
+        "diff addition": 8.774,
+        "diff removal": 5.349,
+        "task error": 4.684,
+        "terminal header": 9.645,
+        "terminal output": 16.107,
+        "terminal empty state": 9.645
+      },
+      "old_controls": [],
+      "old_contrast": {},
+      "global_off_positive_counts": [
+        [
+          "approval breath",
+          1
+        ],
+        [
+          "home starting",
+          1
+        ],
+        [
+          "running task",
+          1
+        ]
+      ],
+      "viewport": [
+        1000,
+        850
+      ]
+    },
+    {
+      "family": "MoOSUI2AuroraLight",
+      "painted_contrast": {
+        "output": 5.858,
+        "approval title": 10.041,
+        "approval request": 10.4,
+        "toast": 10.014,
+        "ON home device": 9.03,
+        "ON legacy device": 9.449,
+        "diff addition": 5.776,
+        "diff removal": 7.362,
+        "task error": 7.136,
+        "terminal header": 5.555,
+        "terminal output": 10.4,
+        "terminal empty state": 5.555
+      },
+      "old_controls": [
+        "old_dark_output_refused",
+        "old_dark_approval_refused"
+      ],
+      "old_contrast": {
+        "output": 3.468409145355861,
+        "approval": 1.1497082460978199
+      },
+      "global_off_positive_counts": [
+        [
+          "approval breath",
+          1
+        ],
+        [
+          "home starting",
+          1
+        ],
+        [
+          "running task",
+          1
+        ]
+      ],
+      "viewport": [
+        1000,
+        850
+      ]
+    }
+  ],
+  "limitations": [
+    "Physical touch/keyboard and live service operations are separate acceptance",
+    "Whole image, signed delivery and installed acceptance pending"
+  ]
+}

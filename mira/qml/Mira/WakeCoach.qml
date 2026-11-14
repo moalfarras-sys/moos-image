@@ -38,7 +38,7 @@ Glass {
             Rectangle {
                 width: parent.width * Math.min(1, mira.level * 1.4); height: parent.height; radius: 4
                 color: Theme.mint
-                Behavior on width { SmoothedAnimation { velocity: 900 } }
+                Behavior on width { enabled: Theme.motionScale > 0; SmoothedAnimation { velocity: 900 } }
             }
         }
 

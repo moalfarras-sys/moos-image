@@ -10,8 +10,9 @@ Item {
     default property alias content: holder.data
     Item {
         id: head
+        objectName: "pageHeader"
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: 64
+        height: Math.max(64, heading.implicitHeight + 8)
         Rectangle {
             id: glyph
             width: 46; height: 46; radius: 15
@@ -21,6 +22,8 @@ Item {
             Icon { anchors.centerIn: parent; name: frame.icon; size: 22; color: frame.accent }
         }
         Column {
+            id: heading
+            objectName: "pageHeaderText"
             anchors { left: glyph.right; leftMargin: 14; right: parent.right; verticalCenter: parent.verticalCenter }
             spacing: 2
             T { text: frame.title; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; wrapMode: Text.NoWrap; elide: Text.ElideRight; width: parent.width }

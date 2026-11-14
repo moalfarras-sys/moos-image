@@ -241,10 +241,17 @@ RUN test -x /out/moplayer \
 FROM base AS mira-build
 RUN dnf5 -y install --setopt=install_weak_deps=False python3-pip python3-pyside6 python3-numpy \
         python3-jeepney python3-httpx python3-websockets python3-requests python3-cryptography \
+        plasma-integration kf6-kirigami dbus-daemon \
         fontconfig ibm-plex-sans-arabic-fonts \
     && dnf5 clean all
 WORKDIR /src/mira
 COPY mira/ ./
+# Mira consumes the same native material/motion module as the installed shell.
+# Declare that dependency in the clean SDK and staged-copy probes too.
+COPY system_files/usr/lib64/qt6/qml/org/moos/ui/ /src/system_files/usr/lib64/qt6/qml/org/moos/ui/
+COPY system_files/usr/share/color-schemes/MoOSUI2Aurora*.colors /src/system_files/usr/share/color-schemes/
+COPY system_files/usr/share/fonts/meyar/ /src/system_files/usr/share/fonts/meyar/
+ENV QML_IMPORT_PATH=/src/system_files/usr/lib64/qt6/qml
 # Mo AI's tool schemas and the settings registry they read, at their tree layout: Mira declares
 # whatever the image declares, and her tests check exactly that set.
 COPY system_files/usr/lib/moai/moai_tool_schemas.py /src/system_files/usr/lib/moai/moai_tool_schemas.py
@@ -265,7 +272,7 @@ RUN mkdir -p /tmp/mira-home/.cache \
     && export HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 \
         QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
     && for module in \
-        test_tools test_brain test_controller test_qml test_companion test_systools \
+        test_tools test_brain test_controller test_qml test_native_appearance test_native_reading_states test_companion test_systools \
         test_live_voice_local test_mira_memory test_group_lights test_moai_agent_link test_visual_tier test_initial_language \
         test_kde_integration test_inbox test_chat_ui test_moos_routes test_page_pc test_page_apps \
         test_page_system test_page_workbench test_page_connect test_page_brain \
@@ -273,7 +280,8 @@ RUN mkdir -p /tmp/mira-home/.cache \
         if python3 -X faulthandler -s -m unittest -v "$module"; then :; else \
             status=$?; echo "Mira suite $module exited with status $status" >&2; exit "$status"; \
         fi; \
-    done
+    done \
+    && MIRA_NATIVE_KDE_PROOF=1 python3 -X faulthandler -s -m unittest -v test_native_appearance test_native_reading_states
 # Her tree as the image receives it, proved from the staged copy itself and never from /src/mira,
 # which holds files the stage can forget (it once shipped without pages/, every suite green). Every
 # page module must import from it; then her window must open with a clean log, and her face must be

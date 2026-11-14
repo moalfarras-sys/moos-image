@@ -321,7 +321,7 @@ PageFrame {
                     Layout.preferredWidth: 1
                     Layout.preferredHeight: lastCol.implicitHeight + 22
                     radius: 16
-                    color: Qt.rgba(0, 0, 0, 0.18); border.width: 1; border.color: Theme.hairline
+                    color: Theme.bg1; border.width: 1; border.color: Theme.hairline
                     ColumnLayout {
                         id: lastCol
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }

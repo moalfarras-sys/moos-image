@@ -6,6 +6,30 @@ stay in [the product plan](../../../docs/DEVELOPMENT_PLAN.md). Primary sources
 were reviewed on2026-10-28. Links describe upstream capability, not MoOS support
 or a version pin. Recheck the exact installed and proposed versions when acting.
 
+### Native UI and kernel review, 2026-11-13
+
+[Qt 6.11 SystemPalette](https://doc.qt.io/qt-6.11/qml-qtquick-systempalette.html)
+exposes the application palette; it does not recolour independently hardcoded
+canvases. [Kirigami typography](https://develop.kde.org/docs/getting-started/kirigami/style-typography/)
+documents the native default font. Mira's explicit Basic controls also require
+the same native Kirigami engine selection as `moos-qml-shell`; a generic or
+Basic-theme fixture does not prove live KDE policy. The application font signal
+supplies its reading-family updates without another configuration owner. The
+actual Mira fixture requires live readback, populated approval/error content
+and composed text contrast. Follow
+[KDE accessibility](https://develop.kde.org/hig/accessibility/) for global
+animation-off, keyboard navigation and larger text; test actual running loops
+and focused content, not only declared durations or outer window dimensions.
+
+[Kernel.org](https://www.kernel.org/) lists 7.3.4 stable while the qualified
+MoOS image contains the vendor-signed 7.3.3 kernel. A newer upstream number is
+not a reviewed MoOS package or evidence of a device fix. Preserve the signed
+vendor transition and verify exact module aliases/loaded drivers before
+claiming support; the V3 SMOCF05 sensor remains unbound in current evidence.
+[Waydroid 1.6.3](https://github.com/waydroid/waydroid/releases/tag/1.6.3) is the
+reviewed engine release. Installed version equality does not close its app
+resize, input, file persistence or close/reopen acceptance in P4.
+
 ## Extend established owners first
 
 | Component / primary source | MoOS decision and integration boundary | Evidence before extending its use |

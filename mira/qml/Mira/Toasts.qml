@@ -23,7 +23,7 @@ Column {
             width: Math.min(toasts.width, row.implicitWidth + 32)
             height: Math.max(42, label.implicitHeight + 20)
             radius: height / 2
-            color: Qt.rgba(0.05, 0.06, 0.14, 0.95)
+            color: Theme.glassStrong
             border.width: 1; border.color: Qt.rgba(c.r, c.g, c.b, 0.45)
             opacity: 0
             Component.onCompleted: { opacity = 1; life.start() }

@@ -89,7 +89,7 @@ Item {
     Glass {
         anchors.fill: parent
         radius: 24
-        tint: Qt.rgba(0.06, 0.07, 0.16, 0.72)
+        tint: Theme.glass
     }
 
     Column {

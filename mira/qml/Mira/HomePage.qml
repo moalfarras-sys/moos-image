@@ -85,7 +85,7 @@ PageFrame {
                 border.width: 2; border.color: Theme.cyan
                 Rectangle { width: 6; height: 6; radius: 3; color: Theme.cyan; anchors.centerIn: parent }
                 SequentialAnimation on opacity {
-                    running: mira.motion && parent.visible; loops: Animation.Infinite
+                    running: mira.motion && Theme.motionScale > 0 && parent.visible; loops: Animation.Infinite
                     NumberAnimation { to: 0.3; duration: 700 } NumberAnimation { to: 1; duration: 700 }
                 }
             }
@@ -204,7 +204,7 @@ PageFrame {
         radius: 18
         opacity: modelData.available ? 1 : 0.55
         lit: modelData.on
-        tint: modelData.on ? Qt.rgba(accent.r * 0.14 + 0.05, accent.g * 0.14 + 0.06, accent.b * 0.14 + 0.12, 0.82) : Theme.glass
+        tint: modelData.on ? Qt.tint(Theme.glass, Qt.alpha(accent, 0.08)) : Theme.glass
 
         ColumnLayout {
             id: body

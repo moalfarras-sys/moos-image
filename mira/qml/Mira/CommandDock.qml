@@ -143,7 +143,7 @@ Item {
                 color: "transparent"
                 border.width: 2
                 border.color: Qt.rgba(micBox.c.r, micBox.c.g, micBox.c.b, micBox.active ? 0.55 : 0)
-                Behavior on width { SmoothedAnimation { velocity: 120 } }
+                Behavior on width { enabled: Theme.motionScale > 0; SmoothedAnimation { velocity: 120 } }
             }
             AbstractButton {
                 id: mic

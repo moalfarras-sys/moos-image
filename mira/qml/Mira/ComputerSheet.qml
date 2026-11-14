@@ -89,7 +89,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.max(120, Math.min(360, out.implicitHeight + 28))
                 radius: 16
-                color: Qt.rgba(0, 0, 0, 0.28)
+                color: Theme.bg1
                 border.width: 1; border.color: mira.pc.status === "error" ? Qt.rgba(1, 0.36, 0.48, 0.45) : Theme.hairline
                 Flickable {
                     anchors.fill: parent; anchors.margins: 14

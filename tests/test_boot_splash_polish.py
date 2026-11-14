@@ -315,6 +315,66 @@ function check(source, mode) {
                 self.assertEqual(p.returncode, 0, p.stdout+p.stderr)
                 self.assertIn('MOOS_BOOT_CALLBACK_PASS', p.stdout)
 
+    @unittest.skipUnless(shutil.which('node'), 'callback evaluation needs Node')
+    def test_password_rows_use_native_line_room_and_stay_on_screen(self) -> None:
+        # Native current Plymouth/Pango with the actual Meyar bytes measured
+        # Latin 169x23, Arabic 234x37, and four password bullets 36x23.
+        # The old 80%/85% placement overpainted Arabic ink by 33 pixels at
+        # 640x360 and five at 640x480. Evaluate the actual script callbacks;
+        # native rendered ink controls remain the independent pixel evidence.
+        prelude = r'''const vm = require('node:vm');
+function check(source) {
+  for (const [w,h] of [[640,360],[800,480],[640,480],[360,640],[1920,1080]]) {
+    function picture(width,height) { return {GetWidth:()=>width,GetHeight:()=>height,
+      Scale:(x,y)=>picture(x,y)}; }
+    const Image = name => name==='welcome-ar.png' ? picture(287,94) : picture(856,556);
+    Image.Text = text => text==='Arabic' ? picture(234,37) :
+      text==='long' ? picture(1500,37) : text==='Latin' ? picture(169,23) :
+      picture(text.trim().length*9 || 4,23);
+    const context = {frames:[], Image, Sprite:()=>({x:0,y:0,opacity:1,image:null,
+      SetImage(image){this.image=image;},SetX(x){this.x=x;},SetY(y){this.y=y;},
+      SetZ:()=>{},SetOpacity(a){this.opacity=a;}}),
+      Window:{GetWidth:()=>w,GetHeight:()=>h,SetBackgroundTopColor:()=>{},SetBackgroundBottomColor:()=>{}},
+      Plymouth:{GetMode:()=>'boot',SetRefreshRate:()=>{},SetRefreshFunction:()=>{},
+        SetQuitFunction:()=>{},SetMessageFunction:()=>{},SetDisplayPasswordFunction:()=>{},
+        SetDisplayNormalFunction:()=>{}}};
+    vm.runInNewContext(source,context,{timeout:1000});
+    for(const text of ['Arabic','Latin','long']) for(const count of [0,1,4,120]) {
+      context.display_password(text,count);
+      const p=context.prompt_sprite,b=context.bullets_sprite;
+      if (b.y < p.y+p.image.GetHeight()+Math.min(8,h*.02)-.01)
+        throw Error('password row overlaps native prompt line');
+      if (p.y<0 || b.y+b.image.GetHeight()>h-Math.min(12,h*.025)+.01)
+        throw Error('password rows exceed screen');
+      if (p.x<0 || b.x<0 || p.x+p.image.GetWidth()>w || b.x+b.image.GetWidth()>w)
+        throw Error('password rows exceed width');
+      if (context.intro_sprite.y!==context.stage_y || context.intro_sprite.opacity!==1)
+        throw Error('password did not settle the hero');
+    }
+    context.display_normal();
+    if(context.prompt_sprite.opacity!==0 || context.bullets_sprite.opacity!==0)
+      throw Error('normal display retained password rows');
+  }
+}
+'''
+        source = re.sub(r'\bfun\s+', 'function ', script_text())
+        for old in (False, True):
+            candidate = source
+            if old:
+                candidate = candidate.replace('prompt_sprite.SetY(prompt_y);',
+                                               'prompt_sprite.SetY(sh * 0.80);')
+                candidate = candidate.replace('bullets_sprite.SetY(bullets_y);',
+                                               'bullets_sprite.SetY(sh * 0.85);')
+            program = prelude + '\ncheck(' + json.dumps(candidate) + ");process.stdout.write('MOOS_PASSWORD_ROWS_PASS');"
+            result = subprocess.run([shutil.which('node'), '-e', program],
+                                    capture_output=True, text=True, timeout=10)
+            if old:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('password row overlaps native prompt line', result.stderr)
+            else:
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn('MOOS_PASSWORD_ROWS_PASS', result.stdout)
+
     def test_the_fallback_ground_is_the_fixed_boot_canvas(self) -> None:
         # Boot belongs to the OS identity, independently of a user's theme.
         text = script_text()

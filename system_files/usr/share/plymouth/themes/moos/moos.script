@@ -128,7 +128,6 @@ fun display_password(prompt, bullets) {
     }
     prompt_sprite.SetImage(pimg);
     prompt_sprite.SetX(cx - pimg.GetWidth() / 2);
-    prompt_sprite.SetY(sh * 0.80);
     prompt_sprite.SetOpacity(1);
     dots = "";
     n = 0;
@@ -140,7 +139,16 @@ fun display_password(prompt, bullets) {
     }
     bullets_sprite.SetImage(bimg);
     bullets_sprite.SetX(cx - bimg.GetWidth() / 2);
-    bullets_sprite.SetY(sh * 0.85);
+    // Arabic line ink extends below Latin ink at the same font size. Keep
+    // the password row below the native text image, including its full line
+    // room, and raise the pair only when the lower screen edge needs space.
+    prompt_gap = fmin(8, sh * 0.02);
+    prompt_bottom_margin = fmin(12, sh * 0.025);
+    bullets_y = fmin(sh - bimg.GetHeight() - prompt_bottom_margin,
+                    fmax(sh * 0.85, sh * 0.80 + pimg.GetHeight() + prompt_gap));
+    prompt_y = fmin(sh * 0.80, bullets_y - prompt_gap - pimg.GetHeight());
+    prompt_sprite.SetY(prompt_y);
+    bullets_sprite.SetY(bullets_y);
     bullets_sprite.SetOpacity(1);
 }
 fun clear_password() {

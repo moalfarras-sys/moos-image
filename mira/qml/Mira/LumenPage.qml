@@ -131,7 +131,7 @@ PageFrame {
         visible: lp.st.error !== undefined && lp.st.error !== "" && !lp.st.ready
         Layout.preferredHeight: offRow.implicitHeight + 28
         radius: 18
-        tint: Qt.rgba(0.30, 0.07, 0.14, 0.55)
+        tint: Qt.tint(Theme.glassStrong, Qt.alpha(Theme.danger, 0.10))
         edge: Qt.rgba(1, 0.36, 0.48, 0.45)
         RowLayout {
             id: offRow
@@ -152,8 +152,7 @@ PageFrame {
         Layout.fillWidth: true
         Layout.preferredHeight: Math.max(210, rooms.implicitHeight + 64)
         radius: 26
-        tint: Qt.rgba(0.03 + lp.ambient.r * 0.10 * lp.litShare, 0.035 + lp.ambient.g * 0.08 * lp.litShare,
-                      0.09 + lp.ambient.b * 0.12 * lp.litShare, 0.92)
+        tint: Qt.tint(Theme.glassStrong, Qt.alpha(lp.ambient, 0.10 * lp.litShare))
         clip: true
         // the room's own glow, rising from the floor of the stage
         Rectangle {
@@ -500,7 +499,7 @@ PageFrame {
                         radius: height / 2.6
                         color: Qt.color(lp.sync.ambient || "#8E5BFF")
                         opacity: lp.sync.running ? modelData.alpha : 0
-                        Behavior on color { ColorAnimation { duration: 300 } }
+                        Behavior on color { ColorAnimation { duration: Theme.emphasized } }
                         Behavior on opacity { NumberAnimation { duration: Theme.emphasized } }
                     }
                 }
@@ -519,8 +518,8 @@ PageFrame {
                             GradientStop { position: 0.5; color: lp.sync.running ? Qt.color(lp.sync.ambient || "#151933") : "#1A1F3D" }
                             GradientStop { position: 1; color: lp.sync.running ? lp.edgeColor(1) : "#151933" }
                         }
-                        Behavior on opacity { NumberAnimation { duration: 200 } }
-                        Icon { anchors.centerIn: parent; visible: !lp.sync.running; name: "monitor"; size: 30; color: Theme.ink3 }
+                        Behavior on opacity { NumberAnimation { duration: Theme.normal } }
+                        Icon { anchors.centerIn: parent; visible: !lp.sync.running; name: "monitor"; size: 30; color: "#C8CBDC" }
                     }
                     Rectangle { width: 40; height: 4; radius: 2; color: Qt.rgba(1, 1, 1, 0.2)
                                 anchors { top: parent.bottom; topMargin: 6; horizontalCenter: parent.horizontalCenter } }
@@ -536,7 +535,7 @@ PageFrame {
                             width: 14; height: 14; radius: 7
                             color: (lp.sync.preview || {})[modelData] || "#333"
                             border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.5)
-                            Behavior on color { ColorAnimation { duration: 180 } }
+                            Behavior on color { ColorAnimation { duration: Theme.fast } }
                         }
                     }
                 }

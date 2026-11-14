@@ -1,0 +1,157 @@
+{
+  "scope": "Current installed native Plymouth libraries and exact candidate script in reused private SDK/Xvfb. No host display or initramfs changes; not signed cold boot, real encryption keyboard or authentication acceptance.",
+  "sourceFiles": [
+    {
+      "path": "system_files/usr/share/plymouth/themes/moos/moos.script",
+      "sha256": "62f18de5d15f2009ecc6463b210ee60340b3ff72dd470b0f6ae82a09ceb69024"
+    },
+    {
+      "path": "tests/test_boot_splash_polish.py",
+      "sha256": "11109456a24a2f66fdde3dbf3c28484b7508126db8b3fc021348b8cdd8945d6d"
+    },
+    {
+      "path": "scripts/review/plymouth-render.c",
+      "sha256": "65557b28bc6b84d7da60c1e45c1223eb5b4370f13b915d0171537625d2c89de9"
+    },
+    {
+      "path": "scripts/review/plymouth-render.sh",
+      "sha256": "c2f6475b23fd6a2d9280021f254b9e881d6c801b9e909a48e04b150af80abd2f"
+    }
+  ],
+  "installedPlymouth": "24.004.60-24.1.moos1.fc44.x86_64",
+  "oldFrames": 17,
+  "candidateFrames": 21,
+  "oldActualOverlapPixels": {
+    "640x360": 33,
+    "800x480": 5,
+    "640x480": 5
+  },
+  "oldControl": "ink-separation.json and gate-results.json retain native failures at all three resolutions; English control has zero overlap",
+  "fixedInk": [
+    {
+      "resolution": "640x360",
+      "promptInkBounds": [
+        203,
+        292,
+        437,
+        315
+      ],
+      "bulletInkBounds": [
+        302,
+        334,
+        338,
+        342
+      ],
+      "emptyRowsBetween": 19,
+      "overlapPixels": 0
+    },
+    {
+      "resolution": "800x480",
+      "promptInkBounds": [
+        283,
+        393,
+        517,
+        416
+      ],
+      "bulletInkBounds": [
+        382,
+        435,
+        418,
+        443
+      ],
+      "emptyRowsBetween": 19,
+      "overlapPixels": 0
+    },
+    {
+      "resolution": "640x480",
+      "promptInkBounds": [
+        203,
+        393,
+        437,
+        416
+      ],
+      "bulletInkBounds": [
+        302,
+        435,
+        338,
+        443
+      ],
+      "emptyRowsBetween": 19,
+      "overlapPixels": 0
+    }
+  ],
+  "normalFramesByteIdentical": [
+    "640x360",
+    "800x480",
+    "640x480",
+    "1920x1080",
+    "1080x1920"
+  ],
+  "redraw": "Changed bullet is painted within 200ms with pre-prompt composition unchanged in all three landscape sizes",
+  "longPrompt": "Within screen in all three landscape sizes; 640-wide long text is reduced to 12 painted rows, not a readability speedup",
+  "fonts": {
+    "policy": "Private FONTCONFIG_FILE selects copied exact installed Meyar Sans and Meyar Arabic. Native fc-match confirms source font path; not proof of boot initramfs font selection.",
+    "nativeLabelDimensions": {
+      "Latin": [
+        169,
+        23
+      ],
+      "Arabic": [
+        234,
+        37
+      ],
+      "fourBullets": [
+        36,
+        23
+      ]
+    },
+    "limitations": "Pango/Cairo dependencies remain the existing SDK. Installed initramfs read was denied; sudo -n requires owner password. No password requested or host changes made."
+  },
+  "resources": {
+    "cpuMax": "200000 100000",
+    "memoryMaxBytes": 2147483648,
+    "networkUsed": false,
+    "hostMounts": []
+  },
+  "tests": {
+    "bootSplash": {
+      "count": 18,
+      "exit": 0
+    },
+    "nativeGateOld": [
+      1,
+      1,
+      1
+    ],
+    "nativeGateFixed": [
+      0,
+      0,
+      0
+    ],
+    "nativeCompile": "gcc -Wall -Wextra -Werror",
+    "shellSyntax": 0,
+    "diffCheck": 0
+  },
+  "evidenceRetirement": "Retain the private SDK fixture and local original/fixed evidence through signed candidate and physical boot qualification; restore only the two exact SDK label providers and stop the reused SDK.",
+  "cleanup": {
+    "sdkStatus": "exited",
+    "sdkPid": 0,
+    "runningBeforeStop": [
+      "sleep PID1 only"
+    ],
+    "exactSDKLabelProvidersRestored": {
+      "label-pango.so": "acf72e40763af1688f731f161c4f3d4113c37e038153370e09e27830135bdba2",
+      "label-freetype.so": "c45ab9db341eadafd1d05fa5eabb653d359a4478d6cffcb4cce184f755d38c51"
+    },
+    "stop": "sleep PID1 ignored SIGTERM; podman stop escalated after5s; confirmed exited/PID0",
+    "retainedSDKFixture": {
+      "path": "/work/plymouth-current-native-20261113",
+      "regularFilesBeforeRetentionReceipt": 99,
+      "bytesBeforeRetentionReceipt": 99275647
+    },
+    "hostInstalledInputsStillEqual": true
+  },
+  "date": "2026-11-13",
+  "private_receipt_sha256": "b7b1e0780842a5d885009d63e397a1b8f87071cd5ca4c401c7008be718eaff00",
+  "delivery": "Source and native private rendering only; final image, signed artifact boots and installed acceptance pending"
+}

@@ -268,7 +268,7 @@ Glass {
             width: parent.width
             height: parent.height
             radius: panel.radius
-            tint: Qt.rgba(0.045, 0.055, 0.13, 1.0)   // opaque: the conversation must not show through
+            tint: Theme.bg0   // opaque: the conversation must not show through
             edge: Theme.hairlineStrong
             property real offset: panel.drawerOpen ? 0 : 40
             x: (mira.lang === "ar" ? 1 : -1) * offset

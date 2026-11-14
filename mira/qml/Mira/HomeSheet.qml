@@ -103,7 +103,7 @@ Item {
                     height: cardBody.implicitHeight + 28
                     radius: 18
                     opacity: cell.available ? 1 : 0.5
-                    tint: cell.is_on && cell.available ? Qt.rgba(cell.accent.r * 0.18 + 0.05, cell.accent.g * 0.18 + 0.05, cell.accent.b * 0.18 + 0.11, 0.8) : Theme.glass
+                    tint: cell.is_on && cell.available ? Qt.tint(Theme.glass, Qt.alpha(cell.accent, 0.08)) : Theme.glass
                     lit: cell.is_on && cell.available
 
                     ColumnLayout {

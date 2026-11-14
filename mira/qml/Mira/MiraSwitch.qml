@@ -21,7 +21,7 @@ Switch {
             y: 3
             x: (sw.checked !== sw.mirrored) ? parent.width - width - 3 : 3
             color: sw.checked ? "white" : Qt.rgba(0.8, 0.82, 0.92, 0.75)
-            Behavior on x { SpringAnimation { spring: 4; damping: 0.4; epsilon: 0.3 } }
+            Behavior on x { enabled: Theme.motionScale > 0; SpringAnimation { spring: 4; damping: 0.4; epsilon: 0.3 } }
         }
     }
     contentItem: T {

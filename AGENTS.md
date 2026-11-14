@@ -383,6 +383,25 @@ consistent native transaction inputs and the original crash/executed-marker
 controls. A multilib SDK conflict is not permission to force DNF or loosen RPM
 admission; qualify the actual composed base and architecture-specific packages.
 
+**A native Light palette cannot recolour a fixed dark canvas.** Mira's original
+Theme, shader, rail, page overlays and code blocks own separate fills. Bridge
+reading surfaces to QApplication/KDE and the existing material/motion owner;
+keep expressive face colours and explicit syntax-code ink paired with their own
+background. Bare offscreen Qt can report a generic palette/font: require the
+actual KDE style/loaded source and retain that wrong-owner control. A private
+app copy and source route test are not signed delivery or answering AI.
+Basic controls can cache the font and keep Kirigami Units at200: select the
+existing native engine theme and listen to QApplication fontChanged, then test
+the actual Main with global off/on/off. A fixed64px page header can overlap its
+body after a personal font change; retain that native old/fixed geometry control.
+
+**A Latin prompt does not reserve Arabic line room.** Current native Plymouth
+paints Arabic unlock text into password bullets at360/480px heights despite a
+clean English control. Position the password row after the actual text image's
+height, bound both rows by the screen and retain native old/fixed ink masks.
+Preserve normal artwork bytes, prompt redraw, masking and finite handoff. A
+private renderer with exact libraries/fonts is not an encrypted cold boot.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly
