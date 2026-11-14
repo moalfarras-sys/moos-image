@@ -18,8 +18,9 @@ Item {
 
     Item {
         id: head
+        objectName: "pageHeader"
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        height: 64
+        height: Math.max(64, heading.implicitHeight + 8)
         Rectangle {
             id: glyph
             width: 46; height: 46; radius: 15
@@ -36,12 +37,14 @@ Item {
                 visible: frame.busy
                 opacity: 0.6
                 SequentialAnimation on opacity {
-                    running: frame.busy && mira.motion; loops: Animation.Infinite
+                    running: frame.busy && mira.motion && Theme.motionScale > 0; loops: Animation.Infinite
                     NumberAnimation { to: 0.15; duration: 700 } NumberAnimation { to: 0.7; duration: 700 }
                 }
             }
         }
         Column {
+            id: heading
+            objectName: "pageHeaderText"
             anchors { left: glyph.right; leftMargin: 14; right: actionRow.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
             spacing: 2
             T { text: frame.title; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; wrapMode: Text.NoWrap; elide: Text.ElideRight; width: parent.width }
@@ -56,6 +59,7 @@ Item {
 
     Flickable {
         id: flick
+        objectName: "pageBody"
         anchors { left: parent.left; right: parent.right; top: head.bottom; bottom: parent.bottom; topMargin: 14 }
         contentHeight: column.implicitHeight + 24
         clip: true

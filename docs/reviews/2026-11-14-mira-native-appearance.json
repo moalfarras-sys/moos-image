@@ -1,0 +1,143 @@
+{
+  "date": "2026-11-14",
+  "base_sha": "9b32e6690659744cdcda53f94398016d64860f41",
+  "scope": "Mira native appearance and bounded layout, existing application/controller owners",
+  "source_files": {
+    "app.py": "af789123c4fe096e062c2b444136ae17df101445b7ee8c05b9ca62e4de22ae14",
+    "qml/Main.qml": "4a0177da2f84fc3fdf7ef23c99d2670389e79d847eb47f7612aca241b14de5e9",
+    "qml/Mira/ActionCards.qml": "bdc290305cff2017a41c9c7a8b3d77d35d250cbceb01689ed98680949f8c8287",
+    "qml/Mira/AppsPage.qml": "41d6b59b3d7c7a4e8bf326dcd4be4a2b61c2c1913ba4f016e1520ae034750373",
+    "qml/Mira/Avatar.qml": "e684dffcb9eb4fcefa5438927d9744f17161ab670c9b3040701d7f72fde9f6c8",
+    "qml/Mira/BrainPage.qml": "ba4fa4508ab35d744a0d8b983a44c015a25fc378b91372ca3b4c430f20c32103",
+    "qml/Mira/Card.qml": "0e4c59724ce72c692c05f5559e7882aa347f29c3f49faab310ed8bfe65656909",
+    "qml/Mira/ColorWheel.qml": "61d11f7c16a4a23cae87490c06d54e90012d2882205540c8421f44b2695009fc",
+    "qml/Mira/CommandDock.qml": "53e29d124b988a4ab5f381723888c1a5c68759fa86e8677433054af20e411237",
+    "qml/Mira/CompanionPanel.qml": "d3f5214b712e730e9d425bf07b1c1f405f5efcb0ba99074d43c0df2bc3716a74",
+    "qml/Mira/ComputerSheet.qml": "dd691c4786a062d85506b694acf6fe4f53cdafa4a13e6fee210ece72c60ff018",
+    "qml/Mira/ConnectPage.qml": "0938a5729b96e01c09098853cdf18706a96cb56b968903a4cc92be9d47923700",
+    "qml/Mira/ContextRail.qml": "3f2ee83793f50e2511af9dc447e4698e4cc4331552caa93546ef721927988761",
+    "qml/Mira/ConversationPanel.qml": "36e73fbe49500c7230c02a56edfa14a6121d0f84c3f19b2913b688eb370f3731",
+    "qml/Mira/FaceFrames.qml": "9a6c21b8356133d731ecffde5a7b7180d8020ac6c924114d939077e392d09533",
+    "qml/Mira/Glass.qml": "bc0f872d123b68b80fe1f70b25d67d54125aac0a7b080cf0b1eed4d444b0948d",
+    "qml/Mira/HomePage.qml": "b70c2669412906133aff9e985edde5b78b691e657e54c837111cfa0106b92c0e",
+    "qml/Mira/HomeSheet.qml": "735002009adeae6247f57118297e4e542d484c9d93653999605f66aa8747760f",
+    "qml/Mira/Icon.qml": "f8bc6be9a9d7252caf00476cca4ef9dcfcc344a0f348b1a4c9792a43caa3b407",
+    "qml/Mira/IconButton.qml": "11cc82dce4bfbfdb0c1d9eb7c3043cf7c7a08f32157a45bd552b6c5c10184f3e",
+    "qml/Mira/LightOrb.qml": "bad342aab486e52e139315bcac6dc9e82b0b8bc9fa331d16e93e933495acb020",
+    "qml/Mira/LumenPage.qml": "6526c3f09370fc372c1767bd14172a093993395d01a77eebefda7f3c26354dbf",
+    "qml/Mira/MessageDelegate.qml": "532dde206caffa454ad12c358a70af5a88598b4f701901c1f1dcc32d968aafbf",
+    "qml/Mira/MiraCore.qml": "88ca059a0e833a6292078790d878ab59e092c263ede812ab40b13b1aee024c06",
+    "qml/Mira/MiraField.qml": "85d48da78611a55b18803c0942e1aac44b639fe0318df621f7dcb289f8db008d",
+    "qml/Mira/MiraSlider.qml": "6e6b8982993c8b37c6d83ee228624bdda88236cb97c2e2bcb893573a0bf6ca89",
+    "qml/Mira/MiraSwitch.qml": "241da39d9ca141f6031eb1f8e3a076ea000de4f88a5f1558cba9f45d3e11f493",
+    "qml/Mira/NavRail.qml": "7eeb691bba3699c77e08f1faa60d09744bcb2447f71f8b9849e6e9932ffe2407",
+    "qml/Mira/Nebula.qml": "a3a255cf7df8509680fafe6cda1ab70e4987487db036c1754f3fc54006cf7c35",
+    "qml/Mira/OutputBox.qml": "73cf9995e4e28d4a200235dad7c570c43a0a197ba4d82841c258e5569e4373a1",
+    "qml/Mira/PageFrame.qml": "7033cba9d46329a27214a5c0c3d50cfcabe27f8cd03c8136fa16b77b70632eda",
+    "qml/Mira/PcPage.qml": "0ae24a790ddda192abbb0c021baa9ab437990c4cab7a02b3ac621d6096e1ae82",
+    "qml/Mira/PillButton.qml": "07009c5e5f8ea779c9712bec0248a5afd19184dc3393148738fe6f30cfd04659",
+    "qml/Mira/SectionTitle.qml": "db1cfd67cb28c52907fa7257ab25858693210d4f36bb1eab2616fb9d67a510f5",
+    "qml/Mira/ServicePill.qml": "16699654e421e89ea793bcd9a19b976c503494f315cb0a8e5894e7ffb941161f",
+    "qml/Mira/SettingsSheet.qml": "20505abc7ce7ff4148191e41319d13fe24c6ecf0b13e280f23f72a9e11e975f9",
+    "qml/Mira/SheetFrame.qml": "efe56eb44f1ee45c549a194b5684936d1d4ba2c1c1b15a2318d7b4bdc5437020",
+    "qml/Mira/SideSheet.qml": "3a5699156700edf1da5d707b000549d6b70eaa083a6f092c275f2db41e452369",
+    "qml/Mira/StageCaption.qml": "e1b9afd6e9ccb49c90fe15585c44c07080b1f453fa12e36125e1b39d57bf22e5",
+    "qml/Mira/StatusPill.qml": "7e37acd2a3a1bcb7c78199d5a5147686ace21f42052b8f29263e38c1069c232a",
+    "qml/Mira/SystemPage.qml": "205b5ad51ec6c769742a4e0efdb6af261e600f1f4c28dc7f39f74fae9ceb6c00",
+    "qml/Mira/SystemSheet.qml": "8ce3401d26bc2df8b4fb7f22c4396850093a7ad327e5a175d4fb4e0bbfbf2f55",
+    "qml/Mira/T.qml": "9ee105497ae8466ab995bf303b4ae21c90ff1c85630de5fb24dd0214b466d890",
+    "qml/Mira/Theme.qml": "33eafca9cd6d341ea86653c39e44cea1b9d77e3db4037b1eefca92707d668a6d",
+    "qml/Mira/Tile.qml": "97803116d96a3a054cbc3919af48758858a1a532ef46ea4e8e07583da051acb5",
+    "qml/Mira/Toasts.qml": "b4473a225501aee21e9ff0b5d0d53a08e29084b7f0f048b68034f2e63551eca6",
+    "qml/Mira/TopBar.qml": "0159f362848e77b8a64542f25eeb359e1ac93c1b454297b8dd0b268577095e55",
+    "qml/Mira/WakeCoach.qml": "bcfcdfd5d2b1097752c32a033ee504af0f15434ca0d3b40d91c7c4cc1c00eeb5",
+    "qml/Mira/WorkbenchPage.qml": "e2f9d59084482c81d7091cfbfc335a48c7298220a705dc5021997d90c7ebc95c"
+  },
+  "test_sources": {
+    "test_native_appearance.py": "9da626c0e53b65c4fd7278d51090f57d06263d67c5476363bcd967fc4a23c38c",
+    "test_native_reading_states.py": "9943e74d4edc27d001b08b073031ed87387c372f12b7677abd08e15872cc7a87"
+  },
+  "tests": [
+    {
+      "log": "default-final.log",
+      "count": 2,
+      "seconds": 16.757,
+      "exit": 0,
+      "sha256": "3a2779c683439fe8bf7c421a702d9f530e43077b433427e3f459d26c49684737"
+    },
+    {
+      "log": "native-final2.log",
+      "count": 3,
+      "seconds": 16.724,
+      "exit": 0,
+      "sha256": "72c19194b1dc5b84012467c4bf1ecef1b9a1ebeac0e6baf7039f8b8657d8ac5c"
+    },
+    {
+      "log": "generic-final.log",
+      "count": 1,
+      "seconds": 0.221,
+      "exit": 0,
+      "sha256": "cd1ac92e6ef8bb512b70bff3d90dca1fd6a0bd4f8aa7d29582cfb713be4e0283"
+    },
+    {
+      "log": "qml-freeze.log",
+      "count": 10,
+      "seconds": 24.729,
+      "exit": 0,
+      "sha256": "82e156f010affa4e581c0adc81afb223d6ff1c817f6e47533c2bea0a9e0108d7"
+    }
+  ],
+  "negative_controls": [
+    {
+      "control": "old-theme",
+      "refused": true,
+      "reason": "Mira ignores the native palette"
+    },
+    {
+      "control": "old-main",
+      "refused": true,
+      "reason": "clock kept running with global-off"
+    },
+    {
+      "control": "old-64px-page-header",
+      "refused": true,
+      "reason": "page heading overlaps reading body",
+      "log_sha256": "1013fe632bf89869899f39bce8f3e137605ce2c669de85c6d241db5e424598fd"
+    }
+  ],
+  "reading_states_receipt": "2026-11-13-mira-reading-states.json",
+  "native_review": {
+    "loaded_qtquick": [
+      "/usr/lib64/libQt6Quick.so.6.11.2"
+    ],
+    "exact_source_bytes_match": true,
+    "routes": [
+      "chat",
+      "brain",
+      "system",
+      "home",
+      "computer",
+      "workbench",
+      "lumen"
+    ],
+    "scoped_app_copy": true,
+    "immutable_app_modified": false,
+    "review_process_stopped": true,
+    "canonical_app_restored": "/usr/bin/python3 -s /usr/lib/mira/app/app.py",
+    "private_capture_sha256": "8a9392dda3b4e870bf4ffc51a762f41f01ba7f45a5de52400bf0ab9aea532ef6",
+    "config_observation": "kdeglobals changed during interrupted review, producer unknown; current choice preserved rather than restoring stale Light/Dark. kwinrc, material and Mira settings hashes stayed identical.",
+    "retirement": "Retain private copies/receipts until equivalent signed installed journey and recovery acceptance."
+  },
+  "acceptance": [
+    "Actual QApplication/KDE palette and personal family signal; initial source Meyar family verified",
+    "Clear/Solid/no-blur live material changes",
+    "Native global animations off/on/off and old-clock refusal",
+    "Light/Dark pages at1480x764 and640x800, composer bounds and heading/body separation",
+    "Twelve populated reading states per palette with painted contrast >=4.5:1; old fixed dark output and approval fail"
+  ],
+  "limitations": [
+    "Source/private engine and scoped installed-session evidence are not signed delivery",
+    "No model inference, autonomous task completion or system-changing action accepted",
+    "No complete desktop, physical touchscreen/Orca or every personal font-size acceptance claim"
+  ]
+}

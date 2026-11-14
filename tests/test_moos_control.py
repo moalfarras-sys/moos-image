@@ -57,7 +57,11 @@ esac
     "busctl": '''case "$*" in
   *DisplaysDBusNames*) echo '{"type":"as","data":["display0"]}';;
   *MaxBrightness*) echo '{"type":"i","data":10000}';;
-  *get-property*Brightness*) echo '{"type":"i","data":5000}';;
+  *SetBrightness*) previous=; last=; for arg in "$@"; do previous="$last"; last="$arg"; done
+                    printf '%s\n' "$previous" > "$STUB_ROOT/brightness";;
+  *get-property*Brightness*) value=5000
+                            if [ -f "$STUB_ROOT/brightness" ]; then read -r value < "$STUB_ROOT/brightness"; fi
+                            echo "{\\"type\\":\\"i\\",\\"data\\":$value}";;
   *NightLight*running*) echo '{"type":"b","data":true}';;
   *NameHasOwner*org.bluez*) echo '{"type":"b","data":[true]}';;
   *"/component/kwin"*shortcutNames*) echo '{"type":"as","data":[["Overview","Grid View","Show Desktop","MoOS Arrange: halves","MoOS Arrange: thirds","MoOS Arrange: quarters","MoOS Arrange: main","MoOS Arrange: centre"]]}';;
@@ -165,6 +169,107 @@ class StubMachine:
 
     def close(self):
         self.dir.cleanup()
+
+
+class BrightnessReadback(unittest.TestCase):
+    def setUp(self):
+        module = runpy.run_path(str(CONTROL), run_name="brightness_readback_test")
+        self.change = module["brightness"]
+        self.scope = self.change.__globals__
+        self.unavailable = module["Unavailable"]
+        self.calls = []
+        self.current = {"display0": 5000, "display1": 2000}
+        self.maximum = {"display0": 10000, "display1": 4000}
+        self.active = ["display0", "display1"]
+        self.timeouts = []
+
+    def displays(self, timeout):
+        self.timeouts.append(timeout)
+        return list(self.active)
+
+    def read(self, name, prop, timeout):
+        self.timeouts.append(timeout)
+        return self.maximum[name] if prop == "MaxBrightness" else self.current[name]
+
+    def write(self, argv, timeout):
+        self.calls.append(argv)
+        self.timeouts.append(timeout)
+        self.current[argv[4].rsplit("/", 1)[1]] = int(argv[-2])
+
+    def fixture(self, **overrides):
+        return mock.patch.dict(self.scope, {"displays": self.displays,
+            "display_value": self.read, "run": self.write,
+            "BRIGHTNESS_BUDGET": .18, **overrides})
+
+    def test_every_display_is_read_back_in_its_native_range(self):
+        with self.fixture():
+            answer = self.change("70")
+        self.assertIn("display0: 70%", answer)
+        self.assertIn("display1: 70%", answer)
+        self.assertEqual(self.current, {"display0": 7000, "display1": 2800})
+        self.assertEqual(len(self.calls), 2)
+        self.assertTrue(all(0 < t <= .18 for t in self.timeouts))
+
+    def test_output_uses_native_quantization_instead_of_echoing_the_request(self):
+        self.active = ["display0"]
+        self.maximum["display0"] = 3
+        self.current["display0"] = 1
+        with self.fixture():
+            answer = self.change("70")
+        self.assertIn("display0: 67%", answer)
+        self.assertNotIn("70%", answer)
+
+    def test_exit_zero_with_unchanged_state_is_not_success(self):
+        started = time.monotonic()
+        with self.fixture(run=lambda argv, timeout: self.calls.append(argv)):
+            with self.assertRaisesRegex(self.unavailable, "readback"):
+                self.change("70")
+        self.assertLess(time.monotonic() - started, .6)
+        self.assertEqual(len(self.calls), 2, "readback must never retry the writes")
+
+    def test_delayed_native_state_can_complete_within_the_shared_budget(self):
+        self.active = ["display0"]
+        reads = 0
+        def delayed(name, prop, timeout):
+            nonlocal reads
+            if prop == "Brightness":
+                reads += 1
+                return 7000 if reads >= 3 else 5000
+            return 10000
+        with self.fixture(run=lambda argv, timeout: self.calls.append(argv), display_value=delayed):
+            self.assertIn("70%", self.change("70"))
+        self.assertEqual(len(self.calls), 1)
+
+    def test_disappearance_and_range_change_refuse_confirmation(self):
+        for failure in ("removed", "range"):
+            with self.subTest(failure=failure):
+                self.setUp()
+                def changed(argv, timeout):
+                    self.write(argv, timeout)
+                    if failure == "removed" and "display0" in self.active: self.active.remove("display0")
+                    else: self.maximum["display0"] = 20000
+                with self.fixture(run=changed):
+                    with self.assertRaises(self.unavailable): self.change("70")
+
+    def test_invalid_initial_snapshot_cannot_partially_write(self):
+        self.current["display1"] = 5000
+        with self.fixture():
+            with self.assertRaisesRegex(self.unavailable, "range"):
+                self.change("70")
+        self.assertEqual(self.calls, [])
+
+    def test_native_reply_types_are_validated(self):
+        for value in (True, "7000", [7000], -1, 2147483648):
+            with self.subTest(value=value), mock.patch.dict(self.scope, {"busctl_data": lambda *args, **kw: value}):
+                with self.assertRaises(self.unavailable): self.scope["display_value"]("display0", "Brightness")
+        for names in ("display0", ["display0", "display0"], ["../bad"], [None]):
+            with self.subTest(names=names), mock.patch.dict(self.scope, {"busctl_data": lambda *args, **kw: names}):
+                with self.assertRaises(self.unavailable): self.scope["displays"]()
+
+    def test_ordinary_setter_failure_is_preserved(self):
+        with self.fixture(run=mock.Mock(side_effect=self.unavailable("provider refused"))):
+            with self.assertRaisesRegex(self.unavailable, "provider refused"):
+                self.change("70")
 
 
 class MoosControlTests(unittest.TestCase):

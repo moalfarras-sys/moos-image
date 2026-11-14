@@ -93,6 +93,8 @@ Item {
         property string tip: ""
         property string label: ""
         property color accent: Theme.ink2
+        property color labelInk: Theme.ink2
+        property color hoverInk: Theme.ink
         implicitWidth: label.length > 0 ? row.implicitWidth + 18 : 26
         implicitHeight: 26
         hoverEnabled: true
@@ -113,9 +115,9 @@ Item {
                 id: row
                 anchors.centerIn: parent
                 spacing: 5
-                Icon { name: mb.iconName; size: 14; weight: 2; color: mb.hovered ? Theme.ink : mb.accent; anchors.verticalCenter: parent.verticalCenter }
+                Icon { name: mb.iconName; size: 14; weight: 2; color: mb.hovered ? mb.hoverInk : mb.accent; anchors.verticalCenter: parent.verticalCenter }
                 T { visible: mb.label.length > 0; text: mb.label; font.pixelSize: Theme.tiny + 1; font.weight: Font.Medium
-                    color: mb.hovered ? Theme.ink : Theme.ink2; wrapMode: Text.NoWrap; anchors.verticalCenter: parent.verticalCenter }
+                    color: mb.hovered ? mb.hoverInk : mb.labelInk; wrapMode: Text.NoWrap; anchors.verticalCenter: parent.verticalCenter }
             }
         }
         scale: down ? 0.92 : 1
@@ -249,10 +251,13 @@ Item {
                                     text: piece.modelData.lang || mira.s.ch_code
                                     font.family: piece.modelData.lang ? Theme.mono : Theme.font
                                     font.pixelSize: Theme.tiny; font.letterSpacing: 0.3
-                                    color: Theme.ink3; wrapMode: Text.NoWrap
+                                    color: "#C8CBDC"; wrapMode: Text.NoWrap
                                 }
                                 MiniButton {
                                     objectName: "copyCode"
+                                    accent: "#C8CBDC"
+                                    labelInk: "#C8CBDC"
+                                    hoverInk: "#F4F1FF"
                                     anchors { right: parent.right; rightMargin: 5; verticalCenter: parent.verticalCenter }
                                     iconName: "copy"
                                     label: mira.s.ch_copy_code

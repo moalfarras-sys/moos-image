@@ -11,6 +11,14 @@
 image_name := "moos"
 base_main := "ghcr.io/ublue-os/kinoite-main:44"
 
+# The physical development station also runs the desktop/editor. Keep every
+# local image stage in the reviewed envelope; callers can choose explicit
+# limits with `just build_memory=6g build_cpu_quota=200000 build_jobs=1 build`.
+# memory-swap equals memory, so build containers cannot consume host swap.
+build_memory := "8g"
+build_cpu_quota := "400000"
+build_jobs := "1"
+
 # List available recipes
 default:
     @just --list
@@ -309,6 +317,7 @@ check:
     # resampling after the bounded entrance.
     python3 tests/test_boot_splash_polish.py
     python3 tests/test_plymouth_packages.py
+    python3 tests/test_arm_recovery_plymouth.py
     python3 tests/test_plymouth_srpm_extraction.py
     python3 tests/test_language_pack_transaction.py
     # Phone alerts are explicit, generic and event-driven: never mirror desktop content or poll idle.
@@ -687,6 +696,9 @@ build: check
     # The base is rebuilt daily. Never validate a stale local tag, and never pull
     # the large NVIDIA stage for the generic image that cannot consume it.
     podman build \
+        --cpu-period=100000 --cpu-quota={{ quote(build_cpu_quota) }} \
+        --memory={{ quote(build_memory) }} --memory-swap={{ quote(build_memory) }} \
+        --jobs={{ quote(build_jobs) }} \
         --pull=always \
         --build-arg IMAGE_NAME={{ image_name }} \
         --build-arg AKMODS_IMAGE=scratch \
@@ -706,6 +718,9 @@ build-nvidia: check
     # `--pull=always` makes the Containerfile's base match the remote label used
     # above; otherwise a stale local base can pair kernel N with akmods N+1.
     podman build \
+        --cpu-period=100000 --cpu-quota={{ quote(build_cpu_quota) }} \
+        --memory={{ quote(build_memory) }} --memory-swap={{ quote(build_memory) }} \
+        --jobs={{ quote(build_jobs) }} \
         --pull=always \
         --build-arg IMAGE_NAME={{ image_name }}-nvidia \
         --build-arg "AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-${kernel}" \
@@ -722,6 +737,9 @@ build-nvidia: check
 # signed update train. AArch64 cloud deployment uses the native MoOS ARM image.
 build-cloud: check
     podman build \
+        --cpu-period=100000 --cpu-quota={{ quote(build_cpu_quota) }} \
+        --memory={{ quote(build_memory) }} --memory-swap={{ quote(build_memory) }} \
+        --jobs={{ quote(build_jobs) }} \
         --pull=always \
         --build-arg IMAGE_NAME={{ image_name }}-cloud \
         --build-arg AKMODS_IMAGE=scratch \

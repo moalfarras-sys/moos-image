@@ -1,0 +1,210 @@
+{
+  "date": "2026-11-14",
+  "source_predecessor": "afcb98c0fabe60b72f17912161f6281e9c09f90c",
+  "scope": "P5 native brightness confirmation and bounded canonical local build recipes",
+  "original_refusal": {
+    "control": "original setter exit0 while provider alwaysreports5000/10000",
+    "exit": 0,
+    "stdout": "\u2600 \u0627\u0644\u0633\u0637\u0648\u0639 70% | Brightness 70%\n",
+    "stderr": "",
+    "calls": [
+      [
+        "busctl",
+        "--user",
+        "--json=short",
+        "get-property",
+        "org.kde.ScreenBrightness",
+        "/org/kde/ScreenBrightness",
+        "org.kde.ScreenBrightness",
+        "DisplaysDBusNames"
+      ],
+      [
+        "busctl",
+        "--user",
+        "--json=short",
+        "get-property",
+        "org.kde.ScreenBrightness",
+        "/org/kde/ScreenBrightness/display0",
+        "org.kde.ScreenBrightness.Display",
+        "MaxBrightness"
+      ],
+      [
+        "busctl",
+        "--user",
+        "call",
+        "org.kde.ScreenBrightness",
+        "/org/kde/ScreenBrightness/display0",
+        "org.kde.ScreenBrightness.Display",
+        "SetBrightness",
+        "iu",
+        "7000",
+        "0"
+      ],
+      [
+        "logger",
+        "-t",
+        "moos-control",
+        "brightness 70"
+      ]
+    ],
+    "uses_host_bus": false
+  },
+  "implementation": {
+    "brightness": "One8s total budget covers validated display snapshot, fixed native setters and measured native state. Confirms every targeted display; refuses stale/malformed/disappeared/range-changed states, preserving normal setter failures. Reports provider percentages including quantization.",
+    "build": "Existing generic/NVIDIA/cloud recipes default to4CPU quota,8GiB memory/no container swap,one build stage; explicit just variables override the envelope."
+  },
+  "tests": {
+    "full_control_suite": {
+      "exit": 0,
+      "count": 47,
+      "seconds": 26.576,
+      "log_sha256": "f7a582aed6249b8a777c8060f0c8df4bf868380198ce0449fea01ffc1526d97f"
+    },
+    "final_readback_suite": {
+      "exit": 0,
+      "count": 8,
+      "log_sha256": "16113b20fe810bf636abb959e40442f95bd2ff7da1459a5661866f3ce3b4c908"
+    },
+    "build_commands": {
+      "source_justfile_sha256": "6c662995109749cf3cf981edf71a2d9b9cf64c28ee26ef26cd671dc0a5fe4e09",
+      "checks": [
+        {
+          "recipe": "build",
+          "overrides": [],
+          "podman_exit": 0,
+          "just_exit": 0,
+          "argv": [
+            "build",
+            "--cpu-period=100000",
+            "--cpu-quota=400000",
+            "--memory=8g",
+            "--memory-swap=8g",
+            "--jobs=1",
+            "--pull=always",
+            "--build-arg",
+            "IMAGE_NAME=moos",
+            "--build-arg",
+            "AKMODS_IMAGE=scratch",
+            "-t",
+            "moos:latest",
+            "."
+          ],
+          "network_or_build": false
+        },
+        {
+          "recipe": "build-nvidia",
+          "overrides": [],
+          "podman_exit": 0,
+          "just_exit": 0,
+          "argv": [
+            "build",
+            "--cpu-period=100000",
+            "--cpu-quota=400000",
+            "--memory=8g",
+            "--memory-swap=8g",
+            "--jobs=1",
+            "--pull=always",
+            "--build-arg",
+            "IMAGE_NAME=moos-nvidia",
+            "--build-arg",
+            "AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-fixture-kernel",
+            "-t",
+            "moos-nvidia:latest",
+            "."
+          ],
+          "network_or_build": false
+        },
+        {
+          "recipe": "build-cloud",
+          "overrides": [],
+          "podman_exit": 0,
+          "just_exit": 0,
+          "argv": [
+            "build",
+            "--cpu-period=100000",
+            "--cpu-quota=400000",
+            "--memory=8g",
+            "--memory-swap=8g",
+            "--jobs=1",
+            "--pull=always",
+            "--build-arg",
+            "IMAGE_NAME=moos-cloud",
+            "--build-arg",
+            "AKMODS_IMAGE=scratch",
+            "-t",
+            "moos-cloud:latest",
+            "."
+          ],
+          "network_or_build": false
+        },
+        {
+          "recipe": "build-cloud",
+          "overrides": [
+            "build_memory=6g",
+            "build_cpu_quota=200000",
+            "build_jobs=2"
+          ],
+          "podman_exit": 0,
+          "just_exit": 0,
+          "argv": [
+            "build",
+            "--cpu-period=100000",
+            "--cpu-quota=200000",
+            "--memory=6g",
+            "--memory-swap=6g",
+            "--jobs=2",
+            "--pull=always",
+            "--build-arg",
+            "IMAGE_NAME=moos-cloud",
+            "--build-arg",
+            "AKMODS_IMAGE=scratch",
+            "-t",
+            "moos-cloud:latest",
+            "."
+          ],
+          "network_or_build": false
+        },
+        {
+          "recipe": "build",
+          "overrides": [],
+          "podman_exit": 42,
+          "just_exit": 42,
+          "argv": [
+            "build",
+            "--cpu-period=100000",
+            "--cpu-quota=400000",
+            "--memory=8g",
+            "--memory-swap=8g",
+            "--jobs=1",
+            "--pull=always",
+            "--build-arg",
+            "IMAGE_NAME=moos",
+            "--build-arg",
+            "AKMODS_IMAGE=scratch",
+            "-t",
+            "moos:latest",
+            "."
+          ],
+          "network_or_build": false
+        }
+      ],
+      "scope": "Executed canonical recipes with recording tools and --no-deps; normal source/image gates are separate. No native image built."
+    }
+  },
+  "native_read_only_observation": {
+    "service": "org.kde.ScreenBrightness.Display",
+    "display": "display1",
+    "brightness": 10000,
+    "maximum": 10000,
+    "set_signature": "iu",
+    "set_return": "void",
+    "writes_executed": false
+  },
+  "upstream": "https://github.com/KDE/powerdevil/blob/v6.8.2/daemon/controllers/screenbrightnesscontroller.cpp",
+  "limitations": [
+    "PowerDevil publishes cached provider state before some asynchronous hardware writes finish; readback does not prove a physical luminance change or every late driver correction.",
+    "No host brightness/settings/driver were changed. Full physical slider/hotplug/suspend acceptance remains open.",
+    "Bounded build commands do not prove the cause of the previous mixed QEMU/JVM OOM or guarantee against all memory pressure.",
+    "Final integrated source/image/CI/signed delivery remains required."
+  ]
+}

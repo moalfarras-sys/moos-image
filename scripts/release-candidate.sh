@@ -10,18 +10,25 @@
 #   scripts/release-candidate.sh                 # build + proofs from main, print promotion
 #   scripts/release-candidate.sh --promote       # ... and promote when every x86 proof passed
 #   scripts/release-candidate.sh --ref BRANCH    # prove a branch without promoting (no --promote)
+#   scripts/release-candidate.sh --expected-revision SHA --promote  # pin reviewed source
 set -euo pipefail
 
 ref="main"
 promote=0
+expected_revision=""
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --ref) ref="${2:?--ref needs a branch}"; shift 2 ;;
         --promote) promote=1; shift ;;
-        -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+        --expected-revision) expected_revision="${2:?--expected-revision needs a full commit SHA}"; shift 2 ;;
+        -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
         *) echo "release-candidate: unknown argument: $1" >&2; exit 2 ;;
     esac
 done
+if [ -n "$expected_revision" ] && ! [[ "$expected_revision" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "release-candidate: --expected-revision must be a full lowercase commit SHA" >&2
+    exit 2
+fi
 if [ "$promote" -eq 1 ] && [ "$ref" != "main" ]; then
     echo "release-candidate: --promote is only valid for main" >&2
     exit 2
@@ -32,6 +39,10 @@ done
 
 git fetch -q origin "$ref"
 revision="$(git rev-parse "origin/$ref")"
+if [ -n "$expected_revision" ] && [ "$revision" != "$expected_revision" ]; then
+    echo "release-candidate: $ref moved from reviewed $expected_revision to $revision; refusing dispatch" >&2
+    exit 1
+fi
 echo "candidate revision: $revision ($ref)"
 work="$(mktemp -d "${TMPDIR:-/var/tmp}/moos-release-candidate.XXXXXX")"
 trap 'rm -rf -- "$work"' EXIT

@@ -12,7 +12,7 @@ Rectangle {
     Layout.fillWidth: true
     Layout.preferredHeight: Math.max(64, Math.min(maxHeight, out.implicitHeight + 24))
     radius: 14
-    color: Qt.rgba(0, 0, 0, 0.30)
+    color: Theme.bg1
     border.width: 1; border.color: box.error ? Qt.rgba(1, 0.36, 0.48, 0.45) : Theme.hairline
     Flickable {
         anchors.fill: parent; anchors.margins: 12

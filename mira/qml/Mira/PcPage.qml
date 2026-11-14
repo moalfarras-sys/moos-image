@@ -101,7 +101,7 @@ PageFrame {
         visible: pcp.st.statusState === "error"
         Layout.preferredHeight: offline.implicitHeight + 28
         radius: 18
-        tint: Qt.rgba(0.30, 0.07, 0.14, 0.55)
+        tint: Qt.tint(Theme.glassStrong, Qt.alpha(Theme.danger, 0.10))
         edge: Qt.rgba(1, 0.36, 0.48, 0.45)
         RowLayout {
             id: offline
@@ -750,7 +750,7 @@ PageFrame {
                 rotation: tile.busy ? spin : 0
                 color: Qt.rgba(tile.accent.r, tile.accent.g, tile.accent.b, tile.lit ? 0.30 : 0.14)
                 Icon { anchors.centerIn: parent; name: tile.glyph; size: 19; color: tile.lit ? "white" : tile.accent }
-                NumberAnimation on spin { running: tile.busy && mira.motion; from: 0; to: 360; duration: 1500; loops: Animation.Infinite }
+                NumberAnimation on spin { running: tile.busy && mira.motion && Theme.motionScale > 0; from: 0; to: 360; duration: 1500; loops: Animation.Infinite }
             }
             ColumnLayout {
                 Layout.fillWidth: true

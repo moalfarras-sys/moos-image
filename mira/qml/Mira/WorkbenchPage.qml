@@ -145,7 +145,7 @@ PageFrame {
         Keys.onReturnPressed: clicked()
         background: Rectangle {
             radius: height / 2
-            color: gb.primary ? Qt.rgba(0.42, 0.33, 0.94, gb.hovered ? 0.55 : 0.42)
+            color: gb.primary ? Theme.accent
                  : gb.danger ? Qt.rgba(1, 0.36, 0.48, gb.hovered ? 0.22 : 0.12)
                  : gb.down ? Theme.glassHover : gb.hovered ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.045)
             border.width: gb.visualFocus ? 2 : 1
@@ -161,12 +161,12 @@ PageFrame {
                 spacing: 6
                 Glyph {
                     visible: gb.glyph !== ""; name: gb.glyph; size: 16
-                    color: gb.danger ? Theme.danger : gb.primary ? "white" : Theme.ink2
+                    color: gb.danger ? Theme.danger : gb.primary ? Theme.onAccent : Theme.ink2
                     anchors.verticalCenter: parent.verticalCenter
                     transform: Scale { xScale: gb.mirrorGlyph ? -1 : 1; origin.x: 8 }
                 }
                 T { visible: gb.text !== "" && !gb.compact; text: gb.text; font.pixelSize: Theme.small; font.weight: Font.Medium; wrapMode: Text.NoWrap
-                    color: gb.danger ? Theme.danger : gb.primary ? "white" : gb.enabled ? Theme.ink : Theme.ink3
+                    color: gb.danger ? Theme.danger : gb.primary ? Theme.onAccent : gb.enabled ? Theme.ink : Theme.ink3
                     anchors.verticalCenter: parent.verticalCenter }
             }
         }
@@ -223,7 +223,7 @@ PageFrame {
         property real avail: 0
         implicitHeight: tabGrid.implicitHeight + 12
         radius: 17
-        tint: Qt.rgba(0.06, 0.07, 0.16, 0.7)
+        tint: Theme.glass
         GridLayout {
             id: tabGrid
             anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 6 }
@@ -587,7 +587,7 @@ PageFrame {
         x: 0; y: 0; z: 20
         width: page.contentWidth
         height: implicitHeight
-        tint: "#0B0E22"            // opaque: the content scrolling beneath must not read through it
+        tint: Theme.bg0            // opaque: the content scrolling beneath must not read through it
         edge: Theme.hairlineStrong
         Rectangle {        // a soft shade under it, so the content reads as passing beneath
             anchors { left: parent.left; right: parent.right; top: parent.bottom; leftMargin: 14; rightMargin: 14 }
@@ -641,7 +641,7 @@ PageFrame {
                     Layout.preferredHeight: Math.min(440, Math.max(1, fileList.count) * 40 + 12)
                     visible: fileList.count > 0
                     radius: 14
-                    color: Qt.rgba(0, 0, 0, 0.18); border.width: 1; border.color: Theme.hairline
+                    color: Theme.bg1; border.width: 1; border.color: Theme.hairline
                     ListView {
                         id: fileList
                         anchors.fill: parent; anchors.margins: 6
@@ -739,7 +739,7 @@ PageFrame {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(236, Math.max(1, gitList.count) * 38 + 12)
             radius: 14
-            color: Qt.rgba(0, 0, 0, 0.18); border.width: 1; border.color: Theme.hairline
+            color: Theme.bg1; border.width: 1; border.color: Theme.hairline
             ListView {
                 id: gitList
                 anchors.fill: parent; anchors.margins: 6
@@ -820,7 +820,7 @@ PageFrame {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.min(460, diffList.contentHeight + 16)
                 radius: 14
-                color: Qt.rgba(0, 0, 0, 0.32); border.width: 1; border.color: Theme.hairline
+                color: Theme.bg1; border.width: 1; border.color: Theme.hairline
                 LayoutMirroring.enabled: false
                 LayoutMirroring.childrenInherit: true
                 ListView {
@@ -846,7 +846,7 @@ PageFrame {
                             font.family: modelData.k === "head" ? Theme.font : Theme.mono
                             font.pixelSize: modelData.k === "head" ? Theme.small : 12
                             font.weight: modelData.k === "head" ? Font.DemiBold : Font.Normal
-                            color: modelData.k === "add" ? "#8FF0C4" : modelData.k === "del" ? "#FF9DB2" : modelData.k === "hunk" ? Theme.cyan
+                            color: modelData.k === "add" ? Theme.ok : modelData.k === "del" ? Theme.danger : modelData.k === "hunk" ? Theme.cyan
                                  : modelData.k === "head" ? Theme.violet : modelData.k === "meta" ? Theme.ink3 : Theme.ink2
                         }
                     }
@@ -955,7 +955,7 @@ PageFrame {
                         property real value: 1
                         SequentialAnimation on value {
                             id: pulse
-                            running: task.modelData.status === "running" && mira.motion && task.visible
+                            running: task.modelData.status === "running" && mira.motion && Theme.motionScale > 0 && task.visible
                             loops: Animation.Infinite
                             NumberAnimation { to: 0.3; duration: 650 } NumberAnimation { to: 1; duration: 650 }
                         }
@@ -1026,7 +1026,7 @@ PageFrame {
                         anchors { fill: parent; margins: 8 }
                         spacing: 8
                         Icon { name: "alert"; size: 15; color: Theme.danger; Layout.alignment: Qt.AlignTop }
-                        T { id: errText; Layout.fillWidth: true; horizontalAlignment: Text.AlignLeft; text: task.modelData.error; font.pixelSize: Theme.small; color: "#FFB3C1"; maximumLineCount: 5; elide: Text.ElideRight }
+                        T { id: errText; Layout.fillWidth: true; horizontalAlignment: Text.AlignLeft; text: task.modelData.error; font.pixelSize: Theme.small; color: Theme.danger; maximumLineCount: 5; elide: Text.ElideRight }
                     }
                 }
                 OutputBox {
@@ -1131,7 +1131,7 @@ PageFrame {
             Layout.fillWidth: true
             Layout.preferredHeight: 360
             radius: 14
-            color: Qt.rgba(0.012, 0.016, 0.045, 0.92)
+            color: Theme.bg1
             border.width: 1; border.color: termInput.activeFocus ? Qt.rgba(0.24, 0.95, 0.77, 0.45) : Theme.hairline
             LayoutMirroring.enabled: false
             LayoutMirroring.childrenInherit: true
@@ -1160,7 +1160,7 @@ PageFrame {
                     wrapMode: TextEdit.WrapAnywhere
                     textFormat: TextEdit.PlainText
                     text: st.termOutput || ""
-                    color: "#D6E2FF"
+                    color: Theme.ink
                     selectionColor: Qt.rgba(0.24, 0.95, 0.77, 0.3)
                     font.family: Theme.mono; font.pixelSize: 13
                     horizontalAlignment: TextEdit.AlignLeft

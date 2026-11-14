@@ -28,25 +28,50 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+Nov14 P0.7/P0.9: actual native recovery log43484822112 retains stock Plymouth24.004.60-24 although the main ARM image carries the reviewed fix. The slim installer now consumes the same native producer/package admission and unchanged exact-archive gate;10 controls pass and the old source fails3 wiring controls. ARM PRs build and inspect this distinct recovery image before the desktop. P0.1 release coordination also pins the reviewed merge through `--expected-revision`; a real local branch-advance control refuses before API access, while the old unpinned command selects the later source.24 release controls pass. The owned f91 coordinator is explicitly held before merge/dispatch; its full source0/1089.754s and ongoing image/CI proofs remain preserved. Qualify the successor and its actual native recovery bytes before delivery. [Proof](reviews/2026-11-14-arm-recovery-release.json).
+
 Nov13 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. PR288
 merged as e39495b9, preserving tested34812648 ancestry and exact tree. Local
 source0/1147.113s, complete image0/6095.204s and x86/ARM PR gates pass; direct
 image readback confirms kernel7.3.3 and the fixed native QtQuick RPM/payload.
-Canonical signed x86 build43389925377 failed all three editions on unreviewed Qt -3; the failed attempt is retained without promotion.
-Main ARM43389825093 and PR289 ARM43390997323 refuse the new vendor Qt -3;
-PR x8643390997369 refuses an i686 development-package transaction. The local
-coordinator is stopped to prevent dispatching unchanged ARM source again.
-Review the exact signed -3 source, preserve its pixmap hang fix, retain native
-unpatched itemview SIGSEGV/fixed0 executed marker and qualify the complete combined3.1 RPM before delivery. [Native Qt proof](reviews/2026-11-13-qt-vendor3-proof.json).
-A separate P5 display branch df560 passed full source0/1119.129s. Its local
-image was deliberately stopped after970.029s for newly reproduced virtual-bus
-and exit0-with-stderr errors. Corrected policy proves each virtual DRM owner,
-reads actual EDID bytes and preserves failed/uncertain probes for retry.
-Final integrated source/image/CI, signed delivery and physical brightness/
-hotplug acceptance remain separate. See
-[Nov13 evidence](reviews/2026-11-13-hardware-display-proof.json).
-Production remains independently cosign-verified x861139 (exact8075 tree,
-merged2bf) and ARM917 (2bf). The original first-attempt signed artifact boots and
+Canonical signed x86 build43389925377 and main ARM43389825093 fail closed on
+new vendor Qt -3; the first attempts and PR multilib conflict remain preserved.
+Reviewed232780a2 passes complete source0/1158.133s, local image0/5960.114s and
+ARM PR43434335473 and x86 PR43434335453. Direct image readback verifies Qt3.1
+RPM/payload/destruction proof and stock kernel7.3.3. PR289 is merged as9b32e669
+with the same tree and qualified source ancestry. Main x8643484821871 signs
+three candidates and ARM43484822112 passes build/disk/promotion. The final
+batch still needs x86 artifact boots/promotion and physical update. [Core proof](reviews/2026-11-13-core-local-qualification.json).
+Nov14 P5 native brightness confirmation removes exit0/requested-percent false
+success.47 controller tests and8 final readback controls pass; actual physical
+luminance/hotplug remain separate from PowerDevil cached-state readback. Canonical
+local build recipes now default to reviewed4CPU/8GiB/no-swap/jobs1 with explicit
+overrides; five command controls preserve ordinary failure. [Proof](reviews/2026-11-14-brightness-build-envelope.json).
+P5 display adaptation has18 native/private controls for EDID byte identity,
+failed/diagnostic DDC probes, virtual owners, bounded output and process cleanup.
+Physical brightness/hotplug remain separate. [Hardware proof](reviews/2026-11-13-hardware-display-proof.json).
+P2.16 Arabic unlock prompt now follows actual native text height with a bounded
+lower margin:21 private native frames and18 tests pass, old ink overlap33/5/5
+becomes0/0/0, normal artwork stays identical. Final initramfs/signed cold boot
+and actual encrypted input remain open. [Boot proof](reviews/2026-11-13-arabic-unlock-layout.json).
+PR290/afcb98c0 complete source passes0/1121.184s; its local image refuses the
+shared startup reader's deprecated Settings warning. QtCore.Settings/native URL
+location corrects the generator and module at THEME_REV149 with11 native material
+controls and5 Mira controls passing; final new-source/image/CI remain required.
+[Material proof](reviews/2026-11-14-material-settings.json).
+Independent P2/P3 Mira integration bridges its existing QML surface to KDE's
+native palette/font and shared MoOS material/live motion owner. Preserve the
+original face, service/action/authentication owners and current setup destination;
+native actual Main2 portable/3 KDE controls and10 QML tests pass, including
+Dark/Light, Solid/no-blur, native off/on/off and640x800/1480x764 bounds. Populated
+reading samples pass24 contrast cases; actual scoped routes retain the original
+palette/clock/header refusals and recover canonical Mira. Final image/CI/signed
+acceptance remains open. [Mira proof](reviews/2026-11-14-mira-native-appearance.json). An answering
+provider remains unconfigured on this V3;77 native OS tools and successful status
+readback do not establish model inference or an autonomous completed task.
+Production x86 remains independently cosign-verified1139 (exact8075 tree,
+merged2bf). ARM43484822112 at9b32 promotes926/4b38e1ad, independently verified
+against the OS public key with exact version/revision/digest readback;917 is historical. The original first-attempt signed artifact boots and
 promotions are complete; do not repeat that old cycle. V3 currently boots1139
 with signed1136 rollback and pinned1078. Native kernel7.2.15, KWin6.8.2-3 and
 vendor Qt6.11.2-2 are installed; the pending source backport is not on the host.
@@ -334,19 +359,26 @@ M0 evidence as measured performance or require another local VM image.
 ابدأ من هذه الخطة ومن الحالة الفعلية، ولا تنشئ خطة موازية أو تعِد كتابة المكوّنات
 الموجودة. اقرأ `AGENTS.md` و`PROJECT_STATE.md` ومهارة الهندسة، ثم اتبع الآتي:
 
-1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. مصدرPR286 هو8075،
-   ومصدرmain هو2bf؛1139/917 منشور ومثبت الإقلاع، فلا تُعِد دورته أو تبدأ من الصفر.
-   دفعة الأمان والخطوط ومهام الذكاء ومراجعةKWin التالية في فرع مستقل؛ اقرأ حالتها
-   الفعلية واختباراتها قبل الدمج، واحفظ تغييرات أي جلسة أخرى.
+1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. دُمجPR289 في9b32e669
+   بشجرة232780a2 نفسها بعد نجاح المصدر والصورة المحلية وصورتيx86 وARM.
+   بناءmain رقم43484821871 نجح ووقّع مرشحاتx86؛ ومسارARM رقم43484822112
+   نجح مع الإقلاع والترقية إلى926/4b38e1ad وتحقق توقيعه؛ الجهاز ما زال على1139.
+   العمل التالي فيfeat/mira-native-appearance-20261113: توافق ميرا مع ألوان وخط
+   وحركةKDE، وفصل النص العربي عن نقاط المرور فيPlymouth. احفظ تعديلاته القائمة.
 2. تحقّق من الجهاز الجاري والـdigest والـrollback وWayland والمقياس والمسارات
    المحمّلة. آخر قراءةV3 على1139 مع1136 للرجوع و1078 مثبت؛ تحقق من الملفات الفعلية،
    ومعيار من/usr ومظهر المالك محفوظ. القراءة مرجع وليست أمرًا لفرض إعداد قديم.
-3. أكمل قبول الدفعة التالية علىSHA ثابت: فحص المصدر الكامل والصورة الحالية
+3. منسّقf91 متوقف عمداً قبل الدمج بسبب حزمةPlymouth القديمة في مثبّتARM
+   المنفصل؛ لا تعِد تشغيله. إصلاحه فيfix/arm-recovery-release-20261114؛ أكمل
+   قبوله علىSHA ثابت، ثم حدّثPR290 ومنسّق الإصدار ليمررSHA الدمج المتوقع
+   عبر`--expected-revision`. فحوصf91 الجارية محفوظة ولا تؤهل المصدر اللاحق.
+   أكمل قبول الدفعة التالية علىSHA ثابت: فحص المصدر الكامل والصورة الحالية
    وبواباتCI، ثم دورة إصدار موقّعة واحدة. لا تنسب إصلاحات الفرع إلى1139.
    احتفظ برفض عرض معيار داخلChromium وبالاختبارات السلبية الأصلية؛ مطابقة
    fc-match وحدها لا تثبت الخط المرسوم. مزودMo AI غير مُعد وفق حالة منقّحة؛
-   إعدادGemini المنقّح غائب أيضاً في قراءةNov4؛ تصحيح عرض الجاهزية اجتاز
-   رحلة المصدر الأصلية دون إرسال سؤال. لا تفترض نجاح الاستدلال أو اكتمال قبوله.
+   إعدادGemini المنقّح غائب أيضاً في قراءةNov13؛ السياسة الحاليةcloud-only
+   و77 أداةAPI متاحة، لكن ذلك لا يثبت إجابة النموذج. تابع وجهة الإعداد الأصلية
+   ولا تغيّر المزود أو ترفع صلاحياته لتجاوز غياب الإعداد.
 4. أثناء انتظار المرشح الثابت، قِسM1 في فرع مستقل: رحلة سطح المكتب العربي
    المتصلة ورحلة تطبيق واحد لكل محرك. ابدأ من عيوب Android المسجّلة في تغيير
    الحجم والإغلاق/إعادة الفتح، ومن قبول الخط في المحرر والترمنال. لا تستبدل تطبيقًا
@@ -361,6 +393,11 @@ M0 evidence as measured performance or require another local VM image.
 7. سلّم تغييرات قابلة للمراجعة مع نتائج الأوامر، sourceSHA، المكتبة/الخط المحمّل،
    runIDs وحالتها، الدليل المحلي الخاص، وشرط إزالة كل override. حدّث صفP والحالة
    الحالية فقط. تابع العمل غير المحجوب؛ لا تعيد البناء أو التنظيف لتجاوز فشل مجهول.
+8. افصل العطل المثبت عن الفرضية: احتفظ بأمر إعادة الإنتاج ونتيجته القديمة، ثم
+   الإصلاح واختباره ونتيجة الصورة والإصدار والجهاز. المشكلة غير المحلولة تبقى
+   في صفP المختص مع الخطوة التالية؛ لا تُخفها بعبارة «كل المشاكل محلولة» ولا
+   تُنشئ قائمة بديلة. افحص تعليمات الملف مقابل الكود والدليل الحالي، وصحّح
+   التعليمات القديمة مع سبب التغيير مع إبقاء الهوية والتوقيع والمصادقة والاسترجاع.
 
 The next agent's first result is the exact current M0 qualification/merge state
 and the next unblocked native journey, not a new design proposal. Reconcile this
@@ -370,12 +407,12 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | PR278 qualified52/treeaa5 is merged after full source0/994.499s with14,742 stable inputs, current-base image/readback100 and x86/native ARM/Remote CI. Selected signed cycle41780525795 failed before images: npm test requires tsx before the later npm ci. First-attempt refusal retained; sole-install order correction passes21 safety controls and real clean Node22/26 old1→fixed0 with13 unchanged bundle files. New combined gates/candidate/artifact boots/promotion/installed delivery remain pending. Source security/Node26/browser/13audit controls pass; unpatched low build-only deepmerge stays open. Optional local REA upgrade uses verified full-lock generations and an EX/SH publication/readback lease: native old1→new0, CLI/fresh207-tool MCP metadata/audit0,12 private controls/review preserve7,905 legacy entries and a live MCP reader. Followup full source/PR/integration remains pending; local tooling is not OS delivery | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exactfc97 signed1119/884 completes three x86 QCOW2 journeys, offline ISO install/second boot and ARM pipeline;402/402 independent artifact checks pass, first-attempt run IDs retained. Independent aa5 main ARM41780347829/890 completes its native build/final disk boots/promotion while x86 fails before images; new combined source requires its own complete cycle | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Nov13 PR289 merges232780a2 as9b32e669 with identical tree after full source1158.133s, full local image5960.114s and fresh x86/ARM PR image gates. It preserves the earlier failed signed Qt3/multilib attempts and both Qt fixes. Mira/native appearance and Arabic unlock layout are the next independent slice; freeze its final source before the next release. Unpatched low build-only deepmerge and physical acceptance remain open; local REA tooling is separate from OS delivery | Exact candidate source, all integrated fixes and no local override counted as release. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Signed1139 cycle42798392876 and its exact three x86 QCOW2/offline ISO proofs pass; ARM42819720603 independently promotes917. These historical proofs do not qualify Nov13 changes. Main43484821871 signs three x86 candidates; ARM43484822112 passes build/disk/promotion at9b32e669. These do not qualify later Mira/Plymouth bytes; retain first attempts and execute the release contract for the final batch | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Exact28f642f8fd84 four-edition signing/artifact boot/promotion passes; Oracle actually boots44.20261109.908 with890 rollback, immutable/selfcheck/post-update/production-codec receipts. Wallet Off and canonical updater read back; actual widget/authentication/hardware/endurance remain open; pending app updates=1 | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | V3 currently boots signed1139/b0b24ac3 with signed1136 rollback and pinned1078. Earlier x86/ARM promotion and Oracle908 acceptance remain in their receipts. Nov13 source/local/PR images do not update the workstation; exact new signed artifact promotion, stage, ordinary reboot and installed readback remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | Remote-only PR282 exposes the missing x86 path. The existing exact4303 unsigned image gate completes, and the source correction covers four real inputs on x86/ARM with seven passing workflow controls and unchanged no-publish constraints. Exact-head follow-up CI is required before normal merge | PR generic image gates block real image failures; no signing/publishing from PR. |
@@ -414,7 +451,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | P2.13 | MoPlayer performance and server/stream compatibility | Native ARM installed MPEG4 plays and advances 2.93→8.07 s (~447 MiB RSS), but exposed direct-file live controls. Independent fix accepts encoded Arabic file URIs, finite local/explicit movie URLs and no catalogue records; 258 Flutter tests/native ARM build pass. Native source bundle proves 20 s MPRIS length/CanSeek, paused +5 s seek and rendered frames/controls; restored all-live factory fails the new test. Final local image/9 hashes, all PR CI and signed .1034/.763 delivery pass. Oracle signed .763 native boot/installed small MPEG4/seek/frame journey pass; wider server/hardware/codec/endurance acceptance remains | Installed playback/reopen/stop and memory on real server kinds, MAC portal, HEVC/interlaced samples. |
 | P2.14 | Remote input, recovery and mobile/WAN video | Nov9 main NVIDIA gate preserves a missing restarted-frame refusal. Packet-bound actual codec fixes the native withheld/stale-metadata class; old negative,51 portal/394 total assertions and six real encoded/transported/decoded frames pass. Full source/image/new signed and installed acceptance pending; earlier delivered input remains scoped | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
 | P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Signed installed delivery passes on both hosts; physical unmuted voice/device acceptance remains open. |
-| P2.16 | Shared login, lock and power experience | Delivered within earlier recorded scope; private Arabic lock/power/wrong/correct-password controls pass, login buttons remain English. PR227 maintenance scoping is integrated through PR228 with both native PR image CIs, owner/greeter conditions, 17 theme tests and final local ARM/three unit hashes passing. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; ordinary-login/hardware acceptance remains; authentication stays upstream | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
+| P2.16 | Shared login, lock and power experience | Delivered within earlier recorded scope; private Arabic lock/power/wrong/correct-password controls pass, login buttons remain English. PR227 maintenance scoping is integrated through PR228 with both native PR image CIs, owner/greeter conditions, 17 theme tests and final local ARM/three unit hashes passing. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; ordinary-login/hardware acceptance remains; authentication stays upstream. Nov13 Arabic unlock21 native frames/18 tests remove measured prompt/bullet overlap, keeping normal artwork bytes; final initramfs/encrypted input/cold boot remain pending | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
 | P2.17 | Mo PC Remote before account login after reboot | Greeter KDE environment and actual three-group EIS keymap correction is signed in .1044/.773 and retained in .1046/.775. Source/29 controls and actual device old/fixed proof pass; owner ordinary password login/account handoff passed on .1044, and .1046 now boots with 54 selfchecks/2 notes, 55 post-update/0 failures and 19 hashes/player. Temporary bundle retired after replacement/no-holder proof. Oracle pre-login remains off; repeated native wrong/correct PIN/password/cold-boot, phone/WAN/multi-account/endurance acceptance remains  Native1072 additionally measures first-owner localhost8765 binding before old greeter Remote stops, one SIGABRT/managed restart then active; bounded account-owned startup/handoff controls and qualified repair remain, not a reason to change PIN/PAM or steal another account listener. | Explicit opt-in, authenticated PIN/trusted-device/private TLS; native greeter capture/input with upstream PAM and no saved account password; real wrong/correct PIN/password, bounded handoff/logout/account isolation; default-disabled/native NVIDIA and ARM reboot evidence. |
 
 ## P3 — Trustworthy assistant
@@ -448,13 +485,13 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P5.1 | Hardware qualification lab | Open: actual1119 has continuing USB4c6:00.5 timeouts,40NHI WARN and3IOMMU faults; earlier1114 no-repro retained, no proven kernel/dock cause. Current WD19 USB/DP routes are separate; no reset/blacklist/firmware change. Station USB capture overruns and Home Assistant Bluetooth/DHCP/duplicate/first-start faults remain | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
+| P5.1 | Hardware qualification lab | Nov13 V3 display source18 controls pass, including real zero-size sysfs EDID bytes, unknown DDC errors and virtual DRM ownership. Current1139 and candidate7.3.3 lack the SMOCF05 accelerometer alias; rotation remains unavailable. Nov14 confirms the corrected compiled matrix is already installed and official IIO1390ca49 contains the reviewed LSM6DS3TR-C match, while Torvalds97d73c82 lacks it. Track signed vendor kernel inclusion, then native driver/rotation acceptance; no forced bind or competing daemon. See reviews/2026-11-14-v3-rotation-upstream.json. Preserve earlier USB4/IOMMU, fingerprint and USB capture failures; no reset, blacklist or speculative firmware change. Nov14 fixed brightness executor confirms all target provider states within one bounded budget and refuses stale exit0; physical luminance is still unproved. Actual brightness/hotplug/suspend/device journeys and Home Assistant faults remain open | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
 | P5.2 | Laptop policy | Nov11 V3 signed1139: canonical balanced-battery readback and unchanged MoKernel pass; short active-desktop power sample is inconclusive. BIOS1.06/no available firmware update; suspend, endurance and repeated boots remain open. See docs/hardware/V3_20261111_AR.md | Three laptop classes, lid/battery/brightness/power and two suspend cycles each. |
 | P5.3 | Touch/tablet policy | Nov11 V3 native Wayland fixture:50 completed touches,1053 moves,4 contacts; KWin tablet mode active. No pen available; SMOCF05 unbound/rotation unavailable. Full edges/gestures/keyboard/suspend acceptance remains open | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
 | P5.4 | Performance budgets per hardware tier | Historical active-workload samples and local index repairs are retained in PROJECT_STATE/evidence; they are not controlled current idle or comparative OS benchmarks. Establish comparable baselines before choosing optimization work | Record workload, power/thermal state, background work, sample count/duration and refresh rate; compare cold/warm launch p50/p95, frame misses, boot, PSS/CPU/wakeups, battery and mixed-engine load. Declare tolerances before the change, repeat against the same baseline and reject material regressions in another critical metric. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
 | P5.6 | Storage lifecycle | Earlier42GiB local OCI commit exhausted disk and crashed Chrome/ChatGPT; real failure/unsaved-state boundary preserved. Scoped build cleanup recovered owner app units without profile deletion. Oct18 owner-delegated retirement removes44,583,870,472 file/cache bytes after cold-success retirement of the1,913,401,344-byte old derived index; superseded generic image+2 exclusive parents yields separately observed3,677,118,464 writable bytes; Bazaar/Chess/temporaryNotepad4 removed with data/prefixes retained. Sources/dirty trees/full bundle/SDKs/databases/17 containers/current signed ISO/rollback survive. About83.5GiB free after new boot/readback. New guarded full image passes60GiB/5GiB preflight and8GiB/1GiB continuous floors. Private helper is not shipped low-space protection; durable build/cache retention/recovery and3 lint warnings remain open | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
-| P5.7 | Qualify kernel policy and driver transitions | Nov3 installed1119 MoKernel15/15 readback and selected TuneD profile agree; current native KWin/Wayland/EIS status is available, not a full device/input journey. New local image7.2.14 is unbooted on hardware. Source adds ARM's missing vendor oomd-defaults, final-image guard and actual native-monitor readback in both disk boot proofs. Eight compose controls, native ARM package install, and bounded native negative/positive pressure controls pass on both stations (256 MiB cap; no kernel OOM; protected sentinel survives). Signed ARM .756 and NVIDIA .1026 are booted and prove actual system/native-user monitoring. System-wide recovery/weak-hardware frame latency remains open | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
+| P5.7 | Qualify kernel policy and driver transitions | Nov13 qualified local image has stock signed7.3.3 while V3 still runs7.2.15. No kernel replacement or sysctl retuning was performed. Retain existing TuneD/MoKernel durability and bounded pressure controls; the recent mixed-workload global OOM/editor failure remains recorded. Canonical local builds now bound4CPU/8GiB/no-swap/jobs1; this is engineering isolation, not a global memory-policy performance claim. Next evidence is signed kernel boot/module readback and repeatable frame/audio/memory/thermal measurements on the same workload, including recovery | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
 | P5.8 | Qualify Wayland and compositor lifetime | Nov11 native control-launch old-dead/fixed-alive and actual immutable Arabic Settings journey pass through canonical app ownership; finite early0/7/refusal controls retained. Same30 display failures remain fatal with unavailable-journal refusal. Full source passes0/1058.893s with frozen inputs; signed acceptance pending. See docs/reviews/2026-11-11-control-launch-display-proof.json. Open / acceptance not complete; Oracle .752 retains bootupd metadata/accountsd SELinux warnings, while bootloader update returns success/latest and no unit fails | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak; review native SELinux warnings without disabling enforcement or guessing labels. |
 
 ## P6 — Long-term release trust
@@ -467,7 +504,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted. Oct17 open Dependabot/secret alerts are0; Code Scanning returns no analysis (404), so static-analysis acceptance is unproven | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
-| P6.7 | Reviewed Plasma seams before upstream transitions | Signed1119 carries reviewed Plasma6.8.2. Nov2 x86 scheduled build correctly refuses newly published KWin6.8.2-2; exact rebuild now reviewed using identical archive/signature,13 native seam digests, loaded greeter positive/broken/restored and4876 stock-kernel byte matches. Unloaded MediaControls negative retained as failed fixture. Canary native RPM comparison separates unavailable stale beta from real newer-image/query failures. Frozen4fe full source/current-base image and100-file readback pass, kernel7.2.14; exact final CI/signed qualification pending. ARM native provider unchanged and its Dart download exit56 unexplained; Qt6.12 unqualified Nov4 actuala95 local/CI image refuses exactKWin-3 drift. Signed source/RPMs retain the upstream archive/signature/macros and add KDEc9d720 missing-render-device guard; exact3 native transaction keeps13 seams/4,876 kernel files, greeter positive/broken/restored and old/fixed predicate controls.12 composer tests retain old/unknown/package/key/host refusals. New Tier1 full image/source/CI/signed/physical acceptance pending. | Actual matching stack, registered seams and native controls, complete native SDK/image, signed boot and installed acceptance on each architecture; unknown inputs refuse, never widen pins to bypass a failure. |
+| P6.7 | Reviewed Plasma seams before upstream transitions | Signed1119 carries reviewed Plasma6.8.2. Nov2 x86 scheduled build correctly refuses newly published KWin6.8.2-2; exact rebuild now reviewed using identical archive/signature,13 native seam digests, loaded greeter positive/broken/restored and4876 stock-kernel byte matches. Unloaded MediaControls negative retained as failed fixture. Canary native RPM comparison separates unavailable stale beta from real newer-image/query failures. Frozen4fe full source/current-base image and100-file readback pass, kernel7.2.14; exact final CI/signed qualification pending. ARM native provider unchanged and its Dart download exit56 unexplained; Qt6.12 unqualified Nov4 actuala95 local/CI image refuses exactKWin-3 drift. Signed source/RPMs retain the upstream archive/signature/macros and add KDEc9d720 missing-render-device guard; exact3 native transaction keeps13 seams/4,876 kernel files, greeter positive/broken/restored and old/fixed predicate controls.12 composer tests retain old/unknown/package/key/host refusals. Nov13 exact232780a2 full source/local image and both PR image architectures pass with nativeKWin6.8.2-3; main9b32 signed candidates/ARM promotion pass. Final x86 artifact qualification and physical screen-removal/hotplug remain pending. | Actual matching stack, registered seams and native controls, complete native SDK/image, signed boot and installed acceptance on each architecture; unknown inputs refuse, never widen pins to bypass a failure. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
 | P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; the recovered QApplication picker correction passes source native Arabic/English cancellation and physical Wayland readback; its signed installed selection/upload flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 

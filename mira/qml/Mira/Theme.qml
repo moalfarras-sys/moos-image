@@ -1,63 +1,85 @@
 pragma Singleton
 import QtQuick
+import org.moos.ui as MoUI
 
-// Mira Neural OS design tokens. One place for colour, type, space, radius and motion.
-// Dark premium canvas; cyan = live/listening, violet = thinking/selection, rose = Mira's voice.
+// Mira keeps her expressive face colours while native KDE owns the reading
+// surface, font and semantic ink. The same MoOS material/motion owner serves
+// the shell; no copied preference or second appearance configuration lives here.
 QtObject {
-    // canvas
-    readonly property color bg0: "#04050D"
-    readonly property color bg1: "#080B1C"
-    readonly property color bg2: "#0D1230"
-    // glass (fallback fills that work without blur)
-    readonly property color glass: Qt.rgba(0.075, 0.09, 0.19, 0.72)
-    readonly property color glassStrong: Qt.rgba(0.07, 0.085, 0.18, 0.92)
-    readonly property color glassHover: Qt.rgba(0.12, 0.14, 0.28, 0.78)
-    readonly property color hairline: Qt.rgba(0.62, 0.72, 1.0, 0.13)
-    readonly property color hairlineStrong: Qt.rgba(0.62, 0.78, 1.0, 0.26)
-    readonly property color innerLight: Qt.rgba(1, 1, 1, 0.06)
-    // ink
-    readonly property color ink: "#F4F1FF"
-    readonly property color ink2: Qt.rgba(0.957, 0.945, 1.0, 0.72)
-    readonly property color ink3: Qt.rgba(0.957, 0.945, 1.0, 0.50)
-    // accents
-    readonly property color cyan: "#35D8F4"
-    readonly property color mint: "#3DF2C4"
-    readonly property color violet: "#9B7BFF"
-    readonly property color rose: "#FF6FB5"
-    readonly property color amber: "#FFC46B"
-    readonly property color danger: "#FF5C7A"
-    readonly property color ok: "#48E0A0"
-    readonly property color off: "#6B7390"
+    id: theme
+    property SystemPalette nativePalette: SystemPalette { colorGroup: SystemPalette.Active }
+    readonly property bool light: MoUI.Tokens.isLight(nativePalette.window)
+    readonly property color bg0: nativePalette.window
+    readonly property color bg1: nativePalette.base
+    readonly property color bg2: nativePalette.alternateBase
+    readonly property real glassAlpha: MoUI.Tokens.glassFill(bg0, MoUI.Tokens.glassLevelPanel, 0.82)
+    readonly property real glassStrongAlpha: MoUI.Tokens.glassFill(bg0, MoUI.Tokens.glassLevelDialog, 0.92)
+    readonly property color glass: Qt.alpha(bg0, glassAlpha)
+    readonly property color glassStrong: Qt.alpha(bg0, glassStrongAlpha)
+    readonly property color glassHover: Qt.tint(glass, Qt.alpha(nativePalette.highlight, 0.08))
+    readonly property color hairline: MoUI.Tokens.glassEdge(bg0, MoUI.Tokens.glassLevelPanel)
+    readonly property color hairlineStrong: Qt.alpha(nativePalette.highlight, 0.45)
+    readonly property color innerLight: MoUI.Tokens.glassSpecular(bg0, MoUI.Tokens.glassLevelPanel)
+    readonly property color ink: nativePalette.windowText
+    readonly property color ink2: Qt.alpha(ink, 0.78)
+    readonly property color ink3: Qt.alpha(ink, 0.76)
+    readonly property color accent: nativePalette.highlight
+    readonly property color onAccent: nativePalette.highlightedText
+
+    // The original coloured expression stays in the face/voice stage. Reading
+    // accents use a darker variant on pale surfaces so status remains legible.
+    readonly property color faceCyan: "#35D8F4"
+    readonly property color faceMint: "#3DF2C4"
+    readonly property color faceViolet: "#9B7BFF"
+    readonly property color faceRose: "#FF6FB5"
+    readonly property color faceAmber: "#FFC46B"
+    readonly property color faceDanger: "#FF5C7A"
+    readonly property color faceOff: "#6B7390"
+    function readingAccent(color) { return light ? Qt.darker(color, 2.6) : color }
+    readonly property color cyan: readingAccent(faceCyan)
+    readonly property color mint: readingAccent(faceMint)
+    readonly property color violet: readingAccent(faceViolet)
+    readonly property color rose: readingAccent(faceRose)
+    readonly property color amber: readingAccent(faceAmber)
+    readonly property color danger: readingAccent(faceDanger)
+    readonly property color ok: readingAccent("#48E0A0")
+    readonly property color off: light ? nativePalette.mid : faceOff
 
     function phaseColor(phase, style) {
         switch (phase) {
-        case "listening": return mint
-        case "thinking": return violet
-        case "speaking": return rose
-        case "executing": return amber
-        case "error": return danger
-        case "offline": return off
-        default: return style === "holo" ? cyan : rose
+        case "listening": return faceMint
+        case "thinking": return faceViolet
+        case "speaking": return faceRose
+        case "executing": return faceAmber
+        case "error": return faceDanger
+        case "offline": return faceOff
+        default: return style === "holo" ? faceCyan : faceRose
         }
     }
     function phaseColor2(phase, style) {
         switch (phase) {
-        case "listening": return cyan
+        case "listening": return faceCyan
         case "thinking": return "#5B8CFF"
-        case "speaking": return violet
-        case "executing": return rose
+        case "speaking": return faceViolet
+        case "executing": return faceRose
         case "error": return "#7A1E3A"
         case "offline": return "#2A3050"
-        default: return style === "holo" ? violet : violet
+        default: return faceViolet
         }
     }
 
-    // type
-    readonly property string font: "Meyar Sans"
-    readonly property string mono: "Meyar Mono"
-    readonly property int tiny: 11
-    readonly property int small: 12
-    readonly property int body: 14
+    // Basic controls cache Application.font. Listen to the same QApplication
+    // signal the native platform emits instead of mirroring its settings.
+    property font nativeFont: Qt.application.font
+    property Connections fontUpdates: Connections {
+        target: typeof miraApplication === "undefined" ? null : miraApplication
+        function onFontChanged(font) { theme.nativeFont = font }
+    }
+    readonly property string font: nativeFont.family
+    readonly property string mono: MoUI.Tokens.monospaceFamily
+    readonly property int tiny: MoUI.Tokens.typeCaption
+    readonly property int small: MoUI.Tokens.typeSecondary
+    readonly property int body: MoUI.Tokens.typeBody
     readonly property int title: 17
     readonly property int heading: 22
     readonly property int display: 30
@@ -75,7 +97,7 @@ QtObject {
     readonly property int rDock: 30
 
     // motion (ms); Reduced Motion multiplies to exactly zero
-    property real motionScale: 1.0
+    readonly property real motionScale: MoUI.Tokens.liveLongDuration <= 1 ? 0.0 : MoUI.Tokens.liveLongDuration / 200.0
     readonly property int fast: Math.round(120 * motionScale)
     readonly property int normal: Math.round(220 * motionScale)
     readonly property int emphasized: Math.round(360 * motionScale)

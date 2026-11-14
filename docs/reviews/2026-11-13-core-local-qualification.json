@@ -1,0 +1,125 @@
+{
+  "date": "2026-11-13",
+  "source_sha": "232780a2e25a13e531fab1bd28e34d9fc1d1cbeb",
+  "full_source": {
+    "source_sha": "232780a2e25a13e531fab1bd28e34d9fc1d1cbeb",
+    "exit": 0,
+    "seconds": 1158.133,
+    "dirty_after": "",
+    "head_after": "232780a2e25a13e531fab1bd28e34d9fc1d1cbeb",
+    "log_sha256": "f4b7cfb27d293b7b30cf1f5e72ccff3095c1abed239b79afabb7eb285260705d"
+  },
+  "local_image": {
+    "source_sha": "232780a2e25a13e531fab1bd28e34d9fc1d1cbeb",
+    "state": "completed",
+    "command": [
+      "podman",
+      "build",
+      "--pull=always",
+      "--cpu-period=100000",
+      "--cpu-quota=400000",
+      "--memory=8g",
+      "--memory-swap=8g",
+      "--jobs=1",
+      "--build-arg",
+      "IMAGE_NAME=moos",
+      "--build-arg",
+      "AKMODS_IMAGE=scratch",
+      "--iidfile",
+      "/var/home/moos/\u0633\u0637\u062d \u0627\u0644\u0645\u0643\u062a\u0628/moos-image/test-results/execution-20261113-core2/local-image.id",
+      "-t",
+      "localhost/moos:qt3-232780a2",
+      "."
+    ],
+    "started_utc": "2026-11-13T13:50:23Z",
+    "pid": 1507559,
+    "exit": 0,
+    "seconds": 5960.114,
+    "resource_refusal": null,
+    "minimum_disk": 357939744768,
+    "dirty_after": "",
+    "head_after": "232780a2e25a13e531fab1bd28e34d9fc1d1cbeb",
+    "log_sha256": "88b18bf58925064b06ab1a5804a14dda52270c607aa0714c8dbb82a33dc625be"
+  },
+  "image_id": "73928f431518c815f1d43c330ffc5da83d8dd453b0d9b513cf537731729a7fb7",
+  "native_image_readback": {
+    "qt_rpm_payload_executed_receipt": {
+      "exit": 0
+    },
+    "kernel": "7.3.3-200.fc44.x86_64",
+    "qtdeclarative": "6.11.2-3.1.moos1.fc44.x86_64",
+    "kwin": "6.8.2-3.fc44.x86_64",
+    "workspace": "6.8.2-1.1.moos1.fc44.x86_64",
+    "wine": "11.20-1.fc44.x86_64",
+    "waydroid": "1.6.3-1.fc44.noarch"
+  },
+  "ci": {
+    "repo": {
+      "run": 43434335468,
+      "state": "success"
+    },
+    "arm_image": {
+      "run": 43434335473,
+      "state": "success",
+      "disk_and_promotion": "skipped on PR by design"
+    },
+    "x86_image": {
+      "run": 43434335453,
+      "state": "success",
+      "completed_utc": "2026-11-13T15:58:23Z"
+    },
+    "main_x86": {
+      "run": 43484821871,
+      "state": "success",
+      "scope": "three signed candidates; push run is not a canonical x86 promotion candidate"
+    },
+    "main_arm": {
+      "run": 43484822112,
+      "state": "success",
+      "scope": "build, disk and promotion; exact signed registry identity independently verified"
+    }
+  },
+  "merge": {
+    "pr": 289,
+    "sha": "9b32e6690659744cdcda53f94398016d64860f41",
+    "same_tree_as_source": true,
+    "qualified_source_is_ancestor": true,
+    "merged_utc": "2026-11-13T18:39:53Z"
+  },
+  "delivery": "merged; main x86 candidates signed and ARM build/disk/promotion pass; final Mira/Plymouth batch and x86 artifact/promotion/staging pending; V3 installed1139 unchanged",
+  "limitations": [
+    "Local/PR images are not artifact boot proof",
+    "Physical rotation remains unavailable: current/candidate module lack SMOCF05 alias",
+    "No universal application/hardware compatibility inferred"
+  ],
+  "arm_promoted_readback": {
+    "checked_at": "2026-11-13T23:43:17.761746+00:00",
+    "run": 43484822112,
+    "source": "9b32e6690659744cdcda53f94398016d64860f41",
+    "ref": "ghcr.io/moalfarras-sys/moos-arm@sha256:4b38e1ad9c11651f2898de28e2713151c620949d817c1d3bfaa06086c700b412",
+    "public_key_sha256": "3ed7f81e7aa97390ceb95c8de0b126e41ff5896aaf9c5b92e20d99cca682561b",
+    "results": {
+      "cosign": {
+        "exit": 0,
+        "stdout_sha256": "3c27c68eaa49cad93eae1d7ef1fb89c25f2fc47bb61324bee4729d9c2407cfb5",
+        "stderr_sha256": "8670eba0e60d04f9c3d22d418523981668c970b3faf0b44cbec36749f7f71d79",
+        "signed_digests": [
+          "sha256:4b38e1ad9c11651f2898de28e2713151c620949d817c1d3bfaa06086c700b412"
+        ]
+      },
+      "inspect": {
+        "exit": 0,
+        "stdout_sha256": "6c6dcfaa424016080b66ef371a92c7af872154ba4d38a502fcbf42b5305e403c",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "digest": "sha256:4b38e1ad9c11651f2898de28e2713151c620949d817c1d3bfaa06086c700b412",
+        "architecture": "arm64",
+        "version": "44.20261113.926",
+        "revision": "9b32e6690659744cdcda53f94398016d64860f41"
+      }
+    },
+    "limitations": [
+      "Signed registry identity independently verified; no physical ARM machine or installed deployment was changed or queried.",
+      "This source predates the pending Mira and Arabic unlock UI batch."
+    ]
+  }
+}

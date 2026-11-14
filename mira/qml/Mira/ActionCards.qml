@@ -164,7 +164,7 @@ Item {
             height: body.implicitHeight + 28
             radius: 20
             // an agent's request is read word for word: nothing from the stage may show through it
-            tint: agentAsk || stack.overText ? Qt.rgba(0.055, 0.066, 0.145, 0.985) : Theme.glassStrong
+            tint: agentAsk || stack.overText ? Theme.bg0 : Theme.glassStrong
             edge: Qt.rgba(c.r, c.g, c.b, asking ? (folded ? 0.38 : 0.55) : 0.38)
             Accessible.role: Accessible.AlertMessage
             Accessible.name: title + " · " + (summary || detail)
@@ -181,7 +181,7 @@ Item {
                 visible: card.asking && !card.folded
                 opacity: 0.3
                 SequentialAnimation on opacity {
-                    running: card.asking && !card.folded && mira.motion
+                    running: card.asking && !card.folded && mira.motion && Theme.motionScale > 0
                     loops: Animation.Infinite
                     NumberAnimation { to: 0.9; duration: 1100; easing.type: Easing.InOutSine }
                     NumberAnimation { to: 0.2; duration: 1100; easing.type: Easing.InOutSine }
@@ -217,7 +217,7 @@ Item {
                             weight: 1.37                                  // 2.4 px at 42 px
                             color: card.c
                             path: "M12 0.86A11.14 11.14 0 0 1 22.47 15.81"
-                            RotationAnimation on rotation { running: card.running && mira.motion; from: 0; to: 360; duration: 1300; loops: Animation.Infinite }
+                            RotationAnimation on rotation { running: card.running && mira.motion && Theme.motionScale > 0; from: 0; to: 360; duration: 1300; loops: Animation.Infinite }
                         }
                     }
 
@@ -323,7 +323,7 @@ Item {
                     visible: (card.open || card.reviewing) && card.output !== ""
                     Layout.preferredHeight: Math.min(card.reviewing ? stack.boxMax : 200, outText.implicitHeight + 20)
                     radius: 12
-                    color: Qt.rgba(0, 0, 0, card.reviewing ? 0.42 : 0.32)
+                    color: Theme.bg1
                     border.width: 1
                     border.color: outText.activeFocus ? Theme.cyan
                                 : card.reviewing ? Qt.rgba(card.c.r, card.c.g, card.c.b, 0.32) : Theme.hairline
@@ -426,7 +426,7 @@ Item {
                     width: parent.width * Math.min(1, card.remaining / card.lifetime)
                     color: card.c
                     opacity: 0.8
-                    Behavior on width { NumberAnimation { duration: 950 } }
+                    Behavior on width { enabled: Theme.motionScale > 0; NumberAnimation { duration: 950 * Theme.motionScale } }
                 }
                 Rectangle {
                     id: shimmer
@@ -440,7 +440,7 @@ Item {
                         GradientStop { position: 1; color: "transparent" }
                     }
                     NumberAnimation on x {
-                        running: card.running && mira.motion
+                        running: card.running && mira.motion && Theme.motionScale > 0
                         from: -shimmer.width; to: shimmer.parent.width
                         duration: 1400; loops: Animation.Infinite
                     }

@@ -241,7 +241,7 @@ Item {
                                         rotation: tile.busyNow ? spin : 0
                                         color: Qt.rgba(section.accent.r, section.accent.g, section.accent.b, 0.14)
                                         Icon { anchors.centerIn: parent; name: sys.glyphs[tile.modelData.name] || section.icon; size: 19; color: section.accent }
-                                        NumberAnimation on spin { running: tile.busyNow && mira.motion; from: 0; to: 360; duration: 1600; loops: Animation.Infinite }
+                                        NumberAnimation on spin { running: tile.busyNow && mira.motion && Theme.motionScale > 0; from: 0; to: 360; duration: 1600; loops: Animation.Infinite }
                                     }
                                     ColumnLayout {
                                         Layout.fillWidth: true
@@ -268,7 +268,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.max(110, Math.min(380, out.implicitHeight + 28))
                 radius: 16
-                color: Qt.rgba(0, 0, 0, 0.28)
+                color: Theme.bg1
                 border.width: 1; border.color: mira.system.status === "error" ? Qt.rgba(1, 0.36, 0.48, 0.45) : Theme.hairline
                 Flickable {
                     anchors.fill: parent; anchors.margins: 14

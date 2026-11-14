@@ -14,15 +14,15 @@ Item {
     // the design's own colours, so a phase change never repaints the whole window.
     readonly property bool softwareScene: GraphicsInfo.api === GraphicsInfo.Software
     Behavior on energy { NumberAnimation { duration: Theme.emphasized } }
-    Behavior on accent { ColorAnimation { duration: 900 } }
-    Behavior on accent2 { ColorAnimation { duration: 900 } }
+    Behavior on accent { ColorAnimation { duration: Theme.emphasized } }
+    Behavior on accent2 { ColorAnimation { duration: Theme.emphasized } }
 
     Rectangle { anchors.fill: parent; color: Theme.bg0 }
 
     Shape {
         id: still
         anchors.fill: parent
-        visible: root.softwareScene
+        visible: root.softwareScene || Theme.light
         ShapePath {
             strokeColor: "transparent"
             fillGradient: RadialGradient {
@@ -44,7 +44,8 @@ Item {
     ShaderEffect {
         id: fx
         anchors.fill: parent
-        visible: !root.softwareScene
+        visible: !root.softwareScene && !Theme.light
+        opacity: 0.35
         property real time: root.clock
         property real aspect: width / Math.max(1, height)
         property real energy: root.energy
@@ -52,7 +53,7 @@ Item {
         property color accent: root.accent
         property color accent2: root.accent2
         fragmentShader: Qt.resolvedUrl("../../shaders/nebula.frag.qsb")
-        layer.enabled: !root.softwareScene
+        layer.enabled: visible
         layer.textureSize: Qt.size(Math.max(1, Math.round(width / 2)), Math.max(1, Math.round(height / 2)))
         layer.smooth: true
     }

@@ -42,6 +42,92 @@ class ReleaseCandidateScript(unittest.TestCase):
         subprocess.run(["bash", "-n", str(SCRIPT)], check=True)
         self.assertTrue(SCRIPT.stat().st_mode & 0o111, "the release command must be executable")
 
+    def revision_fixture(self, *, move=False, expected=True, text=None, bad=None,
+                         break_fetch=False):
+        """Real local fetch after review; recording gh cannot dispatch anything."""
+        with tempfile.TemporaryDirectory(prefix="moos-release-revision-") as folder:
+            root = Path(folder)
+            upstream, author, checkout = (root / name for name in ('upstream', 'author', 'review'))
+            env = {**os.environ, 'GIT_CONFIG_NOSYSTEM': '1',
+                   'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_TERMINAL_PROMPT': '0'}
+
+            def git(*args, cwd=None):
+                return subprocess.check_output(
+                    ['git', '-c', 'user.name=MoOS fixture', '-c', 'user.email=fixture@example.invalid',
+                     '-c', 'core.hooksPath=/dev/null', *args], cwd=cwd, env=env,
+                    text=True, stderr=subprocess.PIPE).strip()
+
+            git('init', '-q', '--bare', '--initial-branch=main', str(upstream))
+            git('init', '-q', '--initial-branch=main', str(author))
+            git('remote', 'add', 'origin', str(upstream), cwd=author)
+            (author / 'payload').write_text('reviewed\n')
+            git('add', 'payload', cwd=author)
+            git('commit', '-qm', 'reviewed source', cwd=author)
+            reviewed = git('rev-parse', 'HEAD', cwd=author)
+            git('push', '-q', 'origin', 'main', cwd=author)
+            git('clone', '-q', str(upstream), str(checkout))
+            if move:
+                (author / 'payload').write_text('later unreviewed source\n')
+                git('commit', '-qam', 'later source', cwd=author)
+                git('push', '-q', 'origin', 'main', cwd=author)
+            current = git('rev-parse', 'HEAD', cwd=author)
+            if break_fetch:
+                git('remote', 'set-url', 'origin', str(root / 'absent'), cwd=checkout)
+            tools = root / 'tools'
+            tools.mkdir()
+            calls = root / 'gh-calls'
+            gh = tools / 'gh'
+            gh.write_text('#!/bin/sh\nprintf "%s\\0" "$*" >> "$MOOS_REVISION_CALLS"\n'
+                          'echo "fixture stops at first metadata read" >&2\nexit 73\n')
+            gh.chmod(0o700)
+            script = root / 'candidate.sh'
+            script.write_text(text if text is not None else self.text)
+            args = ['bash', str(script), '--promote']
+            if expected:
+                args += ['--expected-revision', bad if bad is not None else reviewed]
+            result = subprocess.run(args, cwd=checkout,
+                                    env={**env, 'PATH': str(tools) + os.pathsep + env['PATH'],
+                                         'MOOS_REVISION_CALLS': str(calls)},
+                                    capture_output=True, text=True, timeout=15)
+            return result, calls.read_text().split('\0')[:-1] if calls.exists() else [], reviewed, current
+
+    def test_expected_revision_refuses_real_branch_advance_before_api_access(self):
+        result, calls, reviewed, current = self.revision_fixture(move=True)
+        self.assertNotEqual(reviewed, current)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, [])
+        self.assertIn(f'moved from reviewed {reviewed} to {current}', result.stderr)
+        self.assertNotIn('candidate revision:', result.stdout)
+        # The former unpinned invocation silently selects the new main after
+        # the caller's review. Retain this executable contrary control.
+        old, calls, reviewed, current = self.revision_fixture(move=True, expected=False)
+        self.assertIn(f'candidate revision: {current}', old.stdout)
+        self.assertNotEqual(reviewed, current)
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0].startswith('run list --workflow build.yml'))
+
+    def test_matching_expected_revision_reaches_existing_metadata_owner(self):
+        result, calls, reviewed, current = self.revision_fixture()
+        self.assertEqual(reviewed, current)
+        self.assertIn(f'candidate revision: {reviewed}', result.stdout)
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0].startswith('run list --workflow build.yml'))
+        self.assertNotEqual(result.returncode, 0)  # ordinary metadata failure stays fatal
+
+    def test_expected_revision_rejects_malformed_values_before_api_access(self):
+        for value in ('main', 'a' * 12, 'A' * 40, 'a' * 39 + 'g', '--promote'):
+            with self.subTest(value=value):
+                result, calls, _, _ = self.revision_fixture(bad=value)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(calls, [])
+                self.assertIn('full lowercase commit SHA', result.stderr)
+
+    def test_expected_revision_does_not_hide_a_failed_fetch(self):
+        result, calls, _, _ = self.revision_fixture(break_fetch=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(calls, [])
+        self.assertNotIn('candidate revision:', result.stdout)
+
     def test_every_dispatched_input_exists_in_its_workflow(self):
         for workflow, name in (("build-disk.yml", "image-ref"), ("build-iso.yml", "image_ref")):
             self.assertIn(name, dispatch_inputs(workflow), f"{workflow} has no {name} input")

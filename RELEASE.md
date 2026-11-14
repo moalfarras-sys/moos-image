@@ -27,6 +27,11 @@ revision واحد، ثم يُقلع artifact النهائي نفسه، ثم يُ
 
 1. ثبّت branch نظيفًا وشغّل البوابات المحلية (`just check`). لا تغيّر tree بعد
    بدء المرشح.
+   عند تنسيق الدفعة بعد انتظار بناء سابق، مرّر
+   `--expected-revision <full-40-character-sha>` إلى أمر الإصدار؛ يعيد جلب المرجع
+   ويرفض تغيّره قبل أول قراءة Actions أو dispatch. احفظ SHA الناتج عن الدمج،
+   ولا تسمح لانتظار CI باختيار `main` أحدث لم يخضع للمراجعة. هذا فحص دخول
+   إضافي؛ تطابق الشجرة والتوقيع وrevision لكل run عند الترقية تبقى إلزامية.
 2. شغّل **Build MoOS image** يدويًا على branch. الإصدارات الثلاثة تُدفع بوسم
    `candidate-<run-id>-<sha12>` فقط، وتُوقّع، ويرفع كل matrix job ملف
    `moos-candidate-proof-<edition>/candidate.txt`.

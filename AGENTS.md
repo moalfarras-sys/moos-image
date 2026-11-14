@@ -1,5 +1,7 @@
 # Working on MoOS — read this first
 
+**A desktop fix does not reach a separately built recovery installer.** Native ARM926's recovery transaction still installs stock Plymouth24.004.60-24 while the desktop has the reviewed frame-lifetime repair. Reuse the existing native producer/package admission and unchanged exact-library/theme initramfs gate in recovery; keep the old source/log refusal. Build the actual recovery image on PRs, and do not call its packaged disk boot-proven from the full desktop's boot. A long main-build wait also invalidates an earlier ref check: pass the reviewed merge SHA to the release command's `--expected-revision` admission before any dispatch, retaining each workflow's exact-SHA/attempt/tree/signature checks.
+
 Owner26Oct typography steering: the experimental from-scratch Meyar Arabic is rejected as incorrect. The owner explicitly authorizes modifying an open-source Arabic typeface instead; preserve its attribution/license and native shaping. A glyph-catalogue preview may paint isolated glyphs without Arabic word shaping. Require a real text-layout/native-editor journey and natural line bounds for stacked marks before claiming Arabic correctness or changing defaults. Keep the source derivative, selectable user-local font and signed OS delivery distinct.
 
 Owner28Oct product steering: build one Arabic-first MoOS for desktop/tablet,
@@ -382,6 +384,35 @@ Keep both independent upstream fixes, exact signed source/spec/archive readback,
 consistent native transaction inputs and the original crash/executed-marker
 controls. A multilib SDK conflict is not permission to force DNF or loosen RPM
 admission; qualify the actual composed base and architecture-specific packages.
+
+**A native Light palette cannot recolour a fixed dark canvas.** Mira's original
+Theme, shader, rail, page overlays and code blocks own separate fills. Bridge
+reading surfaces to QApplication/KDE and the existing material/motion owner;
+keep expressive face colours and explicit syntax-code ink paired with their own
+background. Bare offscreen Qt can report a generic palette/font: require the
+actual KDE style/loaded source and retain that wrong-owner control. A private
+app copy and source route test are not signed delivery or answering AI.
+Basic controls can cache the font and keep Kirigami Units at200: select the
+existing native engine theme and listen to QApplication fontChanged, then test
+the actual Main with global off/on/off. A fixed64px page header can overlap its
+body after a personal font change; retain that native old/fixed geometry control.
+A published material marker skips the startup Settings reader: preserve the
+actual no-publisher image warning, use QtCore.Settings URL location, and test
+encoded native paths plus unchanged config bytes without relaxing smoke logs.
+
+**A void brightness setter is not measured success.** Re-read every targeted
+native display within one shared deadline, keeping stale/removed/malformed/range
+failures and native quantization. PowerDevil can publish before asynchronous
+hardware completion; provider confirmation is not a physical luminance ACK.
+Keep local image builds bounded and ordinary command failures intact; a build
+envelope does not prove the cause of an earlier mixed-workload OOM.
+
+**A Latin prompt does not reserve Arabic line room.** Current native Plymouth
+paints Arabic unlock text into password bullets at360/480px heights despite a
+clean English control. Position the password row after the actual text image's
+height, bound both rows by the screen and retain native old/fixed ink masks.
+Preserve normal artwork bytes, prompt redraw, masking and finite handoff. A
+private renderer with exact libraries/fonts is not an encrypted cold boot.
 
 ## Where the rest of the knowledge is
 

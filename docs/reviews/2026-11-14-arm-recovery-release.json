@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "date": "2026-11-14",
+  "plan": [
+    "P0.1",
+    "P0.7",
+    "P0.9"
+  ],
+  "integrationOwner": "Codex",
+  "baseSource": "f91a6911357d9c724487e9e10d037410f2cc35bc",
+  "nativeOld": {
+    "pipeline": 43484822112,
+    "job": 132146010717,
+    "publishedArmVersion": "44.20261113.926",
+    "recoveryPlymouth": "24.004.60-24.fc44",
+    "logBytes": 505040,
+    "logSHA256": "9159c53395483e3fb02130a9458db7c773325b0df20490634865ad3a6beec807",
+    "logLines": [
+      3559,
+      3560,
+      3561,
+      3602,
+      3603,
+      3604,
+      3605,
+      3822
+    ],
+    "scope": "actual native CI recovery package transaction; desktop fixed package does not reach separate recovery image; full desktop boot is not a boot proof for recovery"
+  },
+  "repair": {
+    "recovery": "reuse identical native ARM Plymouth producer, unchanged exact-package admission and existing library/theme archive verifier after compose",
+    "ci": "build actual native recovery image on ARM PRs before desktop, then reread every initramfs in a read-only root with private temporary mounts",
+    "release": "optional --expected-revision validates full lowercase SHA and compares freshly fetched ref before Actions access; caller must pass reviewed merge after long CI wait",
+    "coordinator": "owned f91 coordinator explicitly stopped while waiting-local-proof before any merge/dispatch; source/image/CI first attempts preserved"
+  },
+  "executed": {
+    "oldWiring": "3 controls run against actual old Containerfile/script: all refuse",
+    "fixedRecovery": "10 tests pass, including unchanged verifier on exact/stale library, same-name script/artwork, missing asset/receipt and stock package controls; independent review requested and final source guard covers unconditional native CI image build/readback before desktop.",
+    "release": "24 controls pass; actual local bare Git branch advances after review, pinned command refuses before any API call; original unpinned invocation selects later source. Matching-SHA reaches original read; invalid-SHA/fetch-failure controls refuse",
+    "targeted": "8 suites pass in4.645s: recovery, Plymouth package/extraction, release command, PR image workflow, gate coverage, ARM dracut home/pristine base",
+    "fixtureCorrection": "first new Git recorder split multiline jq argument into three rows; preserve first two test refusals, then NUL-frame whole calls without changing production assertions",
+    "independentReview": "No blocking defect; recovery9/release24/package6/gate339/diff pass on pre-final-review source. Added requested native-CI presence/order guard; final recovery10 pass."
+  },
+  "sources": [
+    "https://dracut-ng.github.io/dracut/man/lsinitrd.1.html",
+    "https://cli.github.com/manual/gh_workflow_run",
+    "https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow"
+  ],
+  "files": {
+    "Containerfile.arm-recovery": "d768d7a024fa9769b6ec1f36ceacbca2906e73448a698790650eecc6784ded9e",
+    "build_files/build-arm-recovery.sh": "e33cd0f106c2552ea5e73993104fe5b4c0575060567dd127e8dc7c139f3ff9c1",
+    ".github/workflows/build-arm.yml": "bb2e738de00af0b7fd814e584b0481d3d0e6185b069dab9f471a40d11bc2cf71",
+    "scripts/release-candidate.sh": "485c75da2eefaf14c1d3f62311abd7276813e5e8c1507cf2c993ffa1f717d358",
+    "tests/test_arm_recovery_plymouth.py": "6510183b4f64a5323d90cb782c6fa53d2e768cb7755fbae6acdc475869e2909e",
+    "tests/test_release_candidate_script.py": "181a6be40ae1d8558dc34d8f89a7f38368d1018e74b9f8753b08b320ef2b7463",
+    "build_files/verify_plymouth_initramfs.py": "744c4275578ef829fc36278a1ce86ca1af7a0f4f6657fbace571baa538e9cbcf",
+    "build_files/plymouth_rpms.py": "5941e815922b7eaa6c3227ae3b1ddaa994b35f784a16da6938ac414f929550fe"
+  },
+  "remaining": [
+    "new frozen full source/local and native ARM recovery image acceptance",
+    "exact signed three x86 QCOW2/offline ISO and independent ARM release proofs/promotion",
+    "physical stage/reboot/rollback, actual encrypted prompt and recovery installer boot/input acceptance",
+    "kernel sensor support is a separate P5 driver delivery and real rotation journey; no host driver or authentication policy modified"
+  ],
+  "privateEvidence": "test-results/execution-20261114-recovery and prior root execution-20261114/recovery-review; raw logs/captures stay local"
+}

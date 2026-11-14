@@ -45,7 +45,9 @@ int main(int argc, char **argv) {
     struct rlimit limit = {0, 0};
     if (setrlimit(RLIMIT_CORE, &limit)) return 2;
     if (argc < 4 || argc > 6) return 2;
-    if (argc == 6 && strcmp(argv[5], "--prompt-update")) return 2;
+    if (argc == 6 && strcmp(argv[5], "--prompt-update") && strcmp(argv[5], "--prompt-zero")) return 2;
+    int prompt_update = argc == 6 && !strcmp(argv[5], "--prompt-update");
+    int prompt_zero = argc == 6 && !strcmp(argv[5], "--prompt-zero");
     output = argv[3];
     ply_event_loop_t *loop = ply_event_loop_get_default();
     renderer = ply_renderer_new(PLY_RENDERER_TYPE_X11, NULL, NULL, NULL);
@@ -59,13 +61,13 @@ int main(int argc, char **argv) {
     ply_boot_splash_add_pixel_display(splash, display);
     ply_renderer_activate(renderer);
     if (!ply_boot_splash_show(splash, PLY_BOOT_SPLASH_MODE_BOOT_UP)) return 4;
-    if (argc >= 5) ply_boot_splash_display_password(splash, argv[4], 4);
-    if (argc == 6) {
+    if (argc >= 5) ply_boot_splash_display_password(splash, argv[4], prompt_zero ? 0 : 4);
+    if (prompt_update) {
         active_splash = splash;
         password_prompt = argv[4];
         ply_event_loop_watch_for_timeout(loop, 1.35, type_one, NULL);
     }
-    ply_event_loop_watch_for_timeout(loop, argc == 6 ? 1.55 : 1.2, capture, NULL);
+    ply_event_loop_watch_for_timeout(loop, prompt_update ? 1.55 : 1.2, capture, NULL);
     int result = ply_event_loop_run(loop);
     ply_boot_splash_hide(splash);
     ply_boot_splash_free(splash);

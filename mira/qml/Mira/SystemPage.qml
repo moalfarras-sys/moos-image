@@ -180,7 +180,7 @@ PageFrame {
         Layout.preferredWidth: 10
         implicitHeight: Math.max(62, factCol.implicitHeight + 22)
         radius: 16
-        color: Qt.rgba(0, 0, 0, 0.16)
+        color: Theme.bg1
         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
         Accessible.role: Accessible.StaticText
         Accessible.name: label + ": " + value
@@ -237,7 +237,7 @@ PageFrame {
                 Layout.topMargin: 5
                 width: 8; height: 8; radius: 4
                 color: op.c
-                readonly property bool pulsing: (op.phase === "running" || op.phase === "waiting") && mira.motion
+                readonly property bool pulsing: (op.phase === "running" || op.phase === "waiting") && mira.motion && Theme.motionScale > 0
                 opacity: pulsing ? pulse.value : 1
                 QtObject { id: pulse; property real value: 1 }
                 SequentialAnimation {
@@ -315,7 +315,7 @@ PageFrame {
                 rotation: tile.busy ? spin : 0
                 color: Qt.rgba(tile.accent.r, tile.accent.g, tile.accent.b, tile.lit ? 0.28 : 0.14)
                 Icon { anchors.centerIn: parent; name: tile.glyph; size: 19; color: tile.lit ? "white" : tile.accent }
-                NumberAnimation on spin { running: tile.busy && mira.motion; from: 0; to: 360; duration: 1500; loops: Animation.Infinite }
+                NumberAnimation on spin { running: tile.busy && mira.motion && Theme.motionScale > 0; from: 0; to: 360; duration: 1500; loops: Animation.Infinite }
             }
             ColumnLayout {
                 Layout.fillWidth: true

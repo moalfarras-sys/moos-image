@@ -151,7 +151,7 @@ PageFrame {
         color: Qt.rgba(1, 1, 1, 0.04)
         border.width: 1; border.color: Theme.hairline
         SequentialAnimation on opacity {
-            running: sk.visible && mira.motion; loops: Animation.Infinite
+            running: sk.visible && mira.motion && Theme.motionScale > 0; loops: Animation.Infinite
             NumberAnimation { to: 0.45; duration: 650 } NumberAnimation { to: 1; duration: 650 }
         }
         Rectangle { anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter } width: 44; height: 44; radius: 13; color: Qt.rgba(1, 1, 1, 0.07) }
@@ -682,7 +682,7 @@ PageFrame {
             Layout.fillWidth: true
             Layout.preferredHeight: dropCol.implicitHeight + 36
             radius: 18
-            color: drop.containsDrag ? Qt.rgba(0.21, 0.85, 0.96, 0.12) : Qt.rgba(0, 0, 0, 0.18)
+            color: drop.containsDrag ? Qt.rgba(0.21, 0.85, 0.96, 0.12) : Theme.bg1
             border.width: drop.containsDrag ? 2 : 1
             border.color: drop.containsDrag ? Theme.cyan : Theme.hairlineStrong
             Behavior on color { ColorAnimation { duration: Theme.fast } }

@@ -38,7 +38,7 @@ AbstractButton {
             rotation: tile.busy ? spin : 0
             color: Qt.rgba(tile.accent.r, tile.accent.g, tile.accent.b, tile.lit ? 0.30 : 0.14)
             Icon { anchors.centerIn: parent; name: tile.glyph; size: 19; color: tile.lit ? "white" : tile.accent }
-            NumberAnimation on spin { running: tile.busy && mira.motion; from: 0; to: 360; duration: 1500; loops: Animation.Infinite }
+            NumberAnimation on spin { running: tile.busy && mira.motion && Theme.motionScale > 0; from: 0; to: 360; duration: 1500; loops: Animation.Infinite }
         }
         ColumnLayout {
             Layout.fillWidth: true

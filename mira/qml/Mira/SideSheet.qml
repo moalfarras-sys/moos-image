@@ -24,7 +24,7 @@ Item {
         id: panel
         width: Math.min(sheet.width, sheet.sheetWidth)
         height: parent.height
-        tint: Qt.rgba(0.045, 0.055, 0.13, 0.975)
+        tint: Theme.glassStrong
         radius: Theme.rPanel
         property real offset: sheet.open ? 0 : width + 24
         x: (mira.lang === "ar" ? 0 : parent.width - width) + (mira.lang === "ar" ? -offset : offset)

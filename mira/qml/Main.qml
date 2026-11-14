@@ -14,7 +14,6 @@ ApplicationWindow {
     visible: true
     title: mira.lang === "ar" ? "ميرا · Mira" : "Mira · ميرا"
     color: Theme.bg0
-    font.family: Theme.font
     LayoutMirroring.enabled: mira.lang === "ar"
     LayoutMirroring.childrenInherit: true
 
@@ -25,10 +24,9 @@ ApplicationWindow {
     property string sheet: ""
     onClosing: function(close) { if (mira.hideToTray()) { close.accepted = false; win.hide() } }
 
-    // Transitions follow Plasma's own speed (mira.motionScale: 0 only when animations are off),
-    // whatever her ambient loop does. A controller without the visual policy keeps the old rule.
-    Component.onCompleted: Theme.motionScale = Qt.binding(function() {
-        return typeof mira.motionScale === "number" ? mira.motionScale : (mira.motion ? 1.0 : 0.0) })
+    // The desktop's live animation setting can stop this window immediately;
+    // Mira's personal ambient switch remains a separate opt-out.
+    readonly property bool ambientMotion: mira.motion && Theme.motionScale > 0
 
     // ── one shared clock for every living surface, spent only where it carries meaning ──
     // speaking/listening/thinking/acting or pointer on the face: smooth (display rate);
@@ -43,11 +41,11 @@ ApplicationWindow {
     Connections { target: mira; function onPhaseChanged() { win.touch() } function onCaptionChanged() { win.touch() } }
     NumberAnimation on clock {
         id: smoothClock
-        running: mira.motion && win.shown && win.lively
+        running: win.ambientMotion && win.shown && win.lively
         from: win.clock; to: win.clock + 3600; duration: 3600 * 1000; loops: Animation.Infinite
     }
     Timer {
-        running: mira.motion && win.shown && !win.lively && !win.resting
+        running: win.ambientMotion && win.shown && !win.lively && !win.resting
         interval: win.active && Date.now() - win.lastActivity < 45000 ? 33 : 83
         repeat: true
         onTriggered: {
@@ -141,7 +139,7 @@ ApplicationWindow {
                         mouthLevel: mira.mouthLevel
                         mouthPacket: mira.mouthPacket
                         clock: win.clock
-                        motion: mira.motion
+                        motion: win.ambientMotion
                         onActivated: mira.talk()
                         onFaceToggleRequested: mira.toggleFace()
                     }
@@ -175,7 +173,7 @@ ApplicationWindow {
                 visible: win.sheet !== ""
                 anchors { left: parent.left; right: win.narrow ? parent.right : convo.left; top: parent.top; bottom: parent.bottom; rightMargin: win.narrow ? 0 : 16 }
                 radius: Theme.rPanel
-                tint: Qt.rgba(0.045, 0.055, 0.13, 0.9)
+                tint: Theme.glassStrong
                 opacity: visible ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: Theme.normal } }
                 Loader {

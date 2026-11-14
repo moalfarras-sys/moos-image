@@ -24,7 +24,7 @@
   ],
   "limitations": [
     "no physical Qt mutation",
-    "full RPM and image/signing/boot qualifications pending"
+    "At this original native receipt: full RPM/image/signing/boot pending. Later completed qualification and remaining delivery scope are in qualification_successor."
   ],
   "native_fixed_build_log_sha256": "1bd64371f67fa55122fe8a600fc23e3e7cdfd5001810f042ab6e2d099e4ba78c",
   "resource_scope": {
@@ -172,5 +172,6 @@
         "sha256": "ff0653980eb6b8ca6b26f8361b090d3c69a5fb5faa9a67857cdf9b28a8648dcc"
       }
     }
-  }
+  },
+  "qualification_successor": "2026-11-13-core-local-qualification.json"
 }
