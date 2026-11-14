@@ -9,6 +9,7 @@ PillButton 1.0 PillButton.qml
 MiraSwitch 1.0 MiraSwitch.qml
 MiraSlider 1.0 MiraSlider.qml
 MiraField 1.0 MiraField.qml
+MiraComboBox 1.0 MiraComboBox.qml
 SectionTitle 1.0 SectionTitle.qml
 ServicePill 1.0 ServicePill.qml
 Nebula 1.0 Nebula.qml

@@ -321,6 +321,8 @@ all original tests, typecheck, audit and compiled-bundle byte checks. Preserve
 the real missing-module old control and invalid-lock refusal; use a fresh
 first-attempt candidate after fixing source, never rerun the failed proof.
 
+**A printable key is not accepted provider authentication.** Preserve opaque API-key punctuation and distinguish format, text inference and Live setup; direct REST401 and Live auth refusals must stay visible without credential bytes. A first key can lack a voice-model field, while an explicit personal model must survive. Bind both reuse and resumption to the actual saved key/model. PC voice must use its selected/default microphone when Echo is offline; stale Echo events cannot finish that turn. Keep source/mute leases through recorder cleanup and reject ordinary nonzero exits even after all PCM bytes arrive. Native pw-cat1.6.11 finite capture returns1; the existing native parec owner uses an exact byte budget plus intentional stop/reaped0 instead of whitelisting1. Headerless replies require raw playback; received bytes do not prove delivery. Native PCM96k/3s and silent playback do not prove intelligible owner speech or an audible reply. Keep asynchronous audio-device events, explicit-source preservation, muted-output readback and private/signed delivery separate.
+
 **A living gateway is not a configured answering brain.** Native Mira showed
 free cloud as answering while both current routes lacked setup. Read the existing
 merged configuration owner, distinguish configuration/liveness/latest outcome,

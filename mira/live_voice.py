@@ -14,9 +14,11 @@ resampler (numpy when installed, a pure-Python fallback otherwise).
 """
 import asyncio
 import collections
+import hashlib
 import json
 import math
 import os
+import re
 import sys
 import time
 from array import array
@@ -28,6 +30,7 @@ from google.genai import types
 from aioesphomeapi import VoiceAssistantEventType as E
 
 import tools
+from api_credentials import normalize_api_key
 
 try:
     import numpy as np
@@ -36,6 +39,149 @@ except ImportError:  # the pure-Python paths below are complete
 
 ROOT = Path(__file__).resolve().parents[1]
 GEMINI_CONFIG = Path.home() / '.config/mo-dot/gemini.json'
+# The voice executor has its own model; typed-chat choices never select it.
+DEFAULT_LIVE_MODEL = 'gemini-3.1-flash-live-preview'
+# Reviewed against Google's pricing/deprecation tables on 2026-11-14:
+# https://ai.google.dev/gemini-api/docs/pricing
+# https://ai.google.dev/gemini-api/docs/deprecations#live-api-models
+# free_tier means the provider offers one, subject to the owner's project and
+# quota. It does not establish this account's billing state or switch a model.
+LIVE_MODEL_CHOICES = (
+    {'id': DEFAULT_LIVE_MODEL, 'label': 'Gemini 3.1 Flash Live Preview', 'free_tier': True},
+    {'id': 'gemini-2.5-flash-native-audio-preview-12-2025',
+     'label': 'Gemini 2.5 Flash Native Audio Preview', 'free_tier': True},
+)
+_LIVE_MODEL_RE = re.compile(r'(?:models/)?[A-Za-z0-9][A-Za-z0-9._-]{0,159}')
+
+
+def read_live_config(path=None):
+    """Read the saved voice setup without changing the owner's model or file.
+
+    Saving a first key in Mira does not write a model. Only that absent field
+    follows the reviewed Live default; an explicit invalid value is refused.
+    Exceptions contain no config bytes, credentials or provider response.
+    """
+    try:
+        with Path(path if path is not None else GEMINI_CONFIG).open('rb') as stream:
+            raw = stream.read(16385)
+        if len(raw) > 16384:
+            raise ValueError
+        config = json.loads(raw)
+        if not isinstance(config, dict):
+            raise ValueError
+        key = normalize_api_key(config.get('api_key'))
+        model = config.get('model', DEFAULT_LIVE_MODEL)
+        if (not isinstance(model, str) or len(model) > 160
+                or '..' in model or not _LIVE_MODEL_RE.fullmatch(model)):
+            raise ValueError
+    except (OSError, ValueError, UnicodeError, TypeError, RecursionError):
+        raise ValueError('Gemini Live configuration is missing or invalid') from None
+    return dict(config, api_key=key, model=model)
+
+
+def _live_probe_failure(exc):
+    """Classify SDK/transport failures; never publish credential-bearing text."""
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+        return 'timeout'
+    from google.genai import errors
+    if isinstance(exc, errors.APIError):
+        code = exc.code
+        status = exc.status
+        # Live can wrap a WebSocket policy close (1008) instead of an HTTP
+        # status. Inspect only bounded text for classification, never emit it.
+        detail = exc.message
+        if detail is None and code == 1008 and isinstance(exc.details, str):
+            detail = exc.details  # pinned SDK keeps the close reason here
+        message = detail[:4096].lower() if isinstance(detail, str) else ''
+    else:
+        # WebSocket handshake failures expose the HTTP response as well.
+        code = getattr(getattr(exc, 'response', None), 'status_code', None)
+        status = None
+        message = ''
+    if code == 429 or status == 'RESOURCE_EXHAUSTED' or 'quota' in message or 'resource_exhausted' in message:
+        return 'quota'
+    if code in (401, 403) or status in ('PERMISSION_DENIED', 'UNAUTHENTICATED') or 'api key' in message:
+        return 'auth'
+    if isinstance(code, int) and 500 <= code < 600:
+        return 'server'
+    if isinstance(code, int):
+        return 'request'
+    try:
+        import httpx
+        if isinstance(exc, httpx.TimeoutException):
+            return 'timeout'
+        if isinstance(exc, httpx.TransportError):
+            return 'network'
+    except ImportError:
+        pass
+    if isinstance(exc, OSError):
+        return 'network'
+    if isinstance(exc, ValueError):
+        return 'request'
+    # A refused/closed WebSocket is not evidence that the saved key is valid.
+    try:
+        from websockets.exceptions import ConnectionClosed, InvalidHandshake
+        if isinstance(exc, (ConnectionClosed, InvalidHandshake)):
+            return 'request'
+    except ImportError:
+        pass
+    return 'unknown'
+
+
+async def _probe_live_session(config, timeout_s):
+    client = genai.Client(api_key=config['api_key'])
+    failed = False
+    try:
+        async with client.aio.live.connect(
+                model=config['model'], config={'response_modalities': ['AUDIO']}) as session:
+            # Setup acceptance only: no recording, prompt, history or tool call.
+            if not isinstance(getattr(session, 'setup_complete', None), types.LiveServerSetupComplete):
+                raise ValueError('Missing Live setup receipt')
+    except BaseException:
+        failed = True
+        raise
+    finally:
+        try:
+            await asyncio.wait_for(client.aio.aclose(), min(timeout_s, 1.0))
+        except Exception:
+            if not failed:
+                raise
+
+
+def probe_live_connection(timeout_s=12.0, path=None):
+    """Blocking worker-only setup probe; no microphone/media or text is sent.
+
+    Returns status/model/elapsed_ms and a classified reason on failure. Setup
+    and session close share timeout_s; SDK disposal is bounded by one further
+    second. A successful setup is not an inference or microphone test.
+    """
+    started = time.monotonic()
+    model = ''
+    try:
+        if (isinstance(timeout_s, bool) or not isinstance(timeout_s, (int, float))
+                or not math.isfinite(timeout_s) or not 0 < timeout_s <= 60):
+            raise ValueError('invalid probe timeout')
+        config = read_live_config(path)
+        model = config['model']
+    except (ValueError, TypeError):
+        return {'status': 'error', 'model': model, 'elapsed_ms': 0, 'reason': 'config'}
+    try:
+        # Do not construct an unawaited coroutine if called on a GUI/async loop.
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError('Live setup probe requires a worker thread')
+
+        async def bounded():
+            await asyncio.wait_for(_probe_live_session(config, timeout_s), timeout_s)
+        asyncio.run(bounded())
+        result = {'status': 'ok', 'model': model}
+    except Exception as exc:
+        result = {'status': 'error', 'model': model, 'reason': _live_probe_failure(exc)}
+    result['elapsed_ms'] = int((time.monotonic() - started) * 1000)
+    return result
 
 ECHO_RATE = 16000
 ECHO_BLOCK = 512              # bytes per Echo audio message
@@ -539,6 +685,8 @@ class LiveVoice:
         self.mic_gain = MIC_GAIN    # the Echo's array is quiet; a desk microphone needs none (desk_voice)
         self.wake_hint = 'هَي ميرا'
         self.link = None
+        self._config_salt = os.urandom(32)  # private, process-local identity; never a key receipt
+        self._connection_identity = None
         self._advanced = True       # resumption/compression/history setup accepted
         self._vad_supported = False # the Live model reports voice activity
         self._idle_task = None
@@ -939,13 +1087,25 @@ class LiveVoice:
 
     # ── session management ───────────────────────────────────────────
     def _load_config(self):
-        config = json.loads(GEMINI_CONFIG.read_text())
-        if not isinstance(config, dict) or not config.get('api_key') or not config.get('model'):
-            raise ValueError('gemini.json needs api_key and model')
-        return config
+        return read_live_config()
 
     def _make_client(self, config):
         return genai.Client(api_key=config['api_key'])
+
+    def _config_identity(self, config):
+        """Bind a link to the effective SDK credentials/model without retaining key bytes.
+
+        Other saved fields (including typed-chat model and personal metadata)
+        never configure this connection. Voice selection already has its own
+        reuse/resumption predicate below.
+        """
+        key = normalize_api_key(config.get('api_key'))
+        model = config.get('model')
+        if (not isinstance(model, str) or len(model) > 160 or '..' in model
+                or not _LIVE_MODEL_RE.fullmatch(model)):
+            raise ValueError('Invalid Live connection model')
+        raw = json.dumps([key, model], ensure_ascii=True, separators=(',', ':')).encode('ascii')
+        return hashlib.sha256(self._config_salt + raw).digest()
 
     def _setup(self, handle, advanced):
         setup = {
@@ -986,6 +1146,7 @@ class LiveVoice:
                 break
             link = _LiveLink(self._make_client(config), config['model'], self._setup(use_handle, advanced),
                              self.voice_name, resumed=bool(use_handle), advanced=advanced)
+            link.config_identity = self._config_identity(config)
             try:
                 await link.open(min(CONNECT_TIMEOUT_S, remaining))
             except asyncio.CancelledError:
@@ -1061,6 +1222,20 @@ class LiveVoice:
             self._apply_forget()
         now = time.monotonic()
         link = self.link
+        identity = self._config_identity(config)
+        if identity != self._connection_identity:
+            # Setup support is model/account-specific, not a permanent property
+            # of this voice object after the owner saves a different choice.
+            self._advanced = True
+            self._vad_supported = False
+            self._connection_identity = identity
+        if link is not None and getattr(link, 'config_identity', None) != identity:
+            link.dirty = link.idle_closed = True
+            link.resume_handle = None
+            self.link = None
+            self._cancel_idle()
+            self._close_later(link)
+            link = None
         handle = None
         if link is not None:
             stale = link.drain_stale()

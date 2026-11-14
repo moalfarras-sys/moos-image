@@ -7,6 +7,10 @@ Item {
     id: st
     objectName: "settingsSheet"
     property int section: 0
+    property int requestedSection: 0
+    property int requestSerial: 0
+    onRequestSerialChanged: section = requestedSection
+    Component.onCompleted: section = requestedSection
     readonly property var sections: [
         { icon: "face", label: mira.s.st_look },
         { icon: "mic", label: mira.s.st_voice },
@@ -198,16 +202,64 @@ Item {
 
             // ── voice ───────────────────────────────────────────────
             Flickable {
+                objectName: "voiceSettingsScroll"
                 contentHeight: voice.implicitHeight; clip: true; boundsBehavior: Flickable.StopAtBounds
                 ColumnLayout {
                     id: voice
                     width: parent.width
                     spacing: 14
+                    SectionTitle { icon: "mic"; text: mira.s.mic_source; accent: Theme.cyan }
                     Glass {
-                        Layout.fillWidth: true; Layout.preferredHeight: 92; radius: 18
+                        Layout.fillWidth: true; Layout.preferredHeight: microphoneCol.implicitHeight + 32; radius: 18
                         ColumnLayout {
+                            id: microphoneCol
+                            anchors.fill: parent; anchors.margins: 16; spacing: 10
+                            T { Layout.fillWidth: true; text: mira.s.pc_mic_sub; font.pixelSize: Theme.small; color: Theme.ink2 }
+                            T { Layout.fillWidth: true; visible: mira.microphone.deviceUpdates === "unavailable"
+                                text: mira.s.pc_mic_manual_refresh; font.pixelSize: Theme.small; color: Theme.ink2 }
+                            MiraComboBox {
+                                objectName: "microphoneSource"
+                                Layout.fillWidth: true; implicitHeight: 44
+                                model: mira.microphone.devices || []; textRole: "label"; valueRole: "source"
+                                currentIndex: indexOfValue(mira.microphone.source)
+                                displayText: currentValue === "@DEFAULT_SOURCE@" ? mira.s.pc_mic_default : currentText
+                                enabled: !mira.microphone.busy && !mira.busy
+                                onActivated: mira.setMicSource(currentValue)
+                                font.family: Theme.font
+                                Accessible.name: mira.s.mic_source
+                            }
+                            GridLayout {
+                                Layout.fillWidth: true; columns: width < 460 ? 1 : 2; columnSpacing: 8; rowSpacing: 8
+                                PillButton {
+                                    objectName: "microphoneProbeButton"
+                                    Layout.fillWidth: true; implicitHeight: 44; text: mira.s.pc_mic_test; iconName: "mic"
+                                    enabled: !mira.microphone.busy && !mira.busy
+                                    onClicked: mira.testMicrophone()
+                                }
+                                PillButton {
+                                    Layout.fillWidth: true; implicitHeight: 44; text: mira.s.pc_mic_refresh
+                                    enabled: !mira.microphone.busy && !mira.microphone.refreshing && !mira.busy
+                                    onClicked: mira.refreshMicrophones()
+                                }
+                            }
+                            T {
+                                objectName: "microphoneProbeResult"
+                                Layout.fillWidth: true; visible: text !== ""; text: mira.microphone.message || ""
+                                font.pixelSize: Theme.small
+                                color: mira.microphone.state === "error" ? Theme.danger : Theme.ink2
+                            }
+                            T { Layout.fillWidth: true; visible: mira.microphone.outputMuted === true
+                                text: mira.s.pc_output_muted; font.pixelSize: Theme.small; color: Theme.danger }
+                            PillButton { text: mira.s.pc_audio_settings; iconName: "settings"; size: Theme.small
+                                onClicked: mira.openSettingsPage("audio") }
+                        }
+                    }
+                    Glass {
+                        Layout.fillWidth: true; Layout.preferredHeight: echoVoiceCol.implicitHeight + 32; radius: 18
+                        ColumnLayout {
+                            id: echoVoiceCol
                             anchors.fill: parent; anchors.margins: 16; spacing: 6
-                            MiraSwitch { Layout.fillWidth: true; text: mira.s.voice_on; checked: mira.echo.voice_enabled !== false
+                            MiraSwitch { Layout.fillWidth: true; text: mira.s.voice_echo_on; checked: mira.echo.voice_enabled !== false
                                          enabled: mira.echo.online === true
                                          onToggled: { const want = checked; checked = Qt.binding(function() { return mira.echo.voice_enabled !== false }); mira.setVoiceEnabled(want) } }
                             T { Layout.fillWidth: true; text: mira.echo.wake_hint ? mira.echo.wake_hint : mira.s.voice_on_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
@@ -230,13 +282,38 @@ Item {
                                         : mira.brainKey === "testing" ? mira.s.brain_key_testing : mira.brainKey === "set" ? mira.s.brain_key_set : mira.s.brain_key_missing }
                             }
                             T { Layout.fillWidth: true; text: mira.s.brain_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
-                            RowLayout {
+                            GridLayout {
                                 Layout.fillWidth: true
-                                spacing: 8
-                                MiraField { id: keyField; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: mira.s.brain_key_placeholder
-                                            onAccepted: { mira.saveGeminiKey(text); text = "" } }
-                                PillButton { text: mira.s.brain_key_save; iconName: "check"; size: Theme.small; enabled: keyField.text.trim().length >= 20 && mira.brainKey !== "testing"
+                                columns: width < 440 ? 1 : 2; columnSpacing: 8; rowSpacing: 8
+                                MiraField { id: keyField; objectName: "geminiKeyField"; Layout.fillWidth: true; echoMode: TextInput.Password; maximumLength: 4096; placeholderText: mira.s.brain_key_placeholder
+                                            enabled: mira.brainKey !== "testing" && !mira.voiceConnection.busy && !mira.busy
+                                            onAccepted: { if (text.trim().length > 0) { mira.saveGeminiKey(text); text = "" } } }
+                                PillButton { objectName: "geminiKeySaveButton"; Layout.fillWidth: parent.columns === 1; text: mira.s.brain_key_save; iconName: "check"; size: Theme.small; enabled: keyField.enabled && keyField.text.trim().length > 0
                                              onClicked: { mira.saveGeminiKey(keyField.text); keyField.text = "" } }
+                            }
+                            PillButton { text: mira.s.br_key_get; iconName: "external"; size: Theme.small; onClicked: mira.brainPage.openKeyHelp() }
+                            T { Layout.fillWidth: true; text: mira.s.voice_model; font.pixelSize: Theme.small; color: Theme.ink2 }
+                            MiraComboBox {
+                                objectName: "voiceModelSelector"
+                                Layout.fillWidth: true; implicitHeight: 44
+                                model: mira.voiceModels; textRole: "label"; valueRole: "id"
+                                currentIndex: indexOfValue(mira.voiceModel)
+                                enabled: !mira.voiceConnection.busy && !mira.busy && mira.brainKey !== "testing"
+                                onActivated: mira.setVoiceModel(currentValue)
+                                font.family: Theme.font
+                                Accessible.name: mira.s.voice_model
+                            }
+                            T { Layout.fillWidth: true; text: mira.s.voice_free_tier; font.pixelSize: Theme.small; color: Theme.ink3 }
+                            PillButton {
+                                objectName: "voiceConnectionProbeButton"
+                                Layout.fillWidth: true; implicitHeight: 44; text: mira.s.voice_connection_test
+                                enabled: !mira.voiceConnection.busy && !mira.busy && mira.brainKey !== "missing" && mira.brainKey !== "testing"
+                                onClicked: mira.testVoiceConnection()
+                            }
+                            T {
+                                Layout.fillWidth: true; visible: text !== ""; text: mira.voiceConnection.message || ""
+                                font.pixelSize: Theme.small
+                                color: mira.voiceConnection.state === "error" ? Theme.danger : Theme.ink2
                             }
                         }
                     }
@@ -257,15 +334,6 @@ Item {
                             anchors.fill: parent; anchors.margins: 16; spacing: 8
                             MiraSwitch { Layout.fillWidth: true; text: mira.s.local_wake; checked: mira.wake.enabled; onToggled: mira.setLocalWake(checked) }
                             T { Layout.fillWidth: true; text: mira.s.local_wake_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
-                            ComboBox {
-                                id: micCombo
-                                Layout.fillWidth: true
-                                visible: mira.wake.enabled
-                                model: mira.wake.sources || []
-                                currentIndex: Math.max(0, (mira.wake.sources || []).indexOf(mira.wake.source))
-                                onActivated: mira.setMicSource(currentText)
-                                font.family: Theme.font
-                            }
                             T { Layout.fillWidth: true; visible: mira.wake.enabled && text !== ""; text: mira.wake.state || ""; font.pixelSize: Theme.small; color: Theme.cyan }
                         }
                     }

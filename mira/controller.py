@@ -8,6 +8,8 @@ import json
 import os
 import re
 import subprocess
+import stat
+import tempfile
 import threading
 import time
 from datetime import datetime
@@ -22,7 +24,7 @@ from models import DictListModel
 
 ROOT = Path(__file__).resolve().parent
 TEST_MODE = os.environ.get('MIRA_TEST_MODE') == '1'
-FALLBACK_MIC = 'alsa_input.usb-Linux_Foundation_Webcam_gadget-02.mono-fallback'
+FALLBACK_MIC = '@DEFAULT_SOURCE@'
 ACTIVE = ('activating', 'listening', 'thinking', 'executing', 'speaking')
 ENROL_DIR = Path.home() / '.local/share/mira/wake-enrol'      # the owner's voice samples (0700/0600)
 WAKE_MODELS = Path.home() / '.local/share/mira/wake-models'   # models trained here, served to the Echo
@@ -43,7 +45,7 @@ PANELS = {'device': 'system', 'health': 'system', 'updates': 'system', 'system':
           'apps': 'apps', 'compat': 'apps', 'store': 'apps',
           'dev': 'workbench', 'agent': 'workbench', 'workbench': 'workbench', 'terminal': 'workbench',
           'remote': 'connect', 'connect': 'connect', 'phone': 'connect',
-          'brain': 'brain', 'settings': 'settings', 'home': 'home', 'computer': 'pc', 'pc': 'pc', 'chat': '',
+          'brain': 'brain', 'settings': 'settings', 'voice': 'voice-settings', 'home': 'home', 'computer': 'pc', 'pc': 'pc', 'chat': '',
           'lumen': 'lumen', 'lights': 'lumen', 'lighting': 'lumen', 'rgb': 'lumen'}
 SETTINGS_PAGES = ('update', 'audio', 'network', 'bluetooth', 'display', 'assistant', 'remote', 'about', 'storage',
                   'default-apps', 'notifications', 'energy')
@@ -154,6 +156,16 @@ class Controller(QObject):
                       'voice_enabled': True}
         self._wake = {'enabled': self._local_wake, 'sources': [], 'source': str(self.settings.value('local_wake_source', '') or ''),
                       'state': ''}
+        self._wake['source'] = self._wake['source'] or FALLBACK_MIC
+        self._mic_labels = {}
+        self._speaker_muted = None
+        self._audio_observer = None
+        self._audio_refresh_pending = False
+        self._microphone = {'devices': [], 'source': self._wake['source'], 'busy': False, 'refreshing': False,
+                            'state': 'idle', 'message': '', 'bytes': 0, 'peak': 0, 'rms': 0.0,
+                            'outputMuted': None, 'deviceUpdates': 'unknown'}
+        self._voice_connection = {'busy': False, 'state': 'idle', 'message': '', 'model': ''}
+        self._voice_owner = ''
         self._profile_status = ''
         self._busy = False
         self.keep_running = False
@@ -174,7 +186,8 @@ class Controller(QObject):
         self._answered = set()             # cards resolved; their notifications must not linger
         self._reminders = []              # upcoming reminders and timers, for the rail
         self._brain_key = self._gemini_state()   # 'set' | 'missing' | 'testing' | 'ok' | 'failed'
-        self.desk = None                          # voice through this PC when no Echo is paired
+        self.desk = None                          # voice through this PC when Echo is unavailable
+        self._voice_models, self._voice_model = self._live_model_selection()
 
         self.chat = DictListModel(['role', 'text', 'time', 'status', 'title', 'tool', 'day'])
         self.devices = DictListModel(['entity_id', 'name', 'domain', 'state', 'available', 'is_on', 'brightness',
@@ -204,7 +217,7 @@ class Controller(QObject):
         self.bridge.state.connect(self._on_echo_state)
         self.bridge.error.connect(self._on_echo_error)
         self.bridge.command_state.connect(self._on_echo_command)
-        self.bridge.voice_state.connect(self._on_voice)
+        self.bridge.voice_state.connect(self._on_echo_voice)
 
         self._restore_chat()
         self._resolve_phase()
@@ -277,14 +290,17 @@ class Controller(QObject):
     def start(self):
         self.companion_service.start()
         self.bridge.start()
-        self._wake['sources'] = self._available_microphones()
-        if self._wake['source'] not in self._wake['sources'] and self._wake['sources']:
-            self._wake['source'] = self._wake['sources'][0]
-        self.settingsChanged.emit()
+        self.refreshMicrophones()
         if TEST_MODE:
             if self._kde is not None:
                 self._kde.review()
             return
+        if self._audio_observer is None:
+            from audio_devices import AudioDeviceObserver
+            self._audio_observer = AudioDeviceObserver(self)
+            self._audio_observer.changed.connect(self._audio_devices_changed)
+            self._audio_observer.failed.connect(self._audio_devices_unavailable)
+        self._audio_observer.start()
         QTimer.singleShot(800, self.refreshWeather)
         if self._kde is not None:
             QTimer.singleShot(3000, self._kde.refresh)
@@ -300,6 +316,8 @@ class Controller(QObject):
             self.start_local_wake()
 
     def shutdown(self):
+        if self._audio_observer is not None and not self._audio_observer.close():
+            print('Mira: audio device subscription did not stop', flush=True)
         self.inbox.stop()
         if self.desk is not None:
             self.desk.shutdown()
@@ -334,6 +352,10 @@ class Controller(QObject):
     pc = _prop('QVariantMap', '_pc', pcChanged)
     echo = _prop('QVariantMap', '_echo', echoChanged)
     wake = _prop('QVariantMap', '_wake', settingsChanged)
+    microphone = _prop('QVariantMap', '_microphone', settingsChanged)
+    voiceConnection = _prop('QVariantMap', '_voice_connection', settingsChanged)
+    voiceModels = _prop('QVariantList', '_voice_models', settingsChanged)
+    voiceModel = _prop(str, '_voice_model', settingsChanged)
     voiceName = _prop(str, '_voice_name', settingsChanged)
     city = _prop(str, '_city', settingsChanged)
     profileStatus = _prop(str, '_profile_status', profileChanged)
@@ -448,10 +470,8 @@ class Controller(QObject):
             status = self._s['phase_' + phase]
         elif vp == 'off':
             status = self._s['hint_voice_off']
-        elif not self._echo.get('paired', True):
+        elif not self.bridge.online:
             status = self._s['hint_idle_desk']
-        elif not self._echo['online']:
-            status = self._s['hint_connecting'] if self._services['echo'] == 'connecting' else self._s['hint_idle_text']
         else:
             status = self._s['hint_idle_voice']
         if status != self._status:
@@ -786,22 +806,46 @@ class Controller(QObject):
         if notice:
             return
         if received == 0 and not stats.get('error'):
-            self.toast.emit('pending', 'لم يصل صوت من Echo · تأكد أن ميكروفونه غير مكتوم' if self._lang == 'ar'
-                            else 'No audio arrived from Echo · check its microphone')
+            self.toast.emit('pending', self._s['pc_mic_no_audio'] if stats.get('input_source') == 'pc' else
+                            ('لم يصل صوت من Echo · تأكد أن ميكروفونه غير مكتوم' if self._lang == 'ar'
+                             else 'No audio arrived from Echo · check its microphone'))
         elif received and not heard and not answered:
-            self.toast.emit('pending', 'وصل صوت لكن لم أفهم السؤال · تكلّم قرب Echo بعد أن يضيء' if self._lang == 'ar'
-                            else "Audio arrived but I didn't catch a question · speak near Echo after it lights")
+            self.toast.emit('pending', self._s['pc_mic_not_understood'] if stats.get('input_source') == 'pc' else
+                            ('وصل صوت لكن لم أفهم السؤال · تكلّم قرب Echo بعد أن يضيء' if self._lang == 'ar'
+                             else "Audio arrived but I didn't catch a question · speak near Echo after it lights"))
 
     # ── voice controls ──────────────────────────────────────────────
+    def _on_echo_voice(self, kind, text):
+        # An offline/reconnecting satellite must not finish a PC microphone turn.
+        if self._microphone['busy'] or (self._voice_owner == 'pc' and self._voice_phase in ACTIVE):
+            if kind in ACTIVE:
+                self.bridge.cancel_voice()
+            return
+        self._on_voice(kind, text)
+        if kind in ('ready', 'error', 'off'):
+            self._flush_audio_refresh()
+
+    def _on_desk_voice(self, kind, text):
+        self._on_voice(kind, text)
+        if kind in ('ready', 'error', 'off'):
+            self._voice_owner = ''
+            self._flush_audio_refresh()
+
     @Slot()
     def talk(self):
+        if self._microphone['busy']:
+            return
         if self._voice_phase in ACTIVE:
             self.stop()
             return
-        if not self._echo.get('paired', True):
+        if self._voice_phase == 'off':
+            self.toast.emit('info', self._s['hint_voice_off'])
+            return
+        if not self.bridge.online:
             self._desk_talk()
             return
         if self.bridge.online and self._voice_phase not in ('off',):
+            self._voice_owner = 'echo'
             self._wake_seq += 1
             attempt = self._wake_seq
             self.bridge.command('wake', 'wake_assistant_1')
@@ -815,22 +859,30 @@ class Controller(QObject):
             self.focusComposer.emit()
 
     def _desk_talk(self):
-        """No Echo on this computer: Mira listens through its microphone and answers on its speakers."""
+        """An unavailable Echo never prevents this computer's microphone route."""
+        if self._microphone['busy'] or self._voice_phase in ACTIVE:
+            return
         if self._gemini_state() != 'set':
             self.toast.emit('info', self._s['desk_needs_key'])
-            self.showSheet.emit('settings')
+            self.showSheet.emit('voice-settings')
             return
         if self.desk is None:
             from desk_voice import DeskVoice
             self.desk = DeskVoice(self._voice_name, self)
-            self.desk.voice_state.connect(self._on_voice)
+            self.desk.voice_state.connect(self._on_desk_voice)
         self.desk.lang, self.desk.city = self._lang, self._city or None
         self.desk.voice_name = self._voice_name
         self.desk.request_confirmation = self.request_confirmation
+        self.desk.source = self._wake['source'] or FALLBACK_MIC
+        self._wake_seq += 1
+        self._voice_owner = 'pc'
+        self._voice_phase = 'activating'
+        self._resolve_phase()
         self.desk.talk()
 
     def _wake_timeout(self, attempt):
-        if attempt != self._wake_seq or self._voice_phase in ('listening', 'thinking', 'speaking', 'executing'):
+        if (self._voice_owner != 'echo' or attempt != self._wake_seq
+                or self._voice_phase in ('listening', 'thinking', 'speaking', 'executing')):
             return
         if self._voice_phase == 'activating':
             self._voice_phase = 'ready'
@@ -843,7 +895,7 @@ class Controller(QObject):
         self.bridge.cancel_voice()
         if self.desk is not None:
             self.desk.stop()
-        if self._voice_phase == 'activating':
+        if self._voice_owner != 'pc' and self._voice_phase == 'activating':
             self._voice_phase = 'ready'
         self._resolve_phase()
 
@@ -986,27 +1038,94 @@ class Controller(QObject):
     @Slot(str)
     def saveGeminiKey(self, key):
         """Keep the user's own Gemini key (0600, beside Mira's other settings) and prove it answers."""
-        key = (key or '').strip()
-        if not re.fullmatch(r'[A-Za-z0-9_-]{20,200}', key):
+        from api_credentials import normalize_api_key
+        try:
+            key = normalize_api_key(key)
+        except ValueError:
             self.toast.emit('error', self._s['brain_key_invalid'])
             return
-        from brain import GEMINI_CONFIG
+        if self._voice_connection['busy'] or self._voice_phase in ACTIVE or self._brain_key == 'testing':
+            return
         try:
-            data = json.loads(GEMINI_CONFIG.read_text())
-            data = data if isinstance(data, dict) else {}
-        except (OSError, ValueError):
-            data = {}
-        data['api_key'] = key
-        GEMINI_CONFIG.parent.mkdir(parents=True, exist_ok=True)
-        os.chmod(GEMINI_CONFIG.parent, 0o700)
-        temp = GEMINI_CONFIG.with_suffix('.tmp')
-        fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, 'w') as stream:
-            json.dump(data, stream)
-        os.replace(temp, GEMINI_CONFIG)
+            self._write_gemini_config({'api_key': key})
+        except (OSError, ValueError, TypeError, RecursionError):
+            self.toast.emit('error', self._s['brain_config_save_failed'])
+            return
         self._brain_key = 'testing'
+        self._voice_connection.update(state='idle', message='', model='')
         self.settingsChanged.emit()
         self.worker.run('brain_key', self._test_gemini)
+
+    def _write_gemini_config(self, changes):
+        """Atomic private settings; unknown/link inputs remain untouched."""
+        from brain import GEMINI_CONFIG
+        parent = GEMINI_CONFIG.parent
+        parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        info = parent.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+            raise ValueError('Unsafe configuration directory')
+        data = {}
+        try:
+            info = GEMINI_CONFIG.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                    or info.st_nlink != 1 or info.st_mode & 0o077 or info.st_size > 16384):
+                raise ValueError('Unsafe configuration file')
+            data = json.loads(GEMINI_CONFIG.read_bytes())
+            if not isinstance(data, dict):
+                raise ValueError('Invalid configuration')
+        data.update(changes)
+        raw = json.dumps(data).encode('utf-8')
+        if len(raw) > 16384:
+            raise ValueError('Configuration is too large')
+        temp = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=parent, prefix='.gemini-', delete=False) as stream:
+                temp = Path(stream.name)
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temp, GEMINI_CONFIG)
+            temp = None
+        finally:
+            if temp is not None:
+                temp.unlink(missing_ok=True)
+
+    def _live_model_selection(self):
+        from live_voice import LIVE_MODEL_CHOICES, DEFAULT_LIVE_MODEL
+        from brain import GEMINI_CONFIG
+        choices = [dict(choice) for choice in LIVE_MODEL_CHOICES]
+        model = DEFAULT_LIVE_MODEL
+        try:
+            with GEMINI_CONFIG.open('rb') as stream:
+                raw = stream.read(16385)
+            data = json.loads(raw) if len(raw) <= 16384 else None
+            model = data.get('model', DEFAULT_LIVE_MODEL) if isinstance(data, dict) else ''
+            if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9._/-]{1,160}', model) or '..' in model:
+                model = ''
+        except FileNotFoundError:
+            pass
+        except (OSError, ValueError, RecursionError):
+            model = ''
+        if model and model not in [choice['id'] for choice in choices]:
+            choices.append({'id': model, 'label': model, 'free_tier': False})
+        return choices, model
+
+    @Slot(str)
+    def setVoiceModel(self, model):
+        if (model == self._voice_model or model not in [choice['id'] for choice in self._voice_models]
+                or self._voice_connection['busy'] or self._brain_key == 'testing' or self._voice_phase in ACTIVE):
+            return
+        try:
+            self._write_gemini_config({'model': model})
+        except (OSError, ValueError, TypeError, RecursionError):
+            self.toast.emit('error', self._s['brain_config_save_failed'])
+            return
+        self._voice_model = model
+        self._voice_connection.update(state='idle', message='', model='')
+        self.settingsChanged.emit()
 
     def _test_gemini(self):
         """Worker thread: the model typed chat really asks first; a classified reason (a key of
@@ -1760,12 +1879,13 @@ class Controller(QObject):
         if message == 'unpaired':
             self._update('_echo', self.echoChanged, online=False, paired=False, state=self._s['echo_unpaired'])
             self._set_service('echo', 'off')
-            self._voice_phase = 'ready'
+            if self._voice_owner != 'pc':
+                self._voice_phase = 'ready'
             self._resolve_phase()
             return
         self._update('_echo', self.echoChanged, online=False, state=message)
         self._set_service('echo', 'offline')
-        if self._voice_phase in ACTIVE or self._voice_phase == 'connecting':
+        if self._voice_owner != 'pc' and (self._voice_phase in ACTIVE or self._voice_phase == 'connecting'):
             self._voice_phase = 'ready'
         self._resolve_phase()
 
@@ -1779,6 +1899,9 @@ class Controller(QObject):
             self.toast.emit('error', self._enrol['message'])
             return
         if status.startswith('error:'):
+            if kind == 'wake' and (self._voice_owner == 'pc' or self._microphone['busy']):
+                self._wake_seq += 1
+                return
             self._add('error', ('لم يصل الأمر إلى Echo · ' if self._lang == 'ar' else 'Command did not reach Echo · ') + status.split(':', 1)[1], status='error')
             if kind == 'wake':
                 self._wake_seq += 1
@@ -1837,10 +1960,13 @@ class Controller(QObject):
 
     @Slot(str)
     def setMicSource(self, source):
-        if not source or source == self._wake['source']:
+        if self._microphone['busy'] or self._voice_phase in ACTIVE:
+            return
+        if not source or source == self._wake['source'] or source not in self._wake['sources']:
             return
         self.settings.setValue('local_wake_source', source)
         self._update('_wake', self.settingsChanged, source=source)
+        self._update('_microphone', self.settingsChanged, source=source, state='idle', message='')
         if self._local_wake:
             self.stop_local_wake()
             self.start_local_wake()
@@ -1848,20 +1974,112 @@ class Controller(QObject):
     def _available_microphones(self):
         if TEST_MODE:
             return [FALLBACK_MIC]
+        self._speaker_muted = None
         try:
-            result = subprocess.run(['pactl', '-f', 'json', 'list', 'sources'], capture_output=True, text=True, timeout=3, check=True)
+            mute = subprocess.run(['pactl', 'get-sink-mute', '@DEFAULT_SINK@'], capture_output=True, text=True,
+                                  timeout=3, check=True, env=os.environ | {'LC_ALL': 'C'})
+            self._speaker_muted = {'Mute: yes': True, 'Mute: no': False}.get(mute.stdout.strip())
+        except (OSError, subprocess.SubprocessError):
+            pass
+        try:
+            result = subprocess.run(['pactl', '-f', 'json', 'list', 'sources'], capture_output=True, text=True,
+                                    timeout=3, check=True, env=os.environ | {'LC_ALL': 'C.UTF-8'})
+            raw = json.loads(result.stdout)
+            if not isinstance(raw, list):
+                return [FALLBACK_MIC]
             sources = []
-            for item in json.loads(result.stdout):
+            labels = {}
+            for item in raw:
+                if not isinstance(item, dict):
+                    continue
                 name = item.get('name', '')
-                if not name or '.monitor' in name:
+                if (not isinstance(name, str) or not name or len(name) > 512 or '.monitor' in name
+                        or item.get('monitor_of_sink') not in (None, 'n/a', 4294967295)):
                     continue
                 active = item.get('active_port')
-                if any(p.get('name') == active and p.get('availability') == 'not available' for p in item.get('ports') or []):
+                ports = item.get('ports') or []
+                if not isinstance(ports, list):
                     continue
-                sources.append(name)
-            return sources or [FALLBACK_MIC]
+                if any(isinstance(p, dict) and p.get('name') == active
+                       and p.get('availability') in ('not available', 'no') for p in ports):
+                    continue
+                if name not in sources:
+                    sources.append(name)
+                    properties = item.get('properties')
+                    properties = properties if isinstance(properties, dict) else {}
+                    candidates = [item.get('description'), properties.get('node.description'),
+                                  properties.get('node.nick'), properties.get('device.description')]
+                    if active == 'analog-input-internal-mic':
+                        labels[name] = self._s['pc_mic_internal']
+                    else:
+                        description = next((v for v in candidates if isinstance(v, str)
+                                            and 0 < len(v.strip()) <= 256
+                                            and v.strip().lower() not in ('(null)', 'null', 'n/a')), '')
+                        if description:
+                            labels[name] = ' '.join(description.split())
+            self._mic_labels = labels
+            return [FALLBACK_MIC, *sources]
         except (OSError, subprocess.SubprocessError, ValueError, TypeError):
             return [FALLBACK_MIC]
+
+    @Slot()
+    def refreshMicrophones(self):
+        if self._microphone['busy'] or self._microphone['refreshing'] or self._voice_phase in ACTIVE:
+            return
+        if self._audio_observer is not None:
+            self._audio_observer.start()
+        self._update('_microphone', self.settingsChanged, refreshing=True)
+        self.worker.run('microphone_devices', self._available_microphones)
+
+    def _audio_devices_changed(self):
+        self._update('_microphone', self.settingsChanged, deviceUpdates='observed')
+        self._audio_refresh_pending = True
+        self._flush_audio_refresh()
+
+    def _audio_devices_unavailable(self):
+        self._update('_microphone', self.settingsChanged, deviceUpdates='unavailable')
+
+    def _flush_audio_refresh(self):
+        if (self._audio_refresh_pending and not self._microphone['busy']
+                and not self._microphone['refreshing'] and self._voice_phase not in ACTIVE):
+            self._audio_refresh_pending = False
+            self.refreshMicrophones()
+
+    def _on_microphone_devices(self, sources):
+        sources = sources if isinstance(sources, list) else []
+        sources = list(dict.fromkeys(source for source in sources if isinstance(source, str)
+                                    and 0 < len(source) <= 512 and not any(ord(c) <= 32 or ord(c) == 127 for c in source)))
+        if FALLBACK_MIC not in sources:
+            sources.insert(0, FALLBACK_MIC)
+        selected = self._wake['source'] or FALLBACK_MIC
+        # Keep an explicit missing device visible; never record a different
+        # microphone merely because its predecessor disappeared.
+        if selected not in sources:
+            sources.append(selected)
+        self._wake['sources'] = sources
+        devices = [{'source': source, 'label': self._s['pc_mic_default'] if source == FALLBACK_MIC else self._mic_labels.get(source, source)}
+                   for source in sources]
+        self._update('_microphone', self.settingsChanged, devices=devices, source=selected,
+                     refreshing=False, outputMuted=self._speaker_muted)
+        self._flush_audio_refresh()
+
+    @Slot()
+    def testMicrophone(self):
+        if self._microphone['busy'] or self._voice_phase in ACTIVE:
+            return
+        from desk_voice import probe_microphone
+        self._update('_microphone', self.settingsChanged, busy=True, state='testing',
+                     message=self._s['pc_mic_testing'], bytes=0, peak=0, rms=0.0)
+        self.worker.run('microphone_probe', lambda: probe_microphone(self._wake['source'], seconds=3))
+
+    @Slot()
+    def testVoiceConnection(self):
+        if self._voice_connection['busy'] or self._voice_phase in ACTIVE:
+            return
+        from live_voice import probe_live_connection
+        self._update('_voice_connection', self.settingsChanged, busy=True, state='testing',
+                     message=self._s['voice_connection_testing'])
+        self.worker.run('voice_connection', probe_live_connection)
 
     def start_local_wake(self):
         if self._local_wake_process and self._local_wake_process.poll() is None:
@@ -1950,10 +2168,13 @@ class Controller(QObject):
                 # Dolphin's «Add to Mira as a project»: kde_integration and moai-agent-api check the folder.
                 self._kde.add_project(project)
             return 'show'
-        if command == b'wake' and self._local_wake and self._voice_phase == 'ready' and not self._echo.get('paired', True):
+        if command == b'wake' and self._microphone['busy']:
+            return 'show'
+        if command == b'wake' and self._local_wake and self._voice_phase == 'ready' and not self.bridge.online:
             self._desk_talk()
             return 'wake'
         if command == b'wake' and self._local_wake and self._voice_phase == 'ready':
+            self._voice_owner = 'echo'
             self._wake_seq += 1
             self.bridge.command('wake', 'wake_assistant_1', self._wake['source'])
             self._voice_phase = 'activating'
@@ -2176,6 +2397,41 @@ class Controller(QObject):
         elif tag == 'health':
             if isinstance(result, dict) and result.get('status') == 'ok':
                 self._update('_system', self.systemChanged, health=result)
+        elif tag == 'microphone_devices':
+            self._on_microphone_devices(result)
+        elif tag == 'microphone_probe':
+            result = result if isinstance(result, dict) else {}
+            state = result.get('status')
+            measured = result.get('bytes')
+            peak = result.get('peak')
+            rms = result.get('rms')
+            valid = (state in ('ok', 'silent', 'error') and type(measured) is int
+                     and 0 <= measured <= 160000 and type(peak) is int and 0 <= peak <= 32768
+                     and type(rms) in (int, float) and math.isfinite(rms) and 0 <= rms <= 32768)
+            if valid and state != 'error':
+                valid = measured > 0 and (state == 'ok' and peak > 0 and result.get('reason') == 'signal'
+                                          or state == 'silent' and peak == 0 and result.get('reason') == 'no_signal')
+            reason = result.get('reason', 'unknown') if valid else 'unknown'
+            key = 'pc_mic_reason_' + str(reason)
+            message = self._s.get(key, self._s['pc_mic_reason_unknown'])
+            self._update('_microphone', self.settingsChanged, busy=False,
+                         state=state if valid else 'error', message=message,
+                         bytes=measured if valid else 0, peak=peak if valid else 0, rms=rms if valid else 0.0)
+            self._flush_audio_refresh()
+        elif tag == 'voice_connection':
+            result = result if isinstance(result, dict) else {}
+            model = result.get('model')
+            model = model if isinstance(model, str) and re.fullmatch(r'[A-Za-z0-9._/-]{1,160}', model) else ''
+            ok = result.get('status') == 'ok' and bool(model)
+            reason = result.get('reason', 'unknown')
+            reason = reason if isinstance(reason, str) else 'unknown'
+            import brain
+            words = brain.REASONS.get(reason, ('', ''))[1 if self._lang == 'en' else 0]
+            message = self._s['voice_connection_ok'] if ok else self._s['voice_connection_failed']
+            if not ok and words:
+                message += ' · ' + words
+            self._update('_voice_connection', self.settingsChanged, busy=False,
+                         state='connected' if ok else 'error', message=message, model=model)
         elif tag == 'brain_key':
             ok = isinstance(result, dict) and result.get('status') == 'ok'
             self._brain_key = 'ok' if ok else 'failed'

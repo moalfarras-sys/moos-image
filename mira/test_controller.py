@@ -5,7 +5,8 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 os.environ['MIRA_TEST_MODE'] = '1'
@@ -36,6 +37,13 @@ def pump(predicate=lambda: False, timeout=2.0):
 class ControllerTest(unittest.TestCase):
     def setUp(self):
         QSettings('MoOS', 'Mira').clear()
+        import brain
+        self.gemini_tmp = tempfile.TemporaryDirectory(prefix='mira-controller-gemini-')
+        self.addCleanup(self.gemini_tmp.cleanup)
+        self.gemini_path = Path(self.gemini_tmp.name) / 'private' / 'gemini.json'
+        self.gemini_patch = patch.object(brain, 'GEMINI_CONFIG', self.gemini_path)
+        self.gemini_patch.start()
+        self.addCleanup(self.gemini_patch.stop)
         self.c = ctl.Controller(bridge_class=FakeBridge)
         self.toasts = []
         self.c.toast.connect(lambda kind, text: self.toasts.append((kind, text)))
@@ -144,9 +152,12 @@ class ControllerTest(unittest.TestCase):
 
     # ── voice controls ──────────────────────────────────────────────
     def test_talk_routes_to_echo_or_explains_why_not(self):
+        sheets = []
+        self.c.showSheet.connect(sheets.append)
         self.c.bridge.online = False
         self.c.talk()
-        self.assertEqual(self.toasts[-1][0], 'error')
+        self.assertEqual(self.toasts[-1], ('info', self.c.s['desk_needs_key']))
+        self.assertEqual(sheets, ['voice-settings'])
         self.c.bridge.online = True
         self.voice('ready')
         self.c.talk()
@@ -486,14 +497,15 @@ class ControllerTest(unittest.TestCase):
         c.showSheet.connect(sheets.append)
         with patch.object(c, '_gemini_state', return_value='missing'):
             c.talk()
-        self.assertEqual(sheets, ['settings'], 'no key: say where to add one')
+        self.assertEqual(sheets, ['voice-settings'], 'no key: open the actual voice setup destination')
         self.assertIsNone(c.desk)
         started = []
         with patch.object(c, '_gemini_state', return_value='set'), \
                 patch('desk_voice.DeskVoice.talk', lambda self: started.append(self.lang)):
             c.talk()
         self.assertEqual(started, ['ar'])
-        self.assertIn('ميكروفون', c.status)
+        self.assertEqual(c._voice_phase, 'activating', 'a scheduled talk is not a completed capture')
+        self.assertEqual(c.desk.source, '@DEFAULT_SOURCE@')
         c.shutdown()
 
     def test_a_user_keeps_and_tests_his_own_gemini_key(self):
@@ -508,6 +520,212 @@ class ControllerTest(unittest.TestCase):
                 self.assertEqual(oct(path.stat().st_mode & 0o777), '0o600')
                 self.assertEqual(json.loads(path.read_text())['api_key'], 'A' * 39)
                 self.assertTrue(pump(lambda: self.c.brainKey == 'ok', 2))
+
+    def _fake_desk(self):
+        desk = SimpleNamespace(talk=Mock(), stop=Mock(), voice=None)
+        self.c.desk = desk
+        return desk
+
+    def test_paired_but_offline_echo_uses_selected_pc_microphone(self):
+        self.c._echo['paired'] = True
+        self.c.bridge.online = False
+        self.c._wake['source'] = 'alsa_input.review_internal'
+        desk = self._fake_desk()
+        previous = self.c._wake_seq
+        with patch.object(self.c, '_gemini_state', return_value='set'):
+            self.c.talk()
+        desk.talk.assert_called_once_with()
+        self.assertEqual(desk.source, 'alsa_input.review_internal')
+        self.assertEqual(self.c._voice_owner, 'pc')
+        self.assertEqual(self.c._voice_phase, 'activating')
+        self.assertGreater(self.c._wake_seq, previous, 'invalidate previous satellite timeouts')
+        self.assertNotIn(('wake', 'wake_assistant_1'), self.c.bridge.commands)
+
+    def test_echo_events_errors_and_previous_timeout_cannot_finish_pc_turn(self):
+        self._fake_desk()
+        self.c._voice_owner, self.c._voice_phase = 'pc', 'activating'
+        self.c._resolve_phase()
+        attempt = self.c._wake_seq
+        before = list(self.c.chat.rows())
+        self.c._on_echo_error('review-offline')
+        self.c._on_echo_error('unpaired')
+        self.c._on_echo_voice('ready', '')
+        self.c._on_echo_voice('error', 'satellite-only-failure')
+        self.c._on_echo_command('wake', 'error:previous-satellite-command')
+        self.c._wake_timeout(attempt)
+        self.assertEqual(self.c._voice_phase, 'activating')
+        self.assertEqual(self.c._voice_owner, 'pc')
+        self.assertEqual(self.c.chat.rows(), before)
+        self.c._on_echo_voice('listening', '')
+        self.assertIn(('cancel',), self.c.bridge.commands)
+        self.assertEqual(self.c._voice_phase, 'activating')
+
+    def test_stop_waits_for_pc_cleanup_before_accepting_another_turn(self):
+        desk = self._fake_desk()
+        self.c._voice_owner, self.c._voice_phase = 'pc', 'activating'
+        self.c._resolve_phase()
+        self.c.stop()
+        desk.stop.assert_called_once_with()
+        self.assertEqual(self.c._voice_phase, 'activating')
+        self.assertEqual(self.c._voice_owner, 'pc')
+        self.c._on_desk_voice('ready', '')
+        self.assertEqual(self.c._voice_phase, 'ready')
+        self.assertEqual(self.c._voice_owner, '')
+
+    def test_local_only_meter_blocks_talk_wake_echo_and_source_changes(self):
+        desk = self._fake_desk()
+        self.c._voice_phase = 'ready'
+        self.c._local_wake = True
+        self.c._wake['sources'] = ['@DEFAULT_SOURCE@', 'alsa_input.other']
+        source = self.c._wake['source']
+        with patch.object(self.c.worker, 'run') as worker:
+            self.c.testMicrophone()
+            self.assertTrue(self.c.microphone['busy'])
+            self.assertEqual(worker.call_args.args[0], 'microphone_probe')
+            for online in (False, True):
+                self.c.bridge.online = online
+                self.c.talk()
+                self.c._desk_talk()
+                self.c.handle_instance_command(b'wake')
+            self.c.setMicSource('alsa_input.other')
+            self.c._on_echo_voice('activating', '')
+            self.c._on_echo_voice('ready', '')
+        desk.talk.assert_not_called()
+        self.assertEqual(self.c._wake['source'], source)
+        self.assertEqual(self.c._voice_phase, 'ready')
+        self.assertFalse(any(row[0] == 'wake' for row in self.c.bridge.commands))
+
+    def test_refresh_preserves_explicit_disconnected_microphone(self):
+        missing = 'alsa_input.previously_selected'
+        self.c._wake['source'] = missing
+        with patch.object(self.c, '_available_microphones', return_value=['@DEFAULT_SOURCE@', 'alsa_input.internal']):
+            self.c.refreshMicrophones()
+            self.assertTrue(pump(lambda: not self.c.microphone['refreshing']))
+        self.assertEqual(self.c.microphone['source'], missing)
+        self.assertEqual(self.c._wake['source'], missing)
+        self.assertIn(missing, self.c.wake['sources'])
+        self.assertIn(missing, [row['source'] for row in self.c.microphone['devices']])
+
+    def test_microphone_enumeration_is_a_worker_and_rejects_malformed_device_lists(self):
+        with patch.object(self.c.worker, 'run') as run:
+            self.c.refreshMicrophones()
+            self.assertTrue(self.c.microphone['refreshing'])
+            self.c.refreshMicrophones()
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0], 'microphone_devices')
+        self.c._on_work('microphone_devices', ['alsa_input.internal', {}, 'bad\nsource', 'alsa_input.internal'])
+        self.assertFalse(self.c.microphone['refreshing'])
+        self.assertEqual(self.c.wake['sources'], ['@DEFAULT_SOURCE@', 'alsa_input.internal'])
+
+    def test_audio_events_wait_for_capture_cleanup_and_keep_manual_refresh_on_failure(self):
+        self.c._microphone['busy'] = True
+        with patch.object(self.c.worker, 'run') as run:
+            self.c._audio_devices_changed()
+            self.c._audio_devices_changed()
+            run.assert_not_called()
+            self.assertTrue(self.c._audio_refresh_pending)
+            self.c._on_work('microphone_probe', {'status': 'ok', 'reason': 'signal', 'bytes': 96000, 'peak': 10, 'rms': 1})
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0], 'microphone_devices')
+            self.assertFalse(self.c._audio_refresh_pending)
+        self.c._on_work('microphone_devices', ['@DEFAULT_SOURCE@'])
+        self.c._audio_devices_unavailable()
+        self.assertEqual(self.c.microphone['deviceUpdates'], 'unavailable')
+        self.assertFalse(self.c.microphone['busy'])
+        self.assertFalse(self.c.microphone['refreshing'])
+
+    def test_meter_rejects_missing_zero_and_malformed_samples(self):
+        base = {'status': 'ok', 'reason': 'signal', 'bytes': 96000, 'peak': 100, 'rms': 30.0}
+        for result in (None, [], {}, base | {'bytes': 0}, base | {'bytes': True},
+                       base | {'peak': 0}, base | {'rms': float('nan')},
+                       base | {'status': 'silent'}, base | {'reason': 'no_signal'}):
+            with self.subTest(result=result):
+                self.c._microphone['busy'] = True
+                self.c._on_work('microphone_probe', result)
+                self.assertFalse(self.c.microphone['busy'])
+                self.assertEqual(self.c.microphone['state'], 'error')
+        self.c._on_work('microphone_probe', base | {'status': 'silent', 'reason': 'no_signal', 'peak': 0, 'rms': 0.0})
+        self.assertEqual(self.c.microphone['state'], 'silent')
+        self.assertEqual(self.c.microphone['message'], self.c.s['pc_mic_reason_no_signal'])
+        self.c._on_work('microphone_probe', base)
+        self.assertEqual(self.c.microphone['state'], 'ok')
+
+    def _save_private_gemini(self, data):
+        self.gemini_path.parent.mkdir(mode=0o700, exist_ok=True)
+        self.gemini_path.write_text(json.dumps(data))
+        self.gemini_path.chmod(0o600)
+
+    def test_opaque_aq_key_is_saved_privately_with_personal_fields_unchanged(self):
+        original = {'model': 'personal-live-001', 'text_model': 'personal-typed-model',
+                    'unknown_field': {'preserve': ['yes', 7]}}
+        self._save_private_gemini(original)
+        key = 'AQ.FAKE_FOR_TESTS_ONLY$opaque+/=:'
+        with patch.object(self.c.worker, 'run') as worker:
+            self.c.saveGeminiKey(' \n' + key + '\t ')
+        saved = json.loads(self.gemini_path.read_text())
+        self.assertEqual(saved, original | {'api_key': key})
+        self.assertEqual(self.gemini_path.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(worker.call_args.args[0], 'brain_key')
+
+    def test_unsafe_or_malformed_saved_configuration_stays_unchanged(self):
+        self._save_private_gemini({'model': 'personal-live-001'})
+        for unsafe in ('symlink', 'writable', 'malformed', 'array', 'directory'):
+            with self.subTest(unsafe=unsafe):
+                if self.gemini_path.exists() or self.gemini_path.is_symlink():
+                    if self.gemini_path.is_dir():
+                        self.gemini_path.rmdir()
+                    else:
+                        self.gemini_path.unlink()
+                target = self.gemini_path.parent / 'unrelated.json'
+                if unsafe == 'symlink':
+                    target.write_bytes(b'{"unrelated":"keep"}')
+                    self.gemini_path.symlink_to(target)
+                elif unsafe == 'directory':
+                    self.gemini_path.mkdir()
+                else:
+                    self.gemini_path.write_bytes(b'not-json' if unsafe == 'malformed' else b'[]' if unsafe == 'array' else b'{}')
+                    self.gemini_path.chmod(0o666 if unsafe == 'writable' else 0o600)
+                before = None if self.gemini_path.is_dir() else self.gemini_path.read_bytes()
+                with patch.object(self.c.worker, 'run') as worker:
+                    self.c.saveGeminiKey('AQ.FAKE_FOR_TESTS_ONLY$opaque')
+                worker.assert_not_called()
+                self.assertEqual(self.toasts[-1], ('error', self.c.s['brain_config_save_failed']))
+                if unsafe == 'symlink':
+                    self.assertTrue(self.gemini_path.is_symlink())
+                    self.assertEqual(target.read_bytes(), before)
+                elif unsafe == 'directory':
+                    self.assertTrue(self.gemini_path.is_dir())
+                else:
+                    self.assertEqual(self.gemini_path.read_bytes(), before)
+
+    def test_voice_model_keeps_personal_choice_until_explicit_selection(self):
+        import live_voice
+        original = {'api_key': 'AQ.FAKE_FOR_TESTS_ONLY$model-choice', 'model': 'personal-live-001', 'custom': [7]}
+        self._save_private_gemini(original)
+        choices, selected = self.c._live_model_selection()
+        self.assertEqual(selected, 'personal-live-001')
+        self.assertIn(selected, [row['id'] for row in choices])
+        self.assertEqual(json.loads(self.gemini_path.read_text()), original)
+        self.c._voice_models, self.c._voice_model = choices, selected
+        self.c.setVoiceModel('unoffered-live-model')
+        self.assertEqual(json.loads(self.gemini_path.read_text()), original)
+        self.c.setVoiceModel(live_voice.DEFAULT_LIVE_MODEL)
+        self.assertEqual(json.loads(self.gemini_path.read_text()), original | {'model': live_voice.DEFAULT_LIVE_MODEL})
+        self.assertEqual(self.c.voiceModel, live_voice.DEFAULT_LIVE_MODEL)
+
+    def test_voice_connection_results_are_classified_and_never_echo_provider_text(self):
+        secret = 'AQ.FAKE_FOR_TESTS_ONLY$provider-message'
+        for result in (None, [], {}, {'status': 'ok', 'model': 'https://bad/' + secret},
+                       {'status': 'error', 'model': 'review-live', 'reason': secret, 'error': secret}):
+            self.c._voice_connection['busy'] = True
+            self.c._on_work('voice_connection', result)
+            self.assertFalse(self.c.voiceConnection['busy'])
+            self.assertEqual(self.c.voiceConnection['state'], 'error')
+            self.assertNotIn(secret, str(self.c.voiceConnection))
+        self.c._on_work('voice_connection', {'status': 'error', 'model': 'review-live', 'reason': 'auth', 'error': secret})
+        self.assertIn('مرفوض', self.c.voiceConnection['message'])
+        self.c._on_work('voice_connection', {'status': 'ok', 'model': 'm' * 160, 'elapsed_ms': 2})
+        self.assertEqual(self.c.voiceConnection['state'], 'connected')
 
     def test_the_key_test_asks_the_model_typed_chat_uses(self):
         with patch('brain.probe_gemini', return_value={'status': 'ok', 'model': 'm', 'elapsed_ms': 5}) as probe:

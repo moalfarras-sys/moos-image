@@ -783,6 +783,14 @@ class ServiceTest(QtCase):
 class RealControllerTest(QtCase):
     """The adapter against Mira's actual controller (test mode, stand-in Echo and brain)."""
 
+    def setUp(self):
+        import brain
+        private = tempfile.TemporaryDirectory(prefix='mira-companion-credential-fixture-')
+        self.addCleanup(private.cleanup)
+        credentials = patch.object(brain, 'GEMINI_CONFIG', Path(private.name) / 'gemini.json')
+        credentials.start()
+        self.addCleanup(credentials.stop)
+
     def test_the_phone_sees_and_answers_the_owner_cards(self):
         from controller import Controller
         from review_fakes import FakeBridge
@@ -846,9 +854,10 @@ class RealControllerTest(QtCase):
         self.assertLess(user['seq'], card['seq'])
         self.assertLess(card['seq'], reply['seq'])
 
-        # Echo not connected yet: Mira's own answer reaches the phone, not a success.
+        # No Echo/key yet: the same PC voice setup guidance reaches the authenticated phone.
         self.assertEqual(h.post('/api/talk')[0], 202)
-        self.assertEqual(stream.wait('toast')['kind'], 'error')
+        self.assertEqual(stream.wait('toast'), {'kind': 'info', 'text': controller.s['desk_needs_key']})
+        self.assertIsNone(controller.desk, 'setup guidance must not open a recorder or cloud session')
         self.assertEqual(controller.bridge.commands, [])
         controller.start()
         self.assertTrue(pump(lambda: controller.echo.get('online') is True))

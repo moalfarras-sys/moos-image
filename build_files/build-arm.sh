@@ -992,6 +992,12 @@ test -d /usr/lib/mira/site/google/genai && test -d /usr/lib/mira/site/aioesphome
     || { echo "GATE FAIL: Mira's pinned packages are missing (/usr/lib/mira/site)"; exit 1; }
 test -x /usr/bin/mira \
     || { echo "GATE FAIL: the Mira launcher is missing or not executable"; exit 1; }
+# A ready window does not prove that the PC microphone/speaker path can run.
+for _mira_audio in pactl parec pw-play; do
+    command -v "$_mira_audio" >/dev/null \
+        || { echo "GATE FAIL: Mira's native audio helper is missing: $_mira_audio"; exit 1; }
+done
+unset _mira_audio
 grep -q 'exec /usr/bin/mira' /usr/bin/moai \
     || { echo "GATE FAIL: moai no longer hands the assistant to Mira"; exit 1; }
 grep -q "DESKTOP_ID = 'org.moos.moai'" /usr/lib/mira/app/app.py \
