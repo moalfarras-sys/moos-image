@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "date": "2026-11-14",
+  "plan": "P5.3",
+  "scope": "Native module compilation/signature review, not signed OS delivery",
+  "kernel": "7.3.3-200.fc44.x86_64",
+  "source_rpm_sha256": "602e8a3b636a17438bd92001fb542844820f2a86c53b793c76e5d9dbfbbf1e29",
+  "devel_rpm_sha256": "e846ece3daa9ff5f563bc663f8c31488050d00726dcaff0ba46b9df62e2788d0",
+  "source_and_devel_publisher_signature": true,
+  "installed_devel_rpm_verify": true,
+  "run": {
+    "exit": 0,
+    "seconds": 11.816,
+    "script_sha256": "f8eb2b29a27b6f6a552147d22fa54154eebe3fa8866a9e98f23a6d5419de18f3",
+    "toolbox_user": "1000:1000",
+    "host_artifact_uid": 1000
+  },
+  "old": {
+    "sha256": "3b0c4175c89872847e222d994c1f8d8c8b5f094bbc88018b5f61848f3a70545a",
+    "bytes": 464424,
+    "vermagic": "7.3.3-200.fc44.x86_64 SMP preempt mod_unload",
+    "depends": "st_lsm6dsx",
+    "import_ns": "IIO_LSM6DSX"
+  },
+  "fixed": {
+    "sha256": "ac995c7cf1c969bf621ee33d3fc13cdae090364a3fe9c3eaa41bad7c148c4059",
+    "bytes": 464632,
+    "vermagic": "7.3.3-200.fc44.x86_64 SMP preempt mod_unload",
+    "depends": "st_lsm6dsx",
+    "import_ns": "IIO_LSM6DSX"
+  },
+  "added_aliases": [
+    "acpi*:SMOCF05:*"
+  ],
+  "removed_aliases": [],
+  "signed_module_sha256": "b2013c5ad9e42c246494e769cbff0bfdd8f7594d4bc1f1d57ed731102213bafb",
+  "native_signature_controls": {
+    "native_valid_signature": true,
+    "both_certificates_readable_valid_and_different": true,
+    "native_changed_content": {
+      "refused": true,
+      "exit": 4
+    },
+    "native_wrong_certificate": {
+      "refused": true,
+      "exit": 4
+    }
+  },
+  "portable_signature_tests": 6,
+  "backport_tests": 2,
+  "first_refusals": [
+    "A bounded altered signature length needs cryptographic verification, not parsing alone.",
+    "Container-root private output was inaccessible to host; use mapped owner UID.",
+    "An unreadable other certificate was not an acceptable wrong-key negative; final native control validates both readable distinct certificates and gets actual CMS exit4."
+  ],
+  "btf": "Native kbuild skips BTF without SDK vmlinux; production packaging remains open.",
+  "kernel_trust": false,
+  "module_installed": false,
+  "module_loaded": false,
+  "physical_sensor_acceptance": false,
+  "booted_version": "44.20261110.1139",
+  "booted_kernel": "7.2.15-200.fc44.x86_64",
+  "rollback_preserved": [
+    "1136",
+    "1078 pinned"
+  ],
+  "host_update_reboot": "held by later owner sensor-repair condition; no staged deployment",
+  "remaining": [
+    "production module signing and trusted enrollment, or signed vendor kernel inclusion",
+    "production packaging and immutable image/boot gates",
+    "actual IIO probe and SensorProxy",
+    "four physical orientations, tilt, touch, external display, suspend and reboot"
+  ]
+}

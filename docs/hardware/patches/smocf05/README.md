@@ -17,6 +17,10 @@ Git's context checks, compares the entire resulting transport against the accept
 digest, preserves both existing ACPI identities and refuses reapplication.
 This is source preparation, not a compiled or signed kernel payload.
 
+The follow-up [native module review](MODULE_REVIEW.md) now compiles the exact old
+and fixed transports from signed vendor inputs and checks a review-only detached
+signature. That private proof is not trusted module delivery or sensor operation.
+
 Delivery must use a signed kernel/module admitted by the existing trusted kernel
 path, exact RPM provenance, architecture/vermagic and full image/boot checks.
 The repository's OCI signing secret does not grant the vendor's kernel-signing

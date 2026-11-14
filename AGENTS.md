@@ -422,6 +422,17 @@ height, bound both rows by the screen and retain native old/fixed ink masks.
 Preserve normal artwork bytes, prompt redraw, masking and finite handoff. A
 private renderer with exact libraries/fonts is not an encrypted cold boot.
 
+**A signed review module is not trusted kernel delivery.** Native7.3.3 old/fixed
+SMOCF05 transports compile from exact publisher-signed SRPM/devel inputs; the
+fixed module adds only its ACPI match. Preserve RPM signatures, source/header
+hashes, native alias/ABI/dependency readback and actual changed-content/wrong-key
+PKCS#7 refusals. A bounded altered signature length can parse successfully;
+cryptographic content verification must still refuse it. Review-only keys are
+never enrolled or shipped. Keep stock signed kernel/recovery and require actual
+production module trust/package/image/probe/rotation acceptance. The owner's
+later sensor-repair condition holds the host stage/reboot waiter independently
+of ongoing release builds; no generic successful image clears that condition.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly
