@@ -1,5 +1,7 @@
 # Working on MoOS — read this first
 
+**A desktop fix does not reach a separately built recovery installer.** Native ARM926's recovery transaction still installs stock Plymouth24.004.60-24 while the desktop has the reviewed frame-lifetime repair. Reuse the existing native producer/package admission and unchanged exact-library/theme initramfs gate in recovery; keep the old source/log refusal. Build the actual recovery image on PRs, and do not call its packaged disk boot-proven from the full desktop's boot. A long main-build wait also invalidates an earlier ref check: pass the reviewed merge SHA to the release command's `--expected-revision` admission before any dispatch, retaining each workflow's exact-SHA/attempt/tree/signature checks.
+
 Owner26Oct typography steering: the experimental from-scratch Meyar Arabic is rejected as incorrect. The owner explicitly authorizes modifying an open-source Arabic typeface instead; preserve its attribution/license and native shaping. A glyph-catalogue preview may paint isolated glyphs without Arabic word shaping. Require a real text-layout/native-editor journey and natural line bounds for stacked marks before claiming Arabic correctness or changing defaults. Keep the source derivative, selectable user-local font and signed OS delivery distinct.
 
 Owner28Oct product steering: build one Arabic-first MoOS for desktop/tablet,

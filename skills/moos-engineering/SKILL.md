@@ -67,6 +67,13 @@ identity and every firing gate hold exactly as written below.
 Independent review, host diagnostics and tooling may run beside a candidate build;
 keep that candidate's branch/SHA fixed. Any later source change needs a new candidate.
 Check active release runners and workflow SHAs before dispatching. A running
+coordinator must pass its reviewed merge SHA as `--expected-revision` when
+invoking `scripts/release-candidate.sh`; its startup fetch refuses a moved ref
+before Actions access. Rechecking a topic worktree after a long CI wait does
+not pin remote main. Recovery installers are separate images/transactions:
+qualify their native package, exact initramfs and boot independently of the
+desktop image; a file-name inventory does not qualify the delivered bytes.
+A running
 candidate freezes `main`, not independent development on a topic branch. Reuse
 its run IDs for monitoring; never duplicate the build or cancel somebody else's
 proof casually. Each push to `main` starts image CI, so batch related reviewed

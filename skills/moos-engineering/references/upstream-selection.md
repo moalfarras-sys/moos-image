@@ -106,3 +106,29 @@ Prefer a small upstreamable fix at a measured seam. A local fork needs a bounded
 patch set, upstream tracking, security-update owner and retirement condition.
 Keep previous failure evidence and reject unknown input drift; never expand a
 version/digest allowlist or remove a gate just to accept an upstream update.
+
+
+## Nov14 V3 rotation: distinguish subsystem acceptance from delivery
+
+The actual signed1139 V3 has an unbound `SMOCF05` I2C client, stock7.2.15
+transport aliases only forSMO8B30/SMOCF00 and SensorProxy accelerometer=false.
+The corrected systemd mount matrix is already installed. The
+[reviewed Linux-IIO v5 series](https://lore.kernel.org/linux-iio/20260928210648.17166-1-jwuerz@gmail.com/)
+adds only `SMOCF05 -> ST_LSM6DS3TRC_ID` after C99 cleanup; the maintainer's
+application is confirmed by actual transport bytes in
+[IIO1390ca4953a7400ca932cb49635f02c727f885a6](https://kernel.googlesource.com/pub/scm/linux/kernel/git/jic23/iio/+/1390ca4953a7400ca932cb49635f02c727f885a6/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c).
+Torvalds97d73c8251226cf27cc6656b4c542869bb8c69fa still lacks it. Preserve
+both results; neither a published patch nor a newer version is installed support.
+
+Follow the stock signed-kernel delivery owner: exact vendor source/RPM and
+module/vermagic/alias review, complete image/signature/boot, then actual
+accelerometer and native KWin four-orientation/tilt/input/suspend acceptance.
+Keep WHO_AM_I, IRQ and I2C failures intact; no DSDT override, forced bind,
+unsigned module or second rotation authority follows from the diagnosis.
+OS image cosign does not supply kernel-module signing trust. Existing NVIDIA
+akmods admission is specific to its exact upstream package/kernel pair.
+Do not overwrite the existing corrected
+[hwdb matrix](https://github.com/systemd/systemd/pull/43941) or infer a physical
+journey while the internal panel is disabled behind an external monitor.
+[Current review](../../../docs/reviews/2026-11-14-v3-rotation-upstream.json)
+records source hashes, native bytes, missing delivery and the next checks.

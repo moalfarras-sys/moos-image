@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "date": "2026-11-14",
+  "plan": [
+    "P5.1",
+    "P5.3",
+    "P5.7"
+  ],
+  "integration_owner": "Codex",
+  "scope": "Read-only native V3 rotation diagnosis and upstream stock-driver admission; no binding or kernel installation",
+  "native": {
+    "version": "44.20261110.1139",
+    "digest": "b0b24ac3099ea9f62f6cfaa1efd3c7ded3056b2073b85b17c8101686e0019134",
+    "kernel": "7.2.15-200.fc44.x86_64",
+    "dmi": {
+      "sys_vendor": "Micro Computer (HK) Tech Limited",
+      "product_name": "V3",
+      "board_name": "HPPAC",
+      "bios_version": "1.06"
+    },
+    "acpi": {
+      "real_path": "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/AMDI0010:03/SMOCF05:00",
+      "hid": "SMOCF05",
+      "modalias": "acpi:SMOCF05:SMOCF05:",
+      "path": "\\_SB_.I2CD.STS_",
+      "status": "15"
+    },
+    "i2c": {
+      "real_path": "/sys/devices/platform/AMDI0010:03/i2c-1/i2c-SMOCF05:00",
+      "modalias": "acpi:SMOCF05:SMOCF05:",
+      "driver_bound": false
+    },
+    "transport": {
+      "path": "/lib/modules/7.2.15-200.fc44.x86_64/kernel/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.ko.xz",
+      "bytes": 7164,
+      "sha256": "589424808bb3e0c6df60316ac5fd16c165c613b9056663950e8ecfa8c4d89336",
+      "acpi_aliases": [
+        "acpi*:SMOCF00:*",
+        "acpi*:SMO8B30:*"
+      ],
+      "signer": "Fedora kernel signing key",
+      "vermagic": "7.2.15-200.fc44.x86_64 SMP preempt mod_unload"
+    },
+    "hwdb": {
+      "path": "/usr/lib/udev/hwdb.d/60-sensor.hwdb",
+      "bytes": 55839,
+      "sha256": "f186fcf1bd5a400f5a858c3a8eb56dc526d4397b926008c898e573817786c516",
+      "entry": "sensor:modalias:acpi:SMOCF05:*:dmi:*:svnMicroComputer(HK)TechLimited:pnV3*:*    # V3, V3 SE\n ACCEL_MOUNT_MATRIX=-1, 0, 0; 0, -1, 0; 0, 0, 1",
+      "compiled_query": {
+        "exit": 0,
+        "lookup_composed_from": "native i2c modalias plus native dmi modalias using 60-sensor.rules prefix",
+        "result": "ACCEL_MOUNT_MATRIX=-1, 0, 0; 0, -1, 0; 0, 0, 1",
+        "stderr": ""
+      },
+      "effective_boundary": "Native compiled database lookup returns the corrected matrix; no new accelerometer exists to receive the corresponding udev property yet."
+    },
+    "sensor_proxy": {
+      "HasAccelerometer": "b false",
+      "AccelerometerOrientation": "s \"undefined\""
+    },
+    "iio_names": {
+      "iio:device0": "als"
+    },
+    "secure_boot": "SecureBoot disabled",
+    "lockdown": "[none] integrity confidentiality",
+    "outputs": "DP-11 enabled3840x2160@60 scale2.5; internal eDP-1 connected but disabled; both report Auto Rotate Policy incapable"
+  },
+  "diagnosis": {
+    "confirmed": "The kernel enumerates SMOCF05 but the stock ST transport has no matching ACPI ID and remains unbound. Only the unrelated ALS is exposed. The corrected native mount matrix is already installed.",
+    "boundary": "No physical WHO_AM_I read, IRQ assignment, actual driver probe, accelerometer data, rotation or tilt was executed. Upstream author results are not this host acceptance."
+  },
+  "upstream": {
+    "series": {
+      "url": "https://lore.kernel.org/linux-iio/20260928210648.17166-1-jwuerz@gmail.com/",
+      "accessible_mail_mirror": "https://patchew.org/linux/20260928210648.17166-1-jwuerz@gmail.com/mbox",
+      "bytes": 16024,
+      "sha256": "2634731b82d9711e3d87458c751f23a6ecac9ac0e454e3ade366a58218e248d2",
+      "base_commit": "a3b3580713f3ac5a32dc2874ee546828977a1d68",
+      "patch_2_message": "20260928210648.17166-3-jwuerz@gmail.com",
+      "original_author": "Samuel Dionne-Riel",
+      "revision_author": "Jared Wuerzburger",
+      "reviewer": "Andy Shevchenko",
+      "maintainer_response": "Jonathan Cameron states patch2 applied atop an equivalent C99 cleanup; this is subsystem-tree evidence, not Torvalds release inclusion."
+    },
+    "iio": {
+      "branch": "togreg; testing has identical transport bytes",
+      "head": "1390ca4953a7400ca932cb49635f02c727f885a6",
+      "head_committer_time": "2026-11-02T02:15:35Z",
+      "url": "https://kernel.googlesource.com/pub/scm/linux/kernel/git/jic23/iio/+/1390ca4953a7400ca932cb49635f02c727f885a6/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c",
+      "bytes": 5485,
+      "sha256": "5527a593fe18195c37e0c31ab04e8fda2840a85a8bb7412e3aeea4e0e3acd755",
+      "exact_patch_commit": "Not established: immutable containing subsystem head is verified; path-log endpoints refused401/403."
+    },
+    "torvalds": {
+      "head": "97d73c8251226cf27cc6656b4c542869bb8c69fa",
+      "head_committer_time": "2026-11-13T21:44:27Z",
+      "url": "https://github.com/torvalds/linux/blob/97d73c8251226cf27cc6656b4c542869bb8c69fa/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c",
+      "bytes": 5390,
+      "sha256": "0b7505a74a95808ff529f60aa2d100c5f7890e2fe60ead5e8cb2d1a67579431a",
+      "smocf05": false,
+      "search_commit_results": 0
+    },
+    "change": "The complete transport difference is C99 initializers for existing SMO8B30/SMOCF00 plus one new SMOCF05 -> ST_LSM6DS3TRC_ID entry. No DMI, IRQ, firmware-property or mount-matrix quirk is added.",
+    "author_hardware_result": "Published V3 BIOS1.06/kernel7.2.7 and V3SE BIOS1.03 controls report WHO_AM_I0x6a and accel/gyro registration; orientation/tilt checked with native SensorProxy and corrected hwdb. These are upstream author tests.",
+    "probe_constraints": "Reference core validates selected ID and WHO_AM_I0x6a, retains I2C/regmap failures, accepts rising/high/falling/low IRQ modes and refuses unsupported modes. It reads standard ROTM or generic mount-matrix; no SLA0/SLG0 parsing. Firmware excerpt has duplicate I2C0x6a resources and GPIO9 edge/active-high; the first I2C resource is selected by core. Actual host CRS/IRQ was not read.",
+    "matrix": {
+      "fix_url": "https://github.com/systemd/systemd/pull/43941",
+      "merged": "2026-09-28",
+      "value": "-1, 0, 0; 0, -1, 0; 0, 0, 1",
+      "host_already_contains": true,
+      "reason": "Firmware SLA0 also negatesZ, producing inverted tilt in the Linux convention. Do not duplicate or replace the existing corrected hwdb entry."
+    }
+  },
+  "delivery": {
+    "existing_owner": "Stock signed kernel ST IIO transport -> existing iio-sensor-proxy -> native KWin/KScreen auto-rotation policy",
+    "next": "Track exact reviewed subsystem change into vendor signed kernel input. Verify signed source/RPMs, architecture, complete module payload/vermagic/aliases and unchanged stock-kernel integrity; qualify canonical image and signed artifact/boot before installed acceptance. A version bump or alias text alone is insufficient.",
+    "rejected_shortcuts": [
+      "No DSDT override or firmware modification",
+      "No forcedbind/new_id/register pokes",
+      "No unsigned bridge, stock-module replacement or competing rotation daemon",
+      "OS cosign is not kernel-module signing trust"
+    ],
+    "existing_module_delivery_scope": "Repository akmods path currently admits exact-kernel upstream NVIDIA RPMs only. It is not a reviewed generic sensor-module signing/admission lane."
+  },
+  "remaining": [
+    "Signed vendor kernel containing match not installed; no native probe yet",
+    "Internal-panel four-orientation/tilt/touch-coordinate/policy-lock journey",
+    "Suspend/resume/reboot durability with external-monitor policy preserved",
+    "V3SE and other hardware/architecture acceptance remain separate"
+  ],
+  "source_changes": "Documentation only; existing device-plan action-needed is correct. A future read-only diagnostic may report matrix-present versus binding-missing, without claiming readiness or mutating policy.",
+  "private_evidence": "test-results/execution-20261114/rotation-upstream-review; captures not uploaded; native initial ACPI collector prefix refusal retained",
+  "host_mutations": false
+}

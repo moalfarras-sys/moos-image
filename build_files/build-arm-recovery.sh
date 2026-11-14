@@ -28,6 +28,7 @@ _RECOVERY=(
     plymouth plymouth-plugin-script plymouth-plugin-two-step
 )
 dnf5 -y install --setopt=install_weak_deps=False "${_RECOVERY[@]}"
+python3 /ctx/plymouth_rpms.py install /plymouth-rpms
 bash /usr/libexec/moos-install-cosign-arm.sh /usr/bin/cosign
 
 echo "=== (2) boot splash (MoOS — no Fedora on screen) ==="
@@ -164,6 +165,10 @@ echo "=== (5) initramfs with MoOS plymouth ==="
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 [ -n "${kver}" ] || { echo "FATAL: no kernel-core in recovery image"; exit 1; }
 python3 /ctx/compose_arm_initramfs.py "${kver}"
+
+# Names alone admit stale package/script/artwork bytes. The unchanged desktop
+# gate requires the exact reviewed runtime and every asset in this archive.
+python3 /ctx/verify_plymouth_initramfs.py "/usr/lib/modules/${kver}/initramfs.img"
 
 lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-recovery-initrd.txt 2>/dev/null \
     || { echo "FATAL: lsinitrd could not inspect recovery initramfs"; exit 1; }

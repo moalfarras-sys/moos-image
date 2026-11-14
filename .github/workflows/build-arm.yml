@@ -53,6 +53,7 @@ on:
       - "tests/test_moos_arm.py"
       - "tests/test_arm_unit_enablement.py"
       - "tests/test_arm_initramfs_size.py"
+      - "tests/test_arm_recovery_plymouth.py"
       - "tests/test_icon_theme_inheritance.py"
       - "tests/test_webengine_dictionaries.py"
       - "tests/test_utm_bundle.py"
@@ -79,6 +80,7 @@ on:
       - "tests/test_moos_arm.py"
       - "tests/test_arm_unit_enablement.py"
       - "tests/test_arm_initramfs_size.py"
+      - "tests/test_arm_recovery_plymouth.py"
       - "tests/test_icon_theme_inheritance.py"
       - "tests/test_webengine_dictionaries.py"
       - "tests/test_utm_bundle.py"
@@ -157,6 +159,7 @@ jobs:
           python3 tests/test_moai_free_policy.py
           python3 tests/test_moai_hermes.py
           python3 tests/test_arm_initramfs_size.py
+          python3 tests/test_arm_recovery_plymouth.py
           python3 tests/test_icon_theme_inheritance.py
           python3 tests/test_webengine_dictionaries.py
           python3 tests/test_boot_splash_polish.py
@@ -208,6 +211,29 @@ jobs:
         run: |
           echo "tag=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
           echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      # Recovery is a separate package transaction. Prove its real native
+      # image on PRs too; the desktop image cannot qualify installer bytes.
+      # Building first allows the desktop to reuse the identical Plymouth SDK.
+      - name: Build and verify the native recovery image
+        run: |
+          set -euo pipefail
+          img=localhost/moos-arm-recovery:ci
+          podman build --pull=always -f Containerfile.arm-recovery -t "$img" .
+          [ "$(podman inspect --format '{{.Architecture}}' "$img")" = arm64 ]
+          podman run --rm --network=none --read-only \
+            --tmpfs /tmp:rw,nosuid,nodev --tmpfs /var/tmp:rw,nosuid,nodev \
+            -v "$PWD/build_files/verify_plymouth_initramfs.py:/tmp/verify-plymouth.py:ro" \
+            "$img" bash -c '
+              set -euo pipefail
+              [ "$(uname -m)" = aarch64 ]
+              archives=(/usr/lib/modules/*/initramfs.img)
+              [ -f "${archives[0]}" ]
+              for archive in "${archives[@]}"; do
+                python3 /tmp/verify-plymouth.py "$archive"
+              done
+              echo MOOS_ARM_RECOVERY_IMAGE_BYTES_PASS
+            '
 
       - name: Build the image
         run: |

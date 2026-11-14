@@ -28,6 +28,8 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+Nov14 P0.7/P0.9: actual native recovery log43484822112 retains stock Plymouth24.004.60-24 although the main ARM image carries the reviewed fix. The slim installer now consumes the same native producer/package admission and unchanged exact-archive gate;10 controls pass and the old source fails3 wiring controls. ARM PRs build and inspect this distinct recovery image before the desktop. P0.1 release coordination also pins the reviewed merge through `--expected-revision`; a real local branch-advance control refuses before API access, while the old unpinned command selects the later source.24 release controls pass. The owned f91 coordinator is explicitly held before merge/dispatch; its full source0/1089.754s and ongoing image/CI proofs remain preserved. Qualify the successor and its actual native recovery bytes before delivery. [Proof](reviews/2026-11-14-arm-recovery-release.json).
+
 Nov13 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. PR288
 merged as e39495b9, preserving tested34812648 ancestry and exact tree. Local
 source0/1147.113s, complete image0/6095.204s and x86/ARM PR gates pass; direct
@@ -366,7 +368,11 @@ M0 evidence as measured performance or require another local VM image.
 2. تحقّق من الجهاز الجاري والـdigest والـrollback وWayland والمقياس والمسارات
    المحمّلة. آخر قراءةV3 على1139 مع1136 للرجوع و1078 مثبت؛ تحقق من الملفات الفعلية،
    ومعيار من/usr ومظهر المالك محفوظ. القراءة مرجع وليست أمرًا لفرض إعداد قديم.
-3. أكمل قبول الدفعة التالية علىSHA ثابت: فحص المصدر الكامل والصورة الحالية
+3. منسّقf91 متوقف عمداً قبل الدمج بسبب حزمةPlymouth القديمة في مثبّتARM
+   المنفصل؛ لا تعِد تشغيله. إصلاحه فيfix/arm-recovery-release-20261114؛ أكمل
+   قبوله علىSHA ثابت، ثم حدّثPR290 ومنسّق الإصدار ليمررSHA الدمج المتوقع
+   عبر`--expected-revision`. فحوصf91 الجارية محفوظة ولا تؤهل المصدر اللاحق.
+   أكمل قبول الدفعة التالية علىSHA ثابت: فحص المصدر الكامل والصورة الحالية
    وبواباتCI، ثم دورة إصدار موقّعة واحدة. لا تنسب إصلاحات الفرع إلى1139.
    احتفظ برفض عرض معيار داخلChromium وبالاختبارات السلبية الأصلية؛ مطابقة
    fc-match وحدها لا تثبت الخط المرسوم. مزودMo AI غير مُعد وفق حالة منقّحة؛
@@ -479,7 +485,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P5.1 | Hardware qualification lab | Nov13 V3 display source18 controls pass, including real zero-size sysfs EDID bytes, unknown DDC errors and virtual DRM ownership. Current1139 and candidate7.3.3 lack the SMOCF05 accelerometer alias; rotation remains unavailable. Preserve earlier USB4/IOMMU, fingerprint and USB capture failures; no reset, blacklist or speculative firmware change. Nov14 fixed brightness executor confirms all target provider states within one bounded budget and refuses stale exit0; physical luminance is still unproved. Actual brightness/hotplug/suspend/device journeys and Home Assistant faults remain open | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
+| P5.1 | Hardware qualification lab | Nov13 V3 display source18 controls pass, including real zero-size sysfs EDID bytes, unknown DDC errors and virtual DRM ownership. Current1139 and candidate7.3.3 lack the SMOCF05 accelerometer alias; rotation remains unavailable. Nov14 confirms the corrected compiled matrix is already installed and official IIO1390ca49 contains the reviewed LSM6DS3TR-C match, while Torvalds97d73c82 lacks it. Track signed vendor kernel inclusion, then native driver/rotation acceptance; no forced bind or competing daemon. See reviews/2026-11-14-v3-rotation-upstream.json. Preserve earlier USB4/IOMMU, fingerprint and USB capture failures; no reset, blacklist or speculative firmware change. Nov14 fixed brightness executor confirms all target provider states within one bounded budget and refuses stale exit0; physical luminance is still unproved. Actual brightness/hotplug/suspend/device journeys and Home Assistant faults remain open | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
 | P5.2 | Laptop policy | Nov11 V3 signed1139: canonical balanced-battery readback and unchanged MoKernel pass; short active-desktop power sample is inconclusive. BIOS1.06/no available firmware update; suspend, endurance and repeated boots remain open. See docs/hardware/V3_20261111_AR.md | Three laptop classes, lid/battery/brightness/power and two suspend cycles each. |
 | P5.3 | Touch/tablet policy | Nov11 V3 native Wayland fixture:50 completed touches,1053 moves,4 contacts; KWin tablet mode active. No pen available; SMOCF05 unbound/rotation unavailable. Full edges/gestures/keyboard/suspend acceptance remains open | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
 | P5.4 | Performance budgets per hardware tier | Historical active-workload samples and local index repairs are retained in PROJECT_STATE/evidence; they are not controlled current idle or comparative OS benchmarks. Establish comparable baselines before choosing optimization work | Record workload, power/thermal state, background work, sample count/duration and refresh rate; compare cold/warm launch p50/p95, frame misses, boot, PSS/CPU/wakeups, battery and mixed-engine load. Declare tolerances before the change, repeat against the same baseline and reject material regressions in another critical metric. |
