@@ -71,5 +71,24 @@
     "Original Main with an already published material marker does not instantiate the startup reader; its passing earlier native proof is retained.",
     "New complete source/image/CI qualification required after this correction.",
     "No host configuration or immutable file was changed."
-  ]
+  ],
+  "revision_literal_followup": {
+    "original_source": "f4b906bf50b1f54fb4e9483c7acffc7c84d09330",
+    "full_source": {
+      "source_sha": "f4b906bf50b1f54fb4e9483c7acffc7c84d09330",
+      "exit": 1,
+      "seconds": 4.956,
+      "dirty_after": "",
+      "head_after": "f4b906bf50b1f54fb4e9483c7acffc7c84d09330",
+      "log_sha256": "a3e2c3b12700f03210d0e91adf3bef45376319518a9ef506d309d1250d6b1e11"
+    },
+    "cause": "Both existing pinned revision assertions still expected148 after shared module bump149. Both literals updated as required by the unchanged fingerprint workflow.",
+    "fixed_ui2": {
+      "exit": 0,
+      "count": 45
+    },
+    "fixed_user_experience": {
+      "exit": 0
+    }
+  }
 }

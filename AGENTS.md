@@ -398,6 +398,13 @@ A published material marker skips the startup Settings reader: preserve the
 actual no-publisher image warning, use QtCore.Settings URL location, and test
 encoded native paths plus unchanged config bytes without relaxing smoke logs.
 
+**A void brightness setter is not measured success.** Re-read every targeted
+native display within one shared deadline, keeping stale/removed/malformed/range
+failures and native quantization. PowerDevil can publish before asynchronous
+hardware completion; provider confirmation is not a physical luminance ACK.
+Keep local image builds bounded and ordinary command failures intact; a build
+envelope does not prove the cause of an earlier mixed-workload OOM.
+
 **A Latin prompt does not reserve Arabic line room.** Current native Plymouth
 paints Arabic unlock text into password bullets at360/480px heights despite a
 clean English control. Position the password row after the actual text image's
