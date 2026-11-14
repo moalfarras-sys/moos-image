@@ -106,6 +106,7 @@ class PageTest(unittest.TestCase):
             patch('moai_agent.get', side_effect=AssertionError('agent reached')),
             patch.object(brain, 'gemini_settings', side_effect=AssertionError('gemini.json read')),
             patch.object(brain, 'probe_gemini', side_effect=AssertionError('Google reached')),
+            patch.object(brain, 'last_answer', return_value={}),
             patch.object(moos_routes, 'open_route', side_effect=AssertionError('moos-open reached')),
             patch.object(brain_page, 'TEST_MODE', False),
         ]
@@ -180,6 +181,55 @@ class PageTest(unittest.TestCase):
         self.assertEqual((state['has_key'], state['voice_model'], state['text_model_source']),
                          (True, 'gemini-3.1-flash-live-preview', 'default'))
 
+
+    def test_actual_paid_provider_shape_is_kept_without_generic_free_claims(self):
+        zen = {'id': 'opencode-zen', 'name': 'OpenCode Zen', 'base': 'https://opencode.ai/zen/v1',
+               'api': 'openai-completions', 'free': False}
+        config = {**CONFIG, 'cloud': {'provider': 'opencode-zen', 'base': zen['base'],
+                                    'model': 'deepseek-v4-flash', 'has_key': True},
+                  'providers': [zen]}
+        state = self.loaded(config=config, gemini={**GEMINI, 'has_key': False})
+        self.assertEqual((state['cloud']['provider'], state['cloud']['model'], state['cloud']['free']),
+                         ('opencode-zen', 'deepseek-v4-flash', False))
+        self.assertEqual((state['route_now'], state['route_state']), ('moai-cloud', 'needs-setup'))
+        self.assertEqual(state['cloud_test']['state'], 'idle', 'configuration is not an answered test')
+        for language in (0, 1):
+            for key in ('br_route_cloud', 'br_uses', 'br_cloud_saved', 'br_cloud_follow_saved', 'br_priv_cloud'):
+                words = STRINGS[key][language]
+                self.assertNotIn('free', words.lower())
+                self.assertNotIn('مجاني', words)
+
+    def test_provider_price_evidence_is_tristate_and_never_inferred_from_name_or_model(self):
+        self.assertIsNone(self.page.state['cloud']['free'])
+        for price in (True, False, None, 'false', 0, 1):
+            with self.subTest(price=price):
+                provider = {'id': 'fixture', 'name': 'Free-sounding name', 'free': price}
+                self.page.on_config('config', {**CONFIG, 'providers': [provider],
+                                              'cloud': {**CONFIG['cloud'], 'provider': 'fixture'}})
+                expected = price if type(price) is bool else None
+                self.assertIs(self.page.state['cloud']['free'], expected)
+        self.page.on_config('config', {**CONFIG, 'providers': []})
+        self.assertIsNone(self.page.state['cloud']['free'], 'an unknown catalogue entry is not free')
+        self.page.on_config('config', {'error': 'fixture-unavailable'})
+        self.assertEqual(self.page.state['cloud']['state'], 'error')
+        self.assertIsNone(self.page.state['cloud']['free'])
+
+    def test_project_permissions_and_admin_authentication_are_separate_in_both_languages(self):
+        state = self.loaded(config={**CONFIG, 'permissions': {**CONFIG['permissions'], 'tier': 'read',
+                                  'exec': False, 'host_control': False, 'sandbox': 'all', 'workspace': 'ro'}})
+        self.assertEqual(state['permissions']['tier'], 'read')
+        self.assertFalse(state['permissions']['host_control'])
+        for language, approval, authentication in ((0, 'موافقتك', 'مصادقة النظام'),
+                                                  (1, 'approval', 'system authentication')):
+            self.assertIn(approval, STRINGS['br_mira_rule'][language])
+            self.assertIn(authentication, STRINGS['br_mira_rule'][language])
+            self.assertIn('root', STRINGS['br_tier_full_note'][language])
+        self.assertIn('Quotas and cost depend', STRINGS['br_key_sub'][1])
+        for language in (0, 1):
+            self.assertIn('Polkit', STRINGS['br_perm_boundary_note'][language])
+            self.assertIn('root', STRINGS['br_perm_boundary_note'][language])
+            self.assertTrue(STRINGS['br_perm_boundary_title'][language])
+
     def test_unknown_tier_is_custom_and_a_config_model_is_named(self):
         config = {**CONFIG, 'permissions': {**CONFIG['permissions'], 'tier': 'root-everything'}}
         state = self.loaded(config=config, gemini={**GEMINI, 'text_model': 'gemini-2.5-flash'})
@@ -250,12 +300,41 @@ class PageTest(unittest.TestCase):
         self.page.setCloudModel('openai/gpt-5.4-mini')
         self.assertEqual(self.page.state['paid_pending'], 'openai/gpt-5.4-mini')
         self.assertEqual(brain.preferences()['cloud_model'], '', 'not saved on the first click')
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'free')
         self.page.cancelPaidModel()
         self.assertEqual((self.page.state['paid_pending'], brain.preferences()['cloud_model']), ('', ''))
         self.page.setCloudModel('openai/gpt-5.4-mini')
         self.page.confirmPaidModel()
         self.assertEqual(brain.preferences()['cloud_model'], 'openai/gpt-5.4-mini')
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'selected')
         self.assertEqual(self.page.state['paid_pending'], '')
+        self.page.setCloudModel('nvidia/nemotron-3-super-120b-a12b:free')
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'free')
+
+    def test_existing_paid_model_preference_does_not_imply_permission_to_bill(self):
+        brain.set_cloud_model('openai/gpt-5.4-mini')
+        self.loaded(models=PAID_MODELS)
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'free')
+        self.page.setCloudModel('openai/gpt-5.4-mini')
+        self.assertEqual(self.page.state['paid_pending'], 'openai/gpt-5.4-mini')
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'free')
+        self.page.confirmPaidModel()
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'selected')
+        self.page.setCloudModel('openai/gpt-5.4-mini')
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'selected',
+                         'reselecting the same confirmed paid model is a no-op')
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'selected')
+        self.page.setCloudModel('')
+        self.assertEqual(brain.preferences()['cloud_cost_policy'], 'free')
+
+    def test_free_policy_blocks_paid_and_unknown_provider_test_before_any_request(self):
+        self.loaded()
+        for free in (False, None):
+            self.page.update(cloud={**self.page.state['cloud'], 'free': free})
+            with patch('moai_tools.post') as post:
+                self.page.testCloud()
+            post.assert_not_called()
+            self.assertEqual(self.host.toasts[-1], ('error', STRINGS['br_free_requires_setup'][0]))
 
     def test_a_pick_that_left_the_catalogue_is_flagged(self):
         brain.set_cloud_model('vanished/model:free')
@@ -451,51 +530,52 @@ class PageTest(unittest.TestCase):
         self.assertTrue(any('brainKeyNow' in line for line in uses))
 
     # ── tests and measuring ─────────────────────────────────────────
-    def test_cloud_test_sends_base_model_and_wire_but_never_a_key(self):
+    def test_free_cloud_test_uses_the_transaction_guard_without_a_provider_key(self):
         self.loaded()
         sent = []
-
-        def post(path, body, timeout=30):
-            sent.append((path, dict(body)))
-            return {'ok': True, 'reply': 'OK', 'model': 'openrouter/free', 'usage': {'in': 9, 'out': 1}}
-        with patch('moai_tools.post', side_effect=post):
+        def gateway(body, **policy):
+            sent.append((dict(body), policy))
+            return {'choices': [{'message': {'content': 'OK'}}], 'model': 'openrouter/free'}
+        with patch.object(brain, '_post_gateway', side_effect=gateway), patch('moai_tools.post') as paid:
             self.page.testCloud()
-        path, body = sent[0]
-        self.assertEqual(path, '/test')
-        self.assertEqual(set(body), {'cloud_base', 'cloud_model', 'cloud_wire'})
-        self.assertEqual(body, {'cloud_base': 'https://openrouter.ai/api/v1', 'cloud_model': 'openrouter/free', 'cloud_wire': 'openai'})
-        test = self.page.state['cloud_test']
-        self.assertEqual((test['state'], test['reply'], test['model']), ('ok', 'OK', 'openrouter/free'))
-
+        paid.assert_not_called()
+        body, policy = sent[0]
+        self.assertEqual(policy, {'free_only': True})
+        self.assertEqual(body['model'], 'cloud:openrouter/free')
+        self.assertNotIn('key', body)
+        self.assertEqual(self.page.state['cloud_test']['state'], 'ok')
         self.page.setCloudModel('nvidia/nemotron-3-super-120b-a12b:free')
-        with patch('moai_tools.post', side_effect=post):
+        with patch.object(brain, '_post_gateway', side_effect=gateway):
             self.page.testCloud()
-        self.assertEqual(sent[-1][1]['cloud_model'], 'nvidia/nemotron-3-super-120b-a12b:free', 'tests the model Mira uses')
+        self.assertEqual(sent[-1][0]['model'], 'cloud:nvidia/nemotron-3-super-120b-a12b:free')
 
-    def test_without_a_pick_the_test_uses_what_the_gateway_uses(self):
-        # The agent's config and moai-control's default can differ; the gateway (no model sent) uses
-        # moai-control's, which /models reports as `default`.
-        self.loaded(config={**CONFIG, 'cloud': {**CONFIG['cloud'], 'model': 'agent/other:free'}})
-        sent = []
-        with patch('moai_tools.post', side_effect=lambda path, body, timeout=30: sent.append(body) or {'ok': True}):
-            self.page.testCloud()
-        self.assertEqual(sent[-1]['cloud_model'], 'openrouter/free')
-        brain.set_cloud_model('vanished/model:free')     # a pick that left the list is refused by the gateway
-        self.loaded(config={**CONFIG, 'cloud': {**CONFIG['cloud'], 'model': 'agent/other:free'}})
-        self.assertTrue(self.page.state['pick_missing'])
-        with patch('moai_tools.post', side_effect=lambda path, body, timeout=30: sent.append(body) or {'ok': True}):
-            self.page.testCloud()
-        self.assertEqual(sent[-1]['cloud_model'], 'openrouter/free')
-
-    def test_cloud_test_failures_keep_the_providers_words(self):
+    def test_free_test_keeps_guard_when_provider_changes_after_metadata_read(self):
         self.loaded()
-        with patch('moai_tools.post', return_value={'ok': False, 'error': 'المفتاح مرفوض | key rejected (401): no'}):
+        with patch.object(brain, '_post_gateway', side_effect=brain.GatewayUnavailable('http_409')) as gateway, \
+                patch('moai_tools.post') as paid:
             self.page.testCloud()
-        test = self.page.state['cloud_test']
-        self.assertEqual((test['state'], test['error_ar'], test['error_en']), ('failed', 'المفتاح مرفوض', 'key rejected (401): no'))
-        with patch('moai_tools.post', return_value={'error': 'moai_control_unreachable'}):
+        paid.assert_not_called()
+        self.assertEqual(gateway.call_args.kwargs, {'free_only': True})
+        self.assertEqual(self.page.state['cloud_test']['state'], 'failed')
+        self.assertIn('no paid provider', self.page.state['cloud_test']['error_en'])
+
+    def test_confirmed_paid_test_preserves_the_existing_selected_provider_owner(self):
+        self.loaded()
+        brain.set_cloud_model('openai/gpt-5.4-mini', allow_paid=True)
+        with patch('moai_tools.post', return_value={'ok': True, 'reply': 'OK'}) as post, \
+                patch.object(brain, '_post_gateway') as free:
             self.page.testCloud()
-        self.assertEqual(self.page.state['cloud_test']['error_en'], STRINGS['br_unreachable'][1])
+        free.assert_not_called()
+        self.assertEqual(post.call_args.args[0], '/test')
+        self.assertEqual(set(post.call_args.args[1]), {'cloud_base','cloud_model','cloud_wire'})
+        self.assertEqual(self.page.state['cloud_test']['state'], 'ok')
+
+    def test_without_a_pick_the_free_test_uses_what_the_gateway_uses(self):
+        self.loaded(config={**CONFIG, 'cloud': {**CONFIG['cloud'], 'model': 'agent/other:free'}})
+        with patch.object(brain, '_post_gateway', return_value={'choices':[{'message':{'content':'OK'}}]}) as gateway:
+            self.page.testCloud()
+        self.assertEqual(gateway.call_args.args[0]['model'], 'cloud:openrouter/free')
+        self.assertEqual(gateway.call_args.kwargs, {'free_only': True})
 
     def test_cloud_test_waits_for_the_provider(self):
         self.page.testCloud()     # config not read yet: nothing is sent (post would raise)

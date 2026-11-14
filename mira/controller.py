@@ -43,7 +43,7 @@ CARD_ENDS = ('ok', 'error', 'cancelled', 'expired')
 PANELS = {'device': 'system', 'health': 'system', 'updates': 'system', 'system': 'system',
           'apps': 'apps', 'compat': 'apps', 'store': 'apps',
           'dev': 'workbench', 'agent': 'workbench', 'workbench': 'workbench', 'terminal': 'workbench',
-          'remote': 'connect', 'connect': 'connect', 'phone': 'connect',
+          'remote': 'connect', 'connect': 'connect', 'phone': 'phone-settings',
           'brain': 'brain', 'settings': 'settings', 'voice': 'voice-settings', 'home': 'home', 'computer': 'pc', 'pc': 'pc', 'chat': '',
           'lumen': 'lumen', 'lights': 'lumen', 'lighting': 'lumen', 'rgb': 'lumen'}
 SETTINGS_PAGES = ('update', 'audio', 'network', 'bluetooth', 'display', 'assistant', 'remote', 'about', 'storage',

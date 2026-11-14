@@ -1,7 +1,7 @@
 """The Brain page: which minds Mira thinks with, which model each uses, and where the words go.
 
 Two brains answer typed chat, in this order: Gemini with the owner's own key (also Mira's voice),
-then Mo AI's free cloud brain through moai-gateway. The page shows both as they really are — the
+then Mo AI's configured cloud brain through moai-gateway. The page shows both as they really are — the
 key state, the typed-chat model, Mo AI's provider and its measured model list — lets the owner pick
 the model each one uses (QSettings 'text_model' / 'cloud_model', read by brain.TextBrain), tests
 either for real, and says which brain answered the last typed question. Mo AI's permission tier is
@@ -49,7 +49,7 @@ STRINGS = {
                              'The latest check failed; its result is shown below.'),
     'br_route_testing': ('جارٍ اختبار الاتصال…', 'Testing the connection…'),
     'br_route_gemini': ('عقل Gemini بمفتاحك', 'Gemini with your key'),
-    'br_route_cloud': ('عقل Mo AI السحابي المجاني', "Mo AI's free cloud brain"),
+    'br_route_cloud': ('عقل Mo AI السحابي', "Mo AI's cloud brain"),
     'br_route_router': ('الأوامر المحلية', 'Local commands'),
     'br_route_moai': ('وكيل Mo AI', 'The Mo AI agent'),
     'br_route_none': ('لا أحد', 'Nobody'),
@@ -66,12 +66,12 @@ STRINGS = {
     'br_no_model': ('—', '—'),
     # Gemini key
     'br_key_title': ('مفتاح Gemini', 'Gemini key'),
-    'br_key_sub': ('صوت ميرا وأدواتها وأسرع إجابة مكتوبة. مجاني من Google AI Studio.',
-                   "Mira's voice, her tools and the fastest typed answers. Free from Google AI Studio."),
+    'br_key_sub': ('مفتاح من Google AI Studio لصوت ميرا وكتابتها. الحصة والكلفة حسب مشروعك لدى Google.',
+                   "A Google AI Studio key for Mira's voice and typed chat. Quotas and cost depend on your Google project."),
     'br_key_stored': ('يُحفظ على هذا الكمبيوتر فقط (0600) ولا يُعرض أبداً',
                       'Kept on this computer only (0600) and never shown'),
     'br_key_test': ('جرّب المفتاح', 'Test the key'),
-    'br_key_get': ('احصل على مفتاح مجاني', 'Get a free key'),
+    'br_key_get': ('احصل على مفتاح Gemini', 'Get a Gemini key'),
     'br_testing': ('أجرّب…', 'Testing…'),
     'br_works': ('يعمل', 'Works'),
     'br_failed': ('لم ينجح', 'Failed'),
@@ -98,8 +98,10 @@ STRINGS = {
     'br_model_not_saved': ('تعذّر حفظ اختيارك', 'Your choice could not be saved'),
     # Mo AI cloud
     'br_cloud_title': ('عقل Mo AI السحابي', "Mo AI's cloud brain"),
-    'br_cloud_sub': ('يجيب بلا مفتاح Gemini، ويحلّ محلّه إن تعذّر. أدوات ميرا نفسها تعمل عليه.',
-                     "Answers when there is no Gemini key, and stands in when Gemini fails. Mira's own tools work on it."),
+    'br_cloud_sub': ('بديل Gemini. ميرا تطلب طريقاً مجانياً فقط افتراضياً، وترفض المزوّد المدفوع ما لم تؤكد اختياراً مدفوعاً هنا.',
+                     'A Gemini fallback. Mira requests a free-only route by default and refuses a paid provider unless you confirm a paid choice here.'),
+    'br_free_requires_setup': ('ميرا مقيّدة بالسحابة المجانية؛ المزوّد الحالي مدفوع أو كلفته غير معروفة. يلزم إعداد مزوّد مجاني. لم يُرسل اختبار.',
+                              'Mira is limited to free cloud; the current provider is paid or its cost is unknown. Configure a free provider. No test was sent.'),
     'br_provider': ('المزوّد', 'Provider'),
     'br_key_saved': ('المفتاح محفوظ', 'Key saved'),
     'br_key_missing': ('لا مفتاح', 'No key'),
@@ -117,7 +119,7 @@ STRINGS = {
     'br_best_short': ('الأفضل هنا', 'Best here'),
     'br_measure': ('قِس من جديد', 'Measure again'),
     'br_measuring': ('أقيس {done} من {total}…', 'Measuring {done} of {total}…'),
-    'br_uses': ('طريق ميرا المجاني يستخدم', "Mira's free route uses"),
+    'br_uses': ('طريق ميرا السحابي يستخدم', "Mira's cloud route uses"),
     'br_follow': ('اتبع إعداد Mo AI', "Follow Mo AI's setting"),
     'br_follow_note': ('النموذج المختار في إعدادات Mo AI: {model}', 'The model chosen in Mo AI settings: {model}'),
     'br_moai_setting': ('إعداد Mo AI', "Mo AI's setting"),
@@ -136,23 +138,33 @@ STRINGS = {
     'br_cancel': ('إلغاء', 'Cancel'),
     'br_pick_gone': ('اختيارك {model} لم يعد في القائمة؛ سيجيب إعداد Mo AI حتى تختار غيره',
                      "Your pick {model} is no longer listed; Mo AI's setting answers until you pick another"),
-    'br_cloud_saved': ('طريق ميرا المجاني يستخدم الآن {model}', "Mira's free route now uses {model}"),
-    'br_cloud_follow_saved': ('طريق ميرا المجاني يتبع إعداد Mo AI', "Mira's free route follows Mo AI's setting"),
+    'br_cloud_saved': ('طريق ميرا السحابي يستخدم الآن {model}', "Mira's cloud route now uses {model}"),
+    'br_cloud_follow_saved': ('طريق ميرا السحابي يتبع إعداد Mo AI', "Mira's cloud route follows Mo AI's setting"),
     'br_models_loading': ('أقرأ قائمة النماذج من المزوّد…', "Reading the provider's model list…"),
     'br_models_failed': ('تعذّر قراءة قائمة النماذج', 'The model list could not be read'),
     'br_not_listed': ('القائمة لم تُقرأ بعد', 'The list has not been read yet'),
     'br_unreachable': ('لا يستجيب Mo AI الآن', 'Mo AI is not answering right now'),
     # permissions
     'br_perm_title': ('صلاحيات وكيل Mo AI', "The Mo AI agent's permissions"),
-    'br_perm_sub': ('الوكيل الذي تستطيع ميرا أن تكلّفه بمهمة، ووكيل الهاتف', 'The agent Mira can hand a task to, and the phone agent'),
-    'br_tier_read': ('معطّل — بلا تحكّم', 'Disabled — no control'),
-    'br_tier_read_note': ('يردّ ويحلّل داخل عزل فقط', 'Replies inside a sandbox only'),
+    'br_perm_sub': ('صلاحيات مهام المشاريع ووكيل الهاتف؛ أدوات ميرا النظامية مستقلة',
+                    "Project-task and phone-agent permissions; Mira's system tools are separate"),
+    'br_perm_boundary_title': ('حدود صلاحيات الكمبيوتر', 'Computer permission boundary'),
+    'br_perm_boundary_note': ('هذا المستوى يضبط أوامر وكيل المشاريع والهاتف بأذونات حسابك، ولا يثبت أو يمنح صلاحيات root دائمة. '
+                              'إجراءات MoOS الإدارية تبقى محددة، تنتظر موافقتك وتخضع لـ Polkit الذي قد يطلب كلمة المرور. '
+                              'أدوات ميرا تحتفظ بقواعدها المستقلة.',
+                              'This tier controls project and phone agent commands with your account permissions; it neither proves nor grants standing root access. '
+                              'MoOS administrator actions remain fixed, wait for your approval, and use Polkit, which may ask for your password. '
+                              "Mira's own tools keep their separate rules."),
+    'br_tier_read': ('قراءة فقط', 'Read only'),
+    'br_tier_read_note': ('يقرأ ملفات المشروع ويحلّلها؛ لا يعدّلها أو ينفّذ أوامرها',
+                         'Reads and analyses project files; cannot edit them or run project commands'),
     'br_tier_project': ('تعديل المشروع', 'Edit project'),
     'br_tier_project_note': ('يقرأ ويعدّل ويختبر داخل مجلد المشروع المعزول', 'Reads, edits and tests inside the sandboxed project'),
     'br_tier_system': ('تحكّم بالنظام — بموافقة', 'System control — ask first'),
     'br_tier_system_note': ('يتحكّم بالجهاز، ويعرض كل أمر لتوافق عليه أولاً', 'Controls the device, showing every command for your approval first'),
     'br_tier_full': ('كامل — بلا سؤال', 'Full — no confirmation'),
-    'br_tier_full_note': ('ينفّذ على جهازك فوراً بلا موافقة. الأقوى والأخطر', 'Runs on your device at once without approval. Most powerful, highest risk'),
+    'br_tier_full_note': ('ينفّذ وكيل الهاتف بأذونات حسابك دون موافقة لكل أمر؛ لا يمنح صلاحيات root تلقائياً',
+                         'The phone agent acts with your account permissions without per-command approval; this does not automatically grant root access'),
     'br_tier_custom': ('صلاحيات مخصّصة', 'Custom permissions'),
     'br_tier_custom_note': ('الإعداد لا يطابق أي مستوى؛ اختر مستوى من الإعدادات', 'Matches no tier; pick one in Settings'),
     'br_web_on': ('الإنترنت: مسموح', 'Internet: allowed'),
@@ -163,16 +175,18 @@ STRINGS = {
     'br_host_off': ('معزول', 'Sandboxed'),
     'br_approvals_on': ('يسأل قبل التنفيذ', 'Asks before acting'),
     'br_approvals_off': ('لا يسأل', 'Does not ask'),
-    'br_mira_rule': ('أدوات ميرا نفسها لا تتبع هذا المستوى: القراءة والتحكّم الفوري يعملان مباشرة، وكل تغيير في النظام ينتظر موافقتك على بطاقة.',
-                     "Mira's own tools do not follow this tier: reads and instant controls run at once, and every system change waits for your approval on a card."),
+    'br_mira_rule': ('أدوات ميرا النظامية مستقلة عن هذا المستوى: القراءة والتحكّم الفوري مباشرة، '
+                     'والتغييرات المحددة تنتظر موافقتك على بطاقة؛ عمليات المسؤول تطلب مصادقة النظام.',
+                     "Mira's system tools are separate from this tier: reads and instant controls run directly; "
+                     'named changes wait for your approval on a card, and administrator operations require system authentication.'),
     'br_perm_open': ('غيّرها في إعدادات النظام', 'Change in System Settings'),
     # privacy
     'br_privacy_title': ('الخصوصية', 'Privacy'),
     'br_privacy_sub': ('إلى أين تذهب كلماتك', 'Where your words go'),
     'br_priv_gemini': ('مع مفتاح Gemini: ما تكتبه وما تقوله لميرا، ونتائج أدواتها، تذهب إلى Google بمفتاحك أنت. البحث يمرّ عبر بحث Google.',
                        'With a Gemini key: what you type and say to Mira, and her tool results, go to Google under your own key. Research goes through Google Search.'),
-    'br_priv_cloud': ('الطريق المجاني: الكتابة ونتائج الأدوات تذهب إلى {provider} على {host}، وإلى النموذج الذي يوجّهها إليه.',
-                      'The free route: typed turns and tool results go to {provider} at {host}, and to the model it routes them to.'),
+    'br_priv_cloud': ('الطريق السحابي: الكتابة ونتائج الأدوات تذهب إلى {provider} على {host}، وإلى النموذج الذي يوجّهها إليه.',
+                      'The cloud route: typed turns and tool results go to {provider} at {host}, and to the model it routes them to.'),
     # tools.system_instruction puts mira_memory.load() and profile_text() into every prompt, and
     # tools.conversation_turns adds the recent messages: say so (test_page_brain pins both halves).
     'br_priv_local': ('ذاكرة ميرا وملفك محفوظان على هذا الكمبيوتر فقط، لكنهما مع آخر المحادثة يُرسلان مع كل سؤال '
@@ -261,6 +275,10 @@ class BrainPage(Page):
                        'unavailable' if routing.get('state') != 'ok' else
                        'needs-setup' if routing.get('cloud') is not True else
                        'unavailable' if routing.get('gateway') is not True else 'configured')
+        if cloud_state == 'configured' and state.get('cloud_cost_policy') != 'selected':
+            cloud = state.get('cloud') or {}
+            cloud_state = ('needs-setup' if cloud.get('free') is False else
+                           'configured' if cloud.get('free') is True else 'unknown')
         fields = {'cloud_route_state': cloud_state}
         if has_key is None:
             return {**fields, 'key_status': 'unknown', 'route_now': '',
@@ -296,11 +314,12 @@ class BrainPage(Page):
             'gemini_health': dict(UNKNOWN_HEALTH),
             'gemini_test': dict(IDLE_TEST),
             'cloud': {'state': 'loading', 'provider': '', 'name_ar': '', 'name_en': '', 'host': '', 'has_key': False,
-                      'model': '', 'free': True, 'wire': 'openai', 'base': ''},
+                      'model': '', 'free': None, 'wire': 'openai', 'base': ''},
             'models_state': 'idle', 'models_error_ar': '', 'models_error_en': '',
             'groups': [], 'all_count': 0,
             'moai_default': '',
             'cloud_model': prefs.get('cloud_model') or '',
+            'cloud_cost_policy': prefs.get('cloud_cost_policy') or 'free',
             'pick_missing': False,
             'paid_pending': '', 'paid_pending_label': '',
             'measure': {'state': 'idle', 'measuring': False, 'done': 0, 'total': 0, 'best': '', 'best_label': '',
@@ -348,6 +367,7 @@ class BrainPage(Page):
     def refresh(self):
         prefs = brain.preferences()
         self.update(loading=True, models_state='loading', cloud_model=prefs.get('cloud_model') or '',
+                    cloud_cost_policy=prefs.get('cloud_cost_policy') or 'free',
                     last=self._last(brain.last_answer()),
                     routing={'state': 'loading', 'gateway': None, 'cloud': None})
         self.run('quick', moai_tools.get, '/quick')
@@ -396,7 +416,8 @@ class BrainPage(Page):
             'state': 'ok', 'provider': provider_id, 'name_ar': name_ar, 'name_en': name_en,
             'host': urllib.parse.urlparse(base).hostname or '', 'base': base,
             'has_key': cloud.get('has_key') is True, 'model': str(cloud.get('model') or ''),
-            'free': entry.get('free') is not False, 'wire': 'anthropic' if api.startswith('anthropic') else 'openai'})
+            'free': entry.get('free') if isinstance(entry.get('free'), bool) else None,
+            'wire': 'anthropic' if api.startswith('anthropic') else 'openai'})
         permissions = result.get('permissions') if isinstance(result.get('permissions'), dict) else {}
         tier = str(permissions.get('tier') or '')
         self.update(permissions={
@@ -541,7 +562,11 @@ class BrainPage(Page):
             self.host.toast.emit('error', self.text('br_not_listed'))
             return
         row = self._rows.get(model_id)
-        if row is not None and row['paid'] and model_id != self._state.get('cloud_model'):
+        if (row is not None and row['paid'] and model_id == self._state.get('cloud_model')
+                and brain.preferences().get('cloud_cost_policy') == 'selected'):
+            return  # reselecting this exact confirmed choice must not revoke it
+        if (row is not None and row['paid'] and (model_id != self._state.get('cloud_model')
+                or brain.preferences().get('cloud_cost_policy') != 'selected')):
             # Billed to the owner's key: one explicit yes on the page first.
             self.update(paid_pending=model_id, paid_pending_label=row['label_en' if self.lang == 'en' else 'label_ar'])
             return
@@ -550,24 +575,25 @@ class BrainPage(Page):
     @Slot()
     def confirmPaidModel(self):
         model_id = self._state.get('paid_pending') or ''
-        if model_id and model_id in self._rows:
-            self._save_cloud_model(model_id)
+        if model_id and model_id in self._rows and self._rows[model_id]['paid']:
+            self._save_cloud_model(model_id, paid_confirmed=True)
         self.update(paid_pending='', paid_pending_label='')
 
     @Slot()
     def cancelPaidModel(self):
         self.update(paid_pending='', paid_pending_label='')
 
-    def _save_cloud_model(self, model_id):
+    def _save_cloud_model(self, model_id, *, paid_confirmed=False):
         try:
-            saved = brain.set_cloud_model(model_id)
+            saved = brain.set_cloud_model(model_id, allow_paid=paid_confirmed)
         except ValueError:
             self.host.toast.emit('error', self.text('br_not_listed'))
             return
         except RuntimeError:
             self.host.toast.emit('error', self.text('br_model_not_saved'))
             return
-        self.update(cloud_model=saved, pick_missing=False, paid_pending='', paid_pending_label='',
+        self.update(cloud_model=saved, cloud_cost_policy=brain.preferences().get('cloud_cost_policy') or 'free',
+                    pick_missing=False, paid_pending='', paid_pending_label='',
                     cloud_test={'state': 'idle', 'model': '', 'reply': '', 'error_ar': '', 'error_en': '', 'ms': 0})
         if saved:
             row = self._rows.get(saved) or {}
@@ -605,7 +631,10 @@ class BrainPage(Page):
         if cloud.get('state') != 'ok' or not cloud.get('base'):
             self.host.toast.emit('error', self.text('br_unreachable'))
             return
-        # The model Mira's free route really asks for: her own pick while it is still listed, else what
+        if brain.preferences().get('cloud_cost_policy') != 'selected' and cloud.get('free') is not True:
+            self.host.toast.emit('error', self.text('br_free_requires_setup'))
+            return
+        # The model Mira's cloud route really asks for: her own pick while it is still listed, else what
         # moai-gateway uses when no model is sent (moai-control's default, which /models reports).
         picked = self._state.get('cloud_model') if not self._state.get('pick_missing') else ''
         model = picked or self._state.get('moai_default') or cloud.get('model') or ''
@@ -613,7 +642,27 @@ class BrainPage(Page):
         # credential store; this page never reads or sends one.
         body = {'cloud_base': cloud['base'], 'cloud_model': model, 'cloud_wire': cloud.get('wire') or 'openai'}
         self.update(cloud_test={'state': 'testing', 'model': model, 'reply': '', 'error_ar': '', 'error_en': '', 'ms': 0})
-        self.run('ctest', self._timed, moai_tools.post, '/test', body, 60)
+        if brain.preferences().get('cloud_cost_policy') != 'selected':
+            # Provider metadata can change after the page was read. The gateway
+            # must enforce this exact test's free-only transaction too.
+            self.run('ctest', self._timed, self._probe_free_cloud, model)
+        else:
+            self.run('ctest', self._timed, moai_tools.post, '/test', body, 60)
+
+    @staticmethod
+    def _probe_free_cloud(model):
+        try:
+            result = brain._post_gateway({'model': 'cloud:' + model,
+                'messages': [{'role': 'user', 'content': 'Reply with exactly: OK'}],
+                'max_tokens': 16, 'stream': False}, free_only=True)
+            reply = result['choices'][0]['message']['content']
+            if not isinstance(reply, str) or not reply.strip():
+                raise ValueError
+            return {'ok': True, 'reply': reply[:120], 'model': result.get('model') or model}
+        except brain.GatewayUnavailable:
+            return {'ok': False, 'error': 'المسار المجاني غير متاح؛ لم يُستخدم مزوّد مدفوع | Free-only route unavailable; no paid provider was used'}
+        except (KeyError, IndexError, TypeError, ValueError):
+            return {'ok': False, 'error': 'رد غير مكتمل من المسار المجاني | Incomplete free-route response'}
 
     @staticmethod
     def _timed(fn, *args):

@@ -263,7 +263,7 @@ RUN mkdir -p /tmp/mira-home/.cache \
     && export HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 \
         QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
     && for module in \
-        test_tools test_brain test_controller test_qml test_mira_combo test_native_appearance test_native_reading_states test_companion test_systools \
+        test_tools test_brain test_controller test_qml test_mira_combo test_companion_qr test_native_appearance test_native_reading_states test_companion test_systools \
         test_live_voice_local test_live_voice_config test_desk_voice test_audio_devices test_mira_memory test_group_lights test_moai_agent_link test_visual_tier test_initial_language \
         test_kde_integration test_inbox test_chat_ui test_moos_routes test_page_pc test_page_apps \
         test_page_system test_page_workbench test_page_connect test_page_brain \

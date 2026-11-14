@@ -7,6 +7,8 @@ ALLOWED={'get_system_status','set_volume','set_mute','set_brightness','show_wind
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*args,**kwargs):return None
 OPENER=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
+class FreeOnlyUnavailable(RuntimeError):
+ pass
 def request(path,body=None,port=None):
  port=port or CONTROL_PORT
  data=None if body is None else json.dumps(body).encode()
@@ -29,7 +31,8 @@ def open_application(name):
  app_id,label=_installed_app(query)
  result=execute('open_app',{'app_id':app_id})
  return {**result,'app_id':app_id,'application':label}
-def ask(text):
+def ask(text, *, free_only=True):
+ free_only=free_only is not False
  from mira_memory import profile_text
  profile=profile_text().strip()
  system=('أنت Mo AI داخل ميرا على MoOS. أجب بالعربية بوضوح. '
@@ -39,12 +42,20 @@ def ask(text):
  payload={'model':'cloud:openrouter/free','messages':[{'role':'system','content':system},
           {'role':'user','content':text}],'stream':False,'max_tokens':700,
           'moai':{'agent':True,'session':'mira-desktop-owner'}}
- call=urllib.request.Request(f'http://127.0.0.1:{GATEWAY_PORT}/v1/chat/completions',
-      data=json.dumps(payload,ensure_ascii=False).encode(),headers={'Content-Type':'application/json'})
+ headers={'Content-Type':'application/json'}
+ if free_only:headers['X-MoAI-Cost-Policy']='free'
+ route='/v1/free/chat/completions' if free_only else '/v1/chat/completions'
+ call=urllib.request.Request(f'http://127.0.0.1:{GATEWAY_PORT}{route}',
+      data=json.dumps(payload,ensure_ascii=False).encode(),headers=headers)
  try:
   with OPENER.open(call,timeout=190) as response:
    route=response.headers.get('X-MoAI-Agent')
    result=json.load(response)
+ except urllib.error.HTTPError as exc:
+  exc.close()
+  if free_only and exc.code in (404,409):
+   raise FreeOnlyUnavailable('Free-only cloud route is unavailable') from None
+  raise RuntimeError('وكيل Mo AI غير متاح الآن') from None
  except (urllib.error.URLError,TimeoutError,ValueError) as exc:
   raise RuntimeError('وكيل Mo AI غير متاح الآن') from exc
  if 'choices' not in result:raise RuntimeError('تعذّر رد وكيل Mo AI')

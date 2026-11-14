@@ -1,5 +1,6 @@
 """Typed brain: manual function-calling loop, honest fallbacks, Qt-safe runner."""
 import asyncio
+import io
 import json
 import tempfile
 import threading
@@ -7,7 +8,7 @@ import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from google.genai import errors, types
 
@@ -136,7 +137,7 @@ class BrainTest(unittest.IsolatedAsyncioTestCase):
         network = OSError('unreachable')
         with patch('command_router.dispatch', return_value=None), patch('moai_link.ask', return_value='MoOS') as ask:
             result = await brain.TextBrain(client=FakeClient([network])).ask('ما مشروعي؟', self.emit)
-        ask.assert_called_once_with('ما مشروعي؟')
+        ask.assert_called_once_with('ما مشروعي؟', free_only=True)
         self.assertEqual((result['route'], result['status'], result['fallback_reason']), ('moai', 'ok', 'network'))
         self.assertIn('وكيل Mo AI', result['reply'])
 
@@ -154,7 +155,7 @@ class BrainTest(unittest.IsolatedAsyncioTestCase):
             {'model': 'free/x', 'choices': [{'message': {'content': 'الساعة 3 و30 دقيقة.'}}]}]
         sent = []
 
-        def gateway(body):
+        def gateway(body, **_policy):
             sent.append(body)
             return replies.pop(0)
         with patch.object(brain, '_post_gateway', side_effect=gateway), patch('moai_link.ask') as ask:
@@ -168,6 +169,56 @@ class BrainTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sent[0]['tools'][0]['function']['parameters']['type'], 'object')
         self.assertEqual(sent[1]['messages'][-1]['role'], 'tool')
         self.assertNotIn('moai', sent[0], 'the direct free route, not the Hermes agent')
+
+    async def test_configured_cloud_fallback_never_claims_a_paid_free_or_unknown_route_is_free(self):
+        auth = errors.ClientError(401, {'error': {'status': 'UNAUTHENTICATED'}})
+        for lang in ('ar', 'en'):
+            # The gateway owns actual provider/model selection. The first value
+            # matches the live selected Zen route; these are offline responses.
+            for model in ('deepseek-v4-flash', 'review/model:free', ''):
+                with self.subTest(lang=lang, model=model):
+                    sent = []
+
+                    def gateway(body, **_policy):
+                        sent.append(dict(body))
+                        return {'model': model, 'choices': [{'message': {'content': 'fixture answer'}}]}
+
+                    with patch.object(brain, '_post_gateway', side_effect=gateway):
+                        result = await brain.TextBrain(client=FakeClient([auth])).ask(
+                            'سؤال' if lang == 'ar' else 'A question', self.emit, lang=lang)
+                    self.assertEqual((result['route'], result['model']), ('moai-cloud', model))
+                    self.assertNotIn('free', result['reply'].lower())
+                    self.assertNotIn('مجاني', result['reply'])
+                    self.assertIn('Mo AI', result['reply'])
+                    self.assertNotIn('model', sent[0], 'keep following the gateway owner')
+                    self.assertNotIn('provider', sent[0], 'no second provider or cost policy')
+
+    async def test_cloud_failure_after_tool_keeps_outcome_without_inventing_free_inference(self):
+        auth = errors.ClientError(401, {'error': {'status': 'UNAUTHENTICATED'}})
+        for lang in ('ar', 'en'):
+            with self.subTest(lang=lang):
+                replies = [
+                    {'model': 'deepseek-v4-flash', 'choices': [{'message': {'content': None, 'tool_calls': [
+                        {'id': 't1', 'type': 'function', 'function': {'name': 'current_time', 'arguments': '{}'}}]}}]},
+                    brain.GatewayUnavailable('http_400'),
+                ]
+
+                def gateway(_body, **_policy):
+                    response = replies.pop(0)
+                    if isinstance(response, Exception):
+                        raise response
+                    return response
+
+                with patch.object(brain, '_post_gateway', side_effect=gateway), \
+                        patch('command_router.dispatch') as dispatch, patch('moai_link.ask') as agent:
+                    result = await brain.TextBrain(client=FakeClient([auth])).ask('question', self.emit, lang=lang)
+                self.assertEqual(result['route'], 'moai-cloud')
+                self.assertEqual([tool['name'] for tool in result['tools']], ['current_time'])
+                self.assertNotIn('free', result['reply'].lower())
+                self.assertNotIn('مجاني', result['reply'])
+                self.assertIn('stopped' if lang == 'en' else 'توقف', result['reply'])
+                dispatch.assert_not_called()
+                agent.assert_not_called()
 
     async def test_auth_and_missing_config_are_classified(self):
         auth = errors.ClientError(400, {'error': {'code': 400, 'message': 'API key not valid. Please pass a valid API key.',
@@ -331,7 +382,7 @@ def hanging_client(before=()):
     return SimpleNamespace(aio=SimpleNamespace(models=models)), models
 
 
-NO_PREFS = {'text_model': '', 'cloud_model': ''}
+NO_PREFS = {'text_model': '', 'cloud_model': '', 'cloud_cost_policy': 'free'}
 
 
 class ModelChoiceTest(unittest.TestCase):
@@ -383,7 +434,7 @@ class ModelChoiceTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 brain.set_cloud_model('../../etc/passwd')
             self.assertEqual(brain.preferences(), {'text_model': 'gemini-2.5-flash',
-                                                   'cloud_model': 'nvidia/nemotron-3-super-120b-a12b:free'})
+                                                   'cloud_model': 'nvidia/nemotron-3-super-120b-a12b:free', 'cloud_cost_policy': 'free'})
             QSettings(ini, QSettings.IniFormat).setValue('text_model', 'made-up')
             self.assertEqual(brain.preferences()['text_model'], '', 'a hand-edited value is not trusted')
             self.assertEqual(brain.set_cloud_model(''), '')
@@ -428,6 +479,30 @@ class ModelChoiceTest(unittest.TestCase):
             missing = brain.probe_gemini(path=Path(self.dir.name) / 'missing.json')
         self.assertEqual((missing['status'], missing['reason']), ('error', 'config'))
 
+    def test_free_selection_clears_previous_paid_permission_before_publishing_model(self):
+        from PySide6.QtCore import QSettings
+        settings = QSettings(str(Path(self.dir.name) / 'Mira.conf'), QSettings.IniFormat)
+        settings.setValue('cloud_cost_policy', 'selected')
+        settings.setValue('cloud_model', 'previous/paid')
+        snapshots = []
+        native_set = settings.setValue
+
+        def set_value(key, value):
+            native_set(key, value)
+            snapshots.append((settings.value('cloud_model'), settings.value('cloud_cost_policy')))
+
+        with patch.object(brain, '_qsettings', return_value=settings), patch.object(settings, 'setValue', side_effect=set_value):
+            brain.set_cloud_model('new/model:free')
+        self.assertEqual(snapshots, [('previous/paid', 'free'), ('new/model:free', 'free')])
+
+    def test_unknown_saved_cost_policy_remains_free_only(self):
+        from PySide6.QtCore import QSettings
+        settings = QSettings(str(Path(self.dir.name) / 'Mira.conf'), QSettings.IniFormat)
+        for value in ('unknown', '', True, 'paid', 'free', 'selected'):
+            settings.setValue('cloud_cost_policy', value)
+            with patch.object(brain, '_qsettings', return_value=settings):
+                self.assertEqual(brain.preferences()['cloud_cost_policy'], 'selected' if value == 'selected' else 'free')
+
 
 class CloudModelTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -444,7 +519,7 @@ class CloudModelTest(unittest.IsolatedAsyncioTestCase):
     async def test_chosen_cloud_model_goes_to_the_gateway(self):
         sent = []
 
-        def gateway(body):
+        def gateway(body, **_policy):
             sent.append(dict(body))
             return {'model': 'nvidia/nemotron-3-super-120b-a12b:free', 'choices': [{'message': {'content': 'أهلاً'}}]}
         prefs = {'text_model': '', 'cloud_model': 'nvidia/nemotron-3-super-120b-a12b:free'}
@@ -456,7 +531,7 @@ class CloudModelTest(unittest.IsolatedAsyncioTestCase):
     async def test_without_a_pick_mo_ai_decides(self):
         sent = []
 
-        def gateway(body):
+        def gateway(body, **_policy):
             sent.append(dict(body))
             return {'choices': [{'message': {'content': 'أهلاً'}}]}
         with patch.object(brain, '_post_gateway', side_effect=gateway):
@@ -464,11 +539,64 @@ class CloudModelTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('model', sent[0])
         self.assertEqual((result['route'], result['model']), ('moai-cloud', ''), 'model is always a string')
 
+    async def test_free_only_survives_model_refusal_and_a_concurrent_paid_preference_change(self):
+        policies = []
+        prefs = {**NO_PREFS, 'cloud_model': 'old/paid-model'}
+
+        def gateway(body, *, free_only):
+            policies.append((dict(body), free_only))
+            if len(policies) == 1:
+                prefs['cloud_cost_policy'] = 'selected'
+                raise brain.GatewayUnavailable('http_409')
+            return {'model': 'review/model:free', 'choices': [{'message': {'content': 'fixture'}}]}
+
+        with patch.object(brain, '_post_gateway', side_effect=gateway):
+            result = await brain.TextBrain(config_path='/nonexistent/gemini.json', prefs=lambda: prefs).ask('hello', None)
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual([policy for body, policy in policies], [True, True])
+        self.assertNotIn('model', policies[-1][0], 'default retry keeps the same free-only boundary')
+
+    async def test_transient_retry_and_agent_fallback_keep_free_only(self):
+        policies = []
+
+        def gateway(body, *, free_only):
+            policies.append(free_only)
+            raise brain.GatewayUnavailable('http_429')
+
+        with patch.object(brain, '_post_gateway', side_effect=gateway), patch.object(brain.asyncio, 'sleep', new=AsyncMock()), \
+                patch('command_router.dispatch', return_value=None), patch('moai_link.ask', return_value='fixture') as agent:
+            await brain.TextBrain(config_path='/nonexistent/gemini.json', prefs=lambda: NO_PREFS).ask('hello', None)
+        self.assertEqual(policies, [True, True])
+        agent.assert_called_once_with('hello', free_only=True)
+
+    async def test_only_explicit_selected_policy_allows_paid_transport_and_agent(self):
+        for policy in (None, '', True, 'unknown', 'free', 'selected'):
+            with self.subTest(policy=policy):
+                prefs = {**NO_PREFS, 'cloud_cost_policy': policy}
+                with patch.object(brain, '_post_gateway', side_effect=brain.GatewayUnavailable('http_409')) as post, \
+                        patch('command_router.dispatch', return_value=None), patch('moai_link.ask', return_value='fixture') as agent:
+                    await brain.TextBrain(config_path='/nonexistent/gemini.json', prefs=lambda: prefs).ask('hello', None)
+                self.assertEqual(post.call_args.kwargs['free_only'], policy != 'selected')
+                agent.assert_called_once_with('hello', free_only=policy != 'selected')
+
+    async def test_free_agent_refusal_explains_setup_without_using_paid_fallback(self):
+        import moai_link
+        for lang in ('ar', 'en'):
+            with self.subTest(lang=lang), patch.object(brain, '_post_gateway', side_effect=brain.GatewayUnavailable('http_409')), \
+                    patch('command_router.dispatch', return_value=None), \
+                    patch.object(moai_link, 'ask', side_effect=moai_link.FreeOnlyUnavailable('opaque provider text')) as agent:
+                result = await brain.TextBrain(config_path='/nonexistent/gemini.json', prefs=lambda: NO_PREFS).ask('hello', None, lang=lang)
+                self.assertEqual((result['status'], result['cloud_error']), ('error', 'free_only_unavailable'))
+                self.assertIn('Brain settings' if lang == 'en' else 'إعدادات العقل', result['reply'])
+                self.assertIn('No paid fallback was used' if lang == 'en' else 'لم يُستخدم أي بديل مدفوع', result['reply'])
+                self.assertNotIn('opaque provider text', result['reply'])
+                agent.assert_called_once_with('hello', free_only=True)
+
     async def test_a_refused_pick_falls_back_to_mo_ais_setting_and_says_so(self):
         sent = []
         replies = [brain.GatewayUnavailable('http_409'), {'model': 'openrouter/free', 'choices': [{'message': {'content': 'تمام'}}]}]
 
-        def gateway(body):
+        def gateway(body, **_policy):
             sent.append(dict(body))
             reply = replies.pop(0)
             if isinstance(reply, Exception):
@@ -493,7 +621,7 @@ class CloudModelTest(unittest.IsolatedAsyncioTestCase):
                        {'id': 't1', 'type': 'function', 'function': {'name': 'current_time', 'arguments': '{}'}}]}}]},
                    brain.GatewayUnavailable('http_400'), {'choices': [{'message': {'content': 'switched'}}]}]
 
-        def gateway(body):
+        def gateway(body, **_policy):
             sent.append(dict(body))
             reply = replies.pop(0)
             if isinstance(reply, Exception):
@@ -516,6 +644,25 @@ class CloudModelTest(unittest.IsolatedAsyncioTestCase):
                 patch('command_router.dispatch', return_value={'kind': 'time', 'result': {'status': 'ok'}, 'message': '8:00'}):
             result = await brain.TextBrain(config_path='/nonexistent/gemini.json', prefs=lambda: NO_PREFS).ask('كم الساعة', None)
         self.assertEqual((result['route'], result['model']), ('router', ''))
+
+
+class GatewayCostTransportTest(unittest.TestCase):
+    def test_default_header_is_free_and_only_explicit_false_omits_it(self):
+        for kwargs, expected in (({}, 'free'), ({'free_only': True}, 'free'),
+                                 ({'free_only': None}, 'free'), ({'free_only': 'selected'}, 'free'),
+                                 ({'free_only': False}, None)):
+            with self.subTest(kwargs=kwargs):
+                requests = []
+
+                def send(request, timeout):
+                    requests.append(request)
+                    return io.BytesIO(b'{"choices": []}')
+
+                with patch.object(brain.urllib.request, 'build_opener', return_value=SimpleNamespace(open=send)):
+                    brain._post_gateway({'messages': []}, **kwargs)
+                self.assertEqual(requests[0].get_header('X-moai-cost-policy'), expected)
+                self.assertTrue(requests[0].full_url.startswith('http://127.0.0.1:'))
+                self.assertTrue(requests[0].full_url.endswith('/v1/free/chat/completions' if expected else '/v1/chat/completions'))
 
 
 class AnswerListenerTest(unittest.TestCase):
@@ -633,7 +780,7 @@ class CancelTest(unittest.TestCase):
         release = threading.Event()
         entered = threading.Event()
 
-        def slow_gateway(body):
+        def slow_gateway(body, **_policy):
             entered.set()
             release.wait(5)
             return {'choices': [{'message': {'content': 'late'}}]}
@@ -671,7 +818,7 @@ class CancelTest(unittest.TestCase):
     def test_a_stop_while_the_agent_works_says_it_may_still_finish(self):
         entered, release = threading.Event(), threading.Event()
 
-        def slow_agent(text):
+        def slow_agent(text, **_policy):
             entered.set()
             release.wait(5)
             return 'done'
@@ -720,12 +867,12 @@ class CancelTest(unittest.TestCase):
     def test_an_agent_that_times_out_may_still_be_working(self):
         release = threading.Event()
         with patch('command_router.dispatch', return_value=None), \
-                patch('moai_link.ask', side_effect=lambda text: release.wait(5)), patch.object(brain, 'AGENT_TIMEOUT_S', 0.2):
+                patch('moai_link.ask', side_effect=lambda text, **_policy: release.wait(5)), patch.object(brain, 'AGENT_TIMEOUT_S', 0.2):
             result = self.run_until(release)
         self.assertEqual((result['status'], result['route']), ('pending', 'moai'))
         self.assertIn('check before asking again', result['reply'])
 
-        def agent_read_timed_out(text):     # moai_link wraps its own socket timeout
+        def agent_read_timed_out(text, **_policy):     # moai_link wraps its own socket timeout
             try:
                 raise TimeoutError('timed out')
             except TimeoutError as exc:

@@ -151,6 +151,12 @@ class ControllerTest(unittest.TestCase):
         self.assertEqual(self.toasts[-1][0], 'error')
 
     # ── voice controls ──────────────────────────────────────────────
+    def test_phone_launcher_reaches_the_pairing_settings(self):
+        sheets = []
+        self.c.showSheet.connect(sheets.append)
+        self.assertEqual(self.c.handle_instance_command(b'open:{"panel":"phone"}'), 'show')
+        self.assertEqual(sheets, ['phone-settings'])
+
     def test_talk_routes_to_echo_or_explains_why_not(self):
         sheets = []
         self.c.showSheet.connect(sheets.append)

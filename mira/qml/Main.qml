@@ -230,8 +230,8 @@ ApplicationWindow {
         }
     }
     function go(name) {
-        if (name === "voice-settings" || name === "settings") {
-            settingsSection = name === "voice-settings" ? 1 : 0
+        if (name === "voice-settings" || name === "phone-settings" || name === "settings") {
+            settingsSection = name === "voice-settings" ? 1 : name === "phone-settings" ? 5 : 0
             settingsRequest += 1
             name = "settings"
         }

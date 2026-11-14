@@ -651,6 +651,13 @@ button:disabled { cursor: default; }
   box-shadow: 0 6px 22px color-mix(in srgb, var(--pc1) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, .3);
 }
 .talk.dim { filter: saturate(.5) brightness(.82); }
+.voice-hint { margin: 6px 0 0; max-width: 40rem; color: var(--ink2); font-size: 12px; line-height: 1.5; }
+@media (min-width: 600px) and (max-height: 500px) {
+  .stage { flex-direction: row; gap: 12px; }
+  .stage > .core { flex: none; }
+  .caption { flex: 1; width: auto; max-width: none; margin-top: 0; text-align: start; }
+  .caption-text { -webkit-line-clamp: 2; }
+}
 .talk:disabled { filter: saturate(.3) brightness(.6); }
 .talk-icon { display: grid; place-items: center; }
 .talk-icon .icon { width: 22px; height: 22px; stroke-width: 2; }
