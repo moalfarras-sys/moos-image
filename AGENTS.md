@@ -433,6 +433,8 @@ production module trust/package/image/probe/rotation acceptance. The owner's
 later sensor-repair condition holds the host stage/reboot waiter independently
 of ongoing release builds; no generic successful image clears that condition.
 
+**A packaged module is not an enrolled module key.** Exact7.3.3 SMOCF05 RPM admission preserves vendor vmlinuz/core/transport bytes and checks the actual packaged PKCS#7 content, RPM metadata/dependencies, full license, depmod resolution, native tamper refusal and private vendor recovery. Strip before signing/compression. The RPM header is unsigned; complete pinned RPM bytes, dedicated pinned module signature and final OS cosign are distinct authorities. Native MOK/keyring/probe and real rotation remain required; never disable enforcement or publish a private key.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly
