@@ -112,8 +112,11 @@ def seal_bls(
         # BIB injects an x86 serial console for its own diagnostics. Desktop
         # editions remove it; cloud deliberately owns a serial+tty0 ordering.
         options = [item for item in options if not item.startswith("console=ttyS0")]
-        if enable_ci_runtime_proof and CI_RUNTIME_KARG not in options:
-            options.append(CI_RUNTIME_KARG)
+        if enable_ci_runtime_proof:
+            if CI_RUNTIME_KARG not in options:
+                options.append(CI_RUNTIME_KARG)
+            if "enforcing=0" not in options:
+                options.append("enforcing=0")
         if target_arch == "arm64":
             # These two latency flags are x86 policy and must not leak into an
             # ARM disk just because its shared image tree contains the source.
@@ -151,8 +154,11 @@ def seal_bls(
         consoles = [item for item in options if item.startswith("console=")]
         if (target_arch == "arm64" or cloud_x86) and consoles[-1] != "console=tty0":
             fail(f"{entry} does not keep the graphical console primary: {consoles}")
-        if enable_ci_runtime_proof and options.count(CI_RUNTIME_KARG) != 1:
-            fail(f"{entry} must contain exactly one {CI_RUNTIME_KARG}")
+        if enable_ci_runtime_proof:
+            if options.count(CI_RUNTIME_KARG) != 1:
+                fail(f"{entry} must contain exactly one {CI_RUNTIME_KARG}")
+            if options.count("enforcing=0") != 1:
+                fail(f"{entry} must contain exactly one enforcing=0")
         lines[index] = "options " + " ".join(options)
         atomic_write(entry, "\n".join(lines) + "\n")
     return entries
