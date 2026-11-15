@@ -196,7 +196,9 @@ def require_guest_exec():
 def root_exec(label, argv, timeout=900):
     """Run one fixed root transaction through QGA and keep its full output as evidence."""
     started = request({"execute": "guest-exec",
-                       "arguments": {"path": argv[0], "arg": argv[1:], "capture-output": True}})
+                       "arguments": {"path": "/usr/bin/bash",
+                                     "arg": ["-lc", 'exec "$@"', "--", *argv],
+                                     "capture-output": True}})
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         status = request({"execute": "guest-exec-status", "arguments": {"pid": started["pid"]}})
