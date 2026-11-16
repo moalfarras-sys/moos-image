@@ -24,7 +24,7 @@ prepare)
     fi
     echo "$source_sha  /work/plasma-login.src.rpm" | sha256sum --check
     LC_ALL=C rpmkeys --checksig --verbose /work/plasma-login.src.rpm > /work/plasma-login-source-signature.txt
-    grep -F '96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb: OK' /work/plasma-login-source-signature.txt
+    grep -F '36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6: OK' /work/plasma-login-source-signature.txt
     rpm2cpio /work/plasma-login.src.rpm > /work/plasma-login-source.cpio
     (cd "$task_root/SOURCES" && cpio -idm --no-absolute-filenames --no-preserve-owner < /work/plasma-login-source.cpio)
     cp "$task_root/SOURCES/plasma-login-manager.spec" "$task_root/SPECS/plasma-login-manager.spec"

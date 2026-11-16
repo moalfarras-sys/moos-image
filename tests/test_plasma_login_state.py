@@ -128,7 +128,7 @@ class GreeterDirectoryState(unittest.TestCase):
         self.authority.symlink_to(other);self.refused('symlink|link');self.assertEqual(other.read_bytes(),data)
 
     def test_unknown_package_version_refuses(self):
-        for nvr in ('6.7.91-2.fc44','6.7.92-1.fc44','6.8.3-1.fc44'):
+        for nvr in ('6.7.91-2.fc44','6.7.92-1.fc44','6.8.4-1.fc44'):
             with self.subTest(nvr=nvr):
                 self.nvr=nvr;self.refused('unreviewed greeter directory package')
 

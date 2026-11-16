@@ -24,13 +24,13 @@ def sha(path):
 def review(base):
     data = json.loads((HERE / 'sources.json').read_text())
     assert data['schema'] == 1 and base == data['base'], f'unreviewed login-manager source: {base}'
-    assert data['base'] == '6.8.2-1.fc44' and data['fixed'] == '6.8.2-1.2.moos1.fc44'
+    assert data['base'] == '6.8.3-1.fc44' and data['fixed'] == '6.8.3-1.2.moos1.fc44'
     assert data['arch'] == 'x86_64'
-    assert data['source_url'] == ('https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/'
-                                  'fedora-44-x86_64/Packages/p/plasma-login-manager-6.8.2-1.fc44.src.rpm')
+    assert data['source_url'] == ('https://dl.fedoraproject.org/pub/fedora/linux/updates/44/Everything/source/tree/Packages/p/'
+                                  'plasma-login-manager-6.8.3-1.fc44.src.rpm')
     for key in ('source_sha256', 'authentication_source_sha256'):
         assert re.fullmatch(r'[a-f0-9]{64}', data[key])
-    assert data['source_signer'] == '96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb'
+    assert data['source_signer'] == '36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6'
     return data
 
 
@@ -46,7 +46,7 @@ def prepared():
                 auth[str(path)] = sha(path)
     assert auth
     digest = hashlib.sha256(json.dumps(auth, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-    assert digest == review('6.8.2-1.fc44')['authentication_source_sha256'], 'native authentication sources changed'
+    assert digest == review('6.8.3-1.fc44')['authentication_source_sha256'], 'native authentication sources changed'
     print('MoOS: exact frontend source and unchanged vendor authentication/helper/daemon verified')
 
 

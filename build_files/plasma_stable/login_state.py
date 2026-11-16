@@ -12,7 +12,7 @@ from finalize_image_state import owned_path
 
 RELATIVE='var/lib/plasmalogin'
 AUTHORITY='usr/lib/tmpfiles.d/plasmalogin.conf'
-REVIEWED_NVRS=('6.7.91-1.fc44','6.8.1-1.fc44','6.8.2-1.fc44')
+REVIEWED_NVRS=('6.7.91-1.fc44','6.8.1-1.fc44','6.8.2-1.fc44','6.8.3-1.fc44')
 RECORD={'mode':0o750,'user':'plasmalogin','group':'plasmalogin','kind':'directory',
         'authorities':[{'authority':AUTHORITY,'rule':['d','/'+RELATIVE,'0750','plasmalogin','plasmalogin']}]}
 
