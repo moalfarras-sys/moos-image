@@ -24,7 +24,10 @@ concurrency:
 jobs:
   rollback:
     name: Boot, switch deployment and roll back
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved this privileged nested builder to 26.04 and osbuild storage
+    # mount failed with permission denied (code 32). Keep the qualified 24.04 host
+    # explicit, matching build-disk.yml.
+    runs-on: ubuntu-24.04
     # Image build + seal + three complete KVM boots; bounded so a wedged guest fails.
     timeout-minutes: 120
     steps:

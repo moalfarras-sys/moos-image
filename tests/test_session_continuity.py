@@ -52,13 +52,14 @@ def probe():
     assert QFontInfo(QFont("Meyar Sans")).family()=="Meyar Sans", "Missing actual Meyar native font"
     engine = QQmlEngine()
     engine.setProperty('_kirigamiTheme', 'org.kde.desktop')
-    types = QQmlPropertyMap()
+    types = QQmlPropertyMap(engine)
     for name, value in dict(ShutdownTypeDefault=-1, ShutdownTypeNone=0, ShutdownTypeReboot=1,
                             ShutdownTypeHalt=2, ShutdownTypeLogout=3).items(): types.insert(name, value)
-    methods = QQmlPropertyMap()
+    methods = QQmlPropertyMap(engine)
     for name in ('StandbyState', 'SuspendState', 'HibernateState'):
         methods.insert(name, name != 'HibernateState' or os.environ.get('PROBE_FIVE_ACTIONS') != '1')
     updates = os.environ.get('PROBE_FIVE_ACTIONS') != '1'
+    engine._keep_alive = [types, methods]
     ctx = engine.rootContext()
     for key, value in dict(ShutdownType=types, spdMethods=methods, sdtype=-1, maysd=True,
                            canLogout=True, softwareUpdatePending=updates, rebootToFirmwareSetup=True,
