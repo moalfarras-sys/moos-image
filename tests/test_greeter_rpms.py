@@ -107,7 +107,7 @@ class ReviewedSourceDownload(unittest.TestCase):
         curl = self.text.index('    source_http="$(curl ')
         digest = self.text.index('sha256sum --check', curl)
         signature = self.text.index('rpmkeys --checksig --verbose', digest)
-        signer = self.text.index("grep -F '96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb: OK'", signature)
+        signer = self.text.index("grep -F '36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6: OK'", signature)
         archive = self.text.index('    rpm2cpio ', signer)
         self.assertLess(curl, digest)
         self.assertLess(digest, signature)
@@ -128,7 +128,7 @@ class ReviewedSourceDownload(unittest.TestCase):
                   'curl() { ' + shlex.quote(curl) + ' --cacert ' + shlex.quote(str(server.cert))
                   + ' --noproxy 127.0.0.1 "$@"; }\n'
                   'rpmkeys() { printf "%s\\n" ' + shlex.quote('wrong signer' if wrong_signer else
-                   '96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb: OK') + '; }\n')
+                   '36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6: OK') + '; }\n')
         digest = '0' * 64 if wrong_digest else hashlib.sha256(server.payload).hexdigest()
         result = subprocess.run(['bash', '-c', prefix + block + '\necho SOURCE_ADMITTED\n'],
                                 env={**os.environ, 'source_url': server.url, 'source_sha': digest},
@@ -199,7 +199,7 @@ class NativePackagePreflight(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory(prefix='moos-greeter-rpms-')
         self.addCleanup(self.directory.cleanup)
         self.folder = Path(self.directory.name)
-        self.source = module.review('6.8.2-1.fc44')
+        self.source = module.review('6.8.3-1.fc44')
         self.manifest = copy.deepcopy(self.source)
         self.manifest['packages'] = []
         for name in sorted(module.PACKAGES):
@@ -212,10 +212,10 @@ class NativePackagePreflight(unittest.TestCase):
             return 'x86_64'
         if arguments[:3] == ['rpm', '-q', '--qf']:
             self.assertIn(arguments[-1], module.PACKAGES)
-            return '6.8.2-1.fc44 plasma-login-manager-6.8.2-1.fc44.src.rpm'
+            return '6.8.3-1.fc44 plasma-login-manager-6.8.3-1.fc44.src.rpm'
         if arguments[:3] == ['rpm', '-qp', '--qf']:
             name = Path(arguments[-1]).stem
-            return name + ' 6.8.2-1.2.moos1.fc44 x86_64'
+            return name + ' 6.8.3-1.2.moos1.fc44 x86_64'
         self.fail('unexpected package inspection: ' + repr(arguments))
 
     def write(self):
@@ -240,7 +240,7 @@ class NativePackagePreflight(unittest.TestCase):
 
     def test_manifest_source_drift_is_refused_before_dnf(self):
         original = copy.deepcopy(self.manifest)
-        for key, value in [('base', '6.8.3-1.fc44'), ('fixed', 'unreviewed'),
+        for key, value in [('base', '6.8.4-1.fc44'), ('fixed', 'unreviewed'),
                            ('source_sha256', '0' * 64), ('source_signer', '0' * 40),
                            ('authentication_source_sha256', '0' * 64), ('arch', 'aarch64')]:
             with self.subTest(key=key):
@@ -278,9 +278,9 @@ class NativePackagePreflight(unittest.TestCase):
                 value = self.command(arguments)
                 if arguments[:2] == ['rpm', '-q']:
                     if wrong == 'newer-installed-base':
-                        return value.replace('6.8.2', '6.8.3')
+                        return value.replace('6.8.3', '6.8.4')
                     if wrong == 'different-source-rpm':
-                        return value.replace('plasma-login-manager-6.8.2-1.fc44.src.rpm', 'other.src.rpm')
+                        return value.replace('plasma-login-manager-6.8.3-1.fc44.src.rpm', 'other.src.rpm')
                 if arguments[:2] == ['rpm', '-qp']:
                     if wrong == 'wrong-package-nvr':
                         return value.replace('1.2.moos1', '1')
