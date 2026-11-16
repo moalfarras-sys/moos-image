@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Private package fixtures: unknown upstream, damaged payloads and gaps fail closed."""
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -13,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('logout_rpms', ROOT / 'build_files/plasma_logout/rpms.py')
 rpms = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rpms)
+source_spec = importlib.util.spec_from_file_location('tray_source', ROOT / 'build_files/plasma_logout/prepare_control_center.py')
+tray_source = importlib.util.module_from_spec(source_spec)
+source_spec.loader.exec_module(tray_source)
 
 
 class NativePackageBoundary(unittest.TestCase):
@@ -37,6 +41,19 @@ class NativePackageBoundary(unittest.TestCase):
         self.activation.write_text('[D-BUS Service]\nName=org.kde.Shutdown\nExec=/usr/bin/plasma-shutdown\n')
         self.manifest = {'schema': 1, 'base': self.base, 'fixed': self.fixed,
                          'arch': 'x86_64', 'source_sha256': self.review['source_sha256'], 'packages': []}
+        self.tray = self.root / rpms.TRAY
+        self.tray.parent.mkdir(parents=True)
+        self.tray.write_bytes(b'private native tray plugin fixture')
+        self.center_source = self.root / 'native-tray-source.json'
+        if 'control_center' in self.review:
+            proof = {'enabled': True, 'base': self.base,
+                     'upstream_sha256': self.review['control_center']['upstream_sha256'],
+                     'qml_sha256': {name: hashlib.sha256(name.encode()).hexdigest() for name in rpms.TRAY_QML},
+                     'cmake_sha256': 'a' * 64}
+            self.manifest['control_center_source'] = proof
+            self.center_source.write_text(json.dumps(proof))
+        receipt_patch = patch.object(rpms, 'TRAY_SOURCE_RECEIPT', self.center_source)
+        receipt_patch.start(); self.addCleanup(receipt_patch.stop)
         for name in sorted(self.owned | {'plasma-workspace-doc'}):
             p = self.folder / (name + '.rpm')
             p.write_bytes(name.encode())
@@ -54,7 +71,10 @@ class NativePackageBoundary(unittest.TestCase):
         if argv[:2] == ['rpm', '-qa']:
             return '\n'.join(sorted(self.owned))
         if argv[:3] == ['rpm', '-q', '--dump']:
-            return f'/usr/bin/plasma-shutdown 20 0 {rpms.sha(self.worker)} 0100755 root root 0 0 0 X'
+            if argv[3] == 'plasma-workspace':
+                return f'/usr/bin/plasma-shutdown 20 0 {rpms.sha(self.worker)} 0100755 root root 0 0 0 X'
+            self.assertEqual(argv[3], 'plasma-workspace-libs')
+            return f'/{rpms.TRAY} 20 0 {rpms.sha(self.tray)} 0100755 root root 0 0 0 X'
         if argv[:3] == ['rpm', '-q', '--qf']:
             if argv[3] == '%{SOURCERPM}':
                 return f'plasma-workspace-{self.base}.src.rpm'
@@ -213,6 +233,121 @@ class Stable682NativePackageBoundary(NativePackageBoundary):
 
 class Stable683NativePackageBoundary(NativePackageBoundary):
     base = '6.8.3-1.fc44'
+
+    def test_missing_native_tray_source_proof_is_refused(self):
+        del self.manifest['control_center_source']
+        self.rejected()
+
+    def test_changed_native_tray_upstream_identity_is_refused(self):
+        self.manifest['control_center_source']['upstream_sha256'] = {'main.qml': '0' * 64}
+        self.rejected()
+
+    def test_tray_plugin_change_after_transaction_is_refused(self):
+        self.install()
+        self.tray.write_bytes(b'changed native tray bytes')
+        with self.assertRaisesRegex(AssertionError, 'tray plugin changed'):
+            rpms.verify(self.root)
+
+    def test_native_rpm_must_own_the_delivered_tray_bytes(self):
+        self.install()
+        original = self.command
+        def changed_dump(argv):
+            if argv == ['rpm', '-q', '--dump', 'plasma-workspace-libs']:
+                return f'/{rpms.TRAY} 20 0 ' + '0' * 64 + ' 0100755 root root 0 0 0 X'
+            return original(argv)
+        with patch.object(rpms, 'command', changed_dump):
+            with self.assertRaisesRegex(AssertionError, 'tray plugin differs'):
+                rpms.verify(self.root)
+
+
+class NativeTraySourceAdmission(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.native = self.root / 'tree/applets/systemtray'
+        self.qml = self.native / 'qml'
+        self.qml.mkdir(parents=True)
+        self.payload = self.root / 'payload'
+        self.payload.mkdir()
+        for name in tray_source.REPLACED:
+            (self.qml / name).write_text('native original ' + name)
+        self.cmake = self.native / 'CMakeLists.txt'
+        self.cmake.write_text('native parent flags\n    RESOURCES\n        main.xml\n')
+        for name in tray_source.REPLACED | tray_source.ADDED:
+            (self.payload / name).write_text('MoOS source ' + name)
+        self.review = {'base': '6.8.3-1.fc44', 'control_center': {
+            'upstream_sha256': {name: rpms.sha(self.qml / name) for name in tray_source.REPLACED},
+            'cmake_sha256': rpms.sha(self.cmake)}}
+        self.original = self.snapshot()
+
+    def snapshot(self):
+        return {str(p.relative_to(self.native)): p.read_bytes() for p in self.native.rglob('*') if p.is_file()}
+
+    def prepare(self):
+        return tray_source.prepare(self.root / 'tree', self.payload, self.review)
+
+    def refused_without_writes(self, message):
+        before = self.snapshot()
+        with self.assertRaisesRegex(AssertionError, message):
+            self.prepare()
+        self.assertEqual(self.snapshot(), before)
+
+    def test_exact_native_inputs_replace_only_the_reviewed_two_and_add_qrc_members(self):
+        (self.qml / 'PlasmoidPopupsContainer.qml').write_text('native lifetime owner')
+        proof = self.prepare()
+        rpms.validate_center_source(self.review, proof)
+        self.assertEqual((self.qml / 'PlasmoidPopupsContainer.qml').read_text(), 'native lifetime owner')
+        for name in tray_source.REPLACED | tray_source.ADDED:
+            self.assertEqual((self.qml / name).read_bytes(), (self.payload / name).read_bytes())
+        text = self.cmake.read_text()
+        self.assertIn('native parent flags', text)
+        for name in tray_source.ADDED:
+            self.assertEqual(text.count('        qml/' + name + '\n'), 1)
+
+    def test_changed_native_source_refuses_before_any_mutation(self):
+        (self.qml / 'main.qml').write_text('unknown native change')
+        self.refused_without_writes('unreviewed native tray source')
+
+    def test_changed_native_parent_refuses_before_any_mutation(self):
+        self.cmake.write_text(self.cmake.read_text() + 'unknown native change')
+        self.refused_without_writes('unreviewed native tray CMake')
+
+    def test_unknown_base_never_receives_a_known_version_patch(self):
+        self.review['base'] = '6.8.4-1.fc44'
+        self.refused_without_writes('unreviewed native tray version')
+
+    def test_missing_and_extra_payload_refuse_before_any_mutation(self):
+        (self.payload / 'main.qml').unlink()
+        self.refused_without_writes('unexpected or missing')
+        (self.payload / 'main.qml').write_text('MoOS source')
+        (self.payload / 'unknown.qml').write_text('unknown source')
+        self.refused_without_writes('unexpected or missing')
+
+    def test_native_collision_and_payload_symlink_are_refused(self):
+        name = next(iter(tray_source.ADDED))
+        (self.qml / name).write_text('native source owns this name')
+        self.refused_without_writes('source collision')
+        (self.qml / name).unlink()
+        (self.payload / name).unlink()
+        (self.payload / name).symlink_to(self.qml / 'main.qml')
+        self.refused_without_writes('unsafe MoOS')
+
+    def test_explicit_older_logout_reviews_keep_their_native_tray(self):
+        for base in ('6.7.5-1.fc44', '6.7.91-1.fc44', '6.8.0-1.fc44', '6.8.1-1.fc44', '6.8.2-1.fc44'):
+            record = tray_source.prepare(self.root / 'tree', self.payload, rpms.source_review(base))
+            self.assertIs(record['enabled'], False)
+            self.assertEqual(self.snapshot(), self.original)
+
+    def test_both_architecture_recipes_admit_source_inside_the_original_build(self):
+        build = (ROOT / 'build_files/plasma_logout/build.sh').read_text()
+        self.assertIn("review['fixed'].split('-', 1)[1]", build)
+        self.assertIn('python3 /src/prepare_control_center.py "$PWD"', build)
+        self.assertLess(build.index('prepared_shutdown_sha256'), build.index('python3 /src/prepare_control_center.py'))
+        for name in ('Containerfile', 'Containerfile.arm'):
+            recipe = (ROOT / name).read_text()
+            self.assertEqual(recipe.count('COPY build_files/plasma_logout/control-center/ /src/control-center/'), 1)
+            self.assertLess(recipe.index('COPY build_files/plasma_logout/control-center/ /src/control-center/'), recipe.index('RUN bash /src/build.sh prepare'))
 
 
 if __name__ == '__main__':

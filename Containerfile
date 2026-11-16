@@ -80,11 +80,13 @@ FROM base AS community-build
 COPY community/ /src/community/
 RUN python3 -B /src/community/stage_client.py /src/community /out/community
 
-# P5.8: exact vendor Plasma rebuild; only the logout transaction is corrected.
+# P5.8/P2: exact vendor Plasma rebuild; native logout and reviewed tray presentation.
 FROM base AS plasma-logout-build
 RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
     'dnf5-command(builddep)' python3 curl plasma-workspace
 COPY build_files/plasma_logout/build.sh build_files/plasma_logout/logout-transaction.patch build_files/plasma_logout/rpms.py build_files/plasma_logout/sources.json /src/
+COPY build_files/plasma_logout/prepare_control_center.py /src/
+COPY build_files/plasma_logout/control-center/ /src/control-center/
 RUN bash /src/build.sh prepare
 RUN bash /src/build.sh compile
 COPY build_files/plasma_logout/rpms.py build_files/plasma_logout/native-proof.cpp build_files/plasma_logout/native-proof.sh /src/
