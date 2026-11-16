@@ -66,6 +66,19 @@ def bind_driver(tmp, driver, *, card='card1'):
     (device / 'driver').symlink_to(owner)
 
 
+def internal_panel(tmp, env):
+    connector = tmp / 'sys/class/drm/card1-DP-1'
+    panel = connector.with_name('card1-eDP-1')
+    connector.rename(panel)
+    backlight = panel / 'amdgpu_bl1'
+    backlight.mkdir()
+    for name, value in (('type', 'raw'), ('brightness', '19661'), ('max_brightness', '65535')):
+        (backlight / name).write_text(value + '\n')
+    links = tmp / 'sys/class/backlight'
+    links.mkdir()
+    (links / backlight.name).symlink_to(backlight, target_is_directory=True)
+
+
 class DisplayProbeTests(unittest.TestCase):
     def run_case(self, **kwargs):
         run = private_run(**kwargs)
@@ -136,6 +149,71 @@ class DisplayProbeTests(unittest.TestCase):
                 self.assertFalse((run['tmp'] / 'ddc-called').exists())
                 path = run['root'] / POLICY
                 self.assertEqual(path.read_text() if path.exists() else None, policy)
+
+    def test_internal_native_backlight_preserves_policy_without_ddc_probe(self):
+        for policy in (None, OWNED, '[Service]\nEnvironment=PERSONAL=1\n'):
+            def native(tmp, env):
+                internal_panel(tmp, env)
+                (tmp / 'bin/ddcutil').write_text('#!/bin/sh\n: > ' +
+                    shlex.quote(str(tmp / 'ddc-called')) + '\nexit 1\n')
+            run = self.run_case(prepare_extra=native, policy=policy)
+            self.assertEqual(run['result'].returncode, 0, run['result'].stderr)
+            self.assertFalse((run['tmp'] / 'ddc-called').exists())
+            self.assertIn('ddc=internal', (run['root'] / STAMP).read_text())
+            path = run['root'] / POLICY
+            self.assertEqual(path.read_text() if path.exists() else None, policy)
+            self.assertEqual((run['tmp'] / 'sys/class/backlight/amdgpu_bl1/brightness').read_text(), '19661\n')
+
+    def test_edp_name_or_unrelated_backlight_does_not_hide_probe_failure(self):
+        for kind in ('missing', 'other-connector', 'broken-link', 'wrong-type', 'zero', 'range', 'malformed', 'oversized'):
+            def invalid(tmp, env):
+                internal_panel(tmp, env)
+                link = tmp / 'sys/class/backlight/amdgpu_bl1'
+                if kind in ('missing', 'broken-link'):
+                    link.unlink()
+                    if kind == 'broken-link':
+                        link.symlink_to(tmp / 'missing')
+                elif kind == 'other-connector':
+                    saved = tmp / 'unrelated-backlight'
+                    link.resolve().rename(saved)
+                    link.unlink()
+                    link.symlink_to(saved, target_is_directory=True)
+                else:
+                    name, value = {'wrong-type': ('type', 'unknown'), 'zero': ('max_brightness', '0'),
+                                   'range': ('brightness', '65536'), 'malformed': ('brightness', '-1'),
+                                   'oversized': ('max_brightness', '1' * 1000)}[kind]
+                    (link / name).write_text(value)
+            with self.subTest(kind=kind):
+                run = self.run_case(prepare_extra=invalid, code=1, policy=OWNED)
+                self.assertEqual(run['result'].returncode, 1)
+                self.assertFalse((run['root'] / STAMP).exists())
+                self.assertEqual((run['root'] / POLICY).read_text(), OWNED)
+
+    def test_internal_plus_external_still_requires_actual_ddc_result(self):
+        for code, output in ((1, ''), (0, 'Display 1\n')):
+            def external(tmp, env):
+                internal_panel(tmp, env)
+                connector = tmp / 'sys/class/drm/card1-DP-1'
+                connector.mkdir()
+                (connector / 'status').write_text('connected\n')
+            run = self.run_case(prepare_extra=external, code=code, output=output, policy=OWNED)
+            self.assertEqual(run['result'].returncode, 1 if code else 0)
+            if code:
+                self.assertFalse((run['root'] / STAMP).exists())
+                self.assertEqual((run['root'] / POLICY).read_text(), OWNED)
+            else:
+                self.assertIn('ddc=probe', (run['root'] / STAMP).read_text())
+                self.assertFalse((run['root'] / POLICY).exists())
+
+    def test_internal_backlight_retirement_retries_same_panel(self):
+        run = self.run_case(prepare_extra=internal_panel, code=1, policy=OWNED)
+        self.assertEqual(run['result'].returncode, 0)
+        old_stamp = (run['root'] / STAMP).read_bytes()
+        (run['tmp'] / 'sys/class/backlight/amdgpu_bl1').unlink()
+        again = subprocess.run(['bash', str(SCRIPT)], env=run['env'], capture_output=True, timeout=10)
+        self.assertEqual(again.returncode, 1)
+        self.assertEqual((run['root'] / STAMP).read_bytes(), old_stamp)
+        self.assertEqual((run['root'] / POLICY).read_text(), OWNED)
 
     def test_physical_unknown_or_mixed_owners_keep_missing_bus_refusal(self):
         for driver in (None, 'amdgpu', 'i915', 'virtio-pci', 'unreviewed'):

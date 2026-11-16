@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "plan_rows": [
+    "P0.6",
+    "P5.1",
+    "P5.3",
+    "P6.7"
+  ],
+  "qualified_source": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+  "installed": {
+    "source_sha": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+    "boot_id": "73037a18-6379-4ffd-8381-0dea648c37b9",
+    "booted": {
+      "version": "44.20261116.1162",
+      "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:fc6dc6667032e679299af0568651d66a99efbf4b866e69c98264f6a0a57f2d11",
+      "checksum": "91e750d4e663c0c97a3228725ae9051f9b68a3878c54688ac3ea8d49caae25b4"
+    },
+    "kernel": "7.3.3-200.fc44.x86_64",
+    "rollback_versions": [
+      "44.20261114.1152",
+      "44.20261019.1078"
+    ],
+    "transaction": null,
+    "staged": false,
+    "sensor": {
+      "exit": 0,
+      "stdout": "b true"
+    },
+    "sensor-orientation": {
+      "exit": 0,
+      "stdout": "s \"undefined\""
+    },
+    "module-taint": {
+      "exit": 0,
+      "stdout": "OE"
+    },
+    "boot-timing": {
+      "exit": 0,
+      "stdout": "Startup finished in 6.785s (firmware) + 2.985s (loader) + 807ms (kernel) + 2.335s (initrd) + 9.228s (userspace) = 22.143s \ngraphical.target reached after 8.813s in userspace."
+    },
+    "sensor_driver": "/sys/bus/i2c/drivers/st_lsm6dsx_i2c",
+    "physical_rotation_tested": false,
+    "module_key_enrolled": false
+  },
+  "published": {
+    "moos": {
+      "digest": "sha256:fc6dc6667032e679299af0568651d66a99efbf4b866e69c98264f6a0a57f2d11",
+      "revision": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+      "version": "44.20261116.1162",
+      "architecture": "amd64",
+      "cosign_exit": 0
+    },
+    "moos-nvidia": {
+      "digest": "sha256:e70d97e447a6bccfa9159355bf969f70d96a8c04b03868599ede90dc4b1e946e",
+      "revision": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+      "version": "44.20261116.1162",
+      "architecture": "amd64",
+      "cosign_exit": 0
+    },
+    "moos-cloud": {
+      "digest": "sha256:8b7a6fbd9746c0d659e276887c3c6f9919bd2ff0e42ca937497064a7de45157e",
+      "revision": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+      "version": "44.20261116.1162",
+      "architecture": "amd64",
+      "cosign_exit": 0
+    },
+    "moos-arm": {
+      "digest": "sha256:25316326af2f40caafd296712efeb2a4e8689f16a5d63d7a5f1a3518384e13b7",
+      "revision": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+      "version": "44.20261116.949",
+      "architecture": "arm64",
+      "cosign_exit": 0
+    }
+  },
+  "workflow_runs": {
+    "x86_build": 43881087588,
+    "generic_qcow2": 43903580783,
+    "nvidia_qcow2": 43903588878,
+    "cloud_qcow2": 43903597093,
+    "offline_iso": 43903613605,
+    "x86_promotion": 43909184122,
+    "arm_build_boot_promotion": 43903637017
+  },
+  "arm_proof": {
+    "boot_proven_raw_qcow2_sha256": "8fb1ba534e61e5ab795e7c9703514d1bd72a7254e7a2a520e1a84d4bceea4267",
+    "first_boot": "healthy",
+    "poweroff": "clean",
+    "revision": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+    "schema": 1,
+    "second_boot": "healthy",
+    "source_image": "ghcr.io/moalfarras-sys/moos-arm@sha256:25316326af2f40caafd296712efeb2a4e8689f16a5d63d7a5f1a3518384e13b7",
+    "workflow_run_id": 43903637017
+  },
+  "installed_runtime": {
+    "files": 25,
+    "all_equal": true
+  },
+  "qt": {
+    "package": "6.11.2-3.1.moos1.fc44",
+    "quick_sha256": "8760b822e9cfb6340809b874619f9a9c2a5c61250e96be780c93f4d1e2797ff6",
+    "bytes_match": true,
+    "executed_destruction_image_receipt": true,
+    "physical_screen_removal_tested": false
+  },
+  "mira": {
+    "quick_error": null,
+    "brains": {
+      "gateway": true,
+      "local": false,
+      "cloud": true
+    },
+    "config_error": null,
+    "cloud": {
+      "provider": "opencode-zen",
+      "has_key": true,
+      "model": "deepseek-v4-flash"
+    },
+    "permissions": {
+      "tier": "read",
+      "exec": false,
+      "host_control": false,
+      "approvals": false
+    },
+    "gemini": {
+      "has_key": true,
+      "voice_model": "",
+      "text_model": ""
+    },
+    "inference_tested": false,
+    "owner_speech_tested": false
+  },
+  "health": {
+    "post_update": {
+      "passed": 55,
+      "failed": 1,
+      "exit": 1
+    },
+    "selfcheck": {
+      "passed": 52,
+      "failed": 1,
+      "notes": 1,
+      "exit": 1
+    },
+    "failed_system_unit": "moos-hardware-adapt.service",
+    "failed_user_units": 0
+  },
+  "ddc": {
+    "installed_failure": "Boot service exit1 from ddcutil; root-specific exit cause remains unobserved. Native account detect returns0/Invalid display. Root rerun is unavailable without native authentication.",
+    "native_backlight": {
+      "connector": "card1-eDP-1",
+      "owner": "amdgpu_bl1",
+      "type": "raw",
+      "maximum": 65535,
+      "brightness": 19661
+    },
+    "controls": {
+      "old": {
+        "source_sha256": "328414b8b1ba17662a3214a997ea68cf49b7572228f42f898e2887843ac9f4a6",
+        "native_scope_exit": 0,
+        "native_scope": "probe",
+        "private_adapter_exit": 1,
+        "stamp_present": false,
+        "policy_preserved": true
+      },
+      "fixed": {
+        "source_sha256": "63a4501cea0bef68ada69263a35a66682a2cf1ec994efb764eddd3bd2553f2f4",
+        "native_scope_exit": 0,
+        "native_scope": "internal",
+        "private_adapter_exit": 0,
+        "stamp_present": true,
+        "policy_preserved": true
+      }
+    },
+    "focused_tests": {
+      "command": "python3 tests/test_hardware_display_probe.py",
+      "passed": 22
+    },
+    "upstream": [
+      "https://www.ddcutil.com/faq/",
+      "https://www.ddcutil.com/release_notes_220/"
+    ],
+    "behavior": "Only connector-owned valid internal eDP backlights avoid DDC. External, mixed, misnamed, stale and unavailable evidence retains probing/refusal. Personal policy and brightness stay untouched.",
+    "installed_fix": false
+  },
+  "refusals_preserved": [
+    "Native root probe unavailable (sudo requires owner authentication).",
+    "Image-only module verifier refuses RPM timestamp-only differences on booted immutable files. Independent exact payload/kernel/library checks pass; no gate was relaxed.",
+    "Kernel reports a separate authattrs warning before module probe. The exact sensor CMS has no signed attributes; no causal attribution is made."
+  ],
+  "remaining": [
+    "Module public key is not enrolled; Secure Boot was already disabled, sig_enforce=N and loaded sensor taint=OE. Actual trust under Secure Boot remains open.",
+    "SensorProxy has accelerometer, orientation remains undefined without a completed physical consumer/tilt journey. Four orientations, touch mapping, lock, external screen and suspend remain untested.",
+    "Native hwdb query returns the reviewed matrix, but current IIO udev properties do not publish ACCEL_MOUNT_MATRIX and kernel mount_matrix is identity; verify native publication before accepting alignment.",
+    "Boot kernel retains SMBus timeout and dirty EFI FAT volume warning. No live fsck/unmount, bus reset or speculative driver change performed.",
+    "Actual owner speech, audible Mira reply and phone pairing remain deferred/unqualified. Cloud configuration is present; inference was not attempted on the selected paid provider."
+  ],
+  "local_evidence": "test-results/native-1162-review-20261116 (private captures and bounded logs remain local)",
+  "successor_qualification": "Source correction only; complete source/image/CI and signed installed acceptance still required."
+}

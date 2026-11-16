@@ -184,6 +184,8 @@ bind negatives. A private prefix replay is not a complete image qualification.
 > traps are preserved below in this rules file. This file is the rules;
 > `PROJECT_STATE.md` is the terrain.
 
+**An internal backlight is not an external DDC monitor.** Native signed1162 retains a root DDC exit1 on the V3's only internal eDP panel, while the account probe returns0/Invalid display. Preserve both results; the root-specific cause is not established. Skip DDC only when the exact connected eDP connector owns a valid native kernel backlight, never from its name or absent I2C alone. Keep external/mixed/unknown failures, personal PowerDevil policy, final topology recheck and native old/fixed controls. A source classification does not repair the installed unit or qualify physical luminance.
+
 **A missing probe is not healthy hardware, and a rollback is not the booted edition.**
 Device diagnostics must distinguish unavailable PCI evidence from a ready machine, validate firmware JSON shapes, and select only the booted deployment when identifying an edition. Respect administrator masks on optional thermald/fwupd units; a refused enable must never print success or write the adaptation stamp. Arrange shortcuts and stale menu actions must validate their active anchor too. Preserve executable old/fixed controls and private native geometry evidence; never run a review compositor on the owner's bus.
 
