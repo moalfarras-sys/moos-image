@@ -1143,7 +1143,7 @@ class Controller(QObject):
                 os.close(directory)
 
     def _live_model_selection(self):
-        from live_voice import LIVE_MODEL_CHOICES, DEFAULT_LIVE_MODEL
+        from live_models import LIVE_MODEL_CHOICES, DEFAULT_LIVE_MODEL
         from brain import GEMINI_CONFIG
         choices = [dict(choice) for choice in LIVE_MODEL_CHOICES]
         model = DEFAULT_LIVE_MODEL

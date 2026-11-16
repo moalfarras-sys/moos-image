@@ -422,6 +422,19 @@ height, bound both rows by the screen and retain native old/fixed ink masks.
 Preserve normal artwork bytes, prompt redraw, masking and finite handoff. A
 private renderer with exact libraries/fonts is not an encrypted cold boot.
 
+**A signed review module is not trusted kernel delivery.** Native7.3.3 old/fixed
+SMOCF05 transports compile from exact publisher-signed SRPM/devel inputs; the
+fixed module adds only its ACPI match. Preserve RPM signatures, source/header
+hashes, native alias/ABI/dependency readback and actual changed-content/wrong-key
+PKCS#7 refusals. A bounded altered signature length can parse successfully;
+cryptographic content verification must still refuse it. Review-only keys are
+never enrolled or shipped. Keep stock signed kernel/recovery and require actual
+production module trust/package/image/probe/rotation acceptance. The owner's
+later sensor-repair condition holds the host stage/reboot waiter independently
+of ongoing release builds; no generic successful image clears that condition.
+
+**A packaged module is not an enrolled module key.** Exact7.3.3 SMOCF05 RPM admission preserves vendor vmlinuz/core/transport bytes and checks the actual packaged PKCS#7 content, RPM metadata/dependencies, full license, depmod resolution, native tamper refusal and private vendor recovery. Strip before signing/compression. The RPM header is unsigned; complete pinned RPM bytes, dedicated pinned module signature and final OS cosign are distinct authorities. Native MOK/keyring/probe and real rotation remain required; never disable enforcement or publish a private key.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly

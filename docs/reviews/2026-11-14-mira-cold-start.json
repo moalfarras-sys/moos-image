@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "date": "2026-11-14",
+  "scope": "Lightweight native settings and ARM startup diagnostics; not proven cause of prior ARM timeout",
+  "failed_arm_run": 43622601564,
+  "failed_boot_exit": 124,
+  "old_picker": {
+    "exit": 1,
+    "stdout": "{\"import_ms\": 235.263, \"ok\": false, \"reason\": \"model picker attempted voice runtime: live_voice\", \"elapsed_ms\": 235.292}\n",
+    "stderr": ""
+  },
+  "fixed_picker": {
+    "exit": 0,
+    "stdout": "{\"import_ms\": 154.927, \"ok\": true, \"selected\": \"gemini-3.1-flash-live-preview\", \"ids\": [\"gemini-3.1-flash-live-preview\", \"gemini-2.5-flash-native-audio-preview-12-2025\"], \"elapsed_ms\": 155.162}\n",
+    "stderr": ""
+  },
+  "native_config_tests": 22,
+  "arm_source_tests": 69,
+  "same_models_and_personal_selection": true,
+  "diagnostics": "Real interpreter wrapper retains argv/exit, emits bounded import/stack output before unchanged120s timeout, and kills on timeout; actual fixture controls pass.",
+  "arm_boot_after_fix": "not-yet-tested",
+  "signed_delivery": "pending final combined source/image and first-attempt boots"
+}

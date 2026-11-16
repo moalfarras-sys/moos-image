@@ -396,6 +396,14 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,sharing=locked,dst=/var/cache \
     --mount=type=cache,sharing=locked,dst=/var/log \
     python3 /ctx/qtquick/rpms.py install /qtquick-rpms
+# Exact native V3 transport backport. This additive RPM preserves the vendor
+# kernel/module and verifies its own module signature; key enrollment and real
+# sensor operation remain native acceptance requirements, never image claims.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    if [ "$IMAGE_NAME" != moos-cloud ]; then \
+        MOOS_SENSOR_COMPOSE=1 python3 /ctx/smocf05/admit.py compose \
+            /ctx/smocf05/kmod-moos-smocf05-7.3.3-200.1.moos1.fc44.x86_64.rpm; \
+    fi
 COPY system_files/ /
 COPY --from=moremote-build /out/ /usr/lib/mo-remote/
 # Keep the vendored app's standalone icon byte-identical to MoOS's new
@@ -440,6 +448,8 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,sharing=locked,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     MOOS_IMAGE_NAME="${IMAGE_NAME}" bash /ctx/build.sh
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    if [ "$IMAGE_NAME" != moos-cloud ]; then python3 /ctx/smocf05/admit.py verify-installed; fi
 
 # Final gate: validate that the result is a well-formed bootc container
 # (clean /var, valid ostree layout, kernel present, ...). The build FAILS

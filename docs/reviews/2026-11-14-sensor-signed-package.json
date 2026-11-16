@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "date": "2026-11-14",
+  "plan": "P5.3",
+  "state": "packaged-native-container-qualified-image-and-machine-trust-pending",
+  "package": {
+    "schema": 1,
+    "kernel": "7.3.3-200.fc44.x86_64",
+    "upstream_commit": "53c677faa471be1ebfdbbea87dfa3dbe5b0fa2fb",
+    "compiled_sha256": "ac995c7cf1c969bf621ee33d3fc13cdae090364a3fe9c3eaa41bad7c148c4059",
+    "stripped_sha256": "c40175d4add40bf5c828465296016178e16c5bf865e706b2b13cff71ac2a531f",
+    "signed_sha256": "80b0c89ed8eeec24a1341e8dfc0d219c48bd24c0a440f7af9fc4d22911eecf3f",
+    "compressed_sha256": "2692bdbd63ffe68f11a3cba6b97b924d2befa8f2b2ccaef3ded50f8ffb341d96",
+    "certificate_der_sha256": "b8c98812edf59a6e3e96321a5dcd718cf70204baa25af00189d3fa8cc4d1a535",
+    "native_proof_sha256": "c7b65866ab849bc909ac1eb21e62cd4f8e60dc2ef1415d41909590c7b1000e75",
+    "kernel_trust": "requires native MOK/keyring readback; never inferred from package",
+    "rpm_sha256": "370160c2637074562006a840e943ac5cb1dcec27717d950244d3b7436d59cf1c",
+    "rpm_bytes": 20770,
+    "rpm_name": "kmod-moos-smocf05-7.3.3-200.1.moos1.fc44.x86_64.rpm",
+    "rpm_header_signed": false,
+    "integrity": "exact reviewed RPM digest and pinned module PKCS#7; final OS cosign",
+    "installed": false,
+    "loaded": false,
+    "key_enrolled": false,
+    "vendor_kernel_sha256": "3d48afe25f4f304f7b5b80404d724a454d5188bc15cd98e34587cd6ab2c79ec8",
+    "vendor_core_sha256": "7cba3647a7f18549f1930f75e67ec4f23988ca59fb06e9a537375542c87c8bbd",
+    "vendor_transport_sha256": "c1494ed24696d7df2d9e53c68d8e7597c3bf20b292b77b1d01e23d9deb1bc29b"
+  },
+  "native_compose": {
+    "exit": 0,
+    "seconds": 6.048,
+    "image": "868a12aec481212a5a33a04ca3441c9ed74e42a9c05fd888718c73aa25bbea5f",
+    "host_mutated": false
+  },
+  "native_tamper_recovery": {
+    "exit": 0,
+    "tamper_marker": true,
+    "recovery_marker": true,
+    "host_mutated": false
+  },
+  "tests": {
+    "package": 5,
+    "signature": 6,
+    "cache_locking": 2,
+    "shell_continuation": true
+  },
+  "first_refusal": "Private source bind label denied access; retained. New review disables only container labeling and never relabels source or changes host policy.",
+  "key": {
+    "scope": "dedicated production module-only signer",
+    "private_key_in_git": false,
+    "private_key_in_image": false,
+    "enrolled": false
+  },
+  "installed_host_changed": false,
+  "stock_kernel_preserved": true,
+  "signed_rollback_preserved": true,
+  "physical_rotation": "not-tested; current I2C sensor unbound",
+  "source_full_check": "not-yet-run on final combined source",
+  "full_image": "not-yet-built with module",
+  "remaining": [
+    "native enrollment/actual trusted keyring and driver probe",
+    "complete current image, architecture CI and signed candidate boot proofs",
+    "four physical orientations/touch/tilt/lock/suspend/reboot"
+  ]
+}
