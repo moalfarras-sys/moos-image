@@ -936,10 +936,15 @@ kawkab_ver=0.501
 kawkab_sha=11c06f57dddefaf0166d74caaa072865ab6ff8d34076e7ec5d2c20edda145666
 kawkab_zip=/tmp/kawkab-mono.zip
 # Exact upstream release asset 1214878 is v0.501; retain the reviewed digest.
-curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 --max-time 180 \
+if ! curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 --max-time 180 \
     --proto '=https' --proto-redir '=https' -H 'Accept: application/octet-stream' \
     -o "${kawkab_zip}" \
-    'https://api.github.com/repos/aiaf/kawkab-mono/releases/assets/1214878'
+    'https://api.github.com/repos/aiaf/kawkab-mono/releases/assets/1214878'; then
+    curl -Lf --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 30 --max-time 180 \
+        --proto '=https' --proto-redir '=https' \
+        -o "${kawkab_zip}" \
+        "https://github.com/aiaf/kawkab-mono/releases/download/v${kawkab_ver}/kawkab-mono-${kawkab_ver}.zip"
+fi
 echo "${kawkab_sha}  ${kawkab_zip}" | sha256sum -c -
 mkdir -p /usr/share/fonts/kawkab-mono
 python3 -m zipfile -e "${kawkab_zip}" /tmp/
