@@ -79,6 +79,7 @@ check:
     python3 tests/test_device_plan.py
     python3 tests/test_rotation_readiness.py
     python3 tests/test_rotation_backport.py
+    python3 tests/test_sensor_matrix_hwdb.py
     python3 tests/test_sensor_module_signature.py
     python3 tests/test_sensor_module_package.py
     python3 tests/test_build_cache_locking.py

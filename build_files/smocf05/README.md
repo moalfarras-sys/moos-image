@@ -49,14 +49,18 @@ relabeling the checkout or changing the host policy.
 ## Trust, acceptance and retirement
 
 Cryptographic integrity is established by these checks. Machine trust requires
-native enrollment/keyring readback and a real driver probe. The V3 currently
-reports the public key **not enrolled**; its booted7.2.15 cannot load the7.3.3
-module. Do not disable Secure Boot, signature enforcement or kernel ABI checks.
+native enrollment/keyring readback and a real driver probe. The Nov16 V3
+boots signed1162/kernel7.3.3 with this module loaded, SMOCF05 bound and
+SensorProxy reporting an accelerometer. Its public key is **not enrolled**,
+Secure Boot was already disabled, sig_enforce=N and module taint=OE. This
+is device-probe evidence, not kernel trust under enforced signatures. Do not disable Secure Boot, signature enforcement or kernel ABI checks.
 Production enrollment uses native administrator authentication and physical
 firmware confirmation; the private key never enters the image or GitHub.
 
-Host stage/reboot remains held under the owner's sensor-repair condition until
-the matching signed image and native trust steps are ready. Four orientations,
+The owner defers native local enrollment; do not infer authorization to bypass
+that step from the module's permissive-kernel load. Preserve signed1152 rollback
+and pinned1078. The source matrix-publication correction and its native udev
+old/fixed proof are recorded in docs/reviews/2026-11-16-sensor-matrix-publication.json. Four orientations,
 tilt, internal-panel sizing, physical touch, rotation lock, external display and
 suspend/reboot still require the real V3. CI/container success does not establish
 these outcomes. Preserve the signed rollback and pinned recovery.

@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "plan_rows": [
+    "P5.1",
+    "P5.3",
+    "P0.6"
+  ],
+  "base_source": "8a743a85",
+  "installed_source": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+  "failure": "The exact vendor raw-DMI query returns the corrected V3 matrix, but actual native 60-sensor.rules sanitizes parentheses to underscores in the builtin lookup and publishes no matrix. The kernel sysfs fallback is identity.",
+  "fix": "Add one immutable hwdb alias for observed SMOCF05 / MicroComputer_HK_TechLimited / exact V3. Preserve raw vendor rule, corrected positive Z, existing udev rule and SensorProxy/KWin owners. No IRQ/ACPI override, parallel rotation daemon or display policy change.",
+  "native_udev": {
+    "old": {
+      "exit": 0,
+      "matrix_properties": [],
+      "log_sha256": "adcb65457ff0a2cc6e5dc9615a6748a94ba93da437958355a6716043f78ceec8",
+      "sensor_rule_executed": true,
+      "sanitized_dmi_seen": true
+    },
+    "fixed": {
+      "exit": 0,
+      "matrix_properties": [
+        "ACCEL_MOUNT_MATRIX=-1, 0, 0; 0, -1, 0; 0, 0, 1"
+      ],
+      "log_sha256": "579b3c2ae944429c1c41aded92fe51cc25a4436054b4587dbed37c9f70d087a4",
+      "sensor_rule_executed": true,
+      "sanitized_dmi_seen": true
+    },
+    "first_receipt_refusal": "The first evidence parser expected unindented property output; native systemd259 indents properties. Original successful rule logs retained; corrected receipt parses complete property lines.",
+    "host_rules_or_database_changed": false,
+    "physical_rotation_accepted": false
+  },
+  "native_full_compiler": {
+    "missing-alias": {
+      "exit": 1,
+      "last": "HWDB FATAL: native V3 sensor matrix lookup is missing or changed"
+    },
+    "fixed-alias": {
+      "exit": 0,
+      "last": "HWDB OK: immutable database compiled in /usr; clean boots skip the udev-blocking rebuild"
+    }
+  },
+  "controls": {
+    "source_and_native_lookup_tests": 3,
+    "arm_source_controls": 69,
+    "scope_negatives": [
+      "V3SE",
+      "V30",
+      "other manufacturer",
+      "SMOCF00",
+      "raw manufacturer has no new alias (existing vendor rule remains)"
+    ]
+  },
+  "image_gate": "The maintained final immutable database compiler must resolve the exact sanitized native key after compilation; a missing alias refuses the build.",
+  "upstream": [
+    "https://github.com/systemd/systemd/pull/43941",
+    "https://raw.githubusercontent.com/systemd/systemd/v259/rules.d/60-sensor.rules",
+    "https://raw.githubusercontent.com/systemd/systemd/main/hwdb.d/60-sensor.hwdb"
+  ],
+  "installed_change": false,
+  "host_udev_rules_or_database_changed": false,
+  "kernel_trust": false,
+  "physical_rotation_accepted": false,
+  "qualification": "Native old/fixed and compiler controls pass. Final combined source/image/PR/signed delivery and actual sensor orientation/touch still required.",
+  "private_evidence": "test-results/native-matrix; native namespace uses read-only host sysfs, private /run and compiled fixture, no owner bus."
+}
