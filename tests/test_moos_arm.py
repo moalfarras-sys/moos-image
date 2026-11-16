@@ -20,6 +20,8 @@ from __future__ import annotations
 import importlib.util
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -1074,6 +1076,37 @@ class VerifyMiraOnAFakeRoot(unittest.TestCase):
     def test_a_missing_visual_tier_is_refused(self) -> None:
         (self.app / "visual_tier.py").unlink()
         self.refused("visual_tier.py")
+
+
+class MiraStartupDiagnostics(unittest.TestCase):
+    def probe_source(self):
+        text = read(RUNTIME_GATE)
+        return text.split("<<'MIRA_STARTUP_PROBE'\n", 1)[1].split('\nMIRA_STARTUP_PROBE', 1)[0]
+
+    def test_real_probe_preserves_argv_exit_and_reports_a_blocked_stack(self):
+        with tempfile.TemporaryDirectory(prefix='moos-mira-startup-') as temporary:
+            root = Path(temporary)
+            probe = root / 'probe.py'
+            probe.write_text(self.probe_source())
+            app = root / 'app.py'
+            app.write_text("import sys\nassert sys.argv[1:] == ['--capture=fixture']\nprint('CAPTURE_EXECUTED')\n")
+            good = subprocess.run([sys.executable, str(probe), '-s', str(app), '--capture=fixture'],
+                                  capture_output=True, text=True, timeout=10)
+            self.assertEqual(good.returncode, 0, good.stdout + good.stderr)
+            self.assertIn('CAPTURE_EXECUTED', good.stdout)
+            self.assertIn('MIRA_STARTUP: python-ended elapsed_ms=', good.stdout)
+            app.write_text('raise SystemExit(7)\n')
+            bad = subprocess.run([sys.executable, str(probe), '-s', str(app)],
+                                 capture_output=True, text=True, timeout=10)
+            self.assertEqual(bad.returncode, 7, bad.stdout + bad.stderr)
+            app.write_text('import time\ntime.sleep(0.15)\nraise SystemExit(9)\n')
+            driver = ('import runpy,sys\nm=runpy.run_path(sys.argv[1])\n'
+                      "m['probe'](['-s',sys.argv[2]],trace_after=0.03)\n")
+            blocked = subprocess.run([sys.executable, '-c', driver, str(probe), str(app)],
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(blocked.returncode, 9, blocked.stdout + blocked.stderr)
+            self.assertIn('Timeout (', blocked.stderr)
+            self.assertIn(str(app), blocked.stderr)
 
 
 if __name__ == "__main__":

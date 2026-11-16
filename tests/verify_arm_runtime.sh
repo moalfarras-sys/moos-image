@@ -206,16 +206,49 @@ test -f /usr/share/applications/org.moos.remote.desktop
 # runs it through the real launcher with this disk's aarch64 packages. No compositor is faked and
 # nothing needs root: it runs as the provisioned user, like every line here.
 mira_home="$(mktemp -d)"
+# A timeout alone does not locate a blocked cold start. This private interpreter
+# wrapper preserves the actual launcher/app and emits one Python thread dump
+# before the existing deadline. No account data or live desktop bus is inherited.
+cat >"$mira_home/python-probe" <<'MIRA_STARTUP_PROBE'
+#!/usr/bin/python3 -s
+import faulthandler
+import runpy
+import sys
+import time
+
+
+def probe(argv, trace_after=90):
+    if len(argv) < 2 or argv[0] != '-s':
+        raise ValueError('Mira startup probe requires the isolated interpreter invocation')
+    started = time.monotonic()
+    print('MIRA_STARTUP: python-entered', flush=True)
+    faulthandler.dump_traceback_later(trace_after, repeat=False, file=sys.stderr)
+    sys.argv = argv[1:]
+    try:
+        runpy.run_path(sys.argv[0], run_name='__main__')
+    finally:
+        faulthandler.cancel_dump_traceback_later()
+        print('MIRA_STARTUP: python-ended elapsed_ms=' +
+              str(round((time.monotonic() - started) * 1000)), flush=True)
+
+
+if __name__ == '__main__':
+    probe(sys.argv[1:])
+MIRA_STARTUP_PROBE
+chmod 700 "$mira_home/python-probe"
 set +e
 env -i PATH=/usr/bin HOME="$mira_home" MIRA_TEST_MODE=1 MIRA_INSTANCE=mira-runtime-gate \
+    MIRA_PYTHON="$mira_home/python-probe" PYTHONPROFILEIMPORTTIME=1 \
     PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_FORCE_STDERR_LOGGING=1 \
-    timeout 120 /usr/bin/mira --capture="$mira_home/mira.png" --capture-delay=3000 >"$mira_home/mira.log" 2>&1
+    timeout --kill-after=5s 120 /usr/bin/mira --capture="$mira_home/mira.png" --capture-delay=3000 >"$mira_home/mira.log" 2>&1
 mira_rc=$?
 set -e
 if [ "$mira_rc" -ne 0 ] || [ ! -s "$mira_home/mira.png" ] \
         || grep -nE '^Mira pages:|\.qml:[0-9]+:([0-9]+:)? |ReferenceError|TypeError|Unable to assign|^Traceback ' \
             "$mira_home/mira.log" >&2; then
-    cat "$mira_home/mira.log" >&2
+    # Bound the retained Actions output, preserving the latest import/stack and
+    # exact failure rather than silently treating a killed process as healthy.
+    tail -c 1048576 "$mira_home/mira.log" >&2
     echo "ARM RUNTIME FATAL: Mira did not open cleanly on the booted disk (exit=$mira_rc)" >&2
     exit 1
 fi

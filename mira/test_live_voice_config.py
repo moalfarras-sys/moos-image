@@ -1,7 +1,10 @@
 """Offline first-key and Live setup controls; never read an owner's saved key."""
 import asyncio
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
@@ -30,6 +33,44 @@ class ApiCredentialTest(unittest.TestCase):
                 with self.assertRaises(ValueError) as caught:
                     normalize_api_key(key)
                 self.assertEqual(str(caught.exception), 'API key is missing or has an invalid format')
+
+
+class SettingsImportTest(unittest.TestCase):
+    def test_native_model_picker_does_not_import_voice_audio_runtime(self):
+        # A fresh interpreter matters: the normal suites already imported the
+        # Live executor and would hide this cold settings dependency.
+        code = '''
+import importlib.abc,json,sys
+from pathlib import Path
+import controller,brain,live_models
+assert 'live_voice' not in sys.modules
+class RefuseVoice(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'live_voice' or fullname.startswith('numpy'):
+            raise AssertionError('settings imported voice runtime: ' + fullname)
+sys.meta_path.insert(0, RefuseVoice())
+brain.GEMINI_CONFIG = Path.home() / 'gemini.json'
+choices, selected = controller.Controller._live_model_selection(None)
+assert selected == live_models.DEFAULT_LIVE_MODEL
+assert choices == [dict(choice) for choice in live_models.LIVE_MODEL_CHOICES]
+original = b'{"model":"personal-live-001","custom":[7]}'
+brain.GEMINI_CONFIG.write_bytes(original)
+choices, selected = controller.Controller._live_model_selection(None)
+assert selected == 'personal-live-001'
+assert choices[-1] == {'id': selected, 'label': selected, 'free_tier': False}
+assert brain.GEMINI_CONFIG.read_bytes() == original
+assert 'live_voice' not in sys.modules and 'numpy' not in sys.modules
+print('MODEL_PICKER_LIGHTWEIGHT_AND_PERSONAL_PRESERVED')
+'''
+        with TemporaryDirectory(prefix='mira-model-import-') as temporary:
+            environment = {'PATH': os.environ.get('PATH', '/usr/bin'),
+                           'HOME': temporary, 'QT_QPA_PLATFORM': 'offscreen',
+                           'PYTHONDONTWRITEBYTECODE': '1',
+                           'PYTHONPATH': os.pathsep.join(sys.path)}
+            result = subprocess.run([sys.executable, '-s', '-c', code], env=environment,
+                                    capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('MODEL_PICKER_LIGHTWEIGHT_AND_PERSONAL_PRESERVED', result.stdout)
 
 
 class ConfigFixture(unittest.TestCase):

@@ -31,6 +31,7 @@ from aioesphomeapi import VoiceAssistantEventType as E
 
 import tools
 from api_credentials import normalize_api_key
+from live_models import DEFAULT_LIVE_MODEL, LIVE_MODEL_CHOICES
 
 try:
     import numpy as np
@@ -39,18 +40,6 @@ except ImportError:  # the pure-Python paths below are complete
 
 ROOT = Path(__file__).resolve().parents[1]
 GEMINI_CONFIG = Path.home() / '.config/mo-dot/gemini.json'
-# The voice executor has its own model; typed-chat choices never select it.
-DEFAULT_LIVE_MODEL = 'gemini-3.1-flash-live-preview'
-# Reviewed against Google's pricing/deprecation tables on 2026-11-14:
-# https://ai.google.dev/gemini-api/docs/pricing
-# https://ai.google.dev/gemini-api/docs/deprecations#live-api-models
-# free_tier means the provider offers one, subject to the owner's project and
-# quota. It does not establish this account's billing state or switch a model.
-LIVE_MODEL_CHOICES = (
-    {'id': DEFAULT_LIVE_MODEL, 'label': 'Gemini 3.1 Flash Live Preview', 'free_tier': True},
-    {'id': 'gemini-2.5-flash-native-audio-preview-12-2025',
-     'label': 'Gemini 2.5 Flash Native Audio Preview', 'free_tier': True},
-)
 _LIVE_MODEL_RE = re.compile(r'(?:models/)?[A-Za-z0-9][A-Za-z0-9._-]{0,159}')
 
 
