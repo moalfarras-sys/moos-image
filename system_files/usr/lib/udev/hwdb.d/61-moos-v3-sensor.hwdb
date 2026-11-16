@@ -1,0 +1,8 @@
+# systemd's upstream V3 matrix, with its native udev IMPORT spelling.
+# Source: systemd/hwdb.d/60-sensor.hwdb, Minisforum entry (PR43941).
+# systemd259 sanitizes MicroComputer(HK)TechLimited to
+# MicroComputer_HK_TechLimited in the 60-sensor.rules builtin command.
+# Keep the existing vendor/raw-DMI entry and its corrected positive Z axis.
+# This alias is restricted to the observed SMOCF05 and V3 product, not V3 SE.
+sensor:modalias:acpi:SMOCF05:*:dmi:*:svnMicroComputer_HK_TechLimited:pnV3:*
+ ACCEL_MOUNT_MATRIX=-1, 0, 0; 0, -1, 0; 0, 0, 1

@@ -45,4 +45,12 @@ case "$hwdb_probe" in
     *ID_VENDOR_FROM_DATABASE=*) ;;
     *) echo "HWDB FATAL: compiled database lookup returned no vendor" >&2; exit 1 ;;
 esac
+# Native udev sanitizes the V3 manufacturer's parentheses in its builtin
+# command. A raw-DMI query alone passed while the actual IIO device received no
+# matrix. Gate the exact published spelling after the final compilation too.
+sensor_probe="$(systemd-hwdb query 'sensor:modalias:acpi:SMOCF05:SMOCF05::dmi:bvnTest:svnMicroComputer_HK_TechLimited:pnV3:pvrTest:')"
+[ "$sensor_probe" = 'ACCEL_MOUNT_MATRIX=-1, 0, 0; 0, -1, 0; 0, 0, 1' ] || {
+    echo "HWDB FATAL: native V3 sensor matrix lookup is missing or changed" >&2
+    exit 1
+}
 echo "HWDB OK: immutable database compiled in /usr; clean boots skip the udev-blocking rebuild"
