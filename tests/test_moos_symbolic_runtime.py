@@ -76,17 +76,101 @@ def _palette_source(source: str, *, dark: bool) -> str:
 class MoOSSymbolicRasterTests(unittest.TestCase):
     def _render(self, name: str, size: int, *, dark: bool = False):
         source = (ACTION_DIR / f"moos-{name}-symbolic.svg").read_text(encoding="utf-8")
+        return self._render_source(source, size, dark=dark)
+
+    def _render_source(self, source: str, size: int, *, dark: bool = False):
         handle = Rsvg.Handle.new_from_data(_palette_source(source, dark=dark).encode())
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         context = cairo.Context(surface)
         viewport = Rsvg.Rectangle()
         viewport.x = viewport.y = 0
         viewport.width = viewport.height = size
-        self.assertTrue(handle.render_document(context, viewport), name)
+        self.assertTrue(handle.render_document(context, viewport))
         output = io.BytesIO()
         surface.write_to_png(output)
         output.seek(0)
         return Image.open(output).convert("RGBA")
+
+    @staticmethod
+    def _central_ink_runs(image) -> list[tuple[int, int]]:
+        """Connected painted intervals down the icon's vertical centreline."""
+        alpha = image.getchannel("A")
+        width, height = image.size
+        rows = [alpha.getpixel((width // 2, y)) >= 96 for y in range(height)]
+        runs: list[tuple[int, int]] = []
+        for y, painted in enumerate(rows):
+            if painted and (y == 0 or not rows[y - 1]):
+                runs.append((y, y + 1))
+            elif painted:
+                runs[-1] = (runs[-1][0], y + 1)
+        return runs
+
+    def _assert_wifi_fan(self, image) -> None:
+        """Three symmetric waves above one bottom point, independent of colour."""
+        alpha = image.getchannel("A")
+        width, height = image.size
+        ink = [(x, y) for y in range(height) for x in range(width)
+               if alpha.getpixel((x, y)) >= 96]
+        self.assertTrue(ink)
+        centroid_x = sum(x + .5 for x, _y in ink) / len(ink)
+        self.assertLess(abs(centroid_x - width / 2), width / 64,
+                        "WiFi waves must be centred over their bottom point")
+        runs = self._central_ink_runs(image)
+        self.assertEqual(len(runs), 4,
+                         "WiFi must paint three distinct upward waves and a point")
+        self.assertGreater(runs[-1][0], height * .70,
+                           "WiFi's separate point must be below its waves")
+        for previous, current in zip(runs, runs[1:]):
+            self.assertGreater(current[0] - previous[1], height / 48,
+                               "WiFi waves must keep visible air between them")
+
+    def _assert_bell_profile(self, image) -> None:
+        """A high neck, outward skirt and separate clapper distinguish a bell."""
+        alpha = image.getchannel("A")
+        width, height = image.size
+        runs = self._central_ink_runs(image)
+        self.assertEqual(len(runs), 2, "bell body and clapper must remain separate")
+        self.assertLess(runs[0][0], height * .20,
+                        "notification bell needs a neck above its shoulders")
+
+        def row_width(y24: float) -> int:
+            y = round(y24 / 24 * height)
+            painted = [x for x in range(width) if alpha.getpixel((x, y)) >= 96]
+            return 0 if not painted else painted[-1] - painted[0] + 1
+
+        self.assertGreater(row_width(17), row_width(12) * 1.12,
+                           "bell skirt must flare outward rather than taper like a bulb")
+        self.assertGreater(runs[1][0] - runs[0][1], height / 48,
+                           "bell clapper needs visible air below the skirt")
+
+    def test_center_symbols_have_recognisable_native_silhouettes(self) -> None:
+        # Semantic raster checks complement the all-size ink/counter gate:
+        # valid nonempty SVGs can still point sideways or depict the wrong thing.
+        for size in (64, 128):
+            with self.subTest(size=size):
+                self._assert_wifi_fan(self._render("wifi", size))
+                self._assert_bell_profile(self._render("notification", size))
+
+    def test_original_sideways_wifi_and_bulb_are_refused(self) -> None:
+        # Preserve the actual reviewed predecessor, not an artificially broken
+        # colour or blank image. Both passed the original generic raster gate.
+        old_wifi = generator.sym(
+            "WiFi", "connectivity",
+            generator.path(generator.arc_band(12, 12.5, 10.5, 8.2, -60, 60)),
+            generator.path(generator.arc_band(12, 12.5, 7.3, 5.2, -60, 60)),
+            generator.path(generator.arc_band(12, 12.5, 4.2, 2.3, -60, 60), generator.HIGHLIGHT),
+            generator.path(generator.circle(12, 19.5, 1.8)),
+        )
+        old_notification = generator.sym(
+            "Notifications", "system",
+            generator.path("M6.5 14A5.5 5.5 0 0 1 17.5 14L16.5 16.5A1.5 1.5 0 0 1 15 17.5H9A1.5 1.5 0 0 1 7.5 16.5Z"),
+            generator.path(generator.circle(12, 20, 1.5)),
+            generator.path(generator.circle(17.5, 5.5, 1.5), generator.HIGHLIGHT),
+        )
+        with self.assertRaisesRegex(AssertionError, "centred over"):
+            self._assert_wifi_fan(self._render_source(generator.render("wifi", old_wifi), 128))
+        with self.assertRaisesRegex(AssertionError, "neck above"):
+            self._assert_bell_profile(self._render_source(generator.render("notification", old_notification), 128))
 
     @staticmethod
     def _holes(alpha, threshold: int = 24) -> int:

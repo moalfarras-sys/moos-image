@@ -442,6 +442,8 @@ check:
     python3 tests/test_quiet_lift.py
     python3 tests/test_qtquick_lifetime.py
     python3 tests/test_moos_clock_keyboard.py
+    python3 tests/test_panel_center.py
+    python3 tests/test_notification_center_presentation.py
     # One answer to "is this session Arabic". Four surfaces read
     # Qt.application.layoutDirection, which follows a translator and not the
     # locale — the Command Center, installer and welcome screen rendered in

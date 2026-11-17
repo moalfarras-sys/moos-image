@@ -100,7 +100,7 @@ def is_prose(literal: str) -> bool:
 
 
 def sweep_qml(errors: list[str]) -> int:
-    trees = [SYS / "usr/share/moos/apps"]
+    trees = [SYS / "usr/share/moos/apps", ROOT / "build_files/plasma_logout/control-center"]
     trees += sorted((SYS / "usr/share/plasma/plasmoids").glob("org.moos.*"))
     trees += sorted((SYS / "usr/share/plasma/look-and-feel").glob("org.moos.*"))
     trees += sorted((SYS / "usr/share/plasma/wallpapers").glob("org.moos.*"))

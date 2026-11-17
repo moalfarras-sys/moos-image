@@ -54,6 +54,8 @@ RECORD = ROOT / "tests/theme-rev-fingerprint.json"
 COVERED: tuple[tuple[str, int], ...] = (
     # Version-specific seam overlays also become cached /usr QML.
     ("build_files/plasma-seams", 1),
+    # Native compiled SystemTray still embeds cacheable shell QML.
+    ("build_files/plasma_logout/control-center", 1),
     ("system_files/usr/share/plasma/plasmoids", 1),
     ("system_files/usr/share/plasma/wallpapers", 1),
     ("system_files/usr/share/plasma/look-and-feel", 1),

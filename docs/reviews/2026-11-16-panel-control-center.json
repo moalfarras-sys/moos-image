@@ -1,0 +1,223 @@
+{
+  "schema": 3,
+  "started_date": "2026-11-16",
+  "continued_date": "2026-11-17",
+  "plan_rows": [
+    "P2.5",
+    "P2.7",
+    "P2.8",
+    "P2.10",
+    "P5.3"
+  ],
+  "base_source": "41326ccd",
+  "branch": "feat/control-center-refine-20261117",
+  "theme_revision": 158,
+  "installed_system": "44.20261116.1162",
+  "native_packages": {
+    "plasma": "6.8.3-1.1.moos1.fc44",
+    "kwin": "6.8.3-1.fc44",
+    "qtquick": "6.11.2-3.1.moos1.fc44"
+  },
+  "owner_feedback": [
+    "Clock experiment opened but clipped/unsuitable at inherited560x400 bounds.",
+    "Owner rejected revised clock center: native WiFi/Bluetooth stayed duplicated in panel.",
+    "Owner rejected first wide two-column native tray center: design still needs adjustment.",
+    "Owner requests study of macOS, Windows and Android, then a distinctive coherent MoOS design; no forced platform-copy preference.",
+    "Owner accepts the unified layout and asks to continue polishing buttons, motion, theme compatibility and native KDE integration."
+  ],
+  "entry": "Existing native org.kde.plasma.systemtray, one panel button; source clock/calendar restored and rejected local package preserved/retired.",
+  "current_design": {
+    "layout": "One screen-bounded native drawer with controls/history visible together, native connection names, separate toggle/details hit areas, shared brightness/audio sliders with native mute, visible quick-state captions and original footer destinations. Header/handle expand history or restore controls; short-height defaults track first real geometry until an explicit choice.",
+    "style": "Existing Kirigami/Plasma selected palette, MoOS finite motion, source Meyar families, RTL, native keyboard and Qt touch; one theme-aware vector entry. No idle clock animation or repeated clock in header.",
+    "references": "build_files/plasma_logout/control-center/README.md"
+  },
+  "owners": {
+    "containment_models": "Original native SystemTray C++ factory/configuration/StatusNotifier/app lifetime unchanged.",
+    "actions": "Existing moos-control fixed validated arguments; submit on slider release/key movement and reread measured state. Pending/unknown/failed controls never claim success. Native current audio/network/Bluetooth/notification/brightness/Night Light owners only invalidate the snapshot. One180ms finite read coalesces events, waits for pending transactions/input leases, preserves failure and unloads observers on close.",
+    "notifications": "Existing native server and NotificationManager model; bounded action buttons, replies/jobs/attachments retained; closed history is neither presented nor marked read.",
+    "privacy_attention": "Native camera applet icon/status and native model attention, including application notifiers, remain indicated within the single entry. No new monitoring service or camera activation.",
+    "details": "Original native applet popups and Settings URI; every accepted active/passive item is in the native tools grid, using popup presentation while preserving real model.status."
+  },
+  "source_delivery": {
+    "producer": "Existing native plasma_logout vendor workspace RPM producer on x86/aarch64.",
+    "version": "Reviewed6.8.3 only →6.8.3-1.2.moos1.fc44; older exact logout-only reviews remain unchanged.",
+    "admission": "Exact upstream main.qml, ExpandedRepresentation.qml and CMake before any write; native C++ and other QML retained. Native notifications main.qml, global/Globals.qml and NotificationPopup.qml now have exact prewrite original hashes, unchanged native child CMake/C++ and final two-plugin RPM digest checks.",
+    "gates": "Original logout/package/source/signature/image/identity/recovery gates retained. New exact plugin byte check uses native plasma-workspace-libs RPM owner; compiled QML added to identity and theme fingerprints."
+  },
+  "qualification": {
+    "native_compile": "PASS: native6.8.3 C++ factory + original model/QML URI under KDE C++23/no-cast/StringBuilder guards; original baseline and modified native target built in existing SDK.",
+    "package_tests": 137,
+    "clock_tests": 10,
+    "ui2_tests": 45,
+    "gate_coverage": 347,
+    "native_input": "AR/EN, dark+motion/light+reduced,280/320/420/440/780px; release-only pointer/Qt touch, pending/unknown/nonzero/stale-success negatives, details cannot toggle WiFi, power and Settings routes, Escape focus, drag navigation/close and actual named-action QTest click. Successor four cases pass30.960s, including initial-height0→754, native inner-text bounds, real old44px footer refusal, native event burst/readback/error preservation, busy/drag leases and close cancellation. Final157 full36 cases pass0/321.763s. Final cancellation guard passes four native cases0/34.541s: disable, hide or closed center never submits; ordinary pointer/touch release and keyboard remain, leases retire, measured binding survives; exact440x720 content also fits.",
+    "native_theme_matrix": "Final15836 native PlasmaTheme/language cases PASS0/322.660s: source Meyar, native palette readiness/contrast,0→754/440x720/narrow geometry, pointer/Qt touch/keyboard, busy/unknown/error/drag/cancel and subsequent readback. Notification actions/reply text checked inside actual56px native controls; old48px action32<37 refusal retained.",
+    "theme_fingerprint": "158/70 packages",
+    "identity_source": "133 QML files; original identity firewalls retained.",
+    "complete_just_check": "09e predecessor passes0/1199.968s;3be2 check intentionally superseded after real duplicate-popup reproduction, with no push/image. Final exact frozen source receipt is tracked separately under test-results/live-center/qualification-158/full-check.json.",
+    "canonical_image_and_signed_delivery": "Exact final vendor RPM/image, x86/ARM CI and signed promotion/installed immutable readback required. Prior09e image was interrupted by real shutdown; no old image proof qualifies158.",
+    "symbol_repair": {
+      "source": "canonical Tidal Cut symbolic generator",
+      "corrected": [
+        "upright WiFi fan",
+        "flared notification bell without permanent unread dot"
+      ],
+      "paired_copies": 32,
+      "source_tests": 9,
+      "native_raster_resolver_tests": 8,
+      "qt_svg_semantic_cases": 4,
+      "old_negative_controls": "Actual sideways fan and bulb shapes are refused; original all-size/counter/palette checks retained."
+    },
+    "first_native_open": {
+      "old_plugin": "e226cee0d908cbe55066adcf2c55a6fbea2a6c17a84d5c83ee4e84263b5640b4",
+      "failure": "Popup opened at zero height, collapsed controls persisted after real geometry. Initial private fixed-size fixture missed this.",
+      "fixed": "Open assigns height binding until explicit QML user choice; native old collapses/height0, fixed expanded/height352 at754. Actual fixed first-open controls/history both visible.",
+      "related_fixture_refusal": "Input immediately60ms after animated size change targeted clipped transition; wait for settled native geometry before exercising unchanged hit assertions."
+    },
+    "independent_cancellation": "Native in-memory old/fixed PC3.Slider8cases pass0/2.307s: old sends1 on accepted/disable/hide/close; fixed1/0/0/0, leases0, later measured73 follows. No host action.",
+    "runtime_sample": {
+      "sample_seconds": 20.044,
+      "one_core_cpu_percent": 0.15,
+      "observed_status_processes": {},
+      "rss": "VmRSS:\t  533084 kB",
+      "workload": "settled open unified popup over owner VS Code, concurrent private source theme/input matrix; observed child processes sampled at50ms, not a proof of every shorter process",
+      "source_qml_api_errors": 0,
+      "observed_stock_qsg_warnings": 28,
+      "third_party_package_warnings": 2
+    },
+    "native_notification_presentation": "Two native tests PASS0/1.428s. Actual shipped Timer.running and ID predicate execute under isolated Qt, retaining original hidden-window immortality refusal, overflow/permanent/hover/menu/drag/drop/reply/excluded-ID/multiple-owner controls. Reversing only declared presentation edits yields exact three original6.8.3 SHA values, preserving all sound/action/delegate/C++ lifecycle code."
+  },
+  "installed_journeys": {
+    "one_entry_and_layout": "PASS; native panel68/height54 and existing widget IDs retained.",
+    "wide_predecessor": "Actual first-open WiFi Details, all-tools→Bluetooth and footer Power pass. DND native pointer on→measured true→off→measured false preserves original state. These establish integration, not acceptance of the rejected wide design.",
+    "compact_successor": "Rejected by owner; runtime-only selection ended on reboot. Historical first-open and staged pixels remain retained.",
+    "settings": "PASS: actual header button opens canonical Arabic systemsettings with native Quick Settings, center closes on URI dispatch. Only newly opened window was normally closed; no setting applied.",
+    "notification_action": "PASS: actual existing-server local Notify creates a history card without a second visible popup while personal DND=false. Native header expands history; actual card button click delivers ActionInvoked review to its original client.",
+    "physical_touch_portrait_suspend_camera": "pending; private Qt touch and native camera source status are not physical journeys.",
+    "unified_successor": "Owner accepts layout. Final exact450b76fb tray plus0a8038b1 notification factories load on signed1162; single panel entry, selected Bloom, source-correct symbols, soft content-only press response and Arabic action room verified. Per-ID native presentation hides only cards represented in open center; excludes popup-only notices and protects active reply/drag/menu. Existing popup delegates/sound/timer owners remain; no DND/expanded/opacity/window-flags trick.",
+    "external_device_event": {
+      "owner": "Existing notification/DND owner through separate fixed moos-control action",
+      "requested": true,
+      "native_setter_exit": 0,
+      "seconds_to_capture": 1.526,
+      "restored": true,
+      "visual": "Native DND active indication changed in the already-open center without reopening; native OSD covers its caption in transition capture. Private status-caption input tests are separate."
+    },
+    "notification_expiry": {
+      "native_expired": true,
+      "popup_observed": false,
+      "id": 2,
+      "native_visible_windows": [
+        {
+          "x": 338,
+          "y": 50,
+          "width": 484,
+          "height": 744
+        }
+      ],
+      "reason": 1,
+      "elapsed_seconds": 2.429
+    }
+  },
+  "original_refusals": [
+    "Clock duplicated native tray, initial560x400 clip and later owner design rejection.",
+    "Same-ID KPackage cannot override compiled6.8.3 SystemTray resources; native applet rebuild required.",
+    "Compiled notifications internals are not publicly importable; native model consumed without a second server.",
+    "RTL SwipeView displaced page; StackLayout plus tab gesture retained.",
+    "Gesture active translation resets on release; cache nonzero travel and cancel correctly.",
+    "Private Python traversal of internal visual QQuickItems asserted134; native QML coordinate expression and real QTest click used.",
+    "Union active delegates need native popup presentation; instance delegate mapping retains actual model.status.",
+    "Closed AppletPopup QML could mark history read; gate presentation/read on actual open selected page.",
+    "Native default pane showed half-cut power row; power remains a complete native footer destination.",
+    "Application-only palette gave black symbols/mixed accents and native initial colours were unavailable before deferred readiness. Real PlasmaTheme owner, selected native config and bounded readback now required.",
+    "Stale coordinate after owner foreground change reached VS Code documentation link. External-open dialog cancelled and absence verified; further automated owner input stopped.",
+    "Theme record correctly refused changed bytes at same development revisions; final154 recorded without weakening gate.",
+    "Owner rejected compact tabbed design; unified controls/history successor requires its own acceptance.",
+    "Native first-open zero-height hid controls despite fixed-size fixture pass; old/fixed predicates retained.",
+    "Actual source Meyar Arabic footer paints37px in36px native text area at44px button;48px reserves line room and old44 refusal remains.",
+    "Canonical generic SVG gates accepted sideways WiFi/bulb bell; semantic native raster controls now reject both.",
+    "Source09e image build interrupted by real shutdown; coordinator and runtime overrides ended. No package regression inferred from bare recipe exit1.",
+    "Native Slider pressedChanged fires on disable/hide too; old code submitted a cancelled gesture. Accept only enabled/visible/open release, restore measured binding and always release input lease. Actual disable/hide/closed negatives retained.",
+    "Experience gate retained its prior154 revision pin while assets moved; update both original pinned revision literals alongside157, preserving their full assertions.",
+    "Actual native Notify appeared both in history and a floating popup above the center despite source tests.3be2 qualification stopped as superseded; no push or image started.",
+    "Retiring native popup delegates would replay sound and restart native lifetimes. Preserve delegates, publish actual history IDs, separate native visibility from presentation suppression and keep original expiry guards for overflow and protected interactions.",
+    "Private CXX-only parent omitted generated Wayland C protocols and failed notification linkage. Enable canonical C and CXX in private parent, retain native child CMake/compiler guards; original baseline and both modified native targets compile.",
+    "Arabic48px notification action reserves only32px for37px ink;56px action/reply room passes native inner-paint geometry."
+  ],
+  "remaining": [
+    "Physical touch/portrait/suspend/camera and richer notification reply/job/attachment journeys; layout acceptance does not qualify all hardware or every native action.",
+    "Final exact maintained source/vendor RPM/image, x86/ARM CI, signed UI promotion, boot and immutable readback. The two plugins and tiny icon prefix are scoped development copies.",
+    "Existing stock QSG/startup/third-party warnings and independent hardware7243 x86 disk/ISO/promotion remain separate; no blanket clean-runtime or whole-OS completion claim."
+  ],
+  "private_evidence": "Predecessor test-results/control-center; successor test-results/live-center, refined-pixels and symbol-refinement. Desktop captures, environment and layout details remain local.",
+  "live_copy_pre_reboot": {
+    "kind": "Recoverable runtime-only native plugin override; no immutable package layering or host update.",
+    "plugin_sha256": "e3cac5af91590891e7b7db3af129d8b2aa4ff84859ceaa1798d1628d02fe6dc0",
+    "plugin_bytes": 31088872,
+    "qml_sha256": {
+      "CenterBackend.qml": "b16df0c81f4ceabba1d50638f04aa32489039f579c6aed8518b196636ab3e95e",
+      "CenterNotifications.qml": "99b1ddd8c45a0e8a240523080778c6c069cc8ea6d370bc19a905e3b1cd3d74b8",
+      "CenterSlider.qml": "7c7cb656930b86ecd1004e35fbe2c44714804dce4f4f3897c9aadce90b297e52",
+      "CenterTile.qml": "50297869d3a17220ab3986015a8c79e015671ed25d55ff4a9ed4786929cae22e",
+      "ControlCenterView.qml": "09c55f5302d7922d91502c20a7bf9f1ce4c8802f259ec9b5e60901efe83c2dc4",
+      "ExpandedRepresentation.qml": "dbb111a6221bcba3c1037823d7eb408e250addb3b86ce903c23bb60960861dab",
+      "main.qml": "1da37f655e95418d67f3e959137eed0331a660d0dbecf7df359e203f4ae8754b"
+    },
+    "activation": "Only QT_PLUGIN_PATH of existing plasma-plasmashell user unit through exact runtime drop-in; preserve ExecStart/apps/layout/theme/output. Exact selected metadata and process maps verified.",
+    "retirement": "Remove only exact runtime environment drop-in and reload existing Plasma shell; this frozen plugin stays retained until no process maps it. Signed replacement must boot and load its immutable matching plugin before claiming OS delivery.",
+    "private_inventory": "test-results/control-center/native-review-copy.json",
+    "state": "Runtime selection ended at real reboot; frozen bytes retained, signed1162 unchanged."
+  },
+  "live_copy": {
+    "kind": "Only existing plasma-plasmashell.service, native tray and notification factories. Preserve layout/theme/output/apps/authentication. Not a signed immutable update.",
+    "plugin_sha256": "450b76fb9929ba2ddd24b7526f2f77d4c3e0495b1c44fc52597eb7c93319f7ca",
+    "plugin_bytes": 32226864,
+    "notifications_plugin_sha256": "0a8038b1673d76ed88a070e00d51c9fae12ceb777c657ea1b8ad271728762aa1",
+    "notifications_plugin_bytes": 26254384,
+    "qml_sha256": {
+      "CenterBackend.qml": "2d76ea5466fec660fde9b5535ab6c81d1a740052a5aea6f0595bc68d0bdaee64",
+      "CenterNotifications.qml": "074694fa00fac6f1b4f1eb3922c87e2d7fa4a60f81e7276b4e378ea7f2445196",
+      "CenterSlider.qml": "f9f60d7f747a9ea707029fd3d9aa1ab0077c7c1a32f3a69ab33177ccaeb07518",
+      "CenterTile.qml": "ed572f2fd7583450f362c6cd6966545d5e643381cf2e86af52bd26b4fa01a337",
+      "ControlCenterView.qml": "acd5b2d41d6830f4553c65cb1ff582603de20b9519e8d8022dde151bdc022884",
+      "ExpandedRepresentation.qml": "0254dd22ba60783ed4bd4b371edf36892e8662a7421ffd3898d57e39a96ed45e",
+      "main.qml": "a1e56c7e4a092e259221019822a6cd18c500646dc5c765eb4ef8791c1086036a"
+    },
+    "notifications_qml_sha256": {
+      "NotificationPopup.qml": "9d7c29d68cbf4be75ef87b9d3a0c3bc85f4fd57d40a4c0e11f3c749f9a349a60",
+      "global/Globals.qml": "fd1909989e4cc5c2a36438de2251b132f6f36c179e47788b1fa00a25537a8c3c",
+      "main.qml": "24e18e7a80798cd90fbdea562b690841d1c4c3a4f1275eff5d7f36ea5b96a7a2"
+    },
+    "icon_prefix": {
+      "files": 6,
+      "bytes": 60727,
+      "generation": "d6674ff281f34a3fc03fff2bfb18311ddfe4a9b0e01a8d01cc280140b83cd559"
+    },
+    "activation": "Two exact native factories mapped in existing plasma-plasmashell; unchanged NotificationManager server/model, personal DND, panel/config/theme/output/apps and immutable1162. Runtime-only plugin/icon environment.",
+    "retirement": "Restore exact prior environment by retiring only this matching runtime drop-in and reloading the shell. Keep frozen plugin/icon bytes until no active consumer remains. Signed delivery requires booted immutable replacement and installed readback.",
+    "private_inventory": "test-results/live-center/runtime-inventory.json"
+  },
+  "live_copy_before_popup_integration": {
+    "kind": "Only existing plasma-plasmashell.service. Preserve layout/theme/output/apps/authentication. Not a signed immutable update.",
+    "plugin_sha256": "a4af9d7ece0b0a3419bcc734a2a6b781f45f33ad1c02bde853abe9cbc1fb998a",
+    "plugin_bytes": 32100792,
+    "qml_sha256": {
+      "CenterBackend.qml": "2d76ea5466fec660fde9b5535ab6c81d1a740052a5aea6f0595bc68d0bdaee64",
+      "CenterNotifications.qml": "99b1ddd8c45a0e8a240523080778c6c069cc8ea6d370bc19a905e3b1cd3d74b8",
+      "CenterSlider.qml": "f9f60d7f747a9ea707029fd3d9aa1ab0077c7c1a32f3a69ab33177ccaeb07518",
+      "CenterTile.qml": "669a9f7b4c2fb940042a31970d702778f3300d68dc0fc6ace6f9fa7f11a6b279",
+      "ControlCenterView.qml": "a63041a07b11dcccffcd9f64dedea854de9120a2cb21f105626c9fb4940708ae",
+      "ExpandedRepresentation.qml": "d253adbf50c3c94c43f0f7d48e44f0bf9a3b1de11f54c831af1cbb4cdef84924",
+      "main.qml": "1da37f655e95418d67f3e959137eed0331a660d0dbecf7df359e203f4ae8754b"
+    },
+    "icon_prefix": {
+      "files": 6,
+      "bytes": 60727,
+      "generation": "d6674ff281f34a3fc03fff2bfb18311ddfe4a9b0e01a8d01cc280140b83cd559",
+      "selection": "Actual shell scoped XDG_DATA_DIRS exact; native resolver selects fixedtwo while four unchanged controls retain immutable paths."
+    },
+    "activation": "Existing plasma-plasmashell.service runtime-only QT_PLUGIN_PATH and icon-only data prefix; exact process maps/environment verified. No package layering, output/theme/config reset or host update.",
+    "retirement": "Restore exact prior environment by retiring only this matching runtime drop-in and reloading the shell. Keep frozen plugin/icon bytes until no active consumer remains. Signed delivery requires booted immutable replacement and installed readback.",
+    "private_inventory": "test-results/live-center/runtime-inventory.json"
+  }
+}

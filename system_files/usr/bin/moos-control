@@ -429,16 +429,50 @@ def brightness(value):
 
 
 # ── Night light (KWin) ──────────────────────────────────────────────────────
+NIGHT_LIGHT_BUDGET = 3.0
+
+
+def night_light_enabled(timeout=5):
+    enabled = busctl_data("get-property", "org.kde.KWin", "/org/kde/KWin/NightLight",
+                          "org.kde.KWin.NightLight", "enabled", timeout=timeout)
+    if not isinstance(enabled, bool):
+        raise Unavailable("unexpected Night Light reply from KWin")
+    return enabled
+
+
 def night_light(value):
+    """Apply through KWin's own config watcher, then read KWin back.
+
+    KWin 6.8 reloads NightColor from a KConfig change notification; the global
+    reconfigure call alone left the file Active=true while KWin stayed off and this
+    verb still printed success (measured on the V3, signed 1162). A notification is
+    only sent for a changed value, so a file already holding the request (that same
+    stuck state) is first written to the opposite value. reconfigure is kept for
+    the older Plasma in other editions.
+    """
     one_of(value, ("on", "off", "auto"), "night-light")
+    wanted = value != "off"
     write = ["kwriteconfig6", "--file", "kwinrc", "--group", "NightColor"]
-    run([*write, "--key", "Active", "--type", "bool", "false" if value == "off" else "true"])
-    if value != "off":
+    if wanted:
         # Constant is warm now; DarkLight is Plasma's own day/night schedule.
-        run([*write, "--key", "Mode", "Constant" if value == "on" else "DarkLight"])
+        run([*write, "--key", "Mode", "--notify", "Constant" if value == "on" else "DarkLight"])
+    stored = run(["kreadconfig6", "--file", "kwinrc", "--group", "NightColor",
+                  "--key", "Active", "--default", "false"]).strip() == "true"
+    if stored == wanted:
+        run([*write, "--key", "Active", "--type", "bool", "--notify",
+             "false" if wanted else "true"])
+    run([*write, "--key", "Active", "--type", "bool", "--notify", "true" if wanted else "false"])
     # reconfigure is a no-reply method; waiting for an answer would only time out.
     run(["busctl", "--user", "--expect-reply=no", "call", "org.kde.KWin", "/KWin",
          "org.kde.KWin", "reconfigure"])
+    deadline = time.monotonic() + NIGHT_LIGHT_BUDGET
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise Unavailable("KWin did not apply the Night Light change")
+        if night_light_enabled(timeout=max(1, remaining)) == wanted:
+            break
+        time.sleep(min(0.1, max(0, deadline - time.monotonic())))
     return {"on": "🌙 الضوء الليلي يعمل | Night light on",
             "off": "☀ الضوء الليلي متوقف | Night light off",
             "auto": "🌗 الضوء الليلي تلقائي | Night light automatic"}[value]

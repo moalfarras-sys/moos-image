@@ -1,0 +1,436 @@
+#!/usr/bin/env python3
+"""Exercise the shipped native panel center and fixed-action transaction contract."""
+from pathlib import Path
+import os
+import subprocess
+import sys
+import tempfile
+import unittest
+ROOT=Path(__file__).resolve().parents[1]
+UI=ROOT/'build_files/plasma_logout/control-center/qml'
+
+
+def native():
+    os.environ["DBUS_SYSTEM_BUS_ADDRESS"]=os.environ["DBUS_SESSION_BUS_ADDRESS"]
+    from PySide6.QtCore import QUrl,QObject,Qt,QPoint,QPointF,qInstallMessageHandler
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtQml import QQmlEngine,QQmlComponent,QQmlExpression
+    from PySide6.QtQuick import QQuickWindow
+    from PySide6.QtTest import QTest
+    import json
+    warnings=[]
+    qInstallMessageHandler(lambda t,c,m:warnings.append(m))
+    app=QApplication([])
+    from PySide6.QtGui import QPalette,QColor,QFontDatabase,QFont
+    import configparser
+    for filename in ('MeyarSans[wght].ttf','MeyarArabic[wght].ttf'):
+        assert QFontDatabase.addApplicationFont(str(ROOT/'system_files/usr/share/fonts/meyar'/filename))>=0
+    app.setFont(QFont('Meyar Sans'))
+    ini=configparser.ConfigParser();scheme=os.environ.get('MOOS_CENTER_SCHEME') or ('MoOSUI2AuroraLight' if '--light' in sys.argv else 'MoOSUI2Aurora')
+    ini.read(ROOT/('system_files/usr/share/color-schemes/'+scheme+'.colors'))
+    palette=QPalette()
+    for role,group,key in ((QPalette.Window,'Colors:Window','BackgroundNormal'),(QPalette.WindowText,'Colors:Window','ForegroundNormal'),(QPalette.Text,'Colors:View','ForegroundNormal'),(QPalette.ButtonText,'Colors:Button','ForegroundNormal'),(QPalette.Button,'Colors:Button','BackgroundNormal'),(QPalette.Base,'Colors:View','BackgroundNormal'),(QPalette.Highlight,'Colors:Selection','BackgroundNormal'),(QPalette.HighlightedText,'Colors:Selection','ForegroundNormal')):
+        palette.setColor(role,QColor(*map(int,ini[group][key].split(','))))
+    app.setPalette(palette)
+    engine=QQmlEngine()
+    if '--wrong-owner' not in sys.argv:engine.setProperty('_kirigamiTheme','KirigamiPlasmaStyle')
+    engine.addImportPath(str(ROOT/'system_files/usr/lib64/qt6/qml'))
+    components=[]
+    def create(name):
+        c=QQmlComponent(engine,QUrl.fromLocalFile(str(UI/name)))
+        assert not c.isError(),[e.toString() for e in c.errors()]
+        components.append(c)
+        o=c.create();assert o is not None,[e.toString() for e in c.errors()]
+        return o
+    b=create('CenterBackend.qml');b.setProperty('testing',True)
+    good={"volume":45,"brightness":50,"muted":False,"mic_muted":False,"wifi":True,"bluetooth":False,"dnd":False,"night_light":False,"power_profile":"balanced"}
+    result=lambda d,code=0:{"exit code":code,"exit status":0,"stdout":json.dumps(d)}
+    b.refresh();b.finish(b.property('statusCommand'),result(good))
+    assert b.property('ready') and not b.property('busy')
+    for field,value in [('volume',101),('brightness',4),('wifi','on; echo unsafe'),('power_profile','other'),('shell','id')]:
+        assert b.commandFor(field,value)=="",(field,value)
+    assert b.request('wifi',False)
+    assert not b.request('muted',True),'pending controls must be inert'
+    action=b.property('currentCommand');b.finish(action,result({},7))
+    b.finish(b.property('statusCommand'),result(good))
+    assert b.property('errorText') and b.property('state').toVariant()['wifi'] is True
+    b.setProperty('errorText','')
+    assert b.request('volume',60)
+    b.finish(b.property('currentCommand'),result({}))
+    b.finish(b.property('statusCommand'),result(good))
+    assert b.property('errorText'),'exit0 without measured value must fail'
+    b.setProperty('errorText','')
+    assert b.request('volume',60);b.finish(b.property('currentCommand'),result({}))
+    b.finish(b.property('statusCommand'),result({**good,'volume':60}))
+    assert b.property('ready') and not b.property('errorText')
+    b.refresh();b.finish(b.property('statusCommand'),result({**good,'wifi':'false'}))
+    assert not b.property('ready') and b.property('errorText')
+    b.refresh();b.finish(b.property('statusCommand'),result({**good,'wifi':None}))
+    assert not b.request('wifi',True),'unknown hardware is not off'
+    # Native events invalidate one snapshot; they never become device writes.
+    b.setProperty('opened',True);b.finish(b.property('statusCommand'),result(good))
+    def issued(): return b.property('testCommands').toVariant()
+    start=len(issued())
+    for _ in range(5):b.scheduleRefresh()
+    QTest.qWait(240)
+    assert len(issued())==start+1 and issued()[-1]==b.property('statusCommand'),'native event burst did not coalesce into one read'
+    b.finish(b.property('statusCommand'),result({**good,'volume':66}))
+    assert b.property('state').toVariant()['volume']==66,'external device value did not reach measured state'
+    b.setProperty('errorText','retained executor refusal')
+    b.scheduleRefresh();QTest.qWait(240);b.finish(b.property('statusCommand'),result(good))
+    assert b.property('errorText')=='retained executor refusal','automatic status read erased an action failure'
+    start=len(issued());b.beginInteraction();b.scheduleRefresh();QTest.qWait(240)
+    assert len(issued())==start,'external event started a status read during a slider drag'
+    b.endInteraction();QTest.qWait(240)
+    assert len(issued())==start+1,'deferred slider status was lost'
+    b.finish(b.property('statusCommand'),result(good))
+    assert b.request('volume',70)
+    b.scheduleRefresh();QTest.qWait(240)
+    assert issued()[-1].endswith('volume 70'),'native event interrupted the pending fixed action'
+    b.finish(b.property('currentCommand'),result({}));b.finish(b.property('statusCommand'),result({**good,'volume':70}))
+    QTest.qWait(240)
+    assert b.property('busy') and issued()[-1]==b.property('statusCommand'),'pending native event was not read after the transaction'
+    b.finish(b.property('statusCommand'),result({**good,'volume':70}))
+    start=len(issued());b.scheduleRefresh();b.setProperty('opened',False);QTest.qWait(240)
+    b.scheduleRefresh();QTest.qWait(240)
+    assert len(issued())==start and not b.property('refreshQueued'),'closed center kept refreshing device state'
+    qml='''import QtQuick
+import org.kde.kirigami as K
+import "'''+UI.as_uri()+'''" as C
+Item {
+ width:780; height:700
+ property QtObject nativeTheme: K.Theme
+ property color nativeSurface: K.Theme.backgroundColor
+ property color nativeSelection: K.Theme.highlightColor
+ property color nativeText: K.Theme.textColor
+ property color nativeHighlightedText: K.Theme.highlightedTextColor
+ property QtObject host: QtObject { property bool expanded:true }
+ property QtObject recorder: QtObject {
+  property var state: ({volume:45,brightness:50,wifi:true,bluetooth:false,dnd:false,night_light:false,muted:false,mic_muted:false,power_profile:"balanced"})
+  property bool ready:true
+  property bool opened:true
+  property bool busy:false
+  property string pendingField:""
+  property string errorText:""
+  property var calls:[]
+  property int activeInteractions:0
+  function beginInteraction() { activeInteractions++; }
+  function endInteraction() { activeInteractions--; }
+  function request(field,value) { calls=calls.concat([{field:field,value:value}]); return true; }
+  function report() {return JSON.stringify(calls);}
+  function measured() {state={volume:62,brightness:74,wifi:true,bluetooth:false,dnd:false,night_light:false,muted:false,mic_muted:false,power_profile:"balanced"};}
+  function measuredVolume(value) { state=Object.assign({},state,{volume:value}); }
+  function measuredMic(value) { state=Object.assign({},state,{mic_muted:value}); }
+  function measuredMute(value) { state=Object.assign({},state,{muted:value}); }
+  function refresh() {}
+ }
+ Component { id:calendar; Item {} }
+ C.ControlCenterView {id:center;objectName:"view";anchors.fill:parent;opened:parent.host.expanded;onCloseRequested:parent.host.expanded=false;backendOverride:parent.recorder;reviewMode:true}
+}'''
+    c=QQmlComponent(engine);c.setData(qml.encode(),QUrl.fromLocalFile(str(ROOT/'tests/center-fixture.qml')))
+    assert not c.isError(),[e.toString() for e in c.errors()]
+    item=c.create();assert item is not None,[e.toString() for e in c.errors()]
+    assert item.property('nativeTheme').metaObject().className()=='PlasmaTheme','native Plasma theme owner required'
+    window=QQuickWindow();window.setColor(palette.color(QPalette.Window));item.setParentItem(window.contentItem());window.show()
+    for attempt in range(100):
+        if item.property('nativeSurface')==palette.color(QPalette.Window) and item.property('nativeSelection')==palette.color(QPalette.Highlight):break
+        QTest.qWait(10)
+    assert item.property('nativeSurface')==palette.color(QPalette.Window),('native selected-style surface differs from source',item.property('nativeSurface').name(),palette.color(QPalette.Window).name())
+    assert item.property('nativeSelection')==palette.color(QPalette.Highlight),'native selected-style accent differs from source'
+    def rgb(color):return (color.redF(),color.greenF(),color.blueF())
+    def over(ink,base,alpha):return tuple(alpha*a+(1-alpha)*b for a,b in zip(ink,base))
+    def lum(color):
+        linear=lambda c:c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4
+        return sum(w*linear(c) for w,c in zip((.2126,.7152,.0722),color))
+    foreground=rgb(item.property('nativeText'));surface=rgb(item.property('nativeSurface'));accent=rgb(item.property('nativeSelection'))
+    # Glass cards: the active tint (.14) also carries a white .06 top sheen.
+    for fill in (surface,over(accent,surface,.14),over((1,1,1),over(accent,surface,.14),.06),over(foreground,surface,.045),over((1,1,1),over(foreground,surface,.045),.06)):
+        ink=over(foreground,fill,.78)
+        ratio=(max(lum(ink),lum(fill))+.05)/(min(lum(ink),lum(fill))+.05)
+        assert ratio>=4.5,('native secondary ink contrast',scheme,ratio)
+    for pressed in (False,True):
+        fill=over(foreground,over(foreground,surface,.035),.07 if pressed else .045)
+        ink=over(foreground,fill,.86)
+        ratio=(max(lum(ink),lum(fill))+.05)/(min(lum(ink),lum(fill))+.05)
+        assert ratio>=4.5,('fold summary contrast',scheme,pressed,ratio)
+    # A solid active orb paints the native selected-text glyph on the accent,
+    # including under its strongest mid-glyph sheen (non-text minimum 3:1).
+    selectedInk=rgb(item.property('nativeHighlightedText'))
+    for fill in (accent,over((1,1,1),accent,.15)):
+        ratio=(max(lum(selectedInk),lum(fill))+.05)/(min(lum(selectedInk),lum(fill))+.05)
+        assert ratio>=3.0,('active orb glyph contrast',scheme,ratio)
+    view=item.findChild(QObject,'view');fake=item.property('recorder');slider=item.findChild(QObject,'centerSlider_volume')
+    item.property('host').setProperty('expanded',False);item.setHeight(0)
+    item.property('host').setProperty('expanded',True);QTest.qWait(30)
+    item.setWidth(460);item.setHeight(754);window.resize(460,754);QTest.qWait(320)
+    assert view.property('controlsCollapsed') is False,'native initial zero-height popup hid controls after layout'
+    def clipped_text(scope=view):
+        expression=QQmlExpression(engine.rootContext(),scope, '''JSON.stringify((function walk(items) {
+            let out=[];
+            for (const child of items) {
+                if (child.text && child.visible && child.paintedHeight !== undefined && child.paintedHeight > child.height + .5)
+                    out.push({text:child.text,height:child.height,paintedHeight:child.paintedHeight});
+                out=out.concat(walk(child.children || []));
+            }
+            return out;
+        })(children))''')
+        result=expression.evaluate()[0];assert not expression.hasError(),expression.error().toString()
+        return json.loads(result)
+    for width,height in ((780,650),(440,650),(420,650),(320,480),(280,480)):
+        item.setWidth(width);item.setHeight(height);window.resize(width,height);QTest.qWait(320)
+        assert len(json.loads(fake.report()))==0,'reading/rendering wrote back a device value'
+        assert slider.height()>=44
+        assert not clipped_text(),('inner text clipped despite fitting outer controls',width,height,clipped_text())
+        fake.measured();QTest.qWait(30)
+        assert len(json.loads(fake.report()))==0,'snapshot update submitted a slider action'
+        assert slider.property('value')==62,'measured readback did not reach the slider'
+    item.setWidth(780);item.setHeight(650);window.resize(780,650);QTest.qWait(320)
+    pos=slider.mapToScene(QPointF(slider.width()*.7,slider.height()/2))
+    QTest.mousePress(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(pos.x()),round(pos.y())))
+    assert len(json.loads(fake.report()))==0,'slider committed before release'
+    QTest.mouseRelease(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(pos.x()),round(pos.y())));QTest.qWait(20)
+    assert len(json.loads(fake.report()))==1,("pointer",pos.x(),pos.y(),slider.width(),slider.height(),slider.property("value"),fake.report())
+    assert fake.property('activeInteractions')==0,'pointer interaction lease leaked'
+    device=QTest.createTouchDevice()
+    touchPoint=QPoint(round(pos.x()-40),round(pos.y()))
+    QTest.touchEvent(window,device).press(0,touchPoint,window).commit();QTest.qWait(30)
+    assert len(json.loads(fake.report()))==1,'touch slider committed before release'
+    QTest.touchEvent(window,device).release(0,touchPoint,window).commit();QTest.qWait(40)
+    assert len(json.loads(fake.report()))==2,'touch release did not submit the value'
+    assert fake.property('activeInteractions')==0,'touch interaction lease leaked'
+    # Cancellation is not a release accepted by the owner. The native Slider
+    # changes pressed to false on disable/hide, which previously submitted it.
+    for cancellation in ('disabled','hidden','closed'):
+        before=len(json.loads(fake.report()))
+        at=slider.mapToScene(QPointF(slider.width()*.85,slider.height()/2));point=QPoint(round(at.x()),round(at.y()))
+        QTest.mousePress(window,Qt.LeftButton,Qt.NoModifier,point);QTest.qWait(20)
+        assert len(json.loads(fake.report()))==before,'press submitted a value before cancellation'
+        if cancellation=='disabled':slider.setProperty('enabled',False)
+        elif cancellation=='hidden':slider.setProperty('visible',False)
+        else:fake.setProperty('opened',False)
+        QTest.mouseRelease(window,Qt.LeftButton,Qt.NoModifier,point);QTest.qWait(40)
+        assert len(json.loads(fake.report()))==before,('cancelled slider submitted a device change',cancellation)
+        assert fake.property('activeInteractions')==0,('cancelled interaction lease leaked',cancellation)
+        slider.setProperty('enabled',True);slider.setProperty('visible',True);fake.setProperty('opened',True)
+        fake.measuredVolume(73);QTest.qWait(40)
+        assert slider.property('value')==73,('cancelled slider stopped following later measured changes',cancellation)
+        fake.measured();QTest.qWait(40)
+        assert slider.property('value')==62,('cancelled slider lost measured binding',cancellation)
+    def visual(name,scope=view):
+        import json
+        expression=QQmlExpression(engine.rootContext(),scope, 'JSON.stringify((function find(items) { for (const child of items) { if(child.objectName === '+json.dumps(name)+') { const p=child.mapToItem(null,child.width/2,child.height/2); return {x:p.x,y:p.y,width:child.width,height:child.height}; } const nested=find(child.children || []);if(nested)return nested; } return null; })(children))')
+        result=expression.evaluate()[0];assert not expression.hasError(),expression.error().toString()
+        return json.loads(result)
+    def named(name,scope=view):
+        expression=QQmlExpression(engine.rootContext(),scope,'(function find(items) { for (const child of items) { if (child.objectName === '+json.dumps(name)+') return child; const nested=find(child.children || []); if (nested) return nested; } return null; })(children)')
+        result=expression.evaluate()[0];assert not expression.hasError(),expression.error().toString()
+        return result
+    wifiTile=named('centerTile_wifi');assert wifiTile is not None,'Wi-Fi glass tile missing'
+    # Glass sheen must stay inside its circular orb: a full-width pill painted
+    # grey corners outside the circle on every motion-enabled theme.
+    sheen=named('centerOrbSheen',wifiTile);assert sheen is not None,'orb sheen missing'
+    size=sheen.parentItem().width();r=sheen.height()/2
+    for cx in (sheen.x()+r,sheen.x()+sheen.width()-r):
+        reach=((cx-size/2)**2+(sheen.y()+r-size/2)**2)**.5+r
+        assert reach<=size/2+.01,('orb sheen escapes its circle',reach,size/2)
+    assert wifiTile.property('highlighted') is True and wifiTile.property('orbScale')==1
+    before=len(json.loads(fake.report()))
+    fake.setProperty('state',{**fake.property('state').toVariant(),'wifi':False});QTest.qWait(20)
+    motion=wifiTile.property('motionEnabled')
+    assert wifiTile.property('settling') is motion,('measured state change settle did not follow owner motion',motion)
+    if not motion:assert wifiTile.property('orbScale')==1,'reduced motion still scaled the orb'
+    QTest.qWait(900)
+    assert wifiTile.property('settling') is False and abs(wifiTile.property('orbScale')-1)<1e-6,'orb settle was not finite'
+    assert len(json.loads(fake.report()))==before,'measured state animation submitted a device change'
+    fake.measured();QTest.qWait(900)
+    details=visual('centerTileDetails_'+('واي فاي' if '--rtl' in sys.argv else 'Wi-Fi'))
+    assert details is not None and details['width']>=44 and details['height']>=44,details
+    detailDestinations=[]
+    view.nativeAppletRequested.connect(lambda route:detailDestinations.append(route))
+    at=QPointF(details['x'],details['y'])
+    before=len(json.loads(fake.report()))
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())))
+    assert detailDestinations==['org.kde.plasma.networkmanagement'],'network details did not reach its native owner'
+    assert len(json.loads(fake.report()))==before,'opening details also toggled Wi-Fi'
+    # Folding is presentation only. It must never become a device command,
+    # cancel a held gesture, or leave hidden controls in keyboard traversal.
+    levels=item.findChild(QObject,'centerLevelsBody');focus=item.findChild(QObject,'centerFocusBody')
+    levelsHeader=item.findChild(QObject,'centerLevelsDisclosure');focusHeader=item.findChild(QObject,'centerFocusDisclosure')
+    start=len(json.loads(fake.report()))
+    assert view.property('expandedGroup')=='levels' and levels.property('enabled') and not focus.property('enabled')
+    fake.beginInteraction();QTest.qWait(20)
+    assert not view.toggleGroup('focus') and not focusHeader.property('enabled'),'fold interrupted an active interaction'
+    fake.endInteraction();fake.setProperty('busy',True);QTest.qWait(20)
+    assert not view.toggleGroup('focus'),'pending executor action allowed a fold'
+    fake.setProperty('busy',False);QTest.qWait(20)
+    at=focusHeader.mapToScene(QPointF(focusHeader.width()/2,focusHeader.height()/2))
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())));QTest.qWait(320)
+    assert view.property('expandedGroup')=='focus' and focus.property('enabled') and not levels.property('enabled')
+    assert focusHeader.property('checked') and not levelsHeader.property('checked')
+    assert not slider.property('enabled') and levels.height()==0,'closed slider body remained enabled or painted'
+    assert not clipped_text(),('folded focus text clipped',clipped_text())
+    for _ in range(32):
+        QTest.keyClick(window,Qt.Key_Tab);QTest.qWait(3)
+        active=window.activeFocusItem()
+        assert active is None or (active!=levels and not levels.isAncestorOf(active)),'Tab entered a closed group'
+    item.property('host').setProperty('expanded',False);QTest.qWait(20)
+    item.property('host').setProperty('expanded',True);QTest.qWait(320)
+    assert view.property('expandedGroup')=='focus','opening the center discarded the selected group'
+    focusHeader.forceActiveFocus(Qt.TabFocusReason);QTest.keyClick(window,Qt.Key_Space);QTest.qWait(320)
+    assert view.property('expandedGroup')=='' and not focus.property('enabled') and not levels.property('enabled')
+    for value,word in ((None,'غير متاح' if '--rtl' in sys.argv else 'Unavailable'),(True,'مكتوم' if '--rtl' in sys.argv else 'Muted'),(False,'غير مكتوم' if '--rtl' in sys.argv else 'Unmuted')):
+        fake.measuredMic(value);QTest.qWait(20)
+        assert focusHeader.property('summary')==('الميكروفون: ' if '--rtl' in sys.argv else 'Mic: ')+word,('collapsed microphone state was not measured',value,focusHeader.property('summary'))
+    assert len(json.loads(fake.report()))==start,'folding or summary readback submitted a device change'
+    fake.measuredMute(True);QTest.qWait(20)
+    assert ('الصوت مكتوم' if '--rtl' in sys.argv else 'Sound muted') in levelsHeader.property('summary'),'collapsed sound summary hid measured mute'
+    fake.measuredMute(False)
+    for group in ('focus','','levels'):
+        view.setProperty('expandedGroup',group)
+        for width,height in ((280,480),(320,480),(440,720)):
+            item.setWidth(width);item.setHeight(height);window.resize(width,height);QTest.qWait(320)
+            assert not clipped_text(),('fold state inner text clipped',group,width,clipped_text())
+            assert levelsHeader.height()>=44 and focusHeader.height()>=44
+    item.setWidth(780);item.setHeight(650);window.resize(780,650);QTest.qWait(320)
+    view.setProperty('expandedGroup','')
+    levelsHeader.forceActiveFocus(Qt.TabFocusReason);QTest.keyClick(window,Qt.Key_Space);QTest.qWait(320)
+    assert view.property('expandedGroup')=='levels' and levels.property('enabled') and not focus.property('enabled')
+    fake.measured()
+    expand=item.findChild(QObject,'centerExpandNotifications')
+    at=expand.mapToScene(QPointF(expand.width()/2,expand.height()/2))
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())));QTest.qWait(250)
+    assert view.property('controlsCollapsed') is True,'notification expansion failed'
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())));QTest.qWait(250)
+    assert view.property('controlsCollapsed') is False,'controls could not be restored'
+    for width,height in ((440,720),(460,754),(460,800)):
+        item.setWidth(width);item.setHeight(height);window.resize(width,height);QTest.qWait(600)
+        controls=item.findChild(QObject,'centerControls')
+        assert controls.property('contentHeight')<=controls.property('availableHeight')+1,('regular controls unnecessarily scroll',height,controls.property('contentHeight'),controls.property('availableHeight'))
+        assert not clipped_text(),clipped_text()
+    if os.environ.get('MOOS_CENTER_CAPTURE_DIR'):
+        capture=Path(os.environ['MOOS_CENTER_CAPTURE_DIR']);capture.mkdir(parents=True,exist_ok=True)
+        item.setWidth(460);item.setHeight(800);window.resize(460,800);QTest.mouseMove(window,QPoint(3,3));QTest.qWait(600)
+        assert window.grabWindow().save(str(capture/(('ar-' if '--rtl' in sys.argv else 'en-')+scheme+'.png')))
+        item.setWidth(780);item.setHeight(650);window.resize(780,650);QTest.qWait(80)
+    tools=item.findChild(QObject,'centerTools')
+    assert tools is not None and tools.height()>=44,'all tray items need an accessible destination'
+    power=item.findChild(QObject,'centerPower')
+    assert power is not None and power.height()>=44,'power profiles require a native destination'
+    if '--rtl' in sys.argv:
+        power.setProperty('implicitHeight',44);QTest.qWait(60)
+        assert clipped_text(power),'original Arabic compact footer must retain its inner-line refusal'
+        power.setProperty('implicitHeight',48);QTest.qWait(60)
+        assert not clipped_text(power),'Arabic footer still clips after reserving native line room'
+    settings=item.findChild(QObject,'centerSettings')
+    assert settings is not None and settings.height()>=44
+    routes=[];destinations=[]
+    view.routeRequested.connect(lambda route:routes.append(route))
+    view.nativeAppletRequested.connect(lambda route:destinations.append(route))
+    at=power.mapToScene(QPointF(power.width()/2,power.height()/2))
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())))
+    assert destinations==['org.kde.plasma.battery'],'power did not use its native owner'
+    at=settings.mapToScene(QPointF(settings.width()/2,settings.height()/2))
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())))
+    assert routes==['moos://settings/full'] and item.property('host').property('expanded') is False,'Settings destination stayed covered by center'
+    item.property('host').setProperty('expanded',True);QTest.qWait(80)
+    handle=item.findChild(QObject,'centerHandle')
+    point=handle.mapToScene(QPointF(handle.width()/2,handle.height()/2))
+    start=QPoint(round(point.x()),round(point.y()))
+    QTest.mousePress(window,Qt.LeftButton,Qt.NoModifier,start)
+    for step in range(1,9):QTest.mouseMove(window,start+QPoint(0,step*12),20)
+    QTest.mouseRelease(window,Qt.LeftButton,Qt.NoModifier,start+QPoint(0,96));QTest.qWait(30)
+    assert item.property('host').property('expanded') is False,'handle drag failed to close'
+    item.property('host').setProperty('expanded',True);QTest.qWait(80)
+    QTest.keyClick(window,Qt.Key_Escape);QTest.qWait(20)
+    assert item.property('host').property('expanded') is False
+    from PySide6.QtCore import QAbstractListModel,QModelIndex,Property,Slot
+    class History(QAbstractListModel):
+        def __init__(self):
+            super().__init__();self.calls=[]
+            self.row={"applicationName":"MoOS Test","applicationIconName":"dialog-information","summary":"تحديث — Update","body":"مراجعة خاصة · Private native notification","closable":True,"type":1,"percentage":0,"hasDefaultAction":False,"actionNames":["review"],"actionLabels":["مراجعة طويلة · Long notification action " * 16],"hasReplyAction":True,"resident":False,"jobState":0,"suspendable":False,"killable":False}
+            self.roles={Qt.UserRole+i:k.encode() for i,k in enumerate(self.row)}
+        def roleNames(self):return self.roles
+        rows=1
+        def rowCount(self,parent=QModelIndex()):return 0 if parent.isValid() else self.rows
+        def expire(self):
+            self.beginRemoveRows(QModelIndex(),0,0);self.rows=0;self.endRemoveRows()
+        def data(self,index,role):return self.row.get(self.roles.get(role,b'').decode()) if index.isValid() else None
+        @Property(int,constant=True)
+        def expiredNotificationsCount(self):return 0
+        @Property(int,constant=True)
+        def unreadNotificationsCount(self):return 1
+        @Slot(QModelIndex,str,int)
+        def invokeAction(self,index,name,behavior):self.calls.append((index.row(),name,behavior))
+    history=History()
+    nc=QQmlComponent(engine,QUrl.fromLocalFile(str(UI/'CenterNotifications.qml')))
+    assert not nc.isError(),[e.toString() for e in nc.errors()]
+    notices=nc.createWithInitialProperties({'appletInterface':item.property('host'),'modelOverride':history})
+    assert notices is not None,[e.toString() for e in nc.errors()]
+    nw=QQuickWindow();notices.setParentItem(nw.contentItem());notices.setWidth(360);notices.setHeight(520);nw.resize(360,520);nw.show();QTest.qWait(60)
+    assert notices.property('presentedCount')==0,'closed center presented notification history'
+    item.property('host').setProperty('expanded',True);QTest.qWait(120)
+    assert notices.property('presentedCount')==1,'open center did not present notification history'
+    from PySide6.QtQml import QQmlExpression
+    expression=QQmlExpression(engine.rootContext(),notices,'''JSON.stringify((function find(items) {
+        for (let i=0;i<items.length;i++) {
+            let child=items[i];
+            if (child.objectName==="centerNotificationAction_0_0") {
+                let p=child.mapToItem(null,child.width/2,child.height/2);
+                return {x:p.x,y:p.y,width:child.width,limit:child.parent.width};
+            }
+            let result=find(child.children || []);if(result)return result;
+        }
+        return null;
+    })(children))''')
+    result=expression.evaluate()[0]
+    assert not expression.hasError(),expression.error().toString()
+    point=json.loads(result);assert point is not None,('native action not created',warnings)
+    assert 0<point['width']<=point['limit'] and point['width']<=336,'long action overflowed its native card'
+    assert 0<=point['x']<=360 and 0<=point['y']<=520,point
+    QTest.mouseClick(nw,Qt.LeftButton,Qt.NoModifier,QPoint(round(point['x']),round(point['y'])))
+    assert len(history.calls)==1 and history.calls[0][0:2]==(0,'review'),history.calls
+    assert not clipped_text(notices),('notification action text clipped',clipped_text(notices))
+    # Live 1162 journal: an expiring notification tore down its action
+    # delegates while their width binding still read the detached parent.
+    before=len(warnings);history.expire();QTest.qWait(120)
+    assert notices.property('presentedCount')==0,'expired notification remained presented'
+    teardown=[m for m in warnings[before:] if 'TypeError' in m or 'of null' in m]
+    assert not teardown,('notification teardown read a detached parent',teardown)
+    bad=[m for m in warnings if any(t in m for t in ('ReferenceError','TypeError','Binding loop','Unable to assign','Cannot assign','not a type'))]
+    assert not bad,bad
+    print('PANEL_CENTER_NATIVE_PASS: executor negatives, measured readback,320/420/780px, slider release and Escape')
+
+
+class PanelCenter(unittest.TestCase):
+    def test_native_transaction_and_input(self):
+        try:import PySide6
+        except ImportError:self.skipTest('native Qt unavailable; installed-session qualification still required')
+        with tempfile.TemporaryDirectory(prefix='moos-center-test-') as name:
+            base=Path(name);env=dict(os.environ)
+            for k in ('HOME','XDG_CONFIG_HOME','XDG_DATA_HOME','XDG_CACHE_HOME','XDG_RUNTIME_DIR'):
+                d=base/k;d.mkdir(mode=0o700);env[k]=str(d)
+            env.update(QT_QPA_PLATFORM='offscreen',QT_QPA_PLATFORMTHEME='kde',XDG_DATA_DIRS=str(ROOT/'system_files/usr/share')+':/usr/local/share:/usr/share',XDG_CONFIG_DIRS=str(base/'XDG_CONFIG_HOME'),QT_QUICK_BACKEND='software',QML_DISABLE_DISK_CACHE='1')
+            for k in ('DISPLAY','WAYLAND_DISPLAY','DBUS_SESSION_BUS_ADDRESS'):env.pop(k,None)
+            config=base/'bus.conf';config.write_text('<busconfig><type>session</type><listen>unix:tmpdir='+name+'</listen><auth>EXTERNAL</auth><policy context="default"><allow send_destination="*"/><allow receive_sender="*"/><allow own="*"/></policy></busconfig>')
+            cases=[('MoOSUI2Aurora',False),('MoOSUI2AuroraLight',True)]
+            if os.environ.get('MOOS_CENTER_ALL_THEMES')=='1':
+                cases=[(p.stem, p.stem.endswith('Light') or p.stem in ('MoOSUI2Light','MoOSUI2Daylight')) for p in sorted((ROOT/'system_files/usr/share/color-schemes').glob('MoOS*.colors'))]
+            for language in ('ar_SA.UTF-8','en_US.UTF-8'):
+                for scheme,reduced in cases:
+                    light=reduced
+                    env['LANG']=language;env['LC_ALL']=language;env['MOOS_CENTER_SCHEME']=scheme
+                    (base/'XDG_CONFIG_HOME/kdeglobals').write_text((ROOT/('system_files/usr/share/color-schemes/'+scheme+'.colors')).read_text()+'\n[KDE]\nAnimationDurationFactor='+('0' if reduced else '1')+'\n[Icons]\nTheme='+scheme+'\n')
+                    style='MoOSUI2' if scheme=='MoOSUI2Dark' else 'MoOSUI2Light' if scheme=='MoOSUI2Light' else scheme
+                    (base/'XDG_CONFIG_HOME/plasmarc').write_text('[Theme]\nname='+style+'\n')
+                    command=['dbus-run-session','--config-file',str(config),'--',sys.executable,str(Path(__file__).resolve()),'--native']+(['--light'] if light else [])+(['--rtl'] if language.startswith('ar') else [])
+                    if scheme=='MoOSUI2Aurora' and language.startswith('ar'):
+                        wrong=subprocess.run(command+['--wrong-owner'],capture_output=True,text=True,env=env,timeout=40)
+                        self.assertNotEqual(wrong.returncode,0,'application palette falsely qualified Plasma appearance')
+                        self.assertIn('native Plasma theme owner required',wrong.stderr)
+                    r=subprocess.run(command,capture_output=True,text=True,env=env,timeout=40)
+                    self.assertEqual(r.returncode,0,str((language,scheme,reduced))+r.stdout+r.stderr)
+                    self.assertIn('PANEL_CENTER_NATIVE_PASS',r.stdout)
+
+if __name__=='__main__':
+    if '--native' in sys.argv:native()
+    else:unittest.main(verbosity=2)
