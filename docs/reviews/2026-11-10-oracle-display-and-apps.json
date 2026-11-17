@@ -1,0 +1,225 @@
+{
+  "date": "2026-11-10",
+  "scope": "Oracle ARM live owner maintenance, P1.1/P4.1/P5.4/P5.6",
+  "source_sha": "3ef8621711c896daefe9993ee79cdcde51bcf5f0",
+  "owner_report": "Apps incompatible/outdated/slow; Code display wrong; access via Mo PC Remote on phone.",
+  "integration_owner": "This chat; no subagents or image candidate dispatched. Existing other chat maintenance files are preserved.",
+  "booted": "44.20261109.911",
+  "rollback": "44.20261109.908",
+  "boot_id": "86ab0362-52da-46bf-b7cf-6c5992cba7b1",
+  "display": "1280x720@60, scale0.75, software llvmpipe; owner prior75% preserved",
+  "done": [
+    "Canonical user and system app update complete; pending updates0",
+    "Native Code1.145.2 matches official current ARM stable",
+    "Claude official extension2.1.322 installed; native extension manager preserves Codex26.1007 and Antigravity1.11 pins",
+    "55user and35system Flatpak refs pass native dry-run checks",
+    "Actual Code before paints client at75% of full frame with underlying app visible; native100% control passes; forced device scale1 still fails; X11 and native Wayland fractional-feature-disabled controls pass",
+    "Existing user-local Code launcher carries per-app WaylandFractionalScaleV1 workaround with exact recovery; Code zoom0, editor/terminal14, no minimap, on-demand managed MCP and generated test-results watcher exclusion",
+    "Native owner Code bootstrap success32.197s; renderer_ready18.465s; old renderer timeout preserved",
+    "Owner-requested normal UI density and native empty-panel collapse inspected on actual Code; canonical Store run0 and desktop entry syntax/ownership pass"
+  ],
+  "incomplete": [
+    "Final reduced UI phone rendering/input confirmation not received; previous enlarged UI was rejected",
+    "Complete directory-size accounting remains timed out",
+    "Full per-app functional/authentication/Arabic UI coverage remains open",
+    "Wallet remains owner-selected Off; native Code credential-storage warning remains, no plaintext-store downgrade",
+    "Linux desktop-app updater could not check remote releases; no claim that running Codex desktop is globally latest",
+    "No controlled speedup or physical GPU/SMART/Android/Windows acceptance"
+  ],
+  "disk": {
+    "scrub": "finished, read-only",
+    "scrub_size_GiB": 134.1,
+    "duration_seconds": 1947,
+    "errors": 0,
+    "all_five_device_error_counters": 0,
+    "temporary_limit_restored": "unlimited",
+    "space_available_latest_bytes": 61178216448,
+    "recursive_accounting": "partial: 180s and240s refusals retained, no complete directory-size claim",
+    "named_build_image_inventory": 55,
+    "build_image_reported_raw_bytes": 32998527665,
+    "cleanup": "No file/image/cache deletion in this chat. All55 named/container ancestry stays."
+  },
+  "checks": {
+    "selfcheck": {
+      "exit": 0,
+      "passed": 52,
+      "notes": 2
+    },
+    "postcheck": {
+      "exit": 1,
+      "passed": 55,
+      "failed": 1,
+      "reason": "Historical kscreen-doctor SIGABRT from this chat initial restricted-session display probe; retained, not a repeated current compositor crash"
+    },
+    "flatpak_user_integrity": {
+      "exit": 0,
+      "refs": 55
+    },
+    "flatpak_system_integrity": {
+      "exit": 0,
+      "refs": 35
+    },
+    "current_system_failed_units": 0,
+    "current_user_failed_units": 0,
+    "pending_store_updates": 0
+  },
+  "local_changes": [
+    {
+      "path": "/var/home/moos/.local/bin/code",
+      "before_sha256": "ad67b431be1b2a379e396e432936a19d975eaa4833670723faefad27540fc2af",
+      "after_sha256": "c2c453f2b169ef36adae5e20f4ebad4ce3bc4ebc013f72d5e952bf6f6cff6ee4",
+      "bytes": 462,
+      "scope": "user-local editor config, not signed OS payload"
+    },
+    {
+      "path": "/var/home/moos/.config/Code/User/settings.json",
+      "before_sha256": "63661488dba034022b8224be5a5ad563eccb4c89de784c8b077b55acf9f8610c",
+      "after_sha256": "7b11668aa288779fbebb6df22c59324031bf1c68db6f00538884f2c7f7ae79f0",
+      "bytes": 1511,
+      "scope": "user-local editor config, not signed OS payload",
+      "reason": "Owner rejected enlarged UI; restore normal interface/editor/terminal sizes while keeping frame fix"
+    },
+    {
+      "path": "/var/home/moos/.local/share/applications/appdrop-code.desktop",
+      "before_sha256": "05016b430499bd4868f152d32d925bb95d489766f47a22886e9e108d23fbfe4e",
+      "after_sha256": "4a1b40c277ea8e826d232684a509d1aff8800c9adc32bbeca7f07218f4f81d06",
+      "bytes": 328,
+      "reason": "Store App Drop entry selects same qualified native Wayland workaround as existing Code CLI/visible launcher"
+    }
+  ],
+  "onboarding": [
+    {
+      "app": "VLC",
+      "native_first_run_privacy": "declined automatic third-party metadata access; continued locally",
+      "before_checked": true,
+      "after_checked": false
+    },
+    {
+      "app": "GIMP",
+      "welcome_closed": true,
+      "show_on_start": false,
+      "recovery": "Help menu can reopen Welcome; restore Show on Start if wanted"
+    }
+  ],
+  "visual": {
+    "default_window_review": [
+      "GNOME Calculator51.1",
+      "GIMP3.2.8",
+      "Krita5.3.4.1",
+      "LibreOffice26.8.2.2",
+      "Curtail1.17.0",
+      "Chrome157.0.8103.38-1",
+      "Chromium157.0.8103.38",
+      "Ptyxis50.1",
+      "VLC3.0.24"
+    ],
+    "extra_installed_surfaces": [
+      "native Code1.145.2",
+      "Mo Store",
+      "native Display kcm_kscreen.so from /usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_kscreen.so"
+    ],
+    "functional_scope": [
+      "GIMP renders own1024x1024 Arabic-named PNG; no editing/save claim",
+      "VLC renders decoded local silent Arabic-named MPEG4 test video; no audio/device/endurance claim",
+      "Code actual owner profile opens Arabic text; full client, normal-size text after owner correction and Codex home visible; no fresh inference claim",
+      "Actual native EIS keyboard command palette/query/selection succeeds; empty Output panel hidden and editor occupies available height. Not a phone touch claim."
+    ],
+    "refusals": [
+      "First labelled Krita/LibreOffice captures were obscured and rejected",
+      "First GIMP normal-close not-responding dialog retained; later native Welcome closed and local image renders; precise original cause unproven",
+      "First global calculator key attempt did not establish requested2+3=5; existing12+34=46 history is not accepted as its evidence"
+    ],
+    "not_tested": [
+      "Phone received pixels/physical touch",
+      "all42 installed native/catalogue app functional workflows",
+      "full Arabic UI in third-party apps",
+      "authenticated provider/account workflows"
+    ]
+  },
+  "cleanup": {
+    "remaining_owner_apps": [
+      "Code",
+      "ChatGPT"
+    ],
+    "all_task_review_windows_closed_normally": true,
+    "forced_termination": false
+  },
+  "performance_final": {
+    "duration_seconds": 30.000085762999788,
+    "workload": "Owner Code/ChatGPT/Codex/MCP plus Remote and cloud services; all owned app review windows closed as confirmed separately; no scrub or directory walk. Active owner work, not idle, no controlled speedup comparison.",
+    "memory_available_bytes": 6434033664,
+    "psi": {
+      "cpu": "some avg10=3.88 avg60=6.38 avg300=12.32 total=951937420\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+      "memory": "some avg10=0.00 avg60=0.07 avg300=0.66 total=95543094\nfull avg10=0.00 avg60=0.04 avg300=0.43 total=65555346\n",
+      "io": "some avg10=4.22 avg60=2.61 avg300=4.83 total=992873150\nfull avg10=3.48 avg60=1.88 avg300=2.52 total=530347747\n"
+    }
+  },
+  "upstream": [
+    "https://code.visualstudio.com/docs/configure/accessibility/accessibility",
+    "https://github.com/ValveSoftware/SteamOS/issues/2351",
+    "https://learn.chatgpt.com/docs/codex/ide"
+  ],
+  "private_evidence": "test-results/deep-maintenance-20261110; private screenshots and recovery kept local, not committed",
+  "outcome": "Native display repair verified and maintenance completed within stated scope; broader compatibility and phone acceptance stay open.",
+  "owner_phone_feedback": {
+    "first_fixed_frame": "rejected: application UI itself too large; shrink to fit system screen",
+    "action": "zoom1/font16 removed in favor of zoom0/editor14/terminal14; same system75% and native frame fix preserved",
+    "final_phone_confirmation": "not received"
+  },
+  "initial_local_changes": [
+    {
+      "path": "/var/home/moos/.local/bin/code",
+      "before_sha256": "ad67b431be1b2a379e396e432936a19d975eaa4833670723faefad27540fc2af",
+      "after_sha256": "c2c453f2b169ef36adae5e20f4ebad4ce3bc4ebc013f72d5e952bf6f6cff6ee4",
+      "bytes": 462,
+      "scope": "user-local editor config, not signed OS payload"
+    },
+    {
+      "path": "/var/home/moos/.config/Code/User/settings.json",
+      "before_sha256": "c7ee3781bb598ace38e11d87cefbc7d4e84db3a83147531186eb7e6b53b31eed",
+      "after_sha256": "63661488dba034022b8224be5a5ad563eccb4c89de784c8b077b55acf9f8610c",
+      "bytes": 1511,
+      "scope": "user-local editor config, not signed OS payload"
+    }
+  ],
+  "store_code_route": {
+    "exit": 0,
+    "scope": "real existing-profile Store run; launcher ownership, syntax and exact matching feature flag verified; no package replacement or new cold App Drop update performed"
+  },
+  "cross_app_scaling": {
+    "manager_scaling": {},
+    "flatpak_scaling_overrides": [],
+    "gtk_files": {
+      "/var/home/moos/.config/gtk-3.0/settings.ini": {
+        "gtk-font-name": "Meyar Sans,  10",
+        "gtk-xft-dpi": "98304"
+      },
+      "/var/home/moos/.config/gtk-4.0/settings.ini": {
+        "gtk-font-name": "Meyar Sans,  10",
+        "gtk-xft-dpi": "98304"
+      }
+    },
+    "gnome_text_scaling_personal": "1.0",
+    "native_font": "Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1",
+    "outputs": [
+      {
+        "name": "Virtual-0",
+        "scale": 0.75,
+        "size": {
+          "height": 720,
+          "width": 1280
+        }
+      }
+    ]
+  },
+  "code_layout": {
+    "native_command": "View: Toggle Panel Visibility",
+    "effect": "Empty Output panel hidden; editor uses full vertical workspace",
+    "evidence": "Installed input-only EIS helper, inspected palette/query/result; no clipboard, capture-service restart or source-file change",
+    "layout_restored": true,
+    "initial_ydotool_attempt": "not accepted; no visual change"
+  },
+  "launcher_scaling_overrides": [],
+  "final_remote_input_ready": true,
+  "final_native_UI": "Code zoom0/editor14/terminal14; same75% output; actual editor extends down after native Toggle Panel Visibility. Final owner phone confirmation pending."
+}
