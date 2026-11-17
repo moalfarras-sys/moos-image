@@ -262,6 +262,11 @@ Item {
                     driver.verify(position.x >= -1 && position.x + action.width <= driver.homeScroll.width + 1,
                         "Home action fits horizontally: " + name);
                 }
+                const pinnedHeading=named(v,"launcherPinnedHeading"),firstPinned=driver.homeGrid.itemAtIndex(0);
+                if(pinnedHeading&&firstPinned){
+                    const gap=firstPinned.mapToItem(driver.homeScroll,0,0).y-(pinnedHeading.mapToItem(driver.homeScroll,0,0).y+pinnedHeading.height);
+                    driver.verify(gap<=v.space3*2+v.space1+1,"first pinned row follows its heading: gap="+gap);
+                }
                 const edge=named(driver.homeScroll,"movaScrollEdge");
                 driver.verify(edge&&edge.parent===driver.homeScroll,"scroll edge belongs to the viewport, not the scrolled content");
                 driver.homeScroll.contentY=0;check.wait(v.motionFast+60);

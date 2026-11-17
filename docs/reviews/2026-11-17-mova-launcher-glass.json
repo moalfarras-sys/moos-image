@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "date": "2026-11-17",
+  "plan_rows": [
+    "P2.4",
+    "P2.5",
+    "P2.8"
+  ],
+  "branch": "feat/mova-launcher-glass-20261117",
+  "continues": "Codex Mova 033f6448 (PR303), merged with main dbdfdd66 (glass Control Center 160)",
+  "theme_revision": 166,
+  "installed_before": "Physical V3 signed1162, 3840x2160 at scale 2.5, Bloom; user-local Codex 033f6448 Mova package; popup 1064x745.2 logical.",
+  "defects_observed_live": [
+    "Horizon pill (16% height, radius height/2, horizontal gradient) drew a hard top line and visible gradient columns across the bottom content row on every page.",
+    "Library and Home tiles: ColumnLayout spread spare cell height between icon and name; a wrapped name lifted only its own icon, so a row had several icon levels.",
+    "Home and Customize cut their last row in half at the viewport edge with no sign that content continued.",
+    "Customize: the native Plasma off-switch groove vanished on the setting card's ink tint and read as a radio ring next to an on switch.",
+    "Portrait/tablet Home: the stretched section column shared spare viewport height as gaps, leaving ~106px of empty glass between 'Pinned' and its first row (also present in the 165 matrix captures)."
+  ],
+  "repairs": {
+    "horizon": "Vertical rim glow inside the glass sheet, transparent top stop, highlight .075 dark/.045 light at the rim; no edge, no banding.",
+    "tiles": "Icon and name travel as one group between two fillers over a reserved two-line name (shared FontMetrics, top-aligned).",
+    "hover": "Control Center glass card: .14 accent tint, .32 accent hairline, white top sheen; focus keeps its .82 two-pixel edge.",
+    "scroll_edge": "Viewport-owned gradient into the glass surface colour, visible only while content continues below; no input, no layer or shader.",
+    "switch": "Ink track under the native PC3.Switch indicator, hidden when checked so the native accent groove remains the owner.",
+    "home_packing": "A trailing fill item takes spare height below the sections; the native driver refuses a heading-to-first-row gap above two spacing steps (old 106px fails)."
+  },
+  "native_controls": {
+    "driver_assertions": "Row icon level <=1px, name gap <= space2, name ink inside card, scroll edge parented to viewport and visible exactly while Home overflows, rimless vertical horizon, switch track equals native indicator geometry and hides when checked.",
+    "old_layout_negative": "Removing the fillers/reservation fails the native driver: 'name sits with its icon: gap=41'; fixed source passes 9/9 launcher tests. Removing the Home tail filler fails 'first pinned row follows its heading: gap=106'.",
+    "matrix": "36 native popup cases, 18 palettes x Arabic/English, passed on frozen 68cbdc46 before the Home packing fix; rerun on the final frozen commit is recorded in the PR."
+  },
+  "live": {
+    "selection": "select-live-launcher.py verified Codex inventory bytes exactly, archived them as retired-live-package-033f6448 and installed this package; --retire restores the Codex copy. Not a signed OS update.",
+    "journeys": "Guarded entry click opened Mova; Customize shows the visible off track; Library rows share one icon level with names beneath; Home fades the workspace row below the fold; pointer hover shows the glass card. Escape closed only after the launcher was confirmed active. Shell journal: no launcher or QML errors."
+  },
+  "release_blocker": "Main x86 signed build 44157887989 for dbdfdd66 refused at the high npm audit gate: GHSA-fc5q-39xc-vjpf (picomatch ReDoS) was widened on 2026-11-17 to <=4.0.7 with no patched release; picomatch reaches the controller only through vite/workbox build tooling. The gate stays unchanged; a patched upstream release is required before the next signed candidate.",
+  "remaining": [
+    "Signed immutable delivery of launcher, Control Center and moos-control after the upstream picomatch fix.",
+    "Physical touch, portrait/tablet and assistive-technology journeys.",
+    "The Plasma dialog frame still surrounds the glass sheet with a second rounded silhouette; changing it touches the shared popup owner and is not part of this slice."
+  ]
+}

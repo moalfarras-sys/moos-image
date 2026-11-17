@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "mova-launcher-glass",
+      "merged": "2026-11-17T21:30:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "مشغّل Mova أوضح وأهدأ",
+        "en": "A clearer, calmer Mova launcher"
+      },
+      "body": {
+        "ar": "اسم كل تطبيق صار تحت أيقونته مباشرة، وأيقونات الصف الواحد على مستوى واحد. البطاقة تصبح زجاجية عند المرور فوقها كمركز التحكم، والصفحة التي تكمل للأسفل تتلاشى بلطف بدل قصّ آخر صف. مفتاح الإعداد المتوقف صار واضحاً.",
+        "en": "Each app name now sits right under its icon, and every row shares one icon level. Tiles turn to glass on hover like the Control Center, pages that continue below fade softly instead of cutting their last row, and switched-off settings are clearly visible."
+      }
+    },
+    {
       "id": "control-center-glass",
       "merged": "2026-11-17T16:30:00Z",
       "glyph": "settings",
@@ -916,20 +929,6 @@
         "ar": "عندما ينفّذ Mo AI أمراً، صار يعرض أول ستة أسطر ويقول كم بقي، بدل صفحة كاملة. و«فحص الجهاز» الذي كان يفتح نافذة ولا يطبع شيئاً ثم يظهر صفّاً أحمر، صار يعيد حالة جهازك بالكلمات: الإصدار، هل هو موقّع، وما وجده الفحص.",
         "en": "When Mo AI runs something it now shows the first six lines and says how many are left, instead of a full page. And the hardware check that used to open a window, print nothing and leave a red \"failed\" row now answers in words: the version, whether it is signed, and what the check found."
       }
-    },
-    {
-      "id": "clock-week",
-      "merged": "2026-09-18T12:05:49Z",
-      "glyph": "calendar",
-      "title": {
-        "ar": "الساعة تعرض أسبوعك",
-        "en": "The clock shows the week you are standing in"
-      },
-      "body": {
-        "ar": "بطاقة الساعة على سطح المكتب لها وجه ثانٍ: أيام أسبوعك واليوم مُعلَّم عليه، ورقم اليوم في السنة. تُقلب من قائمة سطح المكتب، بجانب زرّ إخفاء البطاقة.",
-        "en": "The desktop's clock card has a second face: the days of your week with today marked, and the day of the year. Turn it from the desktop's own menu, beside the switch that hides the card."
-      },
-      "route": "moos://settings/desktop"
     }
   ]
 }

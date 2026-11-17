@@ -1070,6 +1070,16 @@ Item {
                                 onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
                             }
                         }
+
+                        // Spare viewport height belongs below the sections. Without
+                        // it the stretched column shared it out as gaps, leaving a
+                        // band of empty glass between "Pinned" and its first row
+                        // in portrait/tablet viewports.
+                        Item {
+                            objectName: "movaHomeTail"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
                     }
                 }
 
