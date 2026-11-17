@@ -71,3 +71,12 @@ plugin digests are checked against their owning RPM. Real existing-server action
 callback, hidden-window expiry and canonical Settings open/close were exercised.
 Source font tests reserve56px for notification actions/replies after48px still
 clipped Arabic ink. Content-only button press feedback never shrinks hit areas.
+
+The revision 159 successor keeps connectivity outside two native folding cards. Sound and
+display opens first; Focus and privacy exposes measured status on its header.
+Only one body is enabled; pending/held input refuses switching and explicit
+selection survives the popup cycle. Native pointer/keyboard/Qt-touch tests cover
+closed-body Tab exclusion, all fold states and source Meyar narrow bounds. The
+scoped live icon prefix now covers all 18 curated themes plus hicolor, with native
+resolver/semantic raster proof and unchanged fallback icons. This development
+prefix and the shell plugin still require signed immutable delivery.

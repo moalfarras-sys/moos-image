@@ -23,6 +23,70 @@ FocusScope {
     signal nativeAppletRequested(string id)
     signal routeRequested(string route)
     function t(ar, en) { return MoUI.Locale.local(ar, en); }
+    property string expandedGroup: "levels"
+    readonly property bool foldingAvailable: !backend.busy && typeof backend.activeInteractions === "number" && backend.activeInteractions === 0
+    function toggleGroup(group) {
+        if (!foldingAvailable || ["levels", "focus"].indexOf(group) < 0) return false;
+        expandedGroup = expandedGroup === group ? "" : group;
+        return true;
+    }
+    function percent(field) {
+        const value = backend.state[field];
+        return typeof value === "number" && Number.isFinite(value) ? "\u2066" + Math.round(value) + "%\u2069" : "—";
+    }
+    function levelsSummary() {
+        const sound = backend.state.muted === true ? t("الصوت مكتوم", "Sound muted") : t("الصوت ", "Sound ") + percent("volume");
+        return sound + " · " + t("السطوع ", "Brightness ") + percent("brightness");
+    }
+    function focusSummary() {
+        const muted = backend.state.mic_muted;
+        const parts = [t("الميكروفون: ", "Mic: ") + (typeof muted !== "boolean" ? t("غير متاح", "Unavailable") : muted ? t("مكتوم", "Muted") : t("غير مكتوم", "Unmuted"))];
+        if (backend.state.dnd === true) parts.push(t("عدم الإزعاج", "Do not disturb"));
+        if (backend.state.night_light === true) parts.push(t("إضاءة ليلية", "Night Light"));
+        return parts.join(" · ");
+    }
+    component FoldHeader: PC3.AbstractButton {
+        id: fold
+        required property string heading
+        required property string summary
+        required property string symbol
+        property bool expanded: false
+        readonly property bool stacked: width < 360
+        signal disclosureRequested()
+        implicitHeight: Math.max(56, foldContent.implicitHeight + topPadding + bottomPadding)
+        leftPadding: 12; rightPadding: 12; topPadding: 4; bottomPadding: 4
+        enabled: center.foldingAvailable
+        activeFocusOnTab: true
+        checkable: true; checked: expanded
+        Accessible.name: heading
+        Accessible.description: summary + " · " + (expanded ? center.t("طي المجموعة", "Collapse group") : center.t("توسيع المجموعة", "Expand group"))
+        onClicked: disclosureRequested()
+        background: Rectangle {
+            radius: MoUI.Tokens.radiusCard
+            color: Qt.alpha(Kirigami.Theme.textColor, fold.down ? .07 : fold.hovered ? .045 : 0)
+            border.width: fold.activeFocus ? 2 : 0
+            border.color: Kirigami.Theme.highlightColor
+            Behavior on color { ColorAnimation { duration: MoUI.Tokens.motionFast } }
+        }
+        contentItem: ColumnLayout {
+            id: foldContent
+            spacing: fold.stacked ? 2 : 0
+            scale: fold.down && Kirigami.Units.longDuration > 1 ? .98 : 1
+            Behavior on scale { NumberAnimation { duration: MoUI.Tokens.motionFast; easing.type: Easing.OutCubic } }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 8
+                Kirigami.Icon { source: fold.symbol; Layout.preferredWidth: 20; Layout.preferredHeight: 20; color: Kirigami.Theme.textColor }
+                PC3.Label { text: fold.heading; Layout.fillWidth: fold.stacked; font.pixelSize: MoUI.Tokens.typeSecondary; font.weight: Font.DemiBold; textFormat: Text.PlainText; elide: Text.ElideRight }
+                PC3.Label { visible: !fold.stacked; text: fold.summary; Layout.fillWidth: true; font.pixelSize: MoUI.Tokens.typeCaption; opacity: .86; textFormat: Text.PlainText; elide: Text.ElideRight }
+                Kirigami.Icon {
+                    source: "go-down-symbolic"; Layout.preferredWidth: 20; Layout.preferredHeight: 20
+                    color: Kirigami.Theme.textColor; rotation: fold.expanded ? 180 : 0
+                    Behavior on rotation { NumberAnimation { duration: MoUI.Tokens.motionGeometry; easing.type: Easing.OutCubic } }
+                }
+            }
+            PC3.Label { visible: fold.stacked; text: fold.summary; Layout.fillWidth: true; font.pixelSize: MoUI.Tokens.typeCaption; opacity: .86; textFormat: Text.PlainText; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
+        }
+    }
     function openSettings() {
         routeRequested("moos://settings/full");
         if (reviewMode || Qt.openUrlExternally("moos://settings/full")) closeRequested();
@@ -77,7 +141,7 @@ FocusScope {
             Layout.fillWidth: true; spacing: 6
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 2
-                PC3.Label { text: center.t("مركز النظام", "System Center"); font.pixelSize: MoUI.Tokens.typeTitle; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
+                PC3.Label { text: center.t("مركز التحكم", "Control Center"); font.pixelSize: MoUI.Tokens.typeTitle; font.weight: Font.DemiBold; Layout.fillWidth: true; elide: Text.ElideRight }
                 PC3.Label {
                     Layout.fillWidth: true; elide: Text.ElideRight
                     text: "MoOS" + (typeof center.backend.batteryPercent === "number" ? "  ·  " + center.backend.batteryPercent + "%" + (center.backend.pluggedIn === true ? center.t(" · تشحن", " · Charging") : "") : "")
@@ -137,29 +201,73 @@ FocusScope {
                     }
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: sliders.implicitHeight + 20
-                        radius: MoUI.Tokens.radiusCard; color: Qt.alpha(Kirigami.Theme.textColor, .04)
-                        ColumnLayout {
-                            id: sliders
-                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
-                            spacing: 0
-                            CenterSlider { Layout.fillWidth: true; backend: center.backend; field: "brightness"; minimum: 5; label: center.t("الإضاءة", "Brightness"); symbol: "moos-sun-symbolic"; showDetails: true; onDetailsRequested: center.nativeAppletRequested("org.kde.plasma.brightness") }
-                            CenterSlider { Layout.fillWidth: true; backend: center.backend; field: "volume"; label: center.t("الصوت", "Sound"); symbol: "moos-volume-symbolic"; showDetails: true; onDetailsRequested: center.nativeAppletRequested("org.kde.plasma.volume") }
+                        implicitHeight: levelsHeader.height + levelsBody.height
+                        radius: MoUI.Tokens.radiusCard; color: Qt.alpha(Kirigami.Theme.textColor, .035)
+                        border.color: Qt.alpha(Kirigami.Theme.textColor, .08)
+                        FoldHeader {
+                            id: levelsHeader; objectName: "centerLevelsDisclosure"
+                            anchors { left: parent.left; right: parent.right; top: parent.top }
+                            height: implicitHeight
+                            heading: center.t("الصوت والشاشة", "Sound & display"); symbol: "moos-sun-symbolic"
+                            summary: center.levelsSummary()
+                            expanded: center.expandedGroup === "levels"
+                            onDisclosureRequested: center.toggleGroup("levels")
+                        }
+                        FocusScope {
+                            id: levelsBody; objectName: "centerLevelsBody"
+                            anchors { left: parent.left; right: parent.right; top: levelsHeader.bottom }
+                            height: center.expandedGroup === "levels" ? sliders.implicitHeight + 20 : 0
+                            enabled: center.expandedGroup === "levels"; visible: height > 0; clip: true
+                            opacity: enabled ? 1 : 0
+                            Behavior on height { NumberAnimation { duration: MoUI.Tokens.motionGeometry; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: MoUI.Tokens.motionFast } }
+                            ColumnLayout {
+                                id: sliders
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                                spacing: 0
+                                CenterSlider { Layout.fillWidth: true; backend: center.backend; field: "brightness"; minimum: 5; label: center.t("سطوع الشاشة", "Screen brightness"); symbol: "moos-sun-symbolic"; showDetails: true; onDetailsRequested: center.nativeAppletRequested("org.kde.plasma.brightness") }
+                                CenterSlider { Layout.fillWidth: true; backend: center.backend; field: "volume"; label: center.t("مستوى الصوت", "Sound level"); symbol: "moos-volume-symbolic"; showDetails: true; onDetailsRequested: center.nativeAppletRequested("org.kde.plasma.volume") }
+                            }
                         }
                     }
-                    GridLayout {
-                        Layout.fillWidth: true; columns: center.width < 360 ? 2 : 3; columnSpacing: 8; rowSpacing: 6
-                        Repeater {
-                            model: [{field:"dnd",label:center.t("عدم الإزعاج", "Do not disturb"),icon:"moos-notification-symbolic"},{field:"night_light",label:center.t("إضاءة ليلية", "Night Light"),icon:"moos-moon-symbolic"},{field:"mic_muted",label:center.t("الميكروفون", "Microphone"),icon:"moos-microphone-symbolic"}]
-                            CenterTile {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                compact: true; invertIndicator: modelData.field === "mic_muted"
-                                label: modelData.label; symbol: modelData.icon
-                                measured: center.backend.state[modelData.field] === undefined ? null : center.backend.state[modelData.field]
-                                pending: center.backend.busy && center.backend.pendingField === modelData.field
-                                toggleEnabled: center.backend.ready && !center.backend.busy
-                                onClicked: center.backend.request(modelData.field, !measured)
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: focusHeader.height + focusBody.height
+                        radius: MoUI.Tokens.radiusCard; color: Qt.alpha(Kirigami.Theme.textColor, .035)
+                        border.color: Qt.alpha(Kirigami.Theme.textColor, .08)
+                        FoldHeader {
+                            id: focusHeader; objectName: "centerFocusDisclosure"
+                            anchors { left: parent.left; right: parent.right; top: parent.top }
+                            height: implicitHeight
+                            heading: center.t("التركيز والخصوصية", "Focus & privacy"); summary: center.focusSummary(); symbol: "moos-microphone-symbolic"
+                            expanded: center.expandedGroup === "focus"
+                            onDisclosureRequested: center.toggleGroup("focus")
+                        }
+                        FocusScope {
+                            id: focusBody; objectName: "centerFocusBody"
+                            anchors { left: parent.left; right: parent.right; top: focusHeader.bottom }
+                            height: center.expandedGroup === "focus" ? focusGrid.implicitHeight + 20 : 0
+                            enabled: center.expandedGroup === "focus"; visible: height > 0; clip: true
+                            opacity: enabled ? 1 : 0
+                            Behavior on height { NumberAnimation { duration: MoUI.Tokens.motionGeometry; easing.type: Easing.OutCubic } }
+                            Behavior on opacity { NumberAnimation { duration: MoUI.Tokens.motionFast } }
+                            GridLayout {
+                                id: focusGrid
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                                columns: center.width < 360 ? 2 : 3; columnSpacing: 8; rowSpacing: 6
+                                Repeater {
+                                    model: [{field:"dnd",label:center.t("عدم الإزعاج", "Do not disturb"),icon:"moos-notification-symbolic"},{field:"night_light",label:center.t("إضاءة ليلية", "Night Light"),icon:"moos-moon-symbolic"},{field:"mic_muted",label:center.t("الميكروفون", "Microphone"),icon:"moos-microphone-symbolic"}]
+                                    CenterTile {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        compact: true; invertIndicator: modelData.field === "mic_muted"
+                                        label: modelData.label; symbol: modelData.icon
+                                        measured: center.backend.state[modelData.field] === undefined ? null : center.backend.state[modelData.field]
+                                        pending: center.backend.busy && center.backend.pendingField === modelData.field
+                                        toggleEnabled: center.backend.ready && !center.backend.busy
+                                        onClicked: center.backend.request(modelData.field, !measured)
+                                    }
+                                }
                             }
                         }
                     }

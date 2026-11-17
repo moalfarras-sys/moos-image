@@ -249,7 +249,19 @@ For every task:
 
 ## Ordered execution
 
-Nov16–17 owner priority P2.5/P2.7/P2.8/P2.10: owner accepts unified native center and requests polish. Final158 adds stable-hit press feedback, readable native actions and actual-history-ID notification presentation; preserves delegates, sound, timeout, DND and native owners. Two scoped exact plugins load on signed1162. Real notification action/expiry and Settings route pass; final36 native theme/language/input cases,137 package and original failure controls pass. Next: exact full source/vendor RPM/image and architecture CI, richer notifications/physical touch/portrait/camera, signed promotion and booted immutable readback.3be2 check was intentionally superseded after actual duplicate-popup reproduction; no UI push/image then. Hardware7243 remains separate: reuse signed43973332660/ARM43973226007; no duplicate build or automatic UI merge/update. [Proof](reviews/2026-11-16-panel-control-center.json).
+Nov17 owner priority P2.5/P2.7/P2.8/P2.10: revision 159 adds smart folds and refined
+measured captions to the accepted unified native center. Connectivity stays
+available; exclusive bodies disable hidden controls, preserve selection and
+refuse switching during pending operations or held input. All 36 native cases
+pass in 504.079s, with independent review and actual fold/status readback. The
+scoped icon prefix covers all 18 curated themes. Next: exact revision 159 full
+source/image/CI qualification and owner/physical journeys, then signed immutable
+delivery. Predecessor a11 passes full source validation in 1135.589s (draft PR300);
+its image stays frozen. Keep hardware merge 7243 separate and reuse its signed
+artifacts. Canary 44092339781 fails upstream libkgapi/kio-gdrive ABI composition
+before QML admission; preserve the refusal and qualify a fresh compatible
+transaction without weakening gates or rerunning the failed job.
+[Folds](reviews/2026-11-17-control-center-folds.json).
 
 Nov16 physical rotation follow-up: owner-labelled landscape reports bottom-up until the exact normalized V3 hwdb alias is applied through native authentication. The temporary543-byte alias and14,482,193-byte compiled cache have exact hashes/retirement conditions; immutable kernel/database remain unchanged. Native KWin sees1/2/4/8 at scale1.45 and owner confirms all directions. Retiring the observer exposes stopped rotation with keyboard connected; owner explicitly retains tablet-only policy and confirms operation after detaching it with no observer. Preserve the later desktop snapshot after reconnect, the uncaptured detached transition and current availability metadata limitation. Source dbdaf75c full check0/1162.713s, local image0/6707.594s/exact runtime readback and PR gates pass. Merged7243bb0d canonical signed cycle is running; physical installation remains separate. [Live proof](reviews/2026-11-16-v3-live-rotation.json).
 

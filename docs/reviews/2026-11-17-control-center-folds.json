@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "date": "2026-11-17",
+  "base_source": "a11b0cce6e088802b27cea4955b026fa89d34c09",
+  "branch": "feat/control-center-folds-20261117",
+  "theme_revision": 159,
+  "plan_rows": [
+    "P2.5",
+    "P2.7",
+    "P2.8",
+    "P2.10"
+  ],
+  "owner_steering": "Owner accepts unified controls/history, then asks for smarter folds, refined cards/names, native themes/colours and qualified system update.",
+  "design": {
+    "core": "Native Wi-Fi/Bluetooth stay outside folds with independent toggle/detail controls.",
+    "groups": "Sound & display opens by default; Focus & privacy is collapsed. A selected body closes the other; both can be closed. Explicit selection survives center close/reopen in this shell session.",
+    "summaries": "Live measured sound/brightness and mic-first unknown/muted/unmuted; sound mute remains explicit. Percent values use bidirectional isolation. No global privacy guarantee.",
+    "input": "Native checkable headers, real focus/Tab/Space/pointer/Qt touch, strict pending/activeInteractions refusal, disabled clipped closed bodies. Fold operations never invoke device actions.",
+    "motion": "Finite height/opacity/chevron/content-only press animations use existing MoOS durations and reduced motion; hit rectangles remain stable.",
+    "themes": "Native Kirigami palette roles, composed summary contrast>=4.5 and source Meyar natural line bounds; stacked summaries at narrow widths."
+  },
+  "qualification": {
+    "initial_four_native_cases": "PASS0/37.937s",
+    "fold_input_geometry_four_cases": "PASS0/58.003s",
+    "final_summary_input_four_cases": "PASS0/58.307s; keyboard/Tab, pending/input lease, selection retention, all groups at280/320/440 and actual440x720.",
+    "independent_review": "Separate native private source checks pass: pointer/Space, checked state,40 Tab steps, 280–460px, unknown/muted/unmuted, no writes. No source edits by reviewer.",
+    "native_build": "Existing SDK, original native parent guards/C+CXX and exact payload bytes; native tray target rebuilt, notification plugin unchanged.",
+    "all_theme_native_matrix": "PASS 0 / 504.079s: 36 final revision 159 native theme/language cases, including all fold states, narrow text bounds with source Meyar, composed hover/pressed contrast, pointer/Qt-touch/Space/Tab, pending/input refusal, session choice and measured summaries. No new QML API errors observed.",
+    "full_source_image_ci_signed": "Predecessor a11 full source PASS 0 / 1135.589s and draft PR300 push verified. Its full image and architecture CI qualify separately. Revision 159 still requires its own frozen full source/image/CI and signed acceptance.",
+    "final_independent_review": "Read-only final diff and proof review found no blocking product defect. Current seven tray QML hashes match source. Private receipt reader now retries only incomplete JSON publication five times before refusing."
+  },
+  "live_copy": {
+    "installed_system": "44.20261116.1162",
+    "tray_sha256": "eff81296f9741ae603b8e54d0e651743c5ab69ff6a4e36845e283aa34cdfef66",
+    "tray_bytes": 33228800,
+    "notifications_sha256": "0a8038b1673d76ed88a070e00d51c9fae12ceb777c657ea1b8ad271728762aa1",
+    "notifications_bytes": 26254384,
+    "qml_sha256": {
+      "CenterBackend.qml": "2d76ea5466fec660fde9b5535ab6c81d1a740052a5aea6f0595bc68d0bdaee64",
+      "CenterNotifications.qml": "074694fa00fac6f1b4f1eb3922c87e2d7fa4a60f81e7276b4e378ea7f2445196",
+      "CenterSlider.qml": "f9f60d7f747a9ea707029fd3d9aa1ab0077c7c1a32f3a69ab33177ccaeb07518",
+      "CenterTile.qml": "ed572f2fd7583450f362c6cd6966545d5e643381cf2e86af52bd26b4fa01a337",
+      "ControlCenterView.qml": "208633fbee213db94c91d473c662ee0f0f8b1124454cf2c8558cd2065992542d",
+      "ExpandedRepresentation.qml": "0254dd22ba60783ed4bd4b371edf36892e8662a7421ffd3898d57e39a96ed45e",
+      "main.qml": "a1e56c7e4a092e259221019822a6cd18c500646dc5c765eb4ef8791c1086036a"
+    },
+    "notifications_qml_sha256": {
+      "NotificationPopup.qml": "9d7c29d68cbf4be75ef87b9d3a0c3bc85f4fd57d40a4c0e11f3c749f9a349a60",
+      "global/Globals.qml": "fd1909989e4cc5c2a36438de2251b132f6f36c179e47788b1fa00a25537a8c3c",
+      "main.qml": "24e18e7a80798cd90fbdea562b690841d1c4c3a4f1275eff5d7f36ea5b96a7a2"
+    },
+    "icon_prefix": {
+      "generation": "f16c44ed869d634f05aebe6897f0e85714f038760f617f5c5412e9775043789f",
+      "files": 57,
+      "bytes": 120786,
+      "curated_themes": 18,
+      "hicolor_fallback": true,
+      "native_resolver_probes": 114,
+      "native_svg_cases": 76,
+      "source_svg_gate": 9,
+      "refusals": 6,
+      "provenance": "Sixteen source palette pairs; two native base styles/indexes preserved around canonical corrected geometry; hicolor source. Four unchanged controls retain original immutable paths on every theme."
+    },
+    "scope": "Only existing plasma-plasmashell.service, native tray and notification factories. Preserve layout/theme/output/apps/authentication. Not a signed immutable update.",
+    "retirement": "Restore exact prior environment by retiring only this matching runtime drop-in and reloading the shell. Keep frozen plugin/icon bytes until no active consumer remains. Signed delivery requires booted immutable replacement and installed readback.",
+    "private_inventory": "test-results/folds/runtime-inventory.json"
+  },
+  "installed_journey": {
+    "level_view": "Actual native popup484x744 at3840x2160/scale2.5 inspected; selected Bloom and original panel IDs/output/apps retained.",
+    "focus_fold": "Actual native header click folds levels and exposes three focus/privacy controls. Fixed status before/after is identical for volume,brightness,mute,mic,Wi-Fi,Bluetooth,DND,NightLight,power profile.",
+    "qml_errors": "No new reference/type/assignment errors observed after scoped reload; startup opener refused before dock was published and was retried only after fresh native dock readback.",
+    "physical_touch_portrait": "Not yet qualified; native Qt touch/narrow fixtures do not replace physical acceptance."
+  },
+  "build_crash_attribution": {
+    "event": "14:51:10 CET PID259304 SIGSEGV /work/qtquick-proof/teardown-probe",
+    "owner": "Rootless crun/buildah container, bash /src/build_files/qtquick/build.sh prepare",
+    "control": "Exact --expect crash vendor-old fixture validates return-11 before library markers; active qualification image log confirms execution.",
+    "desktop": "Plasma251936 remains active/NRestarts0; this specific notification is not a desktop crash. No general crash-free claim or report suppression."
+  },
+  "known_canary_refusal": {
+    "run": 44092339781,
+    "attempt": 1,
+    "head": "a11b0cce6e088802b27cea4955b026fa89d34c09",
+    "stage": "Compose next-Plasma base, before MoOS/QML admission",
+    "cause": "Upstream beta libkgapi26.11.80 provides .so.6.9 while available kio-gdrive needs .so.6.",
+    "action": "Preserve solver refusal and qualify a fresh first attempt after compatible upstream inputs or separately reviewed native transaction repair. Do not loosen image/kernel/source gates."
+  },
+  "remaining": [
+    "Current exact full source/package/image/architecture CI, signed promotion and booted immutable readback before staging this system update.",
+    "Physical touch/portrait/suspend/camera, rich notification replies/jobs/attachments and broader accessibility journeys.",
+    "User feedback on159 folds is separate from prior unified-layout acceptance."
+  ],
+  "private_evidence": "test-results/folds; all desktop captures, status snapshots and runtime environment remain local."
+}

@@ -112,13 +112,15 @@ Item {
   property string pendingField:""
   property string errorText:""
   property var calls:[]
-  property int interactions:0
-  function beginInteraction() { interactions++; }
-  function endInteraction() { interactions--; }
+  property int activeInteractions:0
+  function beginInteraction() { activeInteractions++; }
+  function endInteraction() { activeInteractions--; }
   function request(field,value) { calls=calls.concat([{field:field,value:value}]); return true; }
   function report() {return JSON.stringify(calls);}
   function measured() {state={volume:62,brightness:74,wifi:true,bluetooth:false,dnd:false,night_light:false,muted:false,mic_muted:false,power_profile:"balanced"};}
   function measuredVolume(value) { state=Object.assign({},state,{volume:value}); }
+  function measuredMic(value) { state=Object.assign({},state,{mic_muted:value}); }
+  function measuredMute(value) { state=Object.assign({},state,{muted:value}); }
   function refresh() {}
  }
  Component { id:calendar; Item {} }
@@ -144,6 +146,11 @@ Item {
         ink=over(foreground,fill,.78)
         ratio=(max(lum(ink),lum(fill))+.05)/(min(lum(ink),lum(fill))+.05)
         assert ratio>=4.5,('native secondary ink contrast',scheme,ratio)
+    for pressed in (False,True):
+        fill=over(foreground,over(foreground,surface,.035),.07 if pressed else .045)
+        ink=over(foreground,fill,.86)
+        ratio=(max(lum(ink),lum(fill))+.05)/(min(lum(ink),lum(fill))+.05)
+        assert ratio>=4.5,('fold summary contrast',scheme,pressed,ratio)
     view=item.findChild(QObject,'view');fake=item.property('recorder');slider=item.findChild(QObject,'centerSlider_volume')
     item.property('host').setProperty('expanded',False);item.setHeight(0)
     item.property('host').setProperty('expanded',True);QTest.qWait(30)
@@ -175,14 +182,14 @@ Item {
     assert len(json.loads(fake.report()))==0,'slider committed before release'
     QTest.mouseRelease(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(pos.x()),round(pos.y())));QTest.qWait(20)
     assert len(json.loads(fake.report()))==1,("pointer",pos.x(),pos.y(),slider.width(),slider.height(),slider.property("value"),fake.report())
-    assert fake.property('interactions')==0,'pointer interaction lease leaked'
+    assert fake.property('activeInteractions')==0,'pointer interaction lease leaked'
     device=QTest.createTouchDevice()
     touchPoint=QPoint(round(pos.x()-40),round(pos.y()))
     QTest.touchEvent(window,device).press(0,touchPoint,window).commit();QTest.qWait(30)
     assert len(json.loads(fake.report()))==1,'touch slider committed before release'
     QTest.touchEvent(window,device).release(0,touchPoint,window).commit();QTest.qWait(40)
     assert len(json.loads(fake.report()))==2,'touch release did not submit the value'
-    assert fake.property('interactions')==0,'touch interaction lease leaked'
+    assert fake.property('activeInteractions')==0,'touch interaction lease leaked'
     # Cancellation is not a release accepted by the owner. The native Slider
     # changes pressed to false on disable/hide, which previously submitted it.
     for cancellation in ('disabled','hidden','closed'):
@@ -195,7 +202,7 @@ Item {
         else:fake.setProperty('opened',False)
         QTest.mouseRelease(window,Qt.LeftButton,Qt.NoModifier,point);QTest.qWait(40)
         assert len(json.loads(fake.report()))==before,('cancelled slider submitted a device change',cancellation)
-        assert fake.property('interactions')==0,('cancelled interaction lease leaked',cancellation)
+        assert fake.property('activeInteractions')==0,('cancelled interaction lease leaked',cancellation)
         slider.setProperty('enabled',True);slider.setProperty('visible',True);fake.setProperty('opened',True)
         fake.measuredVolume(73);QTest.qWait(40)
         assert slider.property('value')==73,('cancelled slider stopped following later measured changes',cancellation)
@@ -215,6 +222,50 @@ Item {
     QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())))
     assert detailDestinations==['org.kde.plasma.networkmanagement'],'network details did not reach its native owner'
     assert len(json.loads(fake.report()))==before,'opening details also toggled Wi-Fi'
+    # Folding is presentation only. It must never become a device command,
+    # cancel a held gesture, or leave hidden controls in keyboard traversal.
+    levels=item.findChild(QObject,'centerLevelsBody');focus=item.findChild(QObject,'centerFocusBody')
+    levelsHeader=item.findChild(QObject,'centerLevelsDisclosure');focusHeader=item.findChild(QObject,'centerFocusDisclosure')
+    start=len(json.loads(fake.report()))
+    assert view.property('expandedGroup')=='levels' and levels.property('enabled') and not focus.property('enabled')
+    fake.beginInteraction();QTest.qWait(20)
+    assert not view.toggleGroup('focus') and not focusHeader.property('enabled'),'fold interrupted an active interaction'
+    fake.endInteraction();fake.setProperty('busy',True);QTest.qWait(20)
+    assert not view.toggleGroup('focus'),'pending executor action allowed a fold'
+    fake.setProperty('busy',False);QTest.qWait(20)
+    at=focusHeader.mapToScene(QPointF(focusHeader.width()/2,focusHeader.height()/2))
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())));QTest.qWait(320)
+    assert view.property('expandedGroup')=='focus' and focus.property('enabled') and not levels.property('enabled')
+    assert focusHeader.property('checked') and not levelsHeader.property('checked')
+    assert not slider.property('enabled') and levels.height()==0,'closed slider body remained enabled or painted'
+    assert not clipped_text(),('folded focus text clipped',clipped_text())
+    for _ in range(32):
+        QTest.keyClick(window,Qt.Key_Tab);QTest.qWait(3)
+        active=window.activeFocusItem()
+        assert active is None or (active!=levels and not levels.isAncestorOf(active)),'Tab entered a closed group'
+    item.property('host').setProperty('expanded',False);QTest.qWait(20)
+    item.property('host').setProperty('expanded',True);QTest.qWait(320)
+    assert view.property('expandedGroup')=='focus','opening the center discarded the selected group'
+    focusHeader.forceActiveFocus(Qt.TabFocusReason);QTest.keyClick(window,Qt.Key_Space);QTest.qWait(320)
+    assert view.property('expandedGroup')=='' and not focus.property('enabled') and not levels.property('enabled')
+    for value,word in ((None,'غير متاح' if '--rtl' in sys.argv else 'Unavailable'),(True,'مكتوم' if '--rtl' in sys.argv else 'Muted'),(False,'غير مكتوم' if '--rtl' in sys.argv else 'Unmuted')):
+        fake.measuredMic(value);QTest.qWait(20)
+        assert focusHeader.property('summary')==('الميكروفون: ' if '--rtl' in sys.argv else 'Mic: ')+word,('collapsed microphone state was not measured',value,focusHeader.property('summary'))
+    assert len(json.loads(fake.report()))==start,'folding or summary readback submitted a device change'
+    fake.measuredMute(True);QTest.qWait(20)
+    assert ('الصوت مكتوم' if '--rtl' in sys.argv else 'Sound muted') in levelsHeader.property('summary'),'collapsed sound summary hid measured mute'
+    fake.measuredMute(False)
+    for group in ('focus','','levels'):
+        view.setProperty('expandedGroup',group)
+        for width,height in ((280,480),(320,480),(440,720)):
+            item.setWidth(width);item.setHeight(height);window.resize(width,height);QTest.qWait(320)
+            assert not clipped_text(),('fold state inner text clipped',group,width,clipped_text())
+            assert levelsHeader.height()>=44 and focusHeader.height()>=44
+    item.setWidth(780);item.setHeight(650);window.resize(780,650);QTest.qWait(320)
+    view.setProperty('expandedGroup','')
+    levelsHeader.forceActiveFocus(Qt.TabFocusReason);QTest.keyClick(window,Qt.Key_Space);QTest.qWait(320)
+    assert view.property('expandedGroup')=='levels' and levels.property('enabled') and not focus.property('enabled')
+    fake.measured()
     expand=item.findChild(QObject,'centerExpandNotifications')
     at=expand.mapToScene(QPointF(expand.width()/2,expand.height()/2))
     QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())));QTest.qWait(250)
