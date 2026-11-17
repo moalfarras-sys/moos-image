@@ -20,6 +20,8 @@ Item {
     required property var powerMenu
     required property var actionMenu
     required property string reviewDirectory
+    required property var runnerFavorites
+    required property string firstSearchRunner
     property bool captureFinished: false
     function captureSurface(name) {
         captureFinished = false;
@@ -80,6 +82,36 @@ Item {
                 driver.verify(driver.appGrid.cellWidth >= 100, "readable application cells");
                 driver.verify(driver.appGrid.columns >= 1 && driver.appGrid.columns <= 8,
                              "one through eight columns");
+                const originalSearchPins = JSON.stringify(l.favoriteSearchIds);
+                driver.compare(JSON.stringify(v.searchModel.favoriteIds), JSON.stringify(driver.runnerFavorites),
+                    "Milou preserves native default or personal provider priority");
+                l.searchQuery = "true";
+                function searchRows() {
+                    const rows = [];
+                    for (let row = 0; row < v.searchModel.rowCount(); ++row) {
+                        const index = v.searchModel.index(row, 0);
+                        const urls = v.searchModel.data(index, 265) || [];
+                        rows.push({ id: String(v.searchModel.data(index, 257)),
+                            urls: Array.from(urls, url => String(url)) });
+                    }
+                    return rows;
+                }
+                function fixtureResult(row) { return row.urls.some(url => url.endsWith("/mova-provider-fixture.desktop")); }
+                function commandResult(row) { return row.id === "exec:///usr/bin/true"; }
+                driver.waitVerified(() => !v.searchModel.querying && searchRows().some(fixtureResult)
+                    && searchRows().some(commandResult), 5000, "native search providers produce competing results");
+                const nativeSearchRows = searchRows();
+                driver.verify(nativeSearchRows.some(fixtureResult),
+                    "native services provider finds the private application");
+                driver.verify(nativeSearchRows.some(commandResult),
+                    "native shell provider supplies its own executable result");
+                driver.verify(driver.firstSearchRunner === "krunner_services"
+                    ? fixtureResult(nativeSearchRows[0]) : commandResult(nativeSearchRows[0]),
+                    "native result ranking follows configured provider priority: " + JSON.stringify(nativeSearchRows));
+                l.searchQuery = "";
+                check.wait(60);
+                driver.compare(JSON.stringify(l.favoriteSearchIds), originalSearchPins,
+                    "native provider ranking leaves application pins unchanged");
                 l.activePage = 1;
                 check.tryCompare(driver.pages, "pageAnimating", false, 1500,
                     "application page settles before category pointer input");
@@ -400,6 +432,8 @@ Item {
                 driver.compare(driver.pages.pageAnimating, false, "hidden page transition stops");
                 driver.compare(driver.pages.pageTranslation, 0, "hidden page geometry settles");
                 v.visible = true;
+                driver.compare(JSON.stringify(v.searchModel.favoriteIds), JSON.stringify(driver.runnerFavorites),
+                    "native pin actions preserve the provider preference");
                 console.info("MOOS_ADAPTIVE_INPUT_PASS " + JSON.stringify({
                     width: v.width, height: v.height, rtl: v.rtl,
                     compact: v.compact, columns: driver.appGrid.columns, motion: v.motionMedium,
@@ -410,6 +444,8 @@ Item {
                     pageMotionSettled: true, nativeMenu: true, nativeFavoriteAction: true,
                     nativeFavoriteDrop: true, nativeTouchDrop: true, cancelledDropRefused: true,
                     nativeFolderNavigation: true, applicationInkFits: true, requestedFont: v.uiFontFamily,
+                    nativeProviderPreference: true, runnerFavorites: v.searchModel.favoriteIds,
+                    nativeSearchRows: nativeSearchRows,
                     initialPalette: initialPalette,
                     palette: { owner: String(nativeTheme), background: String(nativeTheme.backgroundColor),
                                text: String(nativeTheme.textColor),

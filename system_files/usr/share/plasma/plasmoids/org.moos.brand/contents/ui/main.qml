@@ -373,7 +373,7 @@ PlasmoidItem {
     Connections {
         target: root.favoriteModel
         // Instantiator keeps its objects on a native row move. Count/add/remove
-        // alone leave KRunner's favorite identities in the previous order.
+        // alone leave the application-pin snapshot in the previous order.
         function onRowsMoved() { Qt.callLater(root.syncFavoriteSearchIds); }
         function onModelReset() { Qt.callLater(root.syncFavoriteSearchIds); }
         function onDataChanged() { Qt.callLater(root.syncFavoriteSearchIds); }
@@ -400,7 +400,8 @@ PlasmoidItem {
     Milou.ResultsModel {
         id: searchResults
         queryString: root.searchQuery
-        favoriteIds: root.favoriteSearchIds
+        // Milou owns the configured/default KRunner plugin priority. Its
+        // favoriteIds are runner ids, not the Kicker application's pin ids.
         limit: 36
 
         onQueryStringChangeRequested: (queryString, cursorPosition) => {

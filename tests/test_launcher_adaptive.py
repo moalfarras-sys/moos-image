@@ -151,8 +151,13 @@ class AdaptiveLauncher(unittest.TestCase):
             self.assertTrue(record["owner_portal_unchanged"] and record["source_unchanged"])
             self.assertTrue(all(c['input']['categoryBrowsing'] for c in record['cases']))
             for field in ('nativeMenu','nativeFavoriteAction','nativeFavoriteDrop',
-                          'nativeTouchDrop','cancelledDropRefused','nativeFolderNavigation','applicationInkFits'):
+                          'nativeTouchDrop','cancelledDropRefused','nativeFolderNavigation',
+                          'applicationInkFits','nativeProviderPreference'):
                 self.assertTrue(all(c['input'][field] for c in record['cases']),field)
+            self.assertEqual({c['runner_preference_source'] for c in record['cases']},
+                             {'native-default','private-personal'})
+            for case in record['cases']:
+                self.assertEqual(case['input']['runnerFavorites'],case['runner_favorites'])
 
             quiet = subprocess.run(command + ["--family", "aurora", "--output", str(output / "quiet-glass")],
                                    capture_output=True, text=True, timeout=180)
@@ -210,6 +215,7 @@ class AdaptiveLauncher(unittest.TestCase):
                 ('--broken-drop-cancel','closed launcher refuses a held drop without changing native order'),
                 ('--broken-folders','real nested KService group exists'),
                 ('--broken-home-focus','focused Home action stays inside visible viewport'),
+                ('--broken-runner-preferences','Milou preserves native default or personal provider priority'),
             ):
                 output=Path(tmp)/flag.removeprefix('--broken-')
                 result=subprocess.run([shutil.which('python3'),str(ROOT/'tests/launcher_adaptive_native.py'),

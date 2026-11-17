@@ -23,6 +23,7 @@ parser.add_argument("--broken-order-snapshot", action="store_true")
 parser.add_argument("--broken-drop-cancel", action="store_true")
 parser.add_argument("--broken-folders", action="store_true")
 parser.add_argument("--broken-home-focus", action="store_true")
+parser.add_argument("--broken-runner-preferences", action="store_true")
 args=parser.parse_args()
 S=Path(__file__).resolve().parents[1]
 O=args.output
@@ -44,6 +45,14 @@ report={'scope':'adaptive source launcher development probe; native private KWin
 
 def one(width,height,language,light,reduced):
     case={'output_width':width,'output_height':height,'language':language,'light':light,'reduced':reduced,'service_activation_directories':False}
+    # Exercise both Milou's own defaults and a personal native ordering. The
+    # private shell-first choice must survive app pin changes, even though the
+    # native default puts applications before command execution.
+    custom_runners = language == 'ar'
+    runner_favorites = (['krunner_shell', 'krunner_services'] if custom_runners else
+        ['krunner_sessions', 'krunner_powerdevil', 'krunner_services', 'krunner_systemsettings'])
+    case['runner_favorites'] = runner_favorites
+    case['runner_preference_source'] = 'private-personal' if custom_runners else 'native-default'
     prefix=f'{width}x{height}-{language}'
     with tempfile.TemporaryDirectory(prefix='moos-launcher-viewport-') as tmp:
         root=Path(tmp)
@@ -62,6 +71,8 @@ def one(width,height,language,light,reduced):
     }
 '''
         driver=driver.replace('actionMenu: appActions','actionMenu: appActions; reviewDirectory: '+json.dumps(str(O.resolve()/prefix)))
+        driver=driver.replace('surface: view;', 'runnerFavorites: '+json.dumps(runner_favorites)
+            +'; firstSearchRunner: '+json.dumps('krunner_shell' if custom_runners else 'krunner_services')+'; surface: view;', 1)
         if args.trace_drag:
             body=body.replace('onActiveChanged: {\n                if (active)', 'onActiveChanged: {\n                console.info("MOVA_NATIVE_DRAG active", active, tile.favoriteSurface, tile.visible);\n                if (active)',1)
             body=body.replace('onActiveTranslationChanged: if (active && tile.favoriteSurface) {','onActiveTranslationChanged: if (active && tile.favoriteSurface) { console.info("MOVA_NATIVE_DRAG delta",activeTranslation);',1)
@@ -93,6 +104,10 @@ def one(width,height,language,light,reduced):
         if args.broken_folders:
             assert main_body.count('flat: false')==1
             main_body=main_body.replace('flat: false','flat: true',1)
+        if args.broken_runner_preferences:
+            seam='        queryString: root.searchQuery'
+            assert main_body.count(seam)==1 and 'favoriteIds: root.favoriteSearchIds' not in main_body
+            main_body=main_body.replace(seam,seam+'\n        favoriteIds: root.favoriteSearchIds',1)
         main.write_text(main_body)
         view.write_text(body[:body.rfind('}')]+driver+body[body.rfind('}'):])
         if args.native_popup:
@@ -109,6 +124,11 @@ def one(width,height,language,light,reduced):
             (root/'data/desktop-directories'/(filename+'.directory')).write_text('[Desktop Entry]\nType=Directory\nName='+label+'\nIcon=folder\n')
         (root/'data/applications').mkdir(parents=True)
         (root/'data/applications/mova-folder-fixture.desktop').write_text('[Desktop Entry]\nType=Application\nName=Mova Native Folder Fixture\nExec=/usr/bin/false\nIcon=folder\n')
+        # A real native services result competing with the native shell's
+        # executable "true" result. Neither result is ever activated.
+        (root/'data/applications/mova-provider-fixture.desktop').write_text('[Desktop Entry]\nType=Application\nName=true\nExec=/usr/bin/false mova-provider-fixture\nIcon=application-x-executable\nCategories=Utility;\n')
+        if custom_runners:
+            (root/'config/krunnerrc').write_text('[Plugins][Favorites]\nplugins='+','.join(runner_favorites)+'\n')
         theme=('org.moos.ui2' if args.family == 'graphite' else 'org.moos.ui2.'+args.family) + ('.light' if light else '')
         defaults=S/'system_files/usr/share/plasma/look-and-feel'/theme/'contents/defaults'
         matched=configparser.ConfigParser(interpolation=None)
@@ -262,7 +282,7 @@ try:
     matrix=[(360,640,'ar',False,True),(600,960,'en',True,False),
             (960,540,'ar',True,True),(1536,864,'en',False,False)]
     if args.short_only: matrix=matrix[2:3]
-    if args.broken_backtab or args.broken_alignment or args.broken_style or args.broken_order_snapshot or args.broken_drop_cancel or args.broken_folders or args.broken_home_focus: matrix=matrix[:1]
+    if args.broken_backtab or args.broken_alignment or args.broken_style or args.broken_order_snapshot or args.broken_drop_cancel or args.broken_folders or args.broken_home_focus or args.broken_runner_preferences: matrix=matrix[:1]
     for size in matrix:
         case=one(*size);report['cases'].append(case)
         (O/'receipt.json').write_text(json.dumps(report,indent=2)+'\n')
