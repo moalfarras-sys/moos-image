@@ -344,6 +344,14 @@ Item {
         }
     }
 
+    // Shared by every application tile: one metrics object, not one per tile.
+    FontMetrics {
+        id: tileLabelMetrics
+        font.family: view.uiFontFamily
+        font.pixelSize: view.typeSecondary
+        font.weight: Font.Medium
+    }
+
     // One wake-up per minute is enough for the context deck. The canvas never
     // pays for a seconds ticker or an idle animation.
     Timer {
@@ -361,6 +369,7 @@ Item {
     // competing outline segments. Semantic colours keep the same MoOS identity
     // in every light/dark family without turning the launcher into neon chrome.
     MoUI.GlassSurface {
+        id: canvasGlass
         anchors.fill: parent
         radius: view.radiusXL
         depth: design.glassLevelPopover
@@ -379,37 +388,27 @@ Item {
     // Command Canvas to the generated wallpaper family without adding a timer,
     // shader or second shell. The outer Plasma dialog remains the only blur and
     // shadow owner.
+    //
+    // It rises vertically from the sheet's lower rim and has no edge of its own.
+    // The earlier horizontal pill (16% of the height, radius height/2) drew a
+    // hard top line and visible gradient columns across the bottom content row
+    // on the physical 3840x2160 V3 at scale 2.5.
     Rectangle {
+        objectName: "movaHorizon"
         anchors {
             left: parent.left
             right: parent.right
             bottom: parent.bottom
-            leftMargin: view.radiusXL
-            rightMargin: view.radiusXL
-            bottomMargin: view.space3
+            margins: design.borderHairline
         }
-        height: Math.round(view.height * 0.16)
-        radius: height / 2
-        opacity: view.lightSurface ? 0.72 : 1.0
+        height: Math.round(view.height * 0.22)
+        radius: view.radiusXL
         gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop {
-                position: 0.0
-                color: Qt.alpha(Kirigami.Theme.highlightColor, 0.0)
-            }
-            GradientStop {
-                position: 0.46
-                color: Qt.alpha(Kirigami.Theme.highlightColor,
-                    view.lightSurface ? 0.055 : 0.085)
-            }
-            GradientStop {
-                position: 0.72
-                color: Qt.alpha(Kirigami.Theme.textColor,
-                    view.lightSurface ? 0.025 : 0.035)
-            }
+            GradientStop { position: 0.0; color: "transparent" }
             GradientStop {
                 position: 1.0
-                color: Qt.alpha(Kirigami.Theme.highlightColor, 0.0)
+                color: Qt.alpha(Kirigami.Theme.highlightColor,
+                    view.lightSurface ? 0.045 : 0.075)
             }
         }
     }
@@ -780,6 +779,7 @@ Item {
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
                     QQC2.ScrollBar.vertical: QQC2.ScrollBar { interactive: false }
+                    ScrollEdge { flick: homeScroll }
 
                     function reveal(item) {
                         const point = item.mapToItem(homeColumn, 0, 0);
@@ -1396,6 +1396,7 @@ Item {
                         contentHeight: customizeColumn.implicitHeight
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
+                        ScrollEdge { flick: customizeScroll }
 
                         ColumnLayout {
                             id: customizeColumn
@@ -2102,18 +2103,40 @@ Item {
         //
         // The publisher icon and label identify each application. A surface
         // appears on interaction, leaving the library calm at rest.
+        readonly property bool lit: tile.down || tile.hovered || tile.activeFocus
+            || reorderDrop.containsDrag
         background: Rectangle {
+            objectName: "movaTileCard"
             radius: view.radiusM
             color: tile.down
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.26)
-                : tile.hovered || tile.activeFocus || reorderDrop.containsDrag
+                : tile.lit
                     ? Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
                     : "transparent"
             // Rim scale (THEME_REV 32): keyboard focus is the one state allowed
-            // a real edge, because it is the only one a keyboard user can see.
-            border.width: tile.activeFocus ? 2 : 0
-            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.82)
+            // a strong edge. Hover borrows the Control Center's glass card: the
+            // same .14 accent tint, a .32 accent hairline and a top sheen.
+            border.width: tile.activeFocus ? 2 : tile.lit ? 1 : 0
+            border.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                tile.activeFocus ? 0.82 : 0.32)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
+
+            Rectangle {
+                objectName: "movaTileSheen"
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                    top: parent.top
+                    margins: parent.border.width
+                }
+                height: parent.height * 0.5
+                radius: Math.max(0, parent.radius - parent.border.width)
+                visible: tile.lit
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, view.lightSurface ? 0.10 : 0.06) }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+            }
 
             // The lift. A card that only changes colour on hover feels painted;
             // one that rises feels like an object. Transform only — no shadow
@@ -2137,7 +2160,13 @@ Item {
                     : tile.hovered ? view.design.hoverScale : 1
             }
 
+            // Icon and name travel as one group centred in the cell. Without
+            // the two fillers the layout spread its spare height between them,
+            // so the name floated far below its icon; the reserved second line
+            // keeps every icon of a row on one level whether a name wraps or not.
+            Item { Layout.fillHeight: true }
             Kirigami.Icon {
+                objectName: "movaAppIcon"
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: Plasmoid.configuration.compactTiles
                     ? Kirigami.Units.iconSizes.medium
@@ -2149,6 +2178,8 @@ Item {
             Text {
                 objectName: "movaAppName"
                 Layout.fillWidth: true
+                Layout.preferredHeight: Math.ceil(tileLabelMetrics.lineSpacing * 2)
+                verticalAlignment: Text.AlignTop
                 text: String(tile.model.compactName || tile.model.display || "")
                 textFormat: Text.PlainText
                 color: Kirigami.Theme.textColor
@@ -2160,6 +2191,7 @@ Item {
                 maximumLineCount: 2
                 elide: Text.ElideRight
             }
+            Item { Layout.fillHeight: true }
         }
 
         PC3.ToolButton {
@@ -2546,6 +2578,35 @@ Item {
         }
     }
 
+    // A page that continues below the fold says so with a soft edge instead of
+    // cutting its last row in half. It belongs to the Flickable itself (not its
+    // content), takes no input and fades into the same glass sheet it sits on.
+    component ScrollEdge: Rectangle {
+        id: edge
+        required property Flickable flick
+        readonly property bool more: flick.contentHeight - flick.contentY - flick.height > 1
+        objectName: "movaScrollEdge"
+        parent: flick
+        z: 3
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        height: Math.min(48, flick.height * 0.18)
+        opacity: more ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: view.motionFast } }
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop {
+                position: 1.0
+                color: Qt.alpha(canvasGlass.surfaceColor,
+                    Math.min(1, canvasGlass.fillOpacity + 0.06))
+            }
+        }
+    }
+
     component SettingCard: Rectangle {
         id: setting
         property string iconName: "moos-settings-symbolic"
@@ -2585,9 +2646,30 @@ Item {
                     elide: Text.ElideRight
                 }
                 PC3.Switch {
+                    id: settingSwitch
+                    objectName: "movaSettingSwitch"
                     checked: setting.checked
                     Accessible.name: setting.title
                     onToggled: setting.toggled(checked)
+
+                    // The native off groove is a faint ink tint; on this card's
+                    // own ink tint it vanished and left only a ring that read as
+                    // a radio button. A matching ink track beneath the native
+                    // indicator restores the switch silhouette; when checked the
+                    // native accent groove covers it completely.
+                    Rectangle {
+                        objectName: "movaSettingSwitchTrack"
+                        z: -1
+                        x: settingSwitch.indicator.x
+                        y: settingSwitch.indicator.y
+                        width: settingSwitch.indicator.width
+                        height: settingSwitch.indicator.height
+                        radius: height / 2
+                        visible: !settingSwitch.checked
+                        color: Qt.alpha(Kirigami.Theme.textColor, 0.16)
+                        border.width: 1
+                        border.color: Qt.alpha(Kirigami.Theme.textColor, 0.34)
+                    }
                 }
             }
             Text {

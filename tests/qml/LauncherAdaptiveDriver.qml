@@ -131,6 +131,21 @@ Item {
                     "folder back restores the exact native parent");
                 driver.verify(!l.leaveAppFolder(),"folder root cannot underflow");
                 v.selectCategory(1);check.wait(50);
+                // One level per row and a name that stays with its icon: the
+                // layout once spread spare cell height between them, and a
+                // wrapped name lifted only its own icon.
+                const rowIcons=[];
+                for(let i=0;i<Math.min(driver.appGrid.columns,driver.appGrid.count);++i){
+                    const t=driver.appGrid.itemAtIndex(i);if(!t)continue;
+                    const icon=named(t,"movaAppIcon"),label=named(t,"movaAppName");
+                    driver.verify(icon&&label,"tile exposes its icon and name");
+                    const iy=icon.mapToItem(driver.appGrid,0,0).y,ly=label.mapToItem(driver.appGrid,0,0).y;
+                    rowIcons.push(iy);
+                    driver.verify(ly-(iy+icon.height)<=v.space2+1,"name sits with its icon: gap="+(ly-(iy+icon.height)));
+                    driver.verify(label.mapToItem(t,0,0).y+label.paintedHeight<=t.height+1,"name ink inside its card");
+                }
+                driver.verify(rowIcons.length>0&&Math.max(...rowIcons)-Math.min(...rowIcons)<=1,
+                    "first library row keeps one icon level: "+JSON.stringify(rowIcons));
                 driver.captureSurface("library");
                 const densityButton=driver.textItem(v,v.local("عرض مضغوط","Compact view"));
                 driver.verify(densityButton!==null,"native compact preference control is reachable");
@@ -247,6 +262,31 @@ Item {
                     driver.verify(position.x >= -1 && position.x + action.width <= driver.homeScroll.width + 1,
                         "Home action fits horizontally: " + name);
                 }
+                const edge=named(driver.homeScroll,"movaScrollEdge");
+                driver.verify(edge&&edge.parent===driver.homeScroll,"scroll edge belongs to the viewport, not the scrolled content");
+                driver.homeScroll.contentY=0;check.wait(v.motionFast+60);
+                const overflow=driver.homeScroll.contentHeight-driver.homeScroll.height>1;
+                driver.compare(edge.more,overflow,"scroll edge appears exactly when Home continues below");
+                if(overflow){
+                    driver.homeScroll.contentY=driver.homeScroll.contentHeight-driver.homeScroll.height;
+                    check.wait(v.motionFast+60);
+                    driver.verify(!edge.more&&!edge.visible,"scroll edge leaves at the end of Home");
+                    driver.homeScroll.contentY=0;
+                }
+                const horizon=named(v,"movaHorizon");
+                driver.verify(horizon&&horizon.gradient.stops[0].color.a===0&&horizon.gradient.orientation===Gradient.Vertical,
+                    "horizon rises from the rim with no top edge");
+                l.activePage=3;check.tryCompare(driver.pages,"pageAnimating",false,1500,"customize settles");
+                const switches=[];
+                (function collect(item){if(item.objectName==="movaSettingSwitch")switches.push(item);for(const c of item.children||[])collect(c);})(v);
+                driver.verify(switches.length>=2,"customize toggles are native switches");
+                for(const sw of switches){
+                    const track=named(sw,"movaSettingSwitchTrack");
+                    driver.verify(track&&track.visible===!sw.checked,"off switch shows a visible track");
+                    driver.verify(Math.abs(track.width-sw.indicator.width)<1&&Math.abs(track.height-sw.indicator.height)<1
+                        &&Math.abs(track.x-sw.indicator.x)<1&&Math.abs(track.y-sw.indicator.y)<1,"track matches native indicator");
+                }
+                l.activePage=0;check.wait(v.motionMedium+60);
                 const store = named(v, "launcherStore");
                 driver.verify(store && store.width >= 44 && store.height >= 44,
                     "Store remains a real application-library destination");
