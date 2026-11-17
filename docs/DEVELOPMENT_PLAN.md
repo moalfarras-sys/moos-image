@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-13. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-17. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -249,7 +249,7 @@ For every task:
 
 ## Ordered execution
 
-Nov16–17 owner priority P2.5/P2.7/P2.8/P2.10: clock popup and first wide native center are rejected. Current successor is a narrow, themed native SystemTray with one panel entry, grouped controls, history page/gestures and native details/all-tools/Settings/power. Actual compact plugin is loaded recoverably; source/private36 theme/language and input/failure controls pass, but current owner acceptance and installed journeys remain open. Next: read actual owner-opened compact pixels, finish notification/Settings/touch/portrait/camera evidence, then exact full source/vendor RPM/image/CI/signed qualification. Keep the independent7243bb0d hardware canonical cycle frozen; no automatic UI merge or host update. [Proof](reviews/2026-11-16-panel-control-center.json).
+Nov16–17 owner priority P2.5/P2.7/P2.8/P2.10: clock, wide native and compact tabbed centers are rejected. Current native SystemTray integrates controls/history in one themed drawer, native connection names, state captions, grouped sliders, repaired canonical symbols and original native details/all-tools/Settings/power. Native events coalesce reads and defer transactions/dragging. Actual first-open zero-height refusal is repaired and source Meyar inner line bounds are guarded. Scopeda4af9d7e plugin and icon-only prefix load after reboot, preserving one entry/theme/output/apps; actual first-open and external DND round trip pass. Owner acceptance, real notification/touch/portrait/camera and final exact full source/vendor RPM/image/CI/signed qualification remain open. Prior09e source check passes; image was interrupted by shutdown. Keep hardware7243 separate: signed x86 build43973332660/ARM43973226007 passed, x86 disk/ISO/promotion remains unstarted after coordinator shutdown; reuse exact artifacts, no duplicate build or automatic UI merge/update. [Proof](reviews/2026-11-16-panel-control-center.json).
 
 Nov16 physical rotation follow-up: owner-labelled landscape reports bottom-up until the exact normalized V3 hwdb alias is applied through native authentication. The temporary543-byte alias and14,482,193-byte compiled cache have exact hashes/retirement conditions; immutable kernel/database remain unchanged. Native KWin sees1/2/4/8 at scale1.45 and owner confirms all directions. Retiring the observer exposes stopped rotation with keyboard connected; owner explicitly retains tablet-only policy and confirms operation after detaching it with no observer. Preserve the later desktop snapshot after reconnect, the uncaptured detached transition and current availability metadata limitation. Source dbdaf75c full check0/1162.713s, local image0/6707.594s/exact runtime readback and PR gates pass. Merged7243bb0d canonical signed cycle is running; physical installation remains separate. [Live proof](reviews/2026-11-16-v3-live-rotation.json).
 

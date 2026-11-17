@@ -6,14 +6,30 @@ container and notification server remain native. The clock/calendar stays its
 existing owner. The center adds one panel entry rather than a second shell.
 
 The owner rejected the clock experiment for clipping and duplicate tray icons,
-then rejected the first wide two-column native center. The successor is a
-narrow, Arabic-first composition: two connectivity cards with separate toggle
+then rejected the first wide two-column native center and its compact tabbed
+successor. The current refinement is a narrow, Arabic-first composition: two connectivity cards with separate toggle
 and details hit areas, one brightness/sound group, smaller status controls,
-and a history page within the same popup. It uses the selected Plasma theme
+and notification history visible together in the same popup. Swiping the handle
+up expands history; its button restores controls, and swiping down closes the
+center. At short heights controls start collapsed and remain reachable. It uses the selected Plasma theme
 and Kirigami roles, the existing MoOS motion durations, native keyboard/touch
 controls, and reduced-motion cancellation. Native power and every accepted tray
 item remain reachable. Camera and attention indications remain on the single
 entry through their original native owners; this is not another camera monitor.
+
+The existing fixed executor remains the sole measured-state/action authority.
+Native audio, network, Bluetooth, notification, brightness and Night Light owners
+invalidate its snapshot through one finite coalesced read while open. Pending
+actions and active slider gestures defer that read; disabled, hidden or
+closed-center cancellation restores measured slider state without sending it; closing unloads observers.
+Automatic readback preserves a refused action. Connectivity names are native
+plain text and quick controls keep visible state captions. Arabic text is checked
+inside the buttons, including the original compact-footer clipping refusal.
+
+Wi-Fi and bell silhouettes are corrected in the canonical symbolic generator,
+with all paired palette copies and old/fixed native raster controls. A scoped
+icon-only runtime prefix is separately inventoried for live review; source SVGs
+do not establish that the installed shell selected their bytes.
 
 Design research, consulted 16–17 November 2026:
 

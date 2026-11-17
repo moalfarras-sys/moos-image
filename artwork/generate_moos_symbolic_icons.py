@@ -908,9 +908,12 @@ SYMBOLS.update({
     ),
     "notification": sym(
         "Notifications", "system",
-        path("M6.5 14A5.5 5.5 0 0 1 17.5 14L16.5 16.5A1.5 1.5 0 0 1 15 17.5H9A1.5 1.5 0 0 1 7.5 16.5Z"),
-        path(circle(12, 20, 1.5)),
-        path(circle(17.5, 5.5, 1.5), HIGHLIGHT),
+        # A bell needs a neck, straight shoulders and an outward skirt. The
+        # former shallow dome narrowed at its foot and read as a light bulb.
+        # Accent the separate clapper rather than painting a permanent unread
+        # badge into a symbol also used for an empty notification history.
+        path("M10.75 3.5C10.75 2.81 11.31 2.25 12 2.25C12.69 2.25 13.25 2.81 13.25 3.5V4.1C16.22 4.68 18.25 7.18 18.25 10.25V13.25C18.25 14.5 18.75 15.35 20 16.5V18H4V16.5C5.25 15.35 5.75 14.5 5.75 13.25V10.25C5.75 7.18 7.78 4.68 10.75 4.1Z"),
+        path(circle(12, 20.75, 1.5), HIGHLIGHT),
     ),
     "download": sym(
         "Download", "actions",
@@ -970,10 +973,13 @@ SYMBOLS.update({
     ),
     "wifi": sym(
         "WiFi", "connectivity",
-        path(arc_band(12, 12.5, 10.5, 8.2, -60, 60)),
-        path(arc_band(12, 12.5, 7.3, 5.2, -60, 60)),
-        path(arc_band(12, 12.5, 4.2, 2.3, -60, 60), HIGHLIGHT),
-        path(circle(12, 19.5, 1.8)),
+        # arc_band uses SVG's clockwise screen coordinates. All three waves
+        # share the bottom point, opening upward around -90 degrees; the old
+        # -60..60 fan opened to the right of an unrelated bottom dot.
+        path(arc_band(12, 20, 17, 14.8, -127, -53)),
+        path(arc_band(12, 20, 12.2, 10, -127, -53)),
+        path(arc_band(12, 20, 7.4, 5.2, -127, -53), HIGHLIGHT),
+        path(circle(12, 20, 1.8)),
         min_holes=0,
     ),
     "menu": sym(

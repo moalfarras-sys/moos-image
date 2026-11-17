@@ -20,11 +20,11 @@ import org.kde.plasma.plasmoid
 Item {
     id: popup
 
-    Layout.minimumWidth: Math.min(popup.detailVisible ? 520 : 420, Screen.width - 40)
-    Layout.preferredWidth: Math.min(popup.detailVisible ? 600 : 440, Screen.width - 40)
-    Layout.maximumWidth: popup.detailVisible ? Screen.width - 40 : Math.min(440, Screen.width - 40)
-    Layout.minimumHeight: Math.min(680, Screen.height - 110)
-    Layout.preferredHeight: Math.min(700, Screen.height - 110)
+    Layout.minimumWidth: Math.min(popup.detailVisible ? 520 : 440, Screen.width - 40)
+    Layout.preferredWidth: Math.min(popup.detailVisible ? 600 : 460, Screen.width - 40)
+    Layout.maximumWidth: popup.detailVisible ? Screen.width - 40 : Math.min(460, Screen.width - 40)
+    Layout.minimumHeight: Math.min(720, Screen.height - 110)
+    Layout.preferredHeight: Math.min(800, Screen.height - 110)
     Layout.maximumHeight: Screen.height - 90
     property bool showTools: false
     readonly property bool detailVisible: !!systemTrayState.activeApplet || showTools

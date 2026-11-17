@@ -11,6 +11,7 @@ UI=ROOT/'build_files/plasma_logout/control-center/qml'
 
 
 def native():
+    os.environ["DBUS_SYSTEM_BUS_ADDRESS"]=os.environ["DBUS_SESSION_BUS_ADDRESS"]
     from PySide6.QtCore import QUrl,QObject,Qt,QPoint,QPointF,qInstallMessageHandler
     from PySide6.QtWidgets import QApplication
     from PySide6.QtQml import QQmlEngine,QQmlComponent,QQmlExpression
@@ -66,6 +67,33 @@ def native():
     assert not b.property('ready') and b.property('errorText')
     b.refresh();b.finish(b.property('statusCommand'),result({**good,'wifi':None}))
     assert not b.request('wifi',True),'unknown hardware is not off'
+    # Native events invalidate one snapshot; they never become device writes.
+    b.setProperty('opened',True);b.finish(b.property('statusCommand'),result(good))
+    def issued(): return b.property('testCommands').toVariant()
+    start=len(issued())
+    for _ in range(5):b.scheduleRefresh()
+    QTest.qWait(240)
+    assert len(issued())==start+1 and issued()[-1]==b.property('statusCommand'),'native event burst did not coalesce into one read'
+    b.finish(b.property('statusCommand'),result({**good,'volume':66}))
+    assert b.property('state').toVariant()['volume']==66,'external device value did not reach measured state'
+    b.setProperty('errorText','retained executor refusal')
+    b.scheduleRefresh();QTest.qWait(240);b.finish(b.property('statusCommand'),result(good))
+    assert b.property('errorText')=='retained executor refusal','automatic status read erased an action failure'
+    start=len(issued());b.beginInteraction();b.scheduleRefresh();QTest.qWait(240)
+    assert len(issued())==start,'external event started a status read during a slider drag'
+    b.endInteraction();QTest.qWait(240)
+    assert len(issued())==start+1,'deferred slider status was lost'
+    b.finish(b.property('statusCommand'),result(good))
+    assert b.request('volume',70)
+    b.scheduleRefresh();QTest.qWait(240)
+    assert issued()[-1].endswith('volume 70'),'native event interrupted the pending fixed action'
+    b.finish(b.property('currentCommand'),result({}));b.finish(b.property('statusCommand'),result({**good,'volume':70}))
+    QTest.qWait(240)
+    assert b.property('busy') and issued()[-1]==b.property('statusCommand'),'pending native event was not read after the transaction'
+    b.finish(b.property('statusCommand'),result({**good,'volume':70}))
+    start=len(issued());b.scheduleRefresh();b.setProperty('opened',False);QTest.qWait(240)
+    b.scheduleRefresh();QTest.qWait(240)
+    assert len(issued())==start and not b.property('refreshQueued'),'closed center kept refreshing device state'
     qml='''import QtQuick
 import org.kde.kirigami as K
 import "'''+UI.as_uri()+'''" as C
@@ -79,13 +107,18 @@ Item {
  property QtObject recorder: QtObject {
   property var state: ({volume:45,brightness:50,wifi:true,bluetooth:false,dnd:false,night_light:false,muted:false,mic_muted:false,power_profile:"balanced"})
   property bool ready:true
+  property bool opened:true
   property bool busy:false
   property string pendingField:""
   property string errorText:""
   property var calls:[]
+  property int interactions:0
+  function beginInteraction() { interactions++; }
+  function endInteraction() { interactions--; }
   function request(field,value) { calls=calls.concat([{field:field,value:value}]); return true; }
   function report() {return JSON.stringify(calls);}
   function measured() {state={volume:62,brightness:74,wifi:true,bluetooth:false,dnd:false,night_light:false,muted:false,mic_muted:false,power_profile:"balanced"};}
+  function measuredVolume(value) { state=Object.assign({},state,{volume:value}); }
   function refresh() {}
  }
  Component { id:calendar; Item {} }
@@ -112,25 +145,62 @@ Item {
         ratio=(max(lum(ink),lum(fill))+.05)/(min(lum(ink),lum(fill))+.05)
         assert ratio>=4.5,('native secondary ink contrast',scheme,ratio)
     view=item.findChild(QObject,'view');fake=item.property('recorder');slider=item.findChild(QObject,'centerSlider_volume')
+    item.property('host').setProperty('expanded',False);item.setHeight(0)
+    item.property('host').setProperty('expanded',True);QTest.qWait(30)
+    item.setWidth(460);item.setHeight(754);window.resize(460,754);QTest.qWait(320)
+    assert view.property('controlsCollapsed') is False,'native initial zero-height popup hid controls after layout'
+    def clipped_text(scope=view):
+        expression=QQmlExpression(engine.rootContext(),scope, '''JSON.stringify((function walk(items) {
+            let out=[];
+            for (const child of items) {
+                if (child.text && child.visible && child.paintedHeight !== undefined && child.paintedHeight > child.height + .5)
+                    out.push({text:child.text,height:child.height,paintedHeight:child.paintedHeight});
+                out=out.concat(walk(child.children || []));
+            }
+            return out;
+        })(children))''')
+        result=expression.evaluate()[0];assert not expression.hasError(),expression.error().toString()
+        return json.loads(result)
     for width,height in ((780,650),(440,650),(420,650),(320,480),(280,480)):
-        item.setWidth(width);item.setHeight(height);window.resize(width,height);QTest.qWait(80)
+        item.setWidth(width);item.setHeight(height);window.resize(width,height);QTest.qWait(320)
         assert len(json.loads(fake.report()))==0,'reading/rendering wrote back a device value'
         assert slider.height()>=44
+        assert not clipped_text(),('inner text clipped despite fitting outer controls',width,height,clipped_text())
         fake.measured();QTest.qWait(30)
         assert len(json.loads(fake.report()))==0,'snapshot update submitted a slider action'
         assert slider.property('value')==62,'measured readback did not reach the slider'
-    item.setWidth(780);item.setHeight(650);window.resize(780,650);QTest.qWait(60)
+    item.setWidth(780);item.setHeight(650);window.resize(780,650);QTest.qWait(320)
     pos=slider.mapToScene(QPointF(slider.width()*.7,slider.height()/2))
     QTest.mousePress(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(pos.x()),round(pos.y())))
     assert len(json.loads(fake.report()))==0,'slider committed before release'
     QTest.mouseRelease(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(pos.x()),round(pos.y())));QTest.qWait(20)
     assert len(json.loads(fake.report()))==1,("pointer",pos.x(),pos.y(),slider.width(),slider.height(),slider.property("value"),fake.report())
+    assert fake.property('interactions')==0,'pointer interaction lease leaked'
     device=QTest.createTouchDevice()
     touchPoint=QPoint(round(pos.x()-40),round(pos.y()))
     QTest.touchEvent(window,device).press(0,touchPoint,window).commit();QTest.qWait(30)
     assert len(json.loads(fake.report()))==1,'touch slider committed before release'
     QTest.touchEvent(window,device).release(0,touchPoint,window).commit();QTest.qWait(40)
     assert len(json.loads(fake.report()))==2,'touch release did not submit the value'
+    assert fake.property('interactions')==0,'touch interaction lease leaked'
+    # Cancellation is not a release accepted by the owner. The native Slider
+    # changes pressed to false on disable/hide, which previously submitted it.
+    for cancellation in ('disabled','hidden','closed'):
+        before=len(json.loads(fake.report()))
+        at=slider.mapToScene(QPointF(slider.width()*.85,slider.height()/2));point=QPoint(round(at.x()),round(at.y()))
+        QTest.mousePress(window,Qt.LeftButton,Qt.NoModifier,point);QTest.qWait(20)
+        assert len(json.loads(fake.report()))==before,'press submitted a value before cancellation'
+        if cancellation=='disabled':slider.setProperty('enabled',False)
+        elif cancellation=='hidden':slider.setProperty('visible',False)
+        else:fake.setProperty('opened',False)
+        QTest.mouseRelease(window,Qt.LeftButton,Qt.NoModifier,point);QTest.qWait(40)
+        assert len(json.loads(fake.report()))==before,('cancelled slider submitted a device change',cancellation)
+        assert fake.property('interactions')==0,('cancelled interaction lease leaked',cancellation)
+        slider.setProperty('enabled',True);slider.setProperty('visible',True);fake.setProperty('opened',True)
+        fake.measuredVolume(73);QTest.qWait(40)
+        assert slider.property('value')==73,('cancelled slider stopped following later measured changes',cancellation)
+        fake.measured();QTest.qWait(40)
+        assert slider.property('value')==62,('cancelled slider lost measured binding',cancellation)
     def visual(name,scope=view):
         import json
         expression=QQmlExpression(engine.rootContext(),scope, 'JSON.stringify((function find(items) { for (const child of items) { if(child.objectName === '+json.dumps(name)+') { const p=child.mapToItem(null,child.width/2,child.height/2); return {x:p.x,y:p.y,width:child.width,height:child.height}; } const nested=find(child.children || []);if(nested)return nested; } return null; })(children))')
@@ -145,23 +215,31 @@ Item {
     QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())))
     assert detailDestinations==['org.kde.plasma.networkmanagement'],'network details did not reach its native owner'
     assert len(json.loads(fake.report()))==before,'opening details also toggled Wi-Fi'
-    tabs=item.findChild(QObject,'centerTabs')
-    at=tabs.mapToScene(QPointF(tabs.width()/2,tabs.height()/2));start=QPoint(round(at.x()),round(at.y()))
-    direction=1 if '--rtl' in sys.argv else -1
-    QTest.mousePress(window,Qt.LeftButton,Qt.NoModifier,start)
-    for step in range(1,9):QTest.mouseMove(window,start+QPoint(step*12*direction,0),20)
-    QTest.mouseRelease(window,Qt.LeftButton,Qt.NoModifier,start+QPoint(96*direction,0));QTest.qWait(40)
-    assert view.property('page')==1,'notification navigation gesture failed'
-    view.setProperty('page',0);QTest.qWait(40)
+    expand=item.findChild(QObject,'centerExpandNotifications')
+    at=expand.mapToScene(QPointF(expand.width()/2,expand.height()/2))
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())));QTest.qWait(250)
+    assert view.property('controlsCollapsed') is True,'notification expansion failed'
+    QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(at.x()),round(at.y())));QTest.qWait(250)
+    assert view.property('controlsCollapsed') is False,'controls could not be restored'
+    for width,height in ((440,720),(460,754),(460,800)):
+        item.setWidth(width);item.setHeight(height);window.resize(width,height);QTest.qWait(600)
+        controls=item.findChild(QObject,'centerControls')
+        assert controls.property('contentHeight')<=controls.property('availableHeight')+1,('regular controls unnecessarily scroll',height,controls.property('contentHeight'),controls.property('availableHeight'))
+        assert not clipped_text(),clipped_text()
     if os.environ.get('MOOS_CENTER_CAPTURE_DIR'):
         capture=Path(os.environ['MOOS_CENTER_CAPTURE_DIR']);capture.mkdir(parents=True,exist_ok=True)
-        item.setWidth(440);item.setHeight(700);window.resize(440,700);QTest.qWait(200)
+        item.setWidth(460);item.setHeight(800);window.resize(460,800);QTest.mouseMove(window,QPoint(3,3));QTest.qWait(600)
         assert window.grabWindow().save(str(capture/(('ar-' if '--rtl' in sys.argv else 'en-')+scheme+'.png')))
         item.setWidth(780);item.setHeight(650);window.resize(780,650);QTest.qWait(80)
     tools=item.findChild(QObject,'centerTools')
     assert tools is not None and tools.height()>=44,'all tray items need an accessible destination'
     power=item.findChild(QObject,'centerPower')
     assert power is not None and power.height()>=44,'power profiles require a native destination'
+    if '--rtl' in sys.argv:
+        power.setProperty('implicitHeight',44);QTest.qWait(60)
+        assert clipped_text(power),'original Arabic compact footer must retain its inner-line refusal'
+        power.setProperty('implicitHeight',48);QTest.qWait(60)
+        assert not clipped_text(power),'Arabic footer still clips after reserving native line room'
     settings=item.findChild(QObject,'centerSettings')
     assert settings is not None and settings.height()>=44
     routes=[];destinations=[]
