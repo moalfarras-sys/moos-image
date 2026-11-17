@@ -14,6 +14,7 @@ FocusScope {
     property bool reviewMode: false
     property var backendOverride: null
     property bool controlsCollapsed: false
+    readonly property alias representedNotificationIds: inbox.representedIds
     readonly property var backend: backendOverride || liveBackend
     readonly property bool rtl: MoUI.Locale.rtl
     property QtObject notificationHost: QtObject { property bool expanded: center.opened }

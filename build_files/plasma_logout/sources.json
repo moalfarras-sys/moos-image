@@ -47,7 +47,12 @@
           "main.qml": "46cfdf6b1d54012de858f2e0d96acb126e6b1bc9a59c40a9ea020f4bb0729417",
           "ExpandedRepresentation.qml": "2a9dd9804e551a56a2ae843c788f76168141996231aab36634f0dd76a90c4d44"
         },
-        "cmake_sha256": "0ae9329ecbaccd0eb84e0d4ae980ad17b15829ff2229474cb922644dd7f0f909"
+        "cmake_sha256": "0ae9329ecbaccd0eb84e0d4ae980ad17b15829ff2229474cb922644dd7f0f909",
+        "notifications_upstream_sha256": {
+          "main.qml": "e807742f5c936a997a52161474d4b9920cba91d9b31ebb2aedb7a32ae94dcb47",
+          "global/Globals.qml": "a3a4d9c506a453eaf8d3ff0e88a72d0c22f0f8d8797c153e802273c8c8cb2931",
+          "NotificationPopup.qml": "d15452c7b7dea9d80f197e4e01c42f37f8ba6c2d6a5035146ce7e5cfdb297b6c"
+        }
       }
     }
   ]

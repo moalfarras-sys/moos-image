@@ -45,6 +45,8 @@ Item {
             activeFocusOnTab: true
             background: null
             contentItem: Item {
+                scale: mainButton.down && Kirigami.Units.longDuration > 1 ? .98 : 1
+                Behavior on scale { NumberAnimation { duration: MoUI.Tokens.motionFast; easing.type: Easing.OutCubic } }
                 RowLayout {
                     anchors.fill: parent; spacing: 8; visible: !tile.compact
                     Kirigami.Icon { source: tile.symbol; Layout.preferredWidth: 24; Layout.preferredHeight: 24; color: Kirigami.Theme.textColor }

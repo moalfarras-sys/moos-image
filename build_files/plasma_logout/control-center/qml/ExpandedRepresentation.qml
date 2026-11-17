@@ -28,6 +28,7 @@ Item {
     Layout.maximumHeight: Screen.height - 90
     property bool showTools: false
     readonly property bool detailVisible: !!systemTrayState.activeApplet || showTools
+    readonly property var presentedNotificationIds: systemCenter && systemCenter.opened ? systemCenter.representedNotificationIds : []
     Connections { target: systemTrayState; function onExpandedChanged() { if (!systemTrayState.expanded) popup.showTools = false; } }
 
     property alias hiddenLayout: hiddenItemsView.layout
@@ -281,6 +282,7 @@ Item {
         }
 
         ControlCenterView {
+            id: systemCenter
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: !popup.detailVisible

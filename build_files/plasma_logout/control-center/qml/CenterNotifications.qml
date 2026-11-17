@@ -21,13 +21,24 @@ Item {
     readonly property bool serviceValid: modelOverride !== null || NotificationManager.Server.valid
     readonly property int presentedCount: list.count
     readonly property int unreadCount: owner.unreadNotificationsCount
+    property var representedIds: []
+    function updateRepresentedIds() {
+        const ids = [];
+        if (!modelOverride && appletInterface.expanded === true) {
+            for (let i = 0; i < history.count; ++i) {
+                const value = history.data(history.index(i, 0), NotificationManager.Notifications.IdRole);
+                if (value !== null && value !== undefined) ids.push(String(value));
+            }
+        }
+        if (JSON.stringify(ids) !== JSON.stringify(representedIds)) representedIds = ids;
+    }
     function markVisibleRead() {
         if (modelOverride || !visible || appletInterface.expanded !== true) return;
         for (let i = 0; i < history.count; ++i) history.setData(history.index(i, 0), true, NotificationManager.Notifications.ReadRole);
     }
     Connections {
         target: pane.appletInterface
-        function onExpandedChanged() { if (pane.appletInterface.expanded === true) Qt.callLater(pane.markVisibleRead); }
+        function onExpandedChanged() { pane.updateRepresentedIds(); if (pane.appletInterface.expanded === true) Qt.callLater(pane.markVisibleRead); }
     }
     Component.onCompleted: Qt.callLater(markVisibleRead)
     onVisibleChanged: if (visible) Qt.callLater(markVisibleRead)
@@ -38,7 +49,7 @@ Item {
         showExpired: true
         showDismissed: true
         showJobs: settings.jobsInNotifications
-        onCountChanged: if (pane.visible) Qt.callLater(pane.markVisibleRead)
+        onCountChanged: { pane.updateRepresentedIds(); if (pane.visible) Qt.callLater(pane.markVisibleRead); }
         sortMode: NotificationManager.Notifications.SortByDate
         ignoreBlacklistDuringInhibition: true
         blacklistedDesktopEntries: settings.historyBlacklistedApplications
@@ -46,6 +57,13 @@ Item {
         urgencies: NotificationManager.Notifications.CriticalUrgency
             | NotificationManager.Notifications.NormalUrgency
             | (settings.lowPriorityHistory ? NotificationManager.Notifications.LowUrgency : 0)
+    }
+    Connections {
+        target: history
+        function onDataChanged(first, last, roles) {
+            if (roles.length === 0 || roles.indexOf(NotificationManager.Notifications.IdRole) >= 0) pane.updateRepresentedIds();
+        }
+        function onModelReset() { pane.updateRepresentedIds(); }
     }
     PlasmaCore.Action {
         id: clearHistory
@@ -88,9 +106,9 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Kirigami.Icon { source: notice.model.applicationIconName || "notifications"; implicitWidth: 22; implicitHeight: 22 }
-                        PC3.Label { Layout.fillWidth: true; text: notice.model.applicationName || ""; elide: Text.ElideRight; opacity: 0.78; font.pixelSize: 12 }
-                        PC3.ToolButton { icon.name: "configure"; implicitWidth: 44; implicitHeight: 44; visible: notice.model.configurable === true; Accessible.name: MoUI.Locale.local("إعدادات إشعارات التطبيق", "Application notification settings"); onClicked: pane.owner.configure(notice.row()) }
-                        PC3.ToolButton { icon.name: "window-close"; implicitWidth: 44; implicitHeight: 44; visible: notice.model.closable === true; Accessible.name: MoUI.Locale.local("إغلاق الإشعار", "Dismiss notification"); onClicked: pane.owner.close(notice.row()) }
+                        PC3.Label { Layout.fillWidth: true; text: notice.model.applicationName || ""; textFormat: Text.PlainText; elide: Text.ElideRight; opacity: 0.78; font.pixelSize: 12 }
+                        PC3.ToolButton { icon.name: "moos-settings-symbolic"; implicitWidth: 44; implicitHeight: 44; visible: notice.model.configurable === true; Accessible.name: MoUI.Locale.local("إعدادات إشعارات التطبيق", "Application notification settings"); onClicked: pane.owner.configure(notice.row()) }
+                        PC3.ToolButton { icon.name: "moos-close-symbolic"; implicitWidth: 44; implicitHeight: 44; visible: notice.model.closable === true; Accessible.name: MoUI.Locale.local("إغلاق الإشعار", "Dismiss notification"); onClicked: pane.owner.close(notice.row()) }
                     }
                     PC3.Label { Layout.fillWidth: true; text: notice.model.summary || ""; textFormat: Text.PlainText; wrapMode: Text.Wrap; font.weight: Font.DemiBold }
                     PC3.Label { Layout.fillWidth: true; text: notice.model.body || ""; visible: text.length > 0; textFormat: Text.StyledText; wrapMode: Text.Wrap; onLinkActivated: link => Qt.openUrlExternally(link) }
@@ -98,14 +116,14 @@ Item {
                     Flow {
                         Layout.fillWidth: true
                         spacing: 4
-                        PC3.Button { visible: notice.model.hasDefaultAction === true; text: notice.model.defaultActionLabel || MoUI.Locale.local("فتح", "Open"); implicitHeight: 44; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.invokeDefaultAction(notice.row(), notice.behavior()) }
+                        PC3.Button { visible: notice.model.hasDefaultAction === true; text: notice.model.defaultActionLabel || MoUI.Locale.local("فتح", "Open"); implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.invokeDefaultAction(notice.row(), notice.behavior()) }
                         Repeater {
                             model: notice.model.actionNames || []
-                            PC3.Button { required property int index; required property string modelData; objectName: "centerNotificationAction_" + notice.index + "_" + index; text: (notice.model.actionLabels || [])[index] || modelData; implicitHeight: 44; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.invokeAction(notice.row(), modelData, notice.behavior()) }
+                            PC3.Button { required property int index; required property string modelData; objectName: "centerNotificationAction_" + notice.index + "_" + index; text: (notice.model.actionLabels || [])[index] || modelData; implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.invokeAction(notice.row(), modelData, notice.behavior()) }
                         }
-                        PC3.Button { visible: notice.model.suspendable === true && notice.model.jobState === NotificationManager.Notifications.JobStateRunning; text: MoUI.Locale.local("إيقاف مؤقت", "Pause"); implicitHeight: 44; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.suspendJob(notice.row()) }
-                        PC3.Button { visible: notice.model.jobState === NotificationManager.Notifications.JobStateSuspended; text: MoUI.Locale.local("متابعة", "Resume"); implicitHeight: 44; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.resumeJob(notice.row()) }
-                        PC3.Button { visible: notice.model.killable === true; text: MoUI.Locale.local("إلغاء المهمة", "Cancel job"); implicitHeight: 44; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.killJob(notice.row()) }
+                        PC3.Button { visible: notice.model.suspendable === true && notice.model.jobState === NotificationManager.Notifications.JobStateRunning; text: MoUI.Locale.local("إيقاف مؤقت", "Pause"); implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.suspendJob(notice.row()) }
+                        PC3.Button { visible: notice.model.jobState === NotificationManager.Notifications.JobStateSuspended; text: MoUI.Locale.local("متابعة", "Resume"); implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.resumeJob(notice.row()) }
+                        PC3.Button { visible: notice.model.killable === true; text: MoUI.Locale.local("إلغاء المهمة", "Cancel job"); implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.killJob(notice.row()) }
                     }
                     Flow {
                         Layout.fillWidth: true; spacing: 4
@@ -115,7 +133,7 @@ Item {
                                 required property url modelData
                                 icon.name: "document-open"
                                 text: MoUI.Locale.local("فتح المرفق", "Open attachment")
-                                implicitHeight: 44
+                                implicitHeight: 56
                                 width: Math.min(implicitWidth, parent.width)
                                 Accessible.name: text
                                 onClicked: Qt.openUrlExternally(modelData)
@@ -125,7 +143,7 @@ Item {
                     RowLayout {
                         visible: notice.model.hasReplyAction === true
                         Layout.fillWidth: true
-                        PC3.TextField { id: reply; Layout.fillWidth: true; implicitHeight: 44; placeholderText: MoUI.Locale.local("رد…", "Reply…"); Accessible.name: placeholderText }
+                        PC3.TextField { id: reply; Layout.fillWidth: true; implicitHeight: 56; placeholderText: MoUI.Locale.local("رد…", "Reply…"); Accessible.name: placeholderText }
                         PC3.ToolButton { icon.name: "document-send"; implicitWidth: 44; implicitHeight: 44; enabled: reply.text.trim().length > 0; Accessible.name: MoUI.Locale.local("إرسال الرد", "Send reply"); onClicked: { pane.owner.reply(notice.row(), reply.text, notice.behavior()); reply.clear(); } }
                     }
                 }

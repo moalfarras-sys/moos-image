@@ -44,11 +44,15 @@ class NativePackageBoundary(unittest.TestCase):
         self.tray = self.root / rpms.TRAY
         self.tray.parent.mkdir(parents=True)
         self.tray.write_bytes(b'private native tray plugin fixture')
+        self.notifications = self.root / rpms.NOTIFICATIONS
+        self.notifications.write_bytes(b'private native notifications plugin fixture')
         self.center_source = self.root / 'native-tray-source.json'
         if 'control_center' in self.review:
             proof = {'enabled': True, 'base': self.base,
                      'upstream_sha256': self.review['control_center']['upstream_sha256'],
                      'qml_sha256': {name: hashlib.sha256(name.encode()).hexdigest() for name in rpms.TRAY_QML},
+                     'notifications_upstream_sha256': self.review['control_center']['notifications_upstream_sha256'],
+                     'notifications_qml_sha256': {name: hashlib.sha256(('notification:' + name).encode()).hexdigest() for name in rpms.NOTIFICATION_QML},
                      'cmake_sha256': 'a' * 64}
             self.manifest['control_center_source'] = proof
             self.center_source.write_text(json.dumps(proof))
@@ -74,7 +78,8 @@ class NativePackageBoundary(unittest.TestCase):
             if argv[3] == 'plasma-workspace':
                 return f'/usr/bin/plasma-shutdown 20 0 {rpms.sha(self.worker)} 0100755 root root 0 0 0 X'
             self.assertEqual(argv[3], 'plasma-workspace-libs')
-            return f'/{rpms.TRAY} 20 0 {rpms.sha(self.tray)} 0100755 root root 0 0 0 X'
+            return (f'/{rpms.TRAY} 20 0 {rpms.sha(self.tray)} 0100755 root root 0 0 0 X\n'
+                    f'/{rpms.NOTIFICATIONS} 20 0 {rpms.sha(self.notifications)} 0100755 root root 0 0 0 X')
         if argv[:3] == ['rpm', '-q', '--qf']:
             if argv[3] == '%{SOURCERPM}':
                 return f'plasma-workspace-{self.base}.src.rpm'
@@ -259,6 +264,36 @@ class Stable683NativePackageBoundary(NativePackageBoundary):
             with self.assertRaisesRegex(AssertionError, 'tray plugin differs'):
                 rpms.verify(self.root)
 
+    def test_missing_notification_source_proof_is_refused(self):
+        del self.manifest['control_center_source']['notifications_qml_sha256']
+        self.rejected()
+
+    def test_changed_notification_upstream_identity_is_refused(self):
+        self.manifest['control_center_source']['notifications_upstream_sha256']['main.qml'] = '0' * 64
+        self.rejected()
+
+    def test_incomplete_notification_source_proof_is_refused(self):
+        del self.manifest['control_center_source']['notifications_qml_sha256']['global/Globals.qml']
+        self.rejected()
+
+    def test_notifications_plugin_change_after_transaction_is_refused(self):
+        self.install()
+        self.notifications.write_bytes(b'changed native notifications bytes')
+        with self.assertRaisesRegex(AssertionError, 'notifications plugin changed'):
+            rpms.verify(self.root)
+
+    def test_native_rpm_must_own_delivered_notification_bytes(self):
+        self.install()
+        original = self.command
+        def changed_dump(argv):
+            result = original(argv)
+            if argv == ['rpm', '-q', '--dump', 'plasma-workspace-libs']:
+                return result.replace(rpms.sha(self.notifications), '0' * 64)
+            return result
+        with patch.object(rpms, 'command', changed_dump):
+            with self.assertRaisesRegex(AssertionError, 'notifications plugin differs'):
+                rpms.verify(self.root)
+
 
 class NativeTraySourceAdmission(unittest.TestCase):
     def setUp(self):
@@ -268,21 +303,30 @@ class NativeTraySourceAdmission(unittest.TestCase):
         self.native = self.root / 'tree/applets/systemtray'
         self.qml = self.native / 'qml'
         self.qml.mkdir(parents=True)
+        self.notifications = self.root / 'tree/applets/notifications'
+        (self.notifications / 'global').mkdir(parents=True)
         self.payload = self.root / 'payload'
         self.payload.mkdir()
+        self.notification_payload = self.payload.parent / 'notification-qml'
+        (self.notification_payload / 'global').mkdir(parents=True)
         for name in tray_source.REPLACED:
             (self.qml / name).write_text('native original ' + name)
         self.cmake = self.native / 'CMakeLists.txt'
         self.cmake.write_text('native parent flags\n    RESOURCES\n        main.xml\n')
         for name in tray_source.REPLACED | tray_source.ADDED:
             (self.payload / name).write_text('MoOS source ' + name)
+        for name in tray_source.NOTIFICATION_QML:
+            (self.notifications / name).write_text('native original notification ' + name)
+            (self.notification_payload / name).write_text('MoOS notification source ' + name)
         self.review = {'base': '6.8.3-1.fc44', 'control_center': {
             'upstream_sha256': {name: rpms.sha(self.qml / name) for name in tray_source.REPLACED},
+            'notifications_upstream_sha256': {name: rpms.sha(self.notifications / name) for name in tray_source.NOTIFICATION_QML},
             'cmake_sha256': rpms.sha(self.cmake)}}
         self.original = self.snapshot()
 
     def snapshot(self):
-        return {str(p.relative_to(self.native)): p.read_bytes() for p in self.native.rglob('*') if p.is_file()}
+        tree = self.root / 'tree'
+        return {str(p.relative_to(tree)): p.read_bytes() for p in tree.rglob('*') if p.is_file()}
 
     def prepare(self):
         return tray_source.prepare(self.root / 'tree', self.payload, self.review)
@@ -300,6 +344,8 @@ class NativeTraySourceAdmission(unittest.TestCase):
         self.assertEqual((self.qml / 'PlasmoidPopupsContainer.qml').read_text(), 'native lifetime owner')
         for name in tray_source.REPLACED | tray_source.ADDED:
             self.assertEqual((self.qml / name).read_bytes(), (self.payload / name).read_bytes())
+        for name in tray_source.NOTIFICATION_QML:
+            self.assertEqual((self.notifications / name).read_bytes(), (self.notification_payload / name).read_bytes())
         text = self.cmake.read_text()
         self.assertIn('native parent flags', text)
         for name in tray_source.ADDED:
@@ -312,6 +358,55 @@ class NativeTraySourceAdmission(unittest.TestCase):
     def test_changed_native_parent_refuses_before_any_mutation(self):
         self.cmake.write_text(self.cmake.read_text() + 'unknown native change')
         self.refused_without_writes('unreviewed native tray CMake')
+
+    def test_every_notification_original_is_admitted_before_any_write(self):
+        for name in tray_source.NOTIFICATION_QML:
+            with self.subTest(file=name):
+                path = self.notifications / name
+                body = path.read_bytes()
+                path.write_text('unreviewed notification source')
+                self.refused_without_writes('unreviewed native notification source')
+                path.write_bytes(body)
+
+    def test_notification_original_symlink_is_refused_before_writes(self):
+        source = self.notifications / 'main.qml'
+        outside = self.root / 'same-native-main.qml'
+        outside.write_bytes(source.read_bytes())
+        source.unlink(); source.symlink_to(outside)
+        self.refused_without_writes('unsafe native notification source')
+
+    def test_notification_original_directory_alias_is_refused_before_writes(self):
+        original = self.notifications / 'global'
+        moved = self.notifications / 'native-global'
+        original.rename(moved); original.symlink_to(moved, target_is_directory=True)
+        self.refused_without_writes('unsafe native notification source directory')
+
+    def test_notification_payload_missing_extra_and_directory_refuse_before_writes(self):
+        source = self.notification_payload / 'main.qml'
+        body = source.read_bytes(); source.unlink()
+        self.refused_without_writes('unexpected or missing MoOS notification source')
+        source.write_bytes(body)
+        extra = self.notification_payload / 'extra.qml'; extra.write_text('unknown source')
+        self.refused_without_writes('unexpected or missing MoOS notification source')
+        extra.unlink(); (self.notification_payload / 'unknown-empty-directory').mkdir()
+        self.refused_without_writes('unexpected or missing MoOS notification source')
+
+    def test_notification_payload_file_and_directory_alias_refuse_before_writes(self):
+        source = self.notification_payload / 'main.qml'
+        body = source.read_bytes(); source.unlink(); source.symlink_to(self.notifications / 'main.qml')
+        self.refused_without_writes('unsafe MoOS notification source')
+        source.unlink(); source.write_bytes(body)
+        original = self.notification_payload / 'global'
+        moved = self.notification_payload / 'payload-global'
+        original.rename(moved); original.symlink_to(moved, target_is_directory=True)
+        self.refused_without_writes('unexpected or missing MoOS notification source|unsafe MoOS notification source')
+
+    def test_invalid_utf8_notification_payload_cannot_partially_patch_tray(self):
+        (self.notification_payload / 'global/Globals.qml').write_bytes(b'\xff')
+        before = self.snapshot()
+        with self.assertRaises(UnicodeDecodeError):
+            self.prepare()
+        self.assertEqual(self.snapshot(), before)
 
     def test_unknown_base_never_receives_a_known_version_patch(self):
         self.review['base'] = '6.8.4-1.fc44'

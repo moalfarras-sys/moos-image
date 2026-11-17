@@ -266,7 +266,7 @@ Item {
     class History(QAbstractListModel):
         def __init__(self):
             super().__init__();self.calls=[]
-            self.row={"applicationName":"MoOS Test","applicationIconName":"dialog-information","summary":"تحديث — Update","body":"مراجعة خاصة · Private native notification","closable":True,"type":1,"percentage":0,"hasDefaultAction":False,"actionNames":["review"],"actionLabels":["مراجعة طويلة · Long notification action " * 16],"hasReplyAction":False,"resident":False,"jobState":0,"suspendable":False,"killable":False}
+            self.row={"applicationName":"MoOS Test","applicationIconName":"dialog-information","summary":"تحديث — Update","body":"مراجعة خاصة · Private native notification","closable":True,"type":1,"percentage":0,"hasDefaultAction":False,"actionNames":["review"],"actionLabels":["مراجعة طويلة · Long notification action " * 16],"hasReplyAction":True,"resident":False,"jobState":0,"suspendable":False,"killable":False}
             self.roles={Qt.UserRole+i:k.encode() for i,k in enumerate(self.row)}
         def roleNames(self):return self.roles
         def rowCount(self,parent=QModelIndex()):return 0 if parent.isValid() else 1
@@ -305,6 +305,7 @@ Item {
     assert 0<=point['x']<=360 and 0<=point['y']<=520,point
     QTest.mouseClick(nw,Qt.LeftButton,Qt.NoModifier,QPoint(round(point['x']),round(point['y'])))
     assert len(history.calls)==1 and history.calls[0][0:2]==(0,'review'),history.calls
+    assert not clipped_text(notices),('notification action text clipped',clipped_text(notices))
     bad=[m for m in warnings if any(t in m for t in ('ReferenceError','TypeError','Binding loop','Unable to assign','Cannot assign','not a type'))]
     assert not bad,bad
     print('PANEL_CENTER_NATIVE_PASS: executor negatives, measured readback,320/420/780px, slider release and Escape')

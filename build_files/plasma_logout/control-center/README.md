@@ -59,3 +59,15 @@ its actual `PlasmaTheme` owner and selected native surface/accent. A Qt
 application palette alone previously produced misleading black symbols and
 mixed accents; preserve that refusal. Source-font/private previews do not prove
 physical touch, owner approval, native notification actions or a signed update.
+
+The owner accepts the unified layout. Actual native notification delivery exposed
+a floating duplicate above the open history. The existing notification applet
+now accepts only the IDs published by that history model. Its original popup
+delegates remain alive: native placement visibility is separate from temporary
+presentation suppression, so expiry, sound and actions keep their original
+owners. Popup-only notices and active reply/drag/menu interactions remain visible.
+Three exact original native QML hashes are admitted before any write; both native
+plugin digests are checked against their owning RPM. Real existing-server action
+callback, hidden-window expiry and canonical Settings open/close were exercised.
+Source font tests reserve56px for notification actions/replies after48px still
+clipped Arabic ink. Content-only button press feedback never shrinks hit areas.

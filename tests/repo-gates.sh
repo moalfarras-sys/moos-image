@@ -380,6 +380,7 @@ python3 tests/test_moos_ui2.py
 # rewrote the island and search at rev 60 and ARM machines kept the cached W3 widgets. This
 # compares the revision with a recorded digest of every cache-served package.
 python3 tests/test_panel_center.py
+python3 tests/test_notification_center_presentation.py
 python3 tests/test_theme_rev_fingerprint.py
 python3 tests/test_shell_text_alignment.py
 # `#[Icons]` and `#[Theme]`: two group headers were commented out by accident on 2026-08-28, so

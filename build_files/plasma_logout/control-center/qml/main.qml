@@ -41,6 +41,19 @@ ContainmentItem {
 
     property var centerApplets: []
     property var cameraApplet: null
+    readonly property bool centerHistoryVisible: systemTrayState.expanded && !expandedRepresentation.detailVisible
+    readonly property var centerHistoryIds: expandedRepresentation ? expandedRepresentation.presentedNotificationIds : []
+    onCenterHistoryVisibleChanged: synchronizeNotificationPresentation()
+    onCenterHistoryIdsChanged: synchronizeNotificationPresentation()
+    function synchronizeNotificationPresentation() {
+        for (const applet of centerApplets) {
+            if (applet && applet.Plasmoid.pluginName === "org.kde.plasma.notifications"
+                    && typeof applet.moosCenterHistoryVisible === "boolean") {
+                applet.moosCenterHistoryIds = centerHistoryVisible ? centerHistoryIds : [];
+                applet.moosCenterHistoryVisible = centerHistoryVisible;
+            }
+        }
+    }
     readonly property bool nativeAttention: attentionModel.count > 0
     function updateIndicators() {
         let camera = null;
@@ -54,8 +67,13 @@ ContainmentItem {
     function registerApplet(applet) {
         if (applet && centerApplets.indexOf(applet) < 0) centerApplets = centerApplets.concat([applet]);
         Qt.callLater(updateIndicators);
+        Qt.callLater(synchronizeNotificationPresentation);
     }
     function unregisterApplet(applet) {
+        if (applet && typeof applet.moosCenterHistoryVisible === "boolean") {
+            applet.moosCenterHistoryVisible = false;
+            applet.moosCenterHistoryIds = [];
+        }
         centerApplets = centerApplets.filter(item => item !== applet);
         Qt.callLater(updateIndicators);
     }
