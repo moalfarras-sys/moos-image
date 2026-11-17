@@ -28,7 +28,9 @@
     "all_theme_native": "PASS 0 / 568.387s, 36 cases with captures",
     "moos_control": "test_moos_control, test_moai_tool_schemas, test_settings_destinations, test_moai_action_selection OK",
     "theme_rev": "Fingerprint gate passes at rev160 (70 packages); whats-new gate OK after retiring oldest 2026-09-18 aurora-glass entry at the 64-entry reader cap.",
-    "repository_gate": "Revision 159 just check failed only on PROJECT_STATE length 215>200 (Codex qualification log); this branch condenses it to 200."
+    "repository_gate": "Revision 159 just check failed only on PROJECT_STATE length 215>200 (Codex qualification log); this branch condenses it to 200.",
+    "full_source_check": "just check on cae68e21: exit 0 / 1171s, clean tree.",
+    "pr": "PR301 repo gates and review pass; next-Plasma canary refuses the same upstream libkgapi26.11.80/kio-gdrive ABI drift as PR300 before MoOS admission."
   },
   "native_build": {
     "environment": "moos-dev toolbox, identical systemtray compile flags to the reviewed build (md5 a30843a6...)",
@@ -56,12 +58,16 @@
     "fold": "Actual Focus header click; moos-control status byte-identical before/after.",
     "night_light_via_center": "Installed old executor refused honestly (no false success in the center); signed delivery of fixed moos-control required for the center journey.",
     "qml_errors": "No QML errors in plasmashell journal after scoped restart.",
-    "idle_cost": "Pre-change plasmashell idle 0.10% of one core, 454MiB."
+    "idle_cost": "Pre-change plasmashell idle 0.10% of one core, 454MiB.",
+    "dnd": "Real orb click via the installed executor: measured dnd False->True, orb filled, caption and group summary updated; second click restored False.",
+    "brightness_slider": "Real RTL track tap: measured brightness 99->71; restored to 99. A repeated full journey (open, tap 71, external 99, close) stayed at 99 in every phase."
   },
   "observations": [
     "KWin logged 9 sporadic 'Failed to create an offscreen framebuffer' this boot without a known trigger; no graphics policy changed.",
     "Mira pages/pc.py reads NightColor from the file, not KWin's applied state.",
-    "moos-hardware-adapt failure is the internal-eDP DDC probe fixed in merged PR299, awaiting signed delivery."
+    "moos-hardware-adapt failure is the internal-eDP DDC probe fixed in merged PR299, awaiting signed delivery.",
+    "Unreproduced: after the first slider journey PowerDevil read 71 for ~45s following a confirmed external 99 (moos-control audit 32666.24 'brightness 71', 32669.93 'brightness 99', no later write from any owner). Two CLI and one full center reproduction stayed at 99. No fix applied; retain.",
+    "Native backlight sysfs reads 19661/65535 while PowerDevil publishes 9900/10000; mapping not assessed."
   ],
   "remaining": [
     "Exact full source/image/architecture CI and signed immutable delivery of tray plugin and moos-control.",
