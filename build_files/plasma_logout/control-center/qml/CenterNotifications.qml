@@ -116,14 +116,14 @@ Item {
                     Flow {
                         Layout.fillWidth: true
                         spacing: 4
-                        PC3.Button { visible: notice.model.hasDefaultAction === true; text: notice.model.defaultActionLabel || MoUI.Locale.local("فتح", "Open"); implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.invokeDefaultAction(notice.row(), notice.behavior()) }
+                        PC3.Button { visible: notice.model.hasDefaultAction === true; text: notice.model.defaultActionLabel || MoUI.Locale.local("فتح", "Open"); implicitHeight: 56; width: Math.min(implicitWidth, parent ? parent.width : implicitWidth); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.invokeDefaultAction(notice.row(), notice.behavior()) }
                         Repeater {
                             model: notice.model.actionNames || []
-                            PC3.Button { required property int index; required property string modelData; objectName: "centerNotificationAction_" + notice.index + "_" + index; text: (notice.model.actionLabels || [])[index] || modelData; implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.invokeAction(notice.row(), modelData, notice.behavior()) }
+                            PC3.Button { required property int index; required property string modelData; objectName: "centerNotificationAction_" + notice.index + "_" + index; text: (notice.model.actionLabels || [])[index] || modelData; implicitHeight: 56; width: Math.min(implicitWidth, parent ? parent.width : implicitWidth); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.invokeAction(notice.row(), modelData, notice.behavior()) }
                         }
-                        PC3.Button { visible: notice.model.suspendable === true && notice.model.jobState === NotificationManager.Notifications.JobStateRunning; text: MoUI.Locale.local("إيقاف مؤقت", "Pause"); implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.suspendJob(notice.row()) }
-                        PC3.Button { visible: notice.model.jobState === NotificationManager.Notifications.JobStateSuspended; text: MoUI.Locale.local("متابعة", "Resume"); implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.resumeJob(notice.row()) }
-                        PC3.Button { visible: notice.model.killable === true; text: MoUI.Locale.local("إلغاء المهمة", "Cancel job"); implicitHeight: 56; width: Math.min(implicitWidth, parent.width); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.killJob(notice.row()) }
+                        PC3.Button { visible: notice.model.suspendable === true && notice.model.jobState === NotificationManager.Notifications.JobStateRunning; text: MoUI.Locale.local("إيقاف مؤقت", "Pause"); implicitHeight: 56; width: Math.min(implicitWidth, parent ? parent.width : implicitWidth); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.suspendJob(notice.row()) }
+                        PC3.Button { visible: notice.model.jobState === NotificationManager.Notifications.JobStateSuspended; text: MoUI.Locale.local("متابعة", "Resume"); implicitHeight: 56; width: Math.min(implicitWidth, parent ? parent.width : implicitWidth); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.resumeJob(notice.row()) }
+                        PC3.Button { visible: notice.model.killable === true; text: MoUI.Locale.local("إلغاء المهمة", "Cancel job"); implicitHeight: 56; width: Math.min(implicitWidth, parent ? parent.width : implicitWidth); Accessible.name: text; PC3.ToolTip { text: parent.text } onClicked: pane.owner.killJob(notice.row()) }
                     }
                     Flow {
                         Layout.fillWidth: true; spacing: 4
@@ -134,7 +134,7 @@ Item {
                                 icon.name: "document-open"
                                 text: MoUI.Locale.local("فتح المرفق", "Open attachment")
                                 implicitHeight: 56
-                                width: Math.min(implicitWidth, parent.width)
+                                width: Math.min(implicitWidth, parent ? parent.width : implicitWidth)
                                 Accessible.name: text
                                 onClicked: Qt.openUrlExternally(modelData)
                             }

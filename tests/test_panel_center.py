@@ -103,6 +103,7 @@ Item {
  property color nativeSurface: K.Theme.backgroundColor
  property color nativeSelection: K.Theme.highlightColor
  property color nativeText: K.Theme.textColor
+ property color nativeHighlightedText: K.Theme.highlightedTextColor
  property QtObject host: QtObject { property bool expanded:true }
  property QtObject recorder: QtObject {
   property var state: ({volume:45,brightness:50,wifi:true,bluetooth:false,dnd:false,night_light:false,muted:false,mic_muted:false,power_profile:"balanced"})
@@ -142,7 +143,8 @@ Item {
         linear=lambda c:c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4
         return sum(w*linear(c) for w,c in zip((.2126,.7152,.0722),color))
     foreground=rgb(item.property('nativeText'));surface=rgb(item.property('nativeSurface'));accent=rgb(item.property('nativeSelection'))
-    for fill in (surface,over(accent,surface,.17),over(foreground,surface,.045)):
+    # Glass cards: the active tint (.14) also carries a white .06 top sheen.
+    for fill in (surface,over(accent,surface,.14),over((1,1,1),over(accent,surface,.14),.06),over(foreground,surface,.045),over((1,1,1),over(foreground,surface,.045),.06)):
         ink=over(foreground,fill,.78)
         ratio=(max(lum(ink),lum(fill))+.05)/(min(lum(ink),lum(fill))+.05)
         assert ratio>=4.5,('native secondary ink contrast',scheme,ratio)
@@ -151,6 +153,12 @@ Item {
         ink=over(foreground,fill,.86)
         ratio=(max(lum(ink),lum(fill))+.05)/(min(lum(ink),lum(fill))+.05)
         assert ratio>=4.5,('fold summary contrast',scheme,pressed,ratio)
+    # A solid active orb paints the native selected-text glyph on the accent,
+    # including under its strongest mid-glyph sheen (non-text minimum 3:1).
+    selectedInk=rgb(item.property('nativeHighlightedText'))
+    for fill in (accent,over((1,1,1),accent,.15)):
+        ratio=(max(lum(selectedInk),lum(fill))+.05)/(min(lum(selectedInk),lum(fill))+.05)
+        assert ratio>=3.0,('active orb glyph contrast',scheme,ratio)
     view=item.findChild(QObject,'view');fake=item.property('recorder');slider=item.findChild(QObject,'centerSlider_volume')
     item.property('host').setProperty('expanded',False);item.setHeight(0)
     item.property('host').setProperty('expanded',True);QTest.qWait(30)
@@ -213,6 +221,28 @@ Item {
         expression=QQmlExpression(engine.rootContext(),scope, 'JSON.stringify((function find(items) { for (const child of items) { if(child.objectName === '+json.dumps(name)+') { const p=child.mapToItem(null,child.width/2,child.height/2); return {x:p.x,y:p.y,width:child.width,height:child.height}; } const nested=find(child.children || []);if(nested)return nested; } return null; })(children))')
         result=expression.evaluate()[0];assert not expression.hasError(),expression.error().toString()
         return json.loads(result)
+    def named(name,scope=view):
+        expression=QQmlExpression(engine.rootContext(),scope,'(function find(items) { for (const child of items) { if (child.objectName === '+json.dumps(name)+') return child; const nested=find(child.children || []); if (nested) return nested; } return null; })(children)')
+        result=expression.evaluate()[0];assert not expression.hasError(),expression.error().toString()
+        return result
+    wifiTile=named('centerTile_wifi');assert wifiTile is not None,'Wi-Fi glass tile missing'
+    # Glass sheen must stay inside its circular orb: a full-width pill painted
+    # grey corners outside the circle on every motion-enabled theme.
+    sheen=named('centerOrbSheen',wifiTile);assert sheen is not None,'orb sheen missing'
+    size=sheen.parentItem().width();r=sheen.height()/2
+    for cx in (sheen.x()+r,sheen.x()+sheen.width()-r):
+        reach=((cx-size/2)**2+(sheen.y()+r-size/2)**2)**.5+r
+        assert reach<=size/2+.01,('orb sheen escapes its circle',reach,size/2)
+    assert wifiTile.property('highlighted') is True and wifiTile.property('orbScale')==1
+    before=len(json.loads(fake.report()))
+    fake.setProperty('state',{**fake.property('state').toVariant(),'wifi':False});QTest.qWait(20)
+    motion=wifiTile.property('motionEnabled')
+    assert wifiTile.property('settling') is motion,('measured state change settle did not follow owner motion',motion)
+    if not motion:assert wifiTile.property('orbScale')==1,'reduced motion still scaled the orb'
+    QTest.qWait(900)
+    assert wifiTile.property('settling') is False and abs(wifiTile.property('orbScale')-1)<1e-6,'orb settle was not finite'
+    assert len(json.loads(fake.report()))==before,'measured state animation submitted a device change'
+    fake.measured();QTest.qWait(900)
     details=visual('centerTileDetails_'+('واي فاي' if '--rtl' in sys.argv else 'Wi-Fi'))
     assert details is not None and details['width']>=44 and details['height']>=44,details
     detailDestinations=[]
@@ -320,7 +350,10 @@ Item {
             self.row={"applicationName":"MoOS Test","applicationIconName":"dialog-information","summary":"تحديث — Update","body":"مراجعة خاصة · Private native notification","closable":True,"type":1,"percentage":0,"hasDefaultAction":False,"actionNames":["review"],"actionLabels":["مراجعة طويلة · Long notification action " * 16],"hasReplyAction":True,"resident":False,"jobState":0,"suspendable":False,"killable":False}
             self.roles={Qt.UserRole+i:k.encode() for i,k in enumerate(self.row)}
         def roleNames(self):return self.roles
-        def rowCount(self,parent=QModelIndex()):return 0 if parent.isValid() else 1
+        rows=1
+        def rowCount(self,parent=QModelIndex()):return 0 if parent.isValid() else self.rows
+        def expire(self):
+            self.beginRemoveRows(QModelIndex(),0,0);self.rows=0;self.endRemoveRows()
         def data(self,index,role):return self.row.get(self.roles.get(role,b'').decode()) if index.isValid() else None
         @Property(int,constant=True)
         def expiredNotificationsCount(self):return 0
@@ -357,6 +390,12 @@ Item {
     QTest.mouseClick(nw,Qt.LeftButton,Qt.NoModifier,QPoint(round(point['x']),round(point['y'])))
     assert len(history.calls)==1 and history.calls[0][0:2]==(0,'review'),history.calls
     assert not clipped_text(notices),('notification action text clipped',clipped_text(notices))
+    # Live 1162 journal: an expiring notification tore down its action
+    # delegates while their width binding still read the detached parent.
+    before=len(warnings);history.expire();QTest.qWait(120)
+    assert notices.property('presentedCount')==0,'expired notification remained presented'
+    teardown=[m for m in warnings[before:] if 'TypeError' in m or 'of null' in m]
+    assert not teardown,('notification teardown read a detached parent',teardown)
     bad=[m for m in warnings if any(t in m for t in ('ReferenceError','TypeError','Binding loop','Unable to assign','Cannot assign','not a type'))]
     assert not bad,bad
     print('PANEL_CENTER_NATIVE_PASS: executor negatives, measured readback,320/420/780px, slider release and Escape')

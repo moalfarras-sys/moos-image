@@ -262,6 +262,12 @@ artifacts. Canary 44092339781 fails upstream libkgapi/kio-gdrive ABI composition
 before QML admission; preserve the refusal and qualify a fresh compatible
 transaction without weakening gates or rerunning the failed job.
 [Folds](reviews/2026-11-17-control-center-folds.json).
+Nov17 successor (THEME_REV160): glass toggles/sliders, an animated panel glyph,
+a notification teardown guard and a measured Night Light executor (KWin6.8 ignored
+reconfigure-only writes while the old verb reported success). 36 native cases pass;
+the scoped live shell and real KWin on/off readback pass. Next: exact full source/
+image/CI, signed delivery of tray plus moos-control, and owner/physical journeys.
+[Glass](reviews/2026-11-17-control-center-glass.json).
 
 Nov16 physical rotation follow-up: owner-labelled landscape reports bottom-up until the exact normalized V3 hwdb alias is applied through native authentication. The temporary543-byte alias and14,482,193-byte compiled cache have exact hashes/retirement conditions; immutable kernel/database remain unchanged. Native KWin sees1/2/4/8 at scale1.45 and owner confirms all directions. Retiring the observer exposes stopped rotation with keyboard connected; owner explicitly retains tablet-only policy and confirms operation after detaching it with no observer. Preserve the later desktop snapshot after reconnect, the uncaptured detached transition and current availability metadata limitation. Source dbdaf75c full check0/1162.713s, local image0/6707.594s/exact runtime readback and PR gates pass. Merged7243bb0d canonical signed cycle is running; physical installation remains separate. [Live proof](reviews/2026-11-16-v3-live-rotation.json).
 

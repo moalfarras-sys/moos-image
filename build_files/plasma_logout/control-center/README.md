@@ -80,3 +80,11 @@ closed-body Tab exclusion, all fold states and source Meyar narrow bounds. The
 scoped live icon prefix now covers all 18 curated themes plus hicolor, with native
 resolver/semantic raster proof and unchanged fallback icons. This development
 prefix and the shell plugin still require signed immutable delivery.
+
+Revision 160 adds the glass layer without new owners. Every toggle draws one
+native-accent orb whose sheen is geometrically inside its circle; a measured
+state change (never a click) plays one finite settle and pending pulses only while
+the fixed executor works. Sliders keep their 44px hit area under a thicker liquid
+track. The panel glyph's knobs glide to their open positions with the existing
+emphasis duration. All motion is zero at Plasma factor0. Notification action
+widths tolerate the detached parent of an expiring delegate.

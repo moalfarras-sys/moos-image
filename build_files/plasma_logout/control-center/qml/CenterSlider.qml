@@ -46,25 +46,58 @@ ColumnLayout {
             background: Item {
                 x: slider.leftPadding; y: slider.topPadding
                 width: slider.availableWidth; height: slider.availableHeight
+                // Liquid track: a glass channel, a native-accent fill and a
+                // specular upper sheen. Paint only; the 44px hit area is unchanged.
                 Rectangle {
-                    anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: 10; radius: 5
+                    objectName: "centerSliderTrack"
+                    anchors.verticalCenter: parent.verticalCenter; width: parent.width
+                    height: slider.pressed && Kirigami.Units.longDuration > 1 ? 16 : 12; radius: height / 2
                     color: Qt.alpha(Kirigami.Theme.textColor, .10)
+                    border.width: 1; border.color: Qt.alpha(Kirigami.Theme.textColor, .06)
+                    Behavior on height { NumberAnimation { duration: MoUI.Tokens.motionFast; easing.type: Easing.OutCubic } }
                     Rectangle {
                         x: slider.mirrored ? parent.width - width : 0
-                        width: slider.position * parent.width; height: parent.height; radius: parent.radius
+                        width: Math.max(parent.height, slider.position * parent.width); height: parent.height; radius: parent.radius
                         color: Kirigami.Theme.highlightColor
+                        opacity: card.known ? 1 : .35
+                        Rectangle {
+                            anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 1; leftMargin: parent.radius * .6; rightMargin: parent.radius * .6 }
+                            height: parent.height / 2; radius: height / 2
+                            visible: width > 0
+                            gradient: Gradient {
+                                GradientStop { position: 0; color: Qt.alpha("white", .28) }
+                                GradientStop { position: 1; color: "transparent" }
+                            }
+                        }
                     }
                 }
             }
-            handle: Rectangle {
+            handle: Item {
                 x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
                 y: slider.topPadding + (slider.availableHeight - height) / 2
-                implicitWidth: 22; implicitHeight: 22; radius: 11
-                color: Kirigami.Theme.backgroundColor
-                border.width: slider.activeFocus ? 3 : 2
-                border.color: Kirigami.Theme.highlightColor
-                scale: slider.pressed && Kirigami.Units.longDuration > 1 ? 1.08 : 1
-                Behavior on scale { NumberAnimation { duration: MoUI.Tokens.motionFast } }
+                implicitWidth: 26; implicitHeight: 26
+                scale: slider.pressed && Kirigami.Units.longDuration > 1 ? 1.12 : 1
+                Behavior on scale { NumberAnimation { duration: MoUI.Tokens.motionFast; easing.type: Easing.OutCubic } }
+                // Soft accent halo while held or focused.
+                Rectangle {
+                    anchors.centerIn: parent; width: parent.width + 10; height: width; radius: width / 2
+                    color: Qt.alpha(Kirigami.Theme.highlightColor, slider.pressed || slider.activeFocus ? .22 : 0)
+                    Behavior on color { ColorAnimation { duration: MoUI.Tokens.motionFast } }
+                }
+                Rectangle {
+                    anchors.fill: parent; radius: width / 2
+                    color: Kirigami.Theme.backgroundColor
+                    border.width: slider.activeFocus ? 3 : 2
+                    border.color: Kirigami.Theme.highlightColor
+                    Rectangle {
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 3 }
+                        height: parent.height * .45; radius: height / 2
+                        gradient: Gradient {
+                            GradientStop { position: 0; color: Qt.alpha("white", .35) }
+                            GradientStop { position: 1; color: "transparent" }
+                        }
+                    }
+                }
             }
             property bool interactionChanged: false
             property bool interactionLease: false

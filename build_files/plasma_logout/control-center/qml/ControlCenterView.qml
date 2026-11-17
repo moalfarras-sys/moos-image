@@ -187,6 +187,7 @@ FocusScope {
                             ]
                             CenterTile {
                                 required property var modelData
+                                objectName: "centerTile_" + modelData.field
                                 Layout.fillWidth: true
                                 label: modelData.label; symbol: modelData.icon
                                 measured: center.backend.state[modelData.field] === undefined ? null : center.backend.state[modelData.field]
@@ -259,6 +260,7 @@ FocusScope {
                                     model: [{field:"dnd",label:center.t("عدم الإزعاج", "Do not disturb"),icon:"moos-notification-symbolic"},{field:"night_light",label:center.t("إضاءة ليلية", "Night Light"),icon:"moos-moon-symbolic"},{field:"mic_muted",label:center.t("الميكروفون", "Microphone"),icon:"moos-microphone-symbolic"}]
                                     CenterTile {
                                         required property var modelData
+                                        objectName: "centerTile_" + modelData.field
                                         Layout.fillWidth: true
                                         compact: true; invertIndicator: modelData.field === "mic_muted"
                                         label: modelData.label; symbol: modelData.icon

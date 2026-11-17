@@ -230,17 +230,35 @@ ContainmentItem {
             text: MoUI.Locale.local("مركز التحكم", "Control Center") + (root.cameraApplet ? " · " + root.cameraApplet.toolTipSubText : "")
             contentItem: RowLayout {
                 spacing: 4
+                // MoOS level glyph. Opening the center glides each knob to its
+                // "tuned" position in a short stagger and lights it with the
+                // native accent; closing returns it. Finite, event-driven, and
+                // instantaneous when the owner turns animations off.
                 Item {
+                    objectName: "moosControlCenterGlyph"
                     Layout.alignment: Qt.AlignCenter
                     implicitWidth: 20; implicitHeight: 22
                     Repeater {
-                        model: [0.25, 0.72, 0.4]
+                        model: [[0.25, 0.72], [0.72, 0.28], [0.4, 0.62]]
                         Item {
+                            id: level
                             required property int index
-                            required property real modelData
+                            required property var modelData
                             y: index * 7; width: 20; height: 7
-                            Rectangle { y: 3; width: 20; height: 1.5; radius: .75; color: Kirigami.Theme.textColor }
-                            Rectangle { x: modelData * 14; y: 1; width: 6; height: 6; radius: 3; color: systemTrayState.expanded ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor; border.width: 1; border.color: Kirigami.Theme.backgroundColor }
+                            Rectangle {
+                                y: 3; width: 20; height: 1.5; radius: .75
+                                color: systemTrayState.expanded ? Qt.alpha(Kirigami.Theme.highlightColor, .55) : Kirigami.Theme.textColor
+                                Behavior on color { ColorAnimation { duration: MoUI.Tokens.motionGeometry } }
+                            }
+                            Rectangle {
+                                objectName: "moosControlCenterKnob"
+                                x: (systemTrayState.expanded ? level.modelData[1] : level.modelData[0]) * 14
+                                y: 1; width: 6; height: 6; radius: 3
+                                color: systemTrayState.expanded ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
+                                border.width: 1; border.color: Kirigami.Theme.backgroundColor
+                                Behavior on x { NumberAnimation { duration: MoUI.Tokens.motionEmphasis > 0 ? MoUI.Tokens.motionEmphasis + level.index * 50 : 0; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
+                                Behavior on color { ColorAnimation { duration: MoUI.Tokens.motionGeometry } }
+                            }
                         }
                     }
                 }
