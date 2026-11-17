@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "control-center-glass",
+      "merged": "2026-11-17T16:30:00Z",
+      "glyph": "settings",
+      "title": {
+        "ar": "مركز تحكم زجاجي أوضح",
+        "en": "A clearer glass Control Center"
+      },
+      "body": {
+        "ar": "أزرار واي فاي وبلوتوث وعدم الإزعاج والإضاءة الليلية والميكروفون دوائر زجاجية تمتلئ بلون الثيم عند تشغيلها. زر الإضاءة الليلية يطبّق التغيير فعلاً ويتحقق منه. الأشرطة أعرض للّمس، ورمز مركز التحكم يتحرك عند فتحه، وتتوقف الحركة عند إيقاف الرسوم المتحركة.",
+        "en": "Wi-Fi, Bluetooth, Do not disturb, Night Light and microphone are glass circles that fill with your theme colour when on. Night Light now really applies and confirms the change. Sliders are thicker for touch, the Control Center icon moves as it opens, and motion stops when animations are off."
+      }
+    },
+    {
       "id": "session-health-readback",
       "merged": "2026-11-09T21:20:00Z",
       "glyph": "lock",
@@ -917,20 +930,6 @@
         "en": "The desktop's clock card has a second face: the days of your week with today marked, and the day of the year. Turn it from the desktop's own menu, beside the switch that hides the card."
       },
       "route": "moos://settings/desktop"
-    },
-    {
-      "id": "aurora-glass",
-      "merged": "2026-09-18T10:01:58Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "زجاج أورورا: مادة واحدة للنظام كله",
-        "en": "Aurora Glass: one material for the whole system"
-      },
-      "body": {
-        "ar": "صار لكل سطح في MoOS نفس المادة بأربعة أعماق، بحافة وخيط لمعان مشتقّين من ألوانك. ومعها: شريط الحالة أربعة رموز بدل تسعة، وزرّ البحث بحجم جيرانه، وبطاقة الجزيرة تسمّي ما يعمل بلا كتابة خارجة.",
-        "en": "Every MoOS surface now wears one material at four depths, with a rim and a specular hairline taken from your palette. With it: four status glyphs instead of nine, Search the size of its neighbours, and the Island naming what plays."
-      },
-      "route": "moos://settings/themes"
     }
   ]
 }

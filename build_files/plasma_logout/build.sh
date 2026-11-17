@@ -27,7 +27,9 @@ import json
 review = json.loads(Path('/work/plasma-logout-source.json').read_text())
 assert text.count('Release:') == 1
 import re
-text, count = re.subn(r'^Release:.*$', 'Release: 1.1.moos1%{?dist}', text, flags=re.M)
+release = review['fixed'].split('-', 1)[1].removesuffix('.fc44')
+assert release in ('1.1.moos1', '1.2.moos1')
+text, count = re.subn(r'^Release:.*$', f'Release: {release}%{{?dist}}', text, flags=re.M)
 assert count == 1
 # Append after all vendor patches; the vendor's autosetup applies them together.
 marker = '%description\n'
@@ -37,7 +39,8 @@ text = text.replace(marker, 'Patch: moos-logout-transaction.patch\n\n' + marker,
 # modern rpmbuild removes BUILD after successfully packaging the RPMs.
 assert text.count('%build\n') == 1
 text = text.replace('%build\n', '%build\n' +
-    f"echo '{review['prepared_shutdown_sha256']}  startkde/plasma-shutdown/shutdown.cpp' | sha256sum --check\n", 1)
+    f"echo '{review['prepared_shutdown_sha256']}  startkde/plasma-shutdown/shutdown.cpp' | sha256sum --check\n" +
+    'python3 /src/prepare_control_center.py "$PWD" /src/control-center/qml /work/plasma-logout-source.json /work/plasma-control-center-source.json\n', 1)
 spec.write_text(text)
 PY
 dnf5 -y builddep "${_logout_top}/SPECS/plasma-workspace.spec"

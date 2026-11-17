@@ -1,0 +1,435 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "source": "dbdaf75cfd60f69f3fac176c0d7faa4fea955fa8",
+  "installed_version": "44.20261116.1162",
+  "plan_rows": [
+    "P5.1",
+    "P5.3",
+    "P0.6"
+  ],
+  "owner_report": "Physical display rotation is reversed. Owner then confirms normal landscape with camera/top edge above screen.",
+  "before": {
+    "pose_label": "owner confirms normal landscape, camera/top edge above screen",
+    "time_utc": "2026-11-16T20:54:17Z",
+    "samples": [
+      {
+        "orientation": "s \"bottom-up\"",
+        "raw": [
+          523,
+          13883,
+          8960
+        ]
+      },
+      {
+        "orientation": "s \"bottom-up\"",
+        "raw": [
+          517,
+          13889,
+          8976
+        ]
+      },
+      {
+        "orientation": "s \"bottom-up\"",
+        "raw": [
+          515,
+          13900,
+          8969
+        ]
+      },
+      {
+        "orientation": "s \"bottom-up\"",
+        "raw": [
+          520,
+          13896,
+          8953
+        ]
+      },
+      {
+        "orientation": "s \"bottom-up\"",
+        "raw": [
+          520,
+          13895,
+          8964
+        ]
+      }
+    ],
+    "udev_matrix": [],
+    "outputs": [
+      {
+        "name": "eDP-1",
+        "enabled": true,
+        "connected": true,
+        "rotation": 1,
+        "scale": 1.45,
+        "autoRotatePolicy": 1,
+        "currentModeId": "1",
+        "pos": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    ]
+  },
+  "live_transaction": {
+    "state": "native-calibration-applied",
+    "changed": true,
+    "kernel_trust_changed": false,
+    "display_policy_changed": false,
+    "phases": [
+      "all-before-write-preflight-passed",
+      "exact-alias-created",
+      "native-hwdb-compiled",
+      "actual-device-matrix-published"
+    ],
+    "sensor": "/sys/devices/platform/AMDI0010:03/i2c-1/i2c-SMOCF05:00/iio:device1",
+    "alias_sha256": "010dc90fed317d42ded16dc81989cb29e93b11f17ee556a049fb4df9ba5e1147",
+    "original_immutable": {
+      "/usr/lib/udev/hwdb.bin": "f474a7873333f4d147f3765e53ac70a1ea11de6fe4884a94b624d0ddc776ef05",
+      "/usr/lib/modules/7.3.3-200.fc44.x86_64/vmlinuz": "3d48afe25f4f304f7b5b80404d724a454d5188bc15cd98e34587cd6ab2c79ec8"
+    },
+    "compiled_sha256": "d9b16d53ce6c45d0d788ec595ddf56e049ab81f6f44629d8f0b1c1df8b2638c5",
+    "compiled_bytes": 14482193,
+    "udev_matrix": "ACCEL_MOUNT_MATRIX=-1, 0, 0; 0, -1, 0; 0, 0, 1",
+    "retirement": "Only after matching signed immutable alias/compiled lookup is booted and verified: retire the exact owned temporary alias and generated cache by these hashes, preserving unknown/admin changes. Physical four-orientation/touch acceptance remains required."
+  },
+  "live_inventory": {
+    "created_utc": "2026-11-16T21:03:39Z",
+    "purpose": "live V3 rotation calibration under existing udev/SensorProxy/KWin owners",
+    "signed_source": "dbdaf75cfd60f69f3fac176c0d7faa4fea955fa8",
+    "signed_os_delivered": false,
+    "files": [
+      {
+        "path": "/etc/udev/hwdb.d/61-moos-v3-sensor.hwdb",
+        "bytes": 543,
+        "sha256": "010dc90fed317d42ded16dc81989cb29e93b11f17ee556a049fb4df9ba5e1147"
+      },
+      {
+        "path": "/etc/udev/hwdb.bin",
+        "bytes": 14482193,
+        "sha256": "d9b16d53ce6c45d0d788ec595ddf56e049ab81f6f44629d8f0b1c1df8b2638c5"
+      }
+    ],
+    "immutable_unchanged": {
+      "/usr/lib/udev/hwdb.bin": "f474a7873333f4d147f3765e53ac70a1ea11de6fe4884a94b624d0ddc776ef05",
+      "/usr/lib/modules/7.3.3-200.fc44.x86_64/vmlinuz": "3d48afe25f4f304f7b5b80404d724a454d5188bc15cd98e34587cd6ab2c79ec8"
+    },
+    "retirement": "Only after matching signed immutable alias/compiled lookup is booted and verified: retire the exact owned temporary alias and generated cache by these hashes, preserving unknown/admin changes. Physical four-orientation/touch acceptance remains required.",
+    "sensor_service_restarted": true,
+    "display_policy_and_scale_preserved": true,
+    "owner_normal_before": "bottom-up",
+    "normal_after": "normal",
+    "keyboard_mouse_touch_transform_owner": "KWin",
+    "actual_touch_mapping_tested": false
+  },
+  "owner_camera_right": {
+    "pose": "camera-right / original-left-edge-up",
+    "owner_result": "screen correct",
+    "time": 1794862902.1749854,
+    "samples": [
+      {
+        "sensor": "s \"normal\"",
+        "rotation": 1,
+        "scale": 1.45,
+        "autoRotatePolicy": 1,
+        "currentModeId": "1",
+        "size": {
+          "height": 1600,
+          "width": 2560
+        }
+      },
+      {
+        "sensor": "s \"right-up\"",
+        "rotation": 8,
+        "scale": 1.45,
+        "autoRotatePolicy": 1,
+        "currentModeId": "1",
+        "size": {
+          "height": 2560,
+          "width": 1600
+        }
+      },
+      {
+        "sensor": "s \"right-up\"",
+        "rotation": 8,
+        "scale": 1.45,
+        "autoRotatePolicy": 1,
+        "currentModeId": "1",
+        "size": {
+          "height": 2560,
+          "width": 1600
+        }
+      },
+      {
+        "sensor": "s \"right-up\"",
+        "rotation": 8,
+        "scale": 1.45,
+        "autoRotatePolicy": 1,
+        "currentModeId": "1",
+        "size": {
+          "height": 2560,
+          "width": 1600
+        }
+      }
+    ]
+  },
+  "acceptance": {
+    "directional_owner_feedback": "All directions are correct",
+    "all_four_native_rotations_observed": true,
+    "scale": 1.45,
+    "auto_rotate_policy": 1,
+    "owner_preference": "Only tablet mode / keyboard detached",
+    "post_monitor_owner_control": "Detached keyboard and rotation works",
+    "post_monitor_snapshot": "Desktop-mode false / normal after cover reconnected; native detached transition was not captured",
+    "post_monitor_four_orientations_separately_recaptured": false,
+    "physical_touch_mapping": "not tested",
+    "suspend": "not tested"
+  },
+  "boundaries": [
+    "Temporary administrator hwdb override is active; this is not a new signed OS delivery.",
+    "Native authentication succeeded. Only the accelerometer change event was triggered and its existing SensorProxy service restarted; no module reload or KWin manual transform.",
+    "Reviewed kernel and immutable hardware database hashes stay unchanged. The temporary alias and generated cache have exact inventory and retirement conditions.",
+    "Module key enrollment remains deferred; no key/trust/Secure Boot change was made.",
+    "Release hold may resume after owner confirms working detached-keyboard rotation without monitor. Source/image remains frozen at dbdaf75c; no stage/reboot follows this proof.",
+    "First camera-right sample still reports normal during transition; retain it alongside three settled right-up/rotation8 samples and positive owner feedback.",
+    "The owner also reported no rotation after the observer retired while the keyboard was connected. Keep this contrary control: the selected tablet-only policy is inactive in detected desktop mode. Do not infer a KWin re-subscription defect from the observer timing.",
+    "The kernel records keyboard disconnect22:20:05 and reconnect22:20:40. Native passive snapshots began after reconnect and report desktop mode; they do not contradict the owner's successful detached journey or establish a captured mode transition.",
+    "All review accelerometer/passive observers are retired deliberately; diagnostic SIGINT exits are not product crashes.",
+    "Native tabletModeAvailable remains false in the current desktop snapshot despite enumerated switch metadata. This slice does not repair that metadata or qualify suspend/pen/touch."
+  ],
+  "source_check": {
+    "source_sha": "dbdaf75cfd60f69f3fac176c0d7faa4fea955fa8",
+    "command": [
+      "just",
+      "check"
+    ],
+    "exit": 0,
+    "seconds": 1162.713,
+    "log_sha256": "674e5f841632b3913035a8fb413ea7ee3e956ef8de6ce93f2ee17eec13547c9f",
+    "head_after": "dbdaf75cfd60f69f3fac176c0d7faa4fea955fa8",
+    "dirty_after": ""
+  },
+  "private_evidence": "test-results/rotation-live-20261116 (captures and full native logs remain local)",
+  "physical_acceptance": {
+    "source_sha": "dbdaf75cfd60f69f3fac176c0d7faa4fea955fa8",
+    "owner_feedback": "All directions are correct",
+    "normal_before": "bottom-up despite owner-labelled normal pose",
+    "normal_after": "normal",
+    "sensor_events": [
+      {
+        "time": 1794862838.5653906,
+        "line": "Accelerometer orientation changed: normal"
+      },
+      {
+        "time": 1794862884.8007061,
+        "line": "Accelerometer orientation changed: left-up"
+      },
+      {
+        "time": 1794862900.2117891,
+        "line": "Accelerometer orientation changed: normal"
+      },
+      {
+        "time": 1794862902.3129644,
+        "line": "Accelerometer orientation changed: right-up"
+      },
+      {
+        "time": 1794862905.815478,
+        "line": "Accelerometer orientation changed: normal"
+      },
+      {
+        "time": 1794862907.2166414,
+        "line": "Accelerometer orientation changed: left-up"
+      },
+      {
+        "time": 1794862907.9168003,
+        "line": "Accelerometer orientation changed: bottom-up"
+      },
+      {
+        "time": 1794862909.318471,
+        "line": "Accelerometer orientation changed: left-up"
+      },
+      {
+        "time": 1794862910.0185392,
+        "line": "Accelerometer orientation changed: normal"
+      }
+    ],
+    "native_rotations_observed": {
+      "1": 441,
+      "2": 15,
+      "8": 3,
+      "4": 2
+    },
+    "native_transitions": [
+      {
+        "time": 1794862837.8912907,
+        "rotation": 1,
+        "scale": 1.45,
+        "policy": 1
+      },
+      {
+        "time": 1794862885.013018,
+        "rotation": 2,
+        "scale": 1.45,
+        "policy": 1
+      },
+      {
+        "time": 1794862900.6808763,
+        "rotation": 1,
+        "scale": 1.45,
+        "policy": 1
+      },
+      {
+        "time": 1794862902.7625556,
+        "rotation": 8,
+        "scale": 1.45,
+        "policy": 1
+      },
+      {
+        "time": 1794862905.9542408,
+        "rotation": 1,
+        "scale": 1.45,
+        "policy": 1
+      },
+      {
+        "time": 1794862908.095999,
+        "rotation": 4,
+        "scale": 1.45,
+        "policy": 1
+      },
+      {
+        "time": 1794862910.234745,
+        "rotation": 1,
+        "scale": 1.45,
+        "policy": 1
+      }
+    ],
+    "current_outputs": [
+      {
+        "name": "eDP-1",
+        "enabled": true,
+        "connected": true,
+        "rotation": 1,
+        "scale": 1.45,
+        "autoRotatePolicy": 1,
+        "currentModeId": "1",
+        "size": {
+          "height": 1600,
+          "width": 2560
+        }
+      }
+    ],
+    "all_samples_scale_and_policy_preserved": true,
+    "all_four_native_rotations_observed": true,
+    "owner_all_four_directions_confirmed": true,
+    "physical_touch_tested": false,
+    "suspend_tested": false,
+    "signed_os_update_applied": false,
+    "post_monitor_owner_feedback": "Rotation no longer works",
+    "daily_operation_accepted": true,
+    "current_policy_diagnosis": {
+      "autoRotatePolicy": 1,
+      "tabletMode": false,
+      "tabletModeAvailable": false,
+      "implication": "Native tablet-only policy does not enable the accelerometer in the currently detected desktop mode. Monitor retirement and mode state co-occur; do not assert a missing re-subscription bug from this correlation."
+    },
+    "next": "Await owner choice: Always rotation for this internal panel or retain tablet-only and qualify physical mode switch.",
+    "post_monitor_failure_resolved": "After detaching the keyboard the native tablet mode activates rotation. Tablet-only personal policy is retained. Do not attribute the earlier desktop-mode stop to a KWin re-subscription defect.",
+    "owner_preference": "Only tablet mode / keyboard detached",
+    "native_daily_after_detach": {
+      "owner_feedback": "Detached keyboard and rotation works",
+      "monitor_sensor_running": false,
+      "samples": [
+        {
+          "time": 1794864173.1204615,
+          "tablet": {
+            "tabletMode": false,
+            "tabletModeAvailable": false
+          },
+          "sensor": "s \"normal\"",
+          "rotation": 1,
+          "scale": 1.45,
+          "autoRotatePolicy": 1,
+          "size": {
+            "height": 1600,
+            "width": 2560
+          },
+          "enabled": true
+        },
+        {
+          "time": 1794864173.3639698,
+          "tablet": {
+            "tabletMode": false,
+            "tabletModeAvailable": false
+          },
+          "sensor": "s \"normal\"",
+          "rotation": 1,
+          "scale": 1.45,
+          "autoRotatePolicy": 1,
+          "size": {
+            "height": 1600,
+            "width": 2560
+          },
+          "enabled": true
+        },
+        {
+          "time": 1794864173.6094315,
+          "tablet": {
+            "tabletMode": false,
+            "tabletModeAvailable": false
+          },
+          "sensor": "s \"normal\"",
+          "rotation": 1,
+          "scale": 1.45,
+          "autoRotatePolicy": 1,
+          "size": {
+            "height": 1600,
+            "width": 2560
+          },
+          "enabled": true
+        },
+        {
+          "time": 1794864173.853764,
+          "tablet": {
+            "tabletMode": false,
+            "tabletModeAvailable": false
+          },
+          "sensor": "s \"normal\"",
+          "rotation": 1,
+          "scale": 1.45,
+          "autoRotatePolicy": 1,
+          "size": {
+            "height": 1600,
+            "width": 2560
+          },
+          "enabled": true
+        }
+      ],
+      "preference": "tablet-only preserved, rotate when keyboard detached",
+      "actual_mode": {
+        "tabletMode": false,
+        "tabletModeAvailable": false
+      },
+      "claim_owner": "Display orientation stays owned by KWin; no review accelerometer client remains. Actual D-Bus claimant was not traced.",
+      "snapshot_limitation": "The cover had reconnected before the passive snapshot. Native snapshot is desktop-mode false and normal/rotation1; retain it, do not turn it into a captured tablet-mode transition."
+    },
+    "post_monitor_all_four_repeated": false,
+    "keyboard_hotplug_lines": [
+      "Nov 16 22:01:24 moos kernel: usb 1-2: USB disconnect, device number 6",
+      "Nov 16 22:01:51 moos kernel: usb 1-2: new full-speed USB device number 7 using xhci_hcd",
+      "Nov 16 22:20:05 moos kernel: usb 1-2: USB disconnect, device number 7",
+      "Nov 16 22:20:40 moos kernel: usb 1-2: new full-speed USB device number 8 using xhci_hcd"
+    ],
+    "native_quarter_turn_without_monitor_captured": false,
+    "daily_operation_acceptance_basis": "Owner explicitly reports detached keyboard and working rotation after review monitor termination. Kernel records detach22:20:05/reconnect22:20:40; passive snapshot starts after reconnect.",
+    "remaining": [
+      "Post-monitor all four directions were not separately recaptured",
+      "Touch mapping and suspend are not tested in this slice",
+      "Matching signed immutable delivery and retirement of exact temporary hwdb/cache remain pending",
+      "Native tabletModeAvailable currently reports false despite an enumerated mode switch; that availability metadata is not repaired here"
+    ],
+    "references": [
+      "https://raw.githubusercontent.com/KDE/kwin/v6.8.3/src/outputconfigurationstore.cpp",
+      "https://raw.githubusercontent.com/KDE/kwin/v6.8.3/src/utils/orientationsensor.cpp"
+    ]
+  }
+}

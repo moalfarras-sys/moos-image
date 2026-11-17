@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "date": "2026-11-17",
+  "branch": "feat/control-center-glass-20261117",
+  "base_source": "61d44dcd60b5e78218a33f1cb8396f0d38e909d2",
+  "theme_revision": 160,
+  "plan_rows": [
+    "P2.5",
+    "P2.7",
+    "P2.8",
+    "P2.10",
+    "P5.1"
+  ],
+  "owner_steering": "Owner asks for a polished glass, animated, theme-adaptive center using native KDE owners, an animated panel symbol, live testing, and repair of OS problems.",
+  "design": {
+    "orbs": "Every toggle draws one native-accent orb with highlightedText glyph when active and a translucent well otherwise; sheen is a 72%x42% pill 6% from the top, inside the circle.",
+    "motion": "Measured state change (never a click) plays one finite settle (motionFast + motionEmphasis OutBack); pending pulses only while the executor transaction is pending. Panel glyph knobs glide with motionEmphasis+50ms stagger. All durations are zero at Plasma factor0.",
+    "sliders": "12px liquid track (16px while held), accent fill with sheen, 26px glass knob with accent halo; 44px hit area unchanged.",
+    "contrast": "Secondary ink >=4.82:1 over active/sheen cards and active glyph >=3.71:1 under sheen across all 18 schemes (computed and asserted natively)."
+  },
+  "defects": {
+    "orb_sheen": "Full-width sheen painted grey corners outside the orb. Gate: old 21.479px reach on 20px radius refused; fixed passes.",
+    "notification_teardown": "Live signed1162 plasmashell journal: CenterNotifications.qml:122:258 TypeError reading width of null 5 times. Native row-expiry fixture reproduces the identical message on old source; null-parent guard on 6 bindings passes.",
+    "night_light": "Live: center showed 'device did not confirm' and installed moos-control night-light on printed success with exit0 while KWin 6.8.3 NightLight enabled/running stayed false (file Active=true, Mode=Constant; KWin mode=1). Notified writes with a real value change apply immediately. Fixed executor notifies, forces a change for the stuck state, keeps reconfigure, and requires KWin enabled readback within 3s. Stub old 4 fail / fixed pass; real KWin on (enabled/running true, 4500K) and off pass; owner state restored to enabled=false running=false mode=1 6500K."
+  },
+  "qualification": {
+    "native_center_default": "PASS 0 / ~64s (ar/en x Aurora/AuroraLight plus wrong-owner refusal)",
+    "all_theme_native": "PASS 0 / 568.387s, 36 cases with captures",
+    "moos_control": "test_moos_control, test_moai_tool_schemas, test_settings_destinations, test_moai_action_selection OK",
+    "theme_rev": "Fingerprint gate passes at rev160 (70 packages); whats-new gate OK after retiring oldest 2026-09-18 aurora-glass entry at the 64-entry reader cap.",
+    "repository_gate": "Revision 159 just check failed only on PROJECT_STATE length 215>200 (Codex qualification log); this branch condenses it to 200."
+  },
+  "native_build": {
+    "environment": "moos-dev toolbox, identical systemtray compile flags to the reviewed build (md5 a30843a6...)",
+    "plugin_sha256": "1805c95c9421b06f309b486e69d08003b96c45de1e49b11579980a29235a9d1f",
+    "plugin_bytes": 33996304,
+    "notification_plugin_sha256": "0a8038b1673d76ed88a070e00d51c9fae12ceb777c657ea1b8ad271728762aa1",
+    "qml_sha256": {
+      "CenterBackend.qml": "2d76ea5466fec660fde9b5535ab6c81d1a740052a5aea6f0595bc68d0bdaee64",
+      "CenterNotifications.qml": "2bd9bafd26270851bce65ba4132c5dbfbbd5ff94917a8245c856e75ca7b2a4a7",
+      "CenterSlider.qml": "b8bf8cfd15182f5dafe007cede7415312651d81294d6dbcda8dace6f87f0cd7e",
+      "CenterTile.qml": "6a4263e0a79de18b3db69f083f3d96790e20802d191381204b315939e8350443",
+      "ControlCenterView.qml": "be6625beb52aa1f457e9ef4b3de7a6ac05058e499eb00b23e794aabf6c122b82",
+      "ExpandedRepresentation.qml": "0254dd22ba60783ed4bd4b371edf36892e8662a7421ffd3898d57e39a96ed45e",
+      "main.qml": "ab93900002250d580e6d6b91fed4425b97ed842b49a1ecc784ab248e315ea58b"
+    }
+  },
+  "live_copy": {
+    "installed_system": "44.20261116.0 (signed 1162)",
+    "selection": "Runtime drop-in replaces exact 159 selection; prior bytes saved; retire-live.py restores 159 or native.",
+    "runtime_drop_in_sha256": "38ee8c559f04c8d405674cc1e72695719a2ed53aa5541ab89564b95f33fc2b75",
+    "scope": "Only plasma-plasmashell.service tray factory; notifications/icons/data paths unchanged. Not a signed immutable update."
+  },
+  "installed_journey": {
+    "open": "Guarded native entry click opens the center; glass orbs, sliders and active glyph state visible on Bloom 3840x2160.",
+    "fold": "Actual Focus header click; moos-control status byte-identical before/after.",
+    "night_light_via_center": "Installed old executor refused honestly (no false success in the center); signed delivery of fixed moos-control required for the center journey.",
+    "qml_errors": "No QML errors in plasmashell journal after scoped restart.",
+    "idle_cost": "Pre-change plasmashell idle 0.10% of one core, 454MiB."
+  },
+  "observations": [
+    "KWin logged 9 sporadic 'Failed to create an offscreen framebuffer' this boot without a known trigger; no graphics policy changed.",
+    "Mira pages/pc.py reads NightColor from the file, not KWin's applied state.",
+    "moos-hardware-adapt failure is the internal-eDP DDC probe fixed in merged PR299, awaiting signed delivery."
+  ],
+  "remaining": [
+    "Exact full source/image/architecture CI and signed immutable delivery of tray plugin and moos-control.",
+    "Physical touch/portrait, owner visual acceptance of rev160."
+  ],
+  "private_evidence": "test-results/glass (captures, logs, inventory) stay local."
+}

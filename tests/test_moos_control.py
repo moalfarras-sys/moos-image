@@ -63,6 +63,8 @@ esac
                             if [ -f "$STUB_ROOT/brightness" ]; then read -r value < "$STUB_ROOT/brightness"; fi
                             echo "{\\"type\\":\\"i\\",\\"data\\":$value}";;
   *NightLight*running*) echo '{"type":"b","data":true}';;
+  *NightLight*enabled*) on=0; read -r on < "$STUB_ROOT/nightlight" 2>/dev/null
+                        if [ "$on" = 1 ]; then echo '{"type":"b","data":true}'; else echo '{"type":"b","data":false}'; fi;;
   *NameHasOwner*org.bluez*) echo '{"type":"b","data":[true]}';;
   *"/component/kwin"*shortcutNames*) echo '{"type":"as","data":[["Overview","Grid View","Show Desktop","MoOS Arrange: halves","MoOS Arrange: thirds","MoOS Arrange: quarters","MoOS Arrange: main","MoOS Arrange: centre"]]}';;
   *"/component/plasmashell"*shortcutNames*) echo '{"type":"as","data":[["activate application launcher","toggle do not disturb"]]}';;
@@ -78,8 +80,16 @@ esac
                     echo "{\\"type\\":\\"s\\",\\"data\\":[\\"$profile\\"]}";;
 esac
 ''',
-    "kwriteconfig6": "",
+    # KWin's NightColor file and what KWin itself applied are separate states. KWin applies
+    # only a notified change; STUB_KWIN_IGNORES keeps it off whatever the file says.
+    "kwriteconfig6": '''case "$*" in
+  *NightColor*Active*) for last in "$@"; do :; done; printf '%s\\n' "$last" > "$STUB_ROOT/nightlight-file"
+                       case "$*" in *--notify*) if [ "${STUB_KWIN_IGNORES:-0}" != 1 ]; then
+                         if [ "$last" = true ]; then echo 1; else echo 0; fi > "$STUB_ROOT/nightlight"; fi;; esac;;
+esac
+''',
     "kreadconfig6": '''case "$*" in
+  *NightColor*Active*) value=false; read -r value < "$STUB_ROOT/nightlight-file" 2>/dev/null; echo "$value";;
   *AutomaticLookAndFeel*) echo false;;
   *LookAndFeelPackage*) echo org.moos.ui2.nova.light;;
 esac
@@ -320,23 +330,40 @@ class MoosControlTests(unittest.TestCase):
         sets = [call for call in self.machine.calls() if "SetBrightness" in call]
         self.assertEqual(sets[-1][-2:], ["6000", "0"])
 
-    def test_night_light_modes_write_kwin_config_and_reconfigure(self):
+    def test_night_light_modes_notify_kwin_and_read_it_back(self):
         write = ["kwriteconfig6", "--file", "kwinrc", "--group", "NightColor"]
+        read = ["kreadconfig6", "--file", "kwinrc", "--group", "NightColor", "--key", "Active",
+                "--default", "false"]
         reconfigure = ["busctl", "--user", "--expect-reply=no", "call", "org.kde.KWin",
                        "/KWin", "org.kde.KWin", "reconfigure"]
+        active = lambda value: [*write, "--key", "Active", "--type", "bool", "--notify", value]
         expected = {
-            "on": [[*write, "--key", "Active", "--type", "bool", "true"],
-                   [*write, "--key", "Mode", "Constant"], reconfigure],
-            "auto": [[*write, "--key", "Active", "--type", "bool", "true"],
-                     [*write, "--key", "Mode", "DarkLight"], reconfigure],
-            "off": [[*write, "--key", "Active", "--type", "bool", "false"], reconfigure],
+            "on": [[*write, "--key", "Mode", "--notify", "Constant"], read, active("true"), reconfigure],
+            "off": [read, active("false"), reconfigure],
+            # The file already says on while KWin is off: force a real change notification.
+            "auto": [[*write, "--key", "Mode", "--notify", "DarkLight"], read, active("false"),
+                     active("true"), reconfigure],
         }
+        root = self.machine.root
         for mode, calls in expected.items():
             with self.subTest(mode=mode):
+                if mode == "auto":
+                    (root / "nightlight-file").write_text("true\n")
+                    (root / "nightlight").write_text("0\n")
                 self.machine.log.write_text("")
-                self.assertEqual(self.control("night-light", mode).returncode, 0)
-                acting = [call for call in self.machine.calls() if call[0] != "logger"]
+                result = self.control("night-light", mode)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                acting = [call[:9] if call[0] == "busctl" else call
+                          for call in self.machine.calls() if call[0] != "logger"]
+                acting = [call for call in acting if "enabled" not in call]
                 self.assertEqual(acting, calls)
+                self.assertEqual((root / "nightlight").read_text().strip(), "0" if mode == "off" else "1")
+
+    def test_night_light_refuses_success_when_kwin_does_not_apply(self):
+        result = self.control("night-light", "on", STUB_KWIN_IGNORES="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("Night light on", result.stdout)
+        self.assertIn("KWin did not apply", result.stdout + result.stderr)
 
     def test_radios_and_screenshot_use_fixed_commands(self):
         self.assertEqual(self.control("wifi", "off").returncode, 0)

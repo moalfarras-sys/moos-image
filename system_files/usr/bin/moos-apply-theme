@@ -411,7 +411,13 @@ set -uo pipefail
 # 147: qualify Quiet Glass Light alert contrast and mineral ink/shadows.
 # 148: retain the strict MoOS family names and preserve validated native layouts.
 # 149: use QtCore Settings for the shared startup material reader.
-THEME_REV=149
+# 150: rejected clock-based center; native tray remained duplicated.
+# 151: one native SystemTray entry and integrated MoOS controls/notifications.
+# 152: keep native power in a complete footer destination; fit actual dashboard.
+# 153: status retry and finalized native center payload after real-session review.
+# 154: owner-directed compact native center, paired Plasma theme and privacy status.
+# 160: glass center orbs/sliders, animated panel glyph, notification teardown guard.
+THEME_REV=160
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
