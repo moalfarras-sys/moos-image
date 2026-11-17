@@ -209,6 +209,7 @@ class AdaptiveLauncher(unittest.TestCase):
                 ('--broken-order-snapshot','accepted Qt drop reorders the native favorites model'),
                 ('--broken-drop-cancel','closed launcher refuses a held drop without changing native order'),
                 ('--broken-folders','real nested KService group exists'),
+                ('--broken-home-focus','focused Home action stays inside visible viewport'),
             ):
                 output=Path(tmp)/flag.removeprefix('--broken-')
                 result=subprocess.run([shutil.which('python3'),str(ROOT/'tests/launcher_adaptive_native.py'),

@@ -239,6 +239,10 @@ Item {
                     const action = named(v, name);
                     driver.verify(action && action.width >= 44 && action.height >= 44,
                         "Home action keeps its input target: " + name);
+                    action.forceActiveFocus();check.wait(20);
+                    const visiblePosition=action.mapToItem(driver.homeScroll,0,0);
+                    driver.verify(visiblePosition.y>=-1 && visiblePosition.y+action.height<=driver.homeScroll.height+1,
+                        "focused Home action stays inside visible viewport");
                     const position = action.mapToItem(driver.homeScroll, 0, 0);
                     driver.verify(position.x >= -1 && position.x + action.width <= driver.homeScroll.width + 1,
                         "Home action fits horizontally: " + name);

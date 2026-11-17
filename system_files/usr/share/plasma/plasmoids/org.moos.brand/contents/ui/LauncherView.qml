@@ -2409,6 +2409,7 @@ Item {
 
     component CommandCard: PC3.ItemDelegate {
         id: command
+        onActiveFocusChanged: if (activeFocus) homeScroll.reveal(command)
         property string iconName: "moos-spark-symbolic"
         property string eyebrow: ""
         property string title: ""

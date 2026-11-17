@@ -3142,7 +3142,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=164" in apply_theme_code,
+require("THEME_REV=165" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -4052,11 +4052,11 @@ require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         "the full launcher must enforce and report its work-area-bounded representation to "
         "the plasmawindowed smoke")
 # Commercial shell language: the generated spacing rhythm, 40px affordances, functional
-# text no smaller than 11px, and four columns that still ride the type ramp.
+# text no smaller than 11px, and columns derived from readable cell widths.
 # An early four-column launcher was rejected because it drove labels down to
 # 7–10px; the current one is only acceptable because every pixelSize below
 # stays on the 11+ type tokens — that pairing is what this gate holds, and
-# densifying past four columns remains out.
+# fixed column counts may not override actual available room.
 _design_tokens = json.loads(read("artwork/moos-design/tokens.json"))
 _launcher_tokens = {
     "space1": "design.space1", "space2": "design.space2",

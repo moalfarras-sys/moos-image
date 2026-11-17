@@ -895,7 +895,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=164", apply,
+            "THEME_REV=165", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -1294,7 +1294,7 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertNotRegex(
             launcher,
             r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})",
-            "the app grid must never densify past four columns",
+            "grid density must derive from actual available room",
         )
         self.assertGreaterEqual(
             launcher.count("view.targetSize"),

@@ -9,7 +9,7 @@
   ],
   "branch": "feat/mova-launcher-20261117",
   "base_source": "7243bb0d3448971d85c76da69bebf910d28cd179",
-  "theme_revision": 164,
+  "theme_revision": 165,
   "scope": "Develop the existing org.moos.brand launcher as Mova. Control Center remains independently owned; no edits to its worktree, package or runtime selection.",
   "native_owners": {
     "catalogue_folders": "Kicker.RootModel / AppsModel / modelForRow; All Apps remains the native recursive flat catalogue while category children retain native folders.",
@@ -20,7 +20,7 @@
     "folder_editing": "Existing KMenuEdit through ProcessRunner; in-grid arbitrary folder editing is not implemented by a second catalogue writer."
   },
   "behavior": {
-    "layout": "Home prioritizes balanced favorite rows, actual recent items and then native workspace destinations. The library uses bounded1–8 columns and complete settled rows with existing readable size tokens. Large work areas use1040x720; portrait/tablet follows available area; short outputs remain bounded.",
+    "layout": "Home prioritizes balanced favorite rows, actual recent items and then native workspace destinations. The library uses bounded1–8 columns and complete settled rows with existing readable size tokens. Large work areas use1040x720; portrait/tablet follows available area; short outputs remain bounded. Keyboard focus reveals secondary Home actions through the existing Flickable; no hidden action is activated out of view.",
     "cards": "Two-line names, one accessible native action menu instead of three overflowing reorder buttons. Content-only finite spring/press feedback keeps hit rectangles fixed.",
     "drag": "Native Qt internal favorite drag proxy and theme-matched preview; native KAStats write occurs only on accepted drop. Hover, cancelled/closed launcher drop and ordinary touch scrolling preserve order. Application outward drags use native Qt URI data.",
     "tablet": "Native KWin custom signal invalidates GetAll property map. Strict booleans, absent/service-loss and malformed values remain refused. Native single-key update tuple is retained as a negative control.",
@@ -49,14 +49,19 @@
     },
     {
       "finding": "Actual8-pin wide Home used7+1 while the library exposed a final icon row with clipped names. Predecessor329fe3ef full-source qualification was intentionally stopped before push/image; its36 native cases remain historical.",
-      "repair": "Balance favorites across their actual native count, reserve complete library rows with native SnapToRow, and prioritize recent items before secondary workspace actions. Final164 receives fresh source/native/installed qualification."
+      "repair": "Balance favorites across their actual native count, reserve complete library rows with native SnapToRow, and prioritize recent items before secondary workspace actions. Final165 receives fresh source/native/installed qualification."
+    },
+    {
+      "finding": "Moving secondary workspace cards below recent items left a focused native button outside the Home Flickable viewport. The private old missing-handler control refuses with the actual vertical-bounds assertion.",
+      "repair": "Use the existing Home reveal function on CommandCard active focus; test every real Home card vertically as well as horizontally."
     }
   ],
   "qualification": {
     "native": "Existing private KWin/Plasma/Qt rig exercises real native folders, context QAction pin/restore, pointer and Qt-touch favorite drop/restore, cancelled-target drop, names/action bounds, keyboard navigation and finite/reduced motion. Exact final gate and all-family receipts are retained under test-results/mova.",
     "old_controls": "Existing wrong geometry, Backtab, category, alignment and wrong-style controls remain. Added missing row-snapshot, closed-drop guard and flattened-folder fault copies must refuse.",
     "source_image_ci": "Use the frozen commit and exact complete source/image/CI receipts. Documentation and source/native success are separate from signed OS and physical acceptance.",
-    "installed": "Before capture uses actual signed1162 launcher. Any later live KPackage review has its own exact file inventory and retirement condition; it is not immutable delivery."
+    "installed": "Before capture uses actual signed1162 launcher. Any later live KPackage review has its own exact file inventory and retirement condition; it is not immutable delivery.",
+    "targeted_final": "Final165 adaptive gate PASS:9 tests in77.076s, including native4-viewport/Quiet Glass journeys and wrong-style/category/focus/order/cancel/folder controls. Actual9 is a targeted gate count, not complete repository qualification."
   },
   "upstream": [
     "https://invent.kde.org/plasma/plasma-desktop/-/tree/v6.8.3/applets/kicker",
