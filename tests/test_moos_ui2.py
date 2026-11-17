@@ -895,7 +895,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=162", apply,
+            "THEME_REV=164", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -1286,9 +1286,11 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("anchors.margins: view.canvasMargin", launcher)
         self.assertEqual(
             launcher.count("cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))"),
-            2,
-            "Pinned and All Apps must share the calm four-column rhythm",
+            1,
+            "The library must derive readable columns from the actual viewport",
         )
+        self.assertEqual(launcher.count("cellWidth: Math.max(1, Math.floor(width / view.favoriteColumns(width, view.favoritesModel.count)))"), 1)
+        self.assertIn("cellHeight: view.appRowHeight(height, Plasmoid.configuration.compactTiles ? 100 : 128)", launcher)
         self.assertNotRegex(
             launcher,
             r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})",

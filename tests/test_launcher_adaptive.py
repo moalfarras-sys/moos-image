@@ -117,6 +117,16 @@ class AdaptiveLauncher(unittest.TestCase):
             + ".map(appColumns)));"], capture_output=True, text=True, timeout=10, check=True)
         self.assertEqual(json.loads(result.stdout), [1, 1, 2, 2, 4, 5, 8])
 
+    @unittest.skipUnless(shutil.which("node"), "balanced layout execution needs Node")
+    def test_favorites_balance_and_library_rows_use_actual_room(self):
+        functions=[]
+        for name in ('appColumns','favoriteColumns','appRowHeight'):
+            functions.append(re.search(r'    function '+name+r'\([^)]*\) \{.*?\n    \}',VIEW.read_text(),re.S).group(0))
+        program='\n'.join(functions)+'\nconst view={appColumns};\n'
+        program+='process.stdout.write(JSON.stringify({pins:[[827,8],[827,6],[827,9],[280,8],[100,2],[827,0]].map(c=>favoriteColumns(...c)),rows:[[353,128],[352,128],[340,100],[128,128],[640,128]].map(c=>appRowHeight(...c))}));'
+        result=subprocess.run([shutil.which('node'),'-e',program],capture_output=True,text=True,timeout=10,check=True)
+        self.assertEqual(json.loads(result.stdout),{'pins':[4,6,5,2,1,1],'rows':[176,176,113,128,128]})
+
     @unittest.skipUnless(
         all(shutil.which(tool) for tool in ("kwin_wayland", "plasmawindowed", "spectacle", "dbus-daemon"))
         and Path("/usr/lib64/qt6/qml/QtTest").is_dir()

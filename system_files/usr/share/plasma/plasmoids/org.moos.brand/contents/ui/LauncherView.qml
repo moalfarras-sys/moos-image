@@ -88,6 +88,16 @@ Item {
     function appColumns(availableWidth) {
         return Math.max(1, Math.min(8, Math.floor(availableWidth / 112)));
     }
+    function favoriteColumns(availableWidth, count) {
+        const capacity = view.appColumns(availableWidth);
+        const rows = Math.max(1, Math.ceil(Math.max(1, count) / capacity));
+        return Math.max(1, Math.min(capacity, Math.ceil(count / rows)));
+    }
+    function appRowHeight(availableHeight, minimum) {
+        const room = Math.max(1, Math.floor(availableHeight));
+        const rows = Math.max(1, Math.floor(room / minimum));
+        return Math.max(minimum, Math.floor(room / rows));
+    }
     function selectCategory(row) {
         const catalogue = view.launcher.appRootModel;
         // Row zero is Kicker's deliberately invisible favorites placeholder.
@@ -826,7 +836,7 @@ Item {
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
                                 model: view.favoritesModel
-                                cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))
+                                cellWidth: Math.max(1, Math.floor(width / view.favoriteColumns(width, view.favoritesModel.count)))
                                 cellHeight: Plasmoid.configuration.compactTiles
                                     ? 100
                                     : 128
@@ -949,61 +959,6 @@ Item {
                             }
                         }
 
-                        GridLayout {
-                            columns: view.narrow ? 2 : 4
-                            Layout.fillWidth: true
-                            Layout.minimumHeight: view.narrow ? 144 : 76
-                            Layout.preferredHeight: view.narrow ? 144 : 76
-                            Layout.maximumHeight: view.narrow ? 144 : 76
-                            columnSpacing: view.space3
-                            rowSpacing: view.space3
-
-                            CommandCard {
-                                objectName: "moosHomeOverview"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 240
-                                featured: true
-                                iconName: "moos-grid-symbolic"
-                                eyebrow: view.local("مساحة العمل", "WORKSPACE")
-                                title: view.narrow ? view.local("النوافذ", "Windows")
-                                    : view.local("كل نوافذك", "All your windows")
-                                onActivated: view.launcher.openRoute("moos://control/window/overview")
-                            }
-                            CommandCard {
-                                objectName: "moosHomeArrangement"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 180
-                                iconName: "moos-grid-symbolic"
-                                eyebrow: view.local("تنظيم", "ARRANGE")
-                                title: view.narrow ? view.local("تقسيم", "Tile")
-                                    : view.local("جنبًا إلى جنب", "Side by side")
-                                onActivated: view.launcher.openRoute("moos://control/arrange/halves")
-                            }
-                            CommandCard {
-                                objectName: "moosHomeSettings"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 180
-                                iconName: "moos-settings-symbolic"
-                                eyebrow: view.local("تحكم", "CONTROL")
-                                title: view.narrow ? view.local("الإعدادات", "Settings")
-                                    : view.local("إعدادات MoOS", "MoOS Settings")
-                                onActivated: view.launcher.openRoute("moos://settings/overview")
-                            }
-                            CommandCard {
-                                objectName: "moosHomeMira"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 180
-                                iconName: "moos-ai-symbolic"
-                                eyebrow: view.local("مساعدك", "ASSISTANT")
-                                title: view.narrow ? view.local("ميرا", "Mira")
-                                    : view.local("ابدأ مع ميرا", "Create with Mira")
-                                onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
-                            }
-                        }
 
                         ColumnLayout {
                             Layout.fillWidth: true
@@ -1059,6 +1014,62 @@ Item {
                                 }
                             }
                         }
+
+                        GridLayout {
+                            columns: view.narrow ? 2 : 4
+                            Layout.fillWidth: true
+                            Layout.minimumHeight: view.narrow ? 144 : 76
+                            Layout.preferredHeight: view.narrow ? 144 : 76
+                            Layout.maximumHeight: view.narrow ? 144 : 76
+                            columnSpacing: view.space3
+                            rowSpacing: view.space3
+
+                            CommandCard {
+                                objectName: "moosHomeOverview"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 240
+                                featured: true
+                                iconName: "moos-grid-symbolic"
+                                eyebrow: view.local("مساحة العمل", "WORKSPACE")
+                                title: view.narrow ? view.local("النوافذ", "Windows")
+                                    : view.local("كل نوافذك", "All your windows")
+                                onActivated: view.launcher.openRoute("moos://control/window/overview")
+                            }
+                            CommandCard {
+                                objectName: "moosHomeArrangement"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-grid-symbolic"
+                                eyebrow: view.local("تنظيم", "ARRANGE")
+                                title: view.narrow ? view.local("تقسيم", "Tile")
+                                    : view.local("جنبًا إلى جنب", "Side by side")
+                                onActivated: view.launcher.openRoute("moos://control/arrange/halves")
+                            }
+                            CommandCard {
+                                objectName: "moosHomeSettings"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-settings-symbolic"
+                                eyebrow: view.local("تحكم", "CONTROL")
+                                title: view.narrow ? view.local("الإعدادات", "Settings")
+                                    : view.local("إعدادات MoOS", "MoOS Settings")
+                                onActivated: view.launcher.openRoute("moos://settings/overview")
+                            }
+                            CommandCard {
+                                objectName: "moosHomeMira"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-ai-symbolic"
+                                eyebrow: view.local("مساعدك", "ASSISTANT")
+                                title: view.narrow ? view.local("ميرا", "Mira")
+                                    : view.local("ابدأ مع ميرا", "Create with Mira")
+                                onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
+                            }
+                        }
                     }
                 }
 
@@ -1077,7 +1088,7 @@ Item {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 title: view.local("مكتبة التطبيقات", "App library")
-                                subtitle: view.local("التطبيقات: ", "Applications: ")
+                                subtitle: view.shortLayout ? "" : view.local("التطبيقات: ", "Applications: ")
                                     + Number(view.applicationsModel ? view.applicationsModel.count : 0)
                                         .toLocaleString(Qt.locale(), "f", 0)
                                     + " · " + view.local("اختر فئة أو ابحث بالأعلى", "Choose a category or search above")
@@ -1213,9 +1224,8 @@ Item {
                             boundsBehavior: Flickable.StopAtBounds
                             model: view.applicationsModel
                             cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))
-                            cellHeight: Plasmoid.configuration.compactTiles
-                                ? 100
-                                : 128
+                            cellHeight: view.appRowHeight(height, Plasmoid.configuration.compactTiles ? 100 : 128)
+                            snapMode: GridView.SnapToRow
                             keyNavigationWraps: true
                             activeFocusOnTab: true
                             readonly property int columns: Math.max(

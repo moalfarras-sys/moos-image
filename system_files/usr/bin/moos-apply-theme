@@ -411,8 +411,8 @@ set -uo pipefail
 # 147: qualify Quiet Glass Light alert contrast and mineral ink/shadows.
 # 148: retain the strict MoOS family names and preserve validated native layouts.
 # 149: use QtCore Settings for the shared startup material reader.
-# v162: native Mova adaptive launcher, activity-aware actions and drop-only favorites.
-THEME_REV=162
+# v164: native Mova adaptive launcher, activity-aware actions and drop-only favorites.
+THEME_REV=164
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

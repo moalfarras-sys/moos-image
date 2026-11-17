@@ -84,6 +84,11 @@ Item {
                 check.tryCompare(driver.pages, "pageAnimating", false, 1500,
                     "application page settles before category pointer input");
                 driver.verify(check.waitForPolish(driver.categories), "native category layout polished");
+                driver.verify(check.waitForPolish(driver.appGrid), "visible native app layout polished");
+                const fullRows=Math.floor((driver.appGrid.height+.01)/driver.appGrid.cellHeight);
+                driver.verify(fullRows>=1 && driver.appGrid.height-fullRows*driver.appGrid.cellHeight<3,
+                    "library settles on complete readable rows: height="+driver.appGrid.height+" cell="+driver.appGrid.cellHeight+" rows="+fullRows);
+
                 const allApps = driver.appGrid.count;
                 driver.verify(l.appRootModel.count > 2, "native app categories are present");
                 driver.categories.positionViewAtIndex(2, ListView.Contain);
@@ -127,6 +132,22 @@ Item {
                 driver.verify(!l.leaveAppFolder(),"folder root cannot underflow");
                 v.selectCategory(1);check.wait(50);
                 driver.captureSurface("library");
+                const densityButton=driver.textItem(v,v.local("عرض مضغوط","Compact view"));
+                driver.verify(densityButton!==null,"native compact preference control is reachable");
+                const normalRow=driver.appGrid.cellHeight;
+                check.mouseClick(densityButton);check.wait(50);
+                driver.compare(densityButton.text,v.local("عرض مريح","Comfortable view"),"compact choice rereads its native preference");
+                driver.verify(driver.appGrid.cellHeight<=normalRow,"compact choice preserves or increases visible rows");
+                const compactTile=driver.appGrid.itemAtIndex(0);
+                const compactName=named(compactTile,"movaAppName");
+                compactName.text=v.local("مُحَرِّرُ المُسْتَنَدَاتِ وَمَلَفَّاتُ العَمَلِ","Long application name for documents and workspace");
+                check.wait(40);
+                driver.verify(compactName.height+1>=compactName.paintedHeight,"compact card reserves actual two-line ink");
+                compactName.text=Qt.binding(()=>String(compactTile.model.compactName||compactTile.model.display||""));
+                driver.captureSurface("library-compact");
+                check.mouseClick(densityButton);check.wait(50);
+                driver.compare(densityButton.text,v.local("عرض مضغوط","Compact view"),"density test restores exact original preference");
+
                 // The same menu and native favorite client used by the real applet.
                 const originalPins = JSON.stringify(l.favoriteSearchIds);
                 let actionTile = null;

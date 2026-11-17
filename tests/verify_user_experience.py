@@ -3142,7 +3142,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=162" in apply_theme_code,
+require("THEME_REV=164" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -4082,7 +4082,9 @@ require("Press Meta to open" not in launcher_view_qml
         and "يفتح بزر Meta" not in launcher_view_qml
         and launcher_view_qml.count(
             "cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))"
-        ) == 2
+        ) == 1
+        and "cellWidth: Math.max(1, Math.floor(width / view.favoriteColumns(width, view.favoritesModel.count)))" in launcher_view_qml
+        and "snapMode: GridView.SnapToRow" in launcher_view_qml
         and "Math.max(1, Math.min(8, Math.floor(availableWidth / 112)))" in launcher_view_qml
         and re.search(
             r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})", launcher_view_qml

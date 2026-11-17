@@ -18,6 +18,7 @@ parser.add_argument("--broken-category", action="store_true")
 parser.add_argument("--broken-style", action="store_true")
 parser.add_argument("--native-popup", action="store_true")
 parser.add_argument("--trace-drag", action="store_true")
+parser.add_argument("--short-only", action="store_true")
 parser.add_argument("--broken-order-snapshot", action="store_true")
 parser.add_argument("--broken-drop-cancel", action="store_true")
 parser.add_argument("--broken-folders", action="store_true")
@@ -255,6 +256,7 @@ def one(width,height,language,light,reduced):
 try:
     matrix=[(360,640,'ar',False,True),(600,960,'en',True,False),
             (960,540,'ar',True,True),(1536,864,'en',False,False)]
+    if args.short_only: matrix=matrix[2:3]
     if args.broken_backtab or args.broken_alignment or args.broken_style or args.broken_order_snapshot or args.broken_drop_cancel or args.broken_folders: matrix=matrix[:1]
     for size in matrix:
         case=one(*size);report['cases'].append(case)

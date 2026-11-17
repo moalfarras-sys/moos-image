@@ -9,7 +9,7 @@
   ],
   "branch": "feat/mova-launcher-20261117",
   "base_source": "7243bb0d3448971d85c76da69bebf910d28cd179",
-  "theme_revision": 162,
+  "theme_revision": 164,
   "scope": "Develop the existing org.moos.brand launcher as Mova. Control Center remains independently owned; no edits to its worktree, package or runtime selection.",
   "native_owners": {
     "catalogue_folders": "Kicker.RootModel / AppsModel / modelForRow; All Apps remains the native recursive flat catalogue while category children retain native folders.",
@@ -20,7 +20,7 @@
     "folder_editing": "Existing KMenuEdit through ProcessRunner; in-grid arbitrary folder editing is not implemented by a second catalogue writer."
   },
   "behavior": {
-    "layout": "Home prioritizes favorite applications, then native workspace destinations and actual recent items. Library uses bounded 1–8 columns with readable native size tokens; large work areas use1040x720, portrait/tablet uses the available area while short outputs remain bounded.",
+    "layout": "Home prioritizes balanced favorite rows, actual recent items and then native workspace destinations. The library uses bounded1–8 columns and complete settled rows with existing readable size tokens. Large work areas use1040x720; portrait/tablet follows available area; short outputs remain bounded.",
     "cards": "Two-line names, one accessible native action menu instead of three overflowing reorder buttons. Content-only finite spring/press feedback keeps hit rectangles fixed.",
     "drag": "Native Qt internal favorite drag proxy and theme-matched preview; native KAStats write occurs only on accepted drop. Hover, cancelled/closed launcher drop and ordinary touch scrolling preserve order. Application outward drags use native Qt URI data.",
     "tablet": "Native KWin custom signal invalidates GetAll property map. Strict booleans, absent/service-loss and malformed values remain refused. Native single-key update tuple is retained as a negative control.",
@@ -46,6 +46,10 @@
     {
       "finding": "Matching application/Kirigami colours can hide a different selected native SVG style in the private fixture.",
       "repair": "Require native KConfig style readback plus actual source-view PlasmaTheme/palette, retaining the original wrong-style refusal."
+    },
+    {
+      "finding": "Actual8-pin wide Home used7+1 while the library exposed a final icon row with clipped names. Predecessor329fe3ef full-source qualification was intentionally stopped before push/image; its36 native cases remain historical.",
+      "repair": "Balance favorites across their actual native count, reserve complete library rows with native SnapToRow, and prioritize recent items before secondary workspace actions. Final164 receives fresh source/native/installed qualification."
     }
   ],
   "qualification": {
