@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "date": "2026-11-17",
+  "plan_rows": [
+    "P2.4",
+    "P2.5",
+    "P2.8",
+    "P2.10"
+  ],
+  "branch": "feat/mova-launcher-20261117",
+  "base_source": "7243bb0d3448971d85c76da69bebf910d28cd179",
+  "theme_revision": 162,
+  "scope": "Develop the existing org.moos.brand launcher as Mova. Control Center remains independently owned; no edits to its worktree, package or runtime selection.",
+  "native_owners": {
+    "catalogue_folders": "Kicker.RootModel / AppsModel / modelForRow; All Apps remains the native recursive flat catalogue while category children retain native folders.",
+    "favorites": "Existing KAStatsFavoritesModel client, one-time import, activity links and moveRow. Native rowsMoved/modelReset/dataChanged refresh the same identity snapshot.",
+    "search": "Existing Milou.ResultsModel and enabled KRunner providers; no second index or search daemon.",
+    "activation": "Existing sourceModel.trigger, ResultsModel.run, canonical applications: direct destinations and fixed moos routes.",
+    "windows": "Existing KWin routes, native tablet state and Plasma work-area/popup ownership.",
+    "folder_editing": "Existing KMenuEdit through ProcessRunner; in-grid arbitrary folder editing is not implemented by a second catalogue writer."
+  },
+  "behavior": {
+    "layout": "Home prioritizes favorite applications, then native workspace destinations and actual recent items. Library uses bounded 1–8 columns with readable native size tokens; large work areas use1040x720, portrait/tablet uses the available area while short outputs remain bounded.",
+    "cards": "Two-line names, one accessible native action menu instead of three overflowing reorder buttons. Content-only finite spring/press feedback keeps hit rectangles fixed.",
+    "drag": "Native Qt internal favorite drag proxy and theme-matched preview; native KAStats write occurs only on accepted drop. Hover, cancelled/closed launcher drop and ordinary touch scrolling preserve order. Application outward drags use native Qt URI data.",
+    "tablet": "Native KWin custom signal invalidates GetAll property map. Strict booleans, absent/service-loss and malformed values remain refused. Native single-key update tuple is retained as a negative control.",
+    "themes": "Existing Kirigami/Plasma palette and UI2/Quiet Glass material owners; no per-card blur, new shader, infinite animation or replacement compositor."
+  },
+  "preservation": [
+    "org.moos.brand identity and sole panel entry",
+    "favoritesClient/favoritesSeeded and personal favorite identities/order/activities",
+    "personal default page, recent visibility and compact tile choice",
+    "publisher icons, native categories and KService refresh",
+    "Settings/Store/Mira/places/session/KWin destinations and native application routes",
+    "signed origin, rollback/recovery, authentication and output/theme preferences"
+  ],
+  "measured_refusals": [
+    {
+      "finding": "Native favorite move changed the model but count/add/remove-only Instantiator observation left search identities in the previous order.",
+      "repair": "Observe actual rowsMoved/modelReset/dataChanged, with coalesced Qt.callLater snapshot refresh. Native drop now changes and restores exact identities/order."
+    },
+    {
+      "finding": "Plasma DBus.Properties.update(key) publishes [bool] on this runtime, so strict tablet state stays false after native notify.",
+      "repair": "Use updateAll after custom tabletModeChanged; external typed peer proves true/false/repeat/service-loss and malformed state, alongside missing-watcher and original tuple controls."
+    },
+    {
+      "finding": "Matching application/Kirigami colours can hide a different selected native SVG style in the private fixture.",
+      "repair": "Require native KConfig style readback plus actual source-view PlasmaTheme/palette, retaining the original wrong-style refusal."
+    }
+  ],
+  "qualification": {
+    "native": "Existing private KWin/Plasma/Qt rig exercises real native folders, context QAction pin/restore, pointer and Qt-touch favorite drop/restore, cancelled-target drop, names/action bounds, keyboard navigation and finite/reduced motion. Exact final gate and all-family receipts are retained under test-results/mova.",
+    "old_controls": "Existing wrong geometry, Backtab, category, alignment and wrong-style controls remain. Added missing row-snapshot, closed-drop guard and flattened-folder fault copies must refuse.",
+    "source_image_ci": "Use the frozen commit and exact complete source/image/CI receipts. Documentation and source/native success are separate from signed OS and physical acceptance.",
+    "installed": "Before capture uses actual signed1162 launcher. Any later live KPackage review has its own exact file inventory and retirement condition; it is not immutable delivery."
+  },
+  "upstream": [
+    "https://invent.kde.org/plasma/plasma-desktop/-/tree/v6.8.3/applets/kicker",
+    "https://invent.kde.org/plasma/plasma-workspace/-/tree/v6.8.3/applets/kicker",
+    "https://doc.qt.io/qt-6/qml-qtquick-draghandler.html",
+    "https://doc.qt.io/qt-6/qml-qtquick-droparea.html"
+  ],
+  "licenses": "MovaActionMenu is a declared derivative of KDE6.8.3 ActionMenu; native favorite/activity tools are byte-identical. Preserve original authors/GPL notices and UPSTREAM_MOVA.json.",
+  "remaining": [
+    "Final frozen full source/image/CI integration and combined signed release/booted readback.",
+    "Physical tablet hotplug/touch, assistive technology and demanding-device/frame-time/battery acceptance.",
+    "Direct library-folder drag editing remains with native KMenuEdit; outward desktop/panel drop needs its own physical journey."
+  ],
+  "private_evidence": "test-results/mova; desktop captures/configuration/runtime inventories stay local."
+}

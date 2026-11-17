@@ -33,6 +33,7 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.private.kicker as Kicker
 import org.kde.milou as Milou
 import org.kde.kirigami as Kirigami
+import org.kde.plasma.workspace.dbus as DBus
 import org.moos.ui as MoUI
 
 PlasmoidItem {
@@ -99,15 +100,46 @@ PlasmoidItem {
         && root.availableScreenRect.height > 0
         ? root.availableScreenRect.height : Screen.height
 
+    // KWin owns tablet detection and the owner's policy. Observe its measured
+    // property and native change signal; never infer tablet mode from a device
+    // name, change the policy, or poll it. An absent owner/property is false.
+    readonly property bool tabletMode: tabletService.registered
+        && typeof tabletProperties.properties.tabletMode === "boolean"
+        && tabletProperties.properties.tabletMode === true
+    DBus.DBusServiceWatcher {
+        id: tabletService
+        busType: DBus.BusType.Session
+        watchedService: "org.kde.KWin"
+    }
+    DBus.Properties {
+        id: tabletProperties
+        busType: DBus.BusType.Session
+        service: tabletService.registered ? "org.kde.KWin" : ""
+        path: "/org/kde/KWin"
+        iface: "org.kde.KWin.TabletModeManager"
+    }
+    DBus.SignalWatcher {
+        busType: DBus.BusType.Session
+        service: "org.kde.KWin"
+        path: "/org/kde/KWin"
+        iface: "org.kde.KWin.TabletModeManager"
+        enabled: tabletService.registered
+        // Native single-key update currently publishes the reply tuple [bool].
+        // GetAll keeps the actual typed property map; never coerce that tuple.
+        function dbustabletModeChanged() { tabletProperties.updateAll(); }
+    }
+
     property string searchQuery: ""
     property int activePage: 1
     property bool editMode: false
     property int appsModelRow: 1
+    property var appFolderPath: []
     property var favoriteSearchIds: []
+    onAppsModelRowChanged: root.appFolderPath = []
 
     // One visible entry, one native tooltip. Workspace and Settings already
     // have destinations inside Home; duplicating them here crowds the dock.
-    toolTipMainText: "MoOS"
+    toolTipMainText: "Mova · MoOS"
     toolTipSubText: root.rtl ? "التطبيقات والملفات والإعدادات" : "Apps, files and settings"
 
     function closeLauncher() {
@@ -144,6 +176,37 @@ PlasmoidItem {
         if (sourceModel && row >= 0 && sourceModel.trigger(row, "", null)) {
             closeLauncher();
         }
+    }
+
+    // Rows are transient native KService menu positions, not another app index.
+    // Keep only navigation breadcrumbs; a native refresh invalidates the path.
+    // Source: KDE plasma-workspace v6.8.3 applets/kicker/{rootmodel,appsmodel}.cpp.
+    function currentAppsModel() {
+        let model = appRootModel.modelForRow(root.appsModelRow);
+        for (const folder of root.appFolderPath) {
+            if (!model || !folder || !Number.isInteger(folder.row)
+                    || folder.row < 0 || folder.row >= model.count) return null;
+            model = model.modelForRow(folder.row);
+        }
+        return model;
+    }
+
+    function enterAppFolder(row, label) {
+        const model = root.appsModel;
+        if (!model || !Number.isInteger(row) || row < 0 || row >= model.count) return false;
+        const child = model.modelForRow(row);
+        if (!child) return false;
+        root.appFolderPath = root.appFolderPath.concat([{
+            row: row,
+            label: String(label || child.description || "")
+        }]);
+        return true;
+    }
+
+    function leaveAppFolder() {
+        if (!root.appFolderPath.length) return false;
+        root.appFolderPath = root.appFolderPath.slice(0, -1);
+        return true;
     }
 
     function runSearchResult(row) {
@@ -247,7 +310,9 @@ PlasmoidItem {
         autoPopulate: false
         appletInterface: root
         appNameFormat: 0
-        flat: true
+        // Preserve KService menu folders inside each category. RootModel still
+        // recursively collects every app into its own flat All Apps model.
+        flat: false
         sorted: true
         showSeparators: false
         showRootSeparator: false
@@ -306,8 +371,18 @@ PlasmoidItem {
     }
 
     Connections {
+        target: root.favoriteModel
+        // Instantiator keeps its objects on a native row move. Count/add/remove
+        // alone leave KRunner's favorite identities in the previous order.
+        function onRowsMoved() { Qt.callLater(root.syncFavoriteSearchIds); }
+        function onModelReset() { Qt.callLater(root.syncFavoriteSearchIds); }
+        function onDataChanged() { Qt.callLater(root.syncFavoriteSearchIds); }
+    }
+
+    Connections {
         target: appRootModel
         function onRefreshed() {
+            root.appFolderPath = [];
             // modelForRow() is a method call and therefore has no automatic QML
             // dependency. Nudge the binding after KService/KSycoca refreshes.
             if (root.appsModelRow < 1 || root.appsModelRow >= appRootModel.count
@@ -318,7 +393,7 @@ PlasmoidItem {
         }
     }
 
-    readonly property var appsModel: appRootModel.modelForRow(appsModelRow)
+    readonly property var appsModel: root.currentAppsModel()
     readonly property LauncherView launcherView:
         root.fullRepresentationItem as LauncherView
 
@@ -429,7 +504,7 @@ PlasmoidItem {
             activeFocusOnTab: true
             acceptedButtons: Qt.LeftButton | Qt.MiddleButton
             cursorShape: Qt.PointingHandCursor
-            Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"
+            Accessible.name: root.rtl ? "موڤا · مشغّل MoOS" : "Mova · MoOS Launcher"
             Accessible.role: Accessible.Button
             Accessible.pressed: compact.pressed
             Accessible.checked: root.expanded

@@ -11,12 +11,16 @@ from gi.repository import Gio,GLib
 
 parser=argparse.ArgumentParser(description="Private native Plasma launcher viewport/input matrix")
 parser.add_argument("--output", type=Path, required=True)
-parser.add_argument("--family", choices=("graphite", "aurora"), default="graphite")
+parser.add_argument("--family", choices=("graphite", "aurora", "nova", "amethyst", "bloom", "dev", "gaming", "midnight", "study"), default="graphite")
 parser.add_argument("--broken-backtab", action="store_true")
 parser.add_argument("--broken-alignment", action="store_true")
 parser.add_argument("--broken-category", action="store_true")
 parser.add_argument("--broken-style", action="store_true")
 parser.add_argument("--native-popup", action="store_true")
+parser.add_argument("--trace-drag", action="store_true")
+parser.add_argument("--broken-order-snapshot", action="store_true")
+parser.add_argument("--broken-drop-cancel", action="store_true")
+parser.add_argument("--broken-folders", action="store_true")
 args=parser.parse_args()
 S=Path(__file__).resolve().parents[1]
 O=args.output
@@ -47,13 +51,20 @@ def one(width,height,language,light,reduced):
         view=package/'contents/ui/LauncherView.qml'
         body=view.read_text().replace('import QtQuick\n','import QtQuick\nimport '+json.dumps((S/'tests/qml').as_uri())+' as Gate\n',1)
         driver='''
+    property QtObject nativeThemeProbe: Kirigami.Theme
     Gate.LauncherAdaptiveDriver {
         surface: view; field: searchInput; appGrid: applicationsGrid
         homeGrid: favoritesGrid; homeScroll: homeScroll; canvas: commandCanvas
         pages: pages; navigation: navigation; categories: categoryStrip
-        powerButton: sessionMenuButton; powerMenu: sessionMenu
+        powerButton: sessionMenuButton; powerMenu: sessionMenu; actionMenu: appActions
     }
 '''
+        driver=driver.replace('actionMenu: appActions','actionMenu: appActions; reviewDirectory: '+json.dumps(str(O.resolve()/prefix)))
+        if args.trace_drag:
+            body=body.replace('onActiveChanged: {\n                if (active)', 'onActiveChanged: {\n                console.info("MOVA_NATIVE_DRAG active", active, tile.favoriteSurface, tile.visible);\n                if (active)',1)
+            body=body.replace('onActiveTranslationChanged: if (active && tile.favoriteSurface) {','onActiveTranslationChanged: if (active && tile.favoriteSurface) { console.info("MOVA_NATIVE_DRAG delta",activeTranslation);',1)
+            body=body.replace('onEntered: event => {\n                event.accepted', 'onEntered: event => {\n                console.info("MOVA_NATIVE_DRAG entered", event.source, tile.index);\n                event.accepted',1)
+            body=body.replace('onDropped: event => {\n                const source', 'onDropped: event => {\n                console.info("MOVA_NATIVE_DRAG dropped",event.source,tile.index);\n                const source',1)
         if args.broken_backtab:
             body=body.replace('KeyNavigation.priority: KeyNavigation.BeforeItem',
                               'KeyNavigation.priority: KeyNavigation.AfterItem')
@@ -63,6 +74,20 @@ def one(width,height,language,light,reduced):
         if args.broken_category:
             body=body.replace('view.launcher.appsModelRow = row;',
                               'view.launcher.appsModelRow = 1;',1)
+        if args.broken_drop_cancel:
+            seam='&& tile.visible && view.visible && view.launcher.expanded'
+            assert body.count(seam)==1
+            body=body.replace(seam,'&& tile.visible && view.visible',1)
+        main=package/'contents/ui/main.qml'
+        main_body=main.read_text()
+        if args.broken_order_snapshot:
+            seam='function onRowsMoved() { Qt.callLater(root.syncFavoriteSearchIds); }'
+            assert main_body.count(seam)==1
+            main_body=main_body.replace(seam,'function onRowsMoved() {}',1)
+        if args.broken_folders:
+            assert main_body.count('flat: false')==1
+            main_body=main_body.replace('flat: false','flat: true',1)
+        main.write_text(main_body)
         view.write_text(body[:body.rfind('}')]+driver+body[body.rfind('}'):])
         if args.native_popup:
             main=package/'contents/ui/main.qml'
@@ -70,7 +95,15 @@ def one(width,height,language,light,reduced):
             opening='\n    PlasmaCore.AppletPopup {\n        id: nativePopupProof\n        appletInterface: root\n        visualParent: root\n        popupDirection: Qt.TopEdge\n        mainItem: Item {\n            id: nativePopupProxy\n            implicitWidth: root.fullRepresentationItem ? root.fullRepresentationItem.implicitWidth : 0\n            implicitHeight: root.fullRepresentationItem ? root.fullRepresentationItem.implicitHeight : 0\n            Layout.minimumWidth: implicitWidth\n            Layout.minimumHeight: implicitHeight\n            Layout.maximumWidth: implicitWidth\n            Layout.maximumHeight: implicitHeight\n        }\n    }\n    Timer {\n        interval: 500\n        running: true\n        onTriggered: {\n            const surface = root.fullRepresentationItem;\n            if (!surface) throw Error("native popup has no full representation");\n            surface.parent = nativePopupProxy;\n            surface.anchors.fill = nativePopupProxy;\n            nativePopupProof.visible = true;\n        }\n    }\n'
             main.write_text(main_body[:main_body.rfind('}')]+opening+main_body[main_body.rfind('}'):])
 
-        theme=('org.moos.ui2' if args.family == 'graphite' else 'org.moos.ui2.aurora') + ('.light' if light else '')
+        merged=root/'config/menus/applications-merged'
+        merged.mkdir(parents=True)
+        (merged/'mova-fixture.menu').write_text('<!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN" "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd"><Menu><Name>Applications</Name><Menu><Name>Mova Fixture</Name><Directory>mova-fixture.directory</Directory><Menu><Name>Nested</Name><Directory>mova-nested.directory</Directory><Include><Filename>mova-folder-fixture.desktop</Filename></Include></Menu></Menu></Menu>')
+        (root/'data/desktop-directories').mkdir(parents=True)
+        for filename,label in [('mova-fixture','Mova Fixture'),('mova-nested','Nested')]:
+            (root/'data/desktop-directories'/(filename+'.directory')).write_text('[Desktop Entry]\nType=Directory\nName='+label+'\nIcon=folder\n')
+        (root/'data/applications').mkdir(parents=True)
+        (root/'data/applications/mova-folder-fixture.desktop').write_text('[Desktop Entry]\nType=Application\nName=Mova Native Folder Fixture\nExec=/usr/bin/false\nIcon=folder\n')
+        theme=('org.moos.ui2' if args.family == 'graphite' else 'org.moos.ui2.'+args.family) + ('.light' if light else '')
         defaults=S/'system_files/usr/share/plasma/look-and-feel'/theme/'contents/defaults'
         matched=configparser.ConfigParser(interpolation=None)
         matched.optionxform=str
@@ -134,6 +167,14 @@ def one(width,height,language,light,reduced):
             assert case['ready_marker'], log[-4500:]
             assert 'MOOS_ADAPTIVE_INPUT_PASS ' in log and 'MOOS_ADAPTIVE_INPUT_FAIL' not in log,log[-6500:]
             case['input']=json.loads(re.search(r'MOOS_ADAPTIVE_INPUT_PASS (.+)',log)[1])
+            # A matching application palette can hide a different native SVG
+            # style. Read the actual KConfig cascade, not the requested input.
+            style=subprocess.run(['kreadconfig6','--file','plasmarc','--group','Theme','--key','name'],
+                env=env,capture_output=True,text=True,timeout=5,check=True).stdout.strip()
+            case['native_style_readback']=style
+            case['private_style_input']=(root/'config/plasmarc').read_text()
+            assert style==plasma_style,('actual native Plasma style mismatch',style,plasma_style,case['input']['initialPalette'])
+
             expected=configparser.ConfigParser(interpolation=None)
             expected.read_string(colors)
             def hex_rgb(value):
@@ -214,7 +255,7 @@ def one(width,height,language,light,reduced):
 try:
     matrix=[(360,640,'ar',False,True),(600,960,'en',True,False),
             (960,540,'ar',True,True),(1536,864,'en',False,False)]
-    if args.broken_backtab or args.broken_alignment or args.broken_style: matrix=matrix[:1]
+    if args.broken_backtab or args.broken_alignment or args.broken_style or args.broken_order_snapshot or args.broken_drop_cancel or args.broken_folders: matrix=matrix[:1]
     for size in matrix:
         case=one(*size);report['cases'].append(case)
         (O/'receipt.json').write_text(json.dumps(report,indent=2)+'\n')

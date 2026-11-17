@@ -18,6 +18,16 @@ Item {
     required property var categories
     required property var powerButton
     required property var powerMenu
+    required property var actionMenu
+    required property string reviewDirectory
+    property bool captureFinished: false
+    function captureSurface(name) {
+        captureFinished = false;
+        driver.verify(surface.grabToImage(result => {
+            captureFinished = result.saveToFile(reviewDirectory + "-" + name + ".png");
+        }), "native surface capture started");
+        driver.waitVerified(() => captureFinished, 1500, "native source surface captured: " + name);
+    }
 
     function textItem(item, value) {
         if (item.text === value) return item;
@@ -36,6 +46,10 @@ Item {
             + " actual=" + actual + " expected=" + expected);
         check.compare(actual, expected, message);
     }
+    function waitVerified(predicate, timeout, message) {
+        try { check.tryVerify(predicate, timeout, message); }
+        catch (error) { console.error("MOOS_ADAPTIVE_ASSERT " + message); throw error; }
+    }
     Test.TestCase { id: check; when: false; name: "MoOSAdaptiveLauncher" }
     Timer {
         interval: 1200
@@ -45,6 +59,9 @@ Item {
             try {
                 const v = driver.surface;
                 const l = v.launcher;
+                const nativeTheme=v.nativeThemeProbe;
+                const initialPalette={owner:String(nativeTheme),background:String(nativeTheme.backgroundColor),text:String(nativeTheme.textColor),accent:String(nativeTheme.highlightColor)};
+                driver.verify(initialPalette.owner.startsWith("PlasmaTheme("),"actual source view uses native Plasma theme owner");
                 driver.Window.window.title = "MoOS Adaptive Input Gate";
                 // Windowed hosts lack plasmashell's inherited RTL parent.
                 v.LayoutMirroring.enabled = v.rtl;
@@ -61,8 +78,8 @@ Item {
                     driver.verify(nav.width >= 44 && nav.height >= 44, "44px navigation");
                 }
                 driver.verify(driver.appGrid.cellWidth >= 100, "readable application cells");
-                driver.verify(driver.appGrid.columns >= 1 && driver.appGrid.columns <= 4,
-                             "one through four columns");
+                driver.verify(driver.appGrid.columns >= 1 && driver.appGrid.columns <= 8,
+                             "one through eight columns");
                 l.activePage = 1;
                 check.tryCompare(driver.pages, "pageAnimating", false, 1500,
                     "application page settles before category pointer input");
@@ -88,6 +105,60 @@ Item {
                 v.focusCategory(1);
                 check.wait(80);
                 driver.compare(driver.appGrid.count, allApps, "All restores complete catalogue");
+                // Follow the actual nested KService menu produced in private XDG.
+                let nativeFolder = null;
+                for (let categoryRow = 2; categoryRow < l.appRootModel.count; ++categoryRow) {
+                    const model = l.appRootModel.modelForRow(categoryRow);
+                    if (!model) continue;
+                    for (let row = 0; row < model.count; ++row) {
+                        const child = model.modelForRow(row);
+                        if (child) {nativeFolder={category:categoryRow,row:row,parent:model,child:child};break;}
+                    }
+                    if (nativeFolder) break;
+                }
+                driver.verify(nativeFolder !== null,"real nested KService group exists");
+                l.appsModelRow = nativeFolder.category;
+                driver.verify(l.enterAppFolder(nativeFolder.row,"Native folder"),"enter native child folder");
+                driver.verify(l.appsModel === nativeFolder.child && l.appFolderPath.length === 1,
+                    "folder grid uses the exact native child model");
+                driver.verify(!l.enterAppFolder(-1,"invalid"),"invalid folder row is refused");
+                driver.verify(l.leaveAppFolder() && l.appsModel === nativeFolder.parent,
+                    "folder back restores the exact native parent");
+                driver.verify(!l.leaveAppFolder(),"folder root cannot underflow");
+                v.selectCategory(1);check.wait(50);
+                driver.captureSurface("library");
+                // The same menu and native favorite client used by the real applet.
+                const originalPins = JSON.stringify(l.favoriteSearchIds);
+                let actionTile = null;
+                for (let row = 0; row < driver.appGrid.count; ++row) {
+                    driver.appGrid.positionViewAtIndex(row, GridView.Contain);
+                    check.wait(20);
+                    const candidate = driver.appGrid.itemAtIndex(row);
+                    if (candidate && candidate.favoriteId && !l.favoriteModel.isFavorite(candidate.favoriteId)) {
+                        actionTile = candidate; break;
+                    }
+                }
+                driver.verify(actionTile !== null, "real unpinned application for native menu");
+                check.mouseClick(actionTile, actionTile.width/2, actionTile.height/2, Qt.RightButton);
+                check.tryCompare(driver.actionMenu, "opened", true, 1500, "right click opens native menu");
+                const entries = driver.actionMenu.__menu.content;
+                let favoriteAction = null;
+                for (const entry of entries) {
+                    if (entry.actionItem && entry.actionItem.actionId === "_kicker_favorite_add") favoriteAction = entry;
+                }
+                driver.verify(favoriteAction !== null, "native Kicker favorite action exists");
+                const pinnedId = actionTile.favoriteId;
+                driver.actionMenu.favoriteIdentity = "not-the-selected-application";
+                favoriteAction.action.trigger();check.wait(50);
+                driver.verify(!l.favoriteModel.isFavorite(pinnedId),"retired menu identity cannot affect another application");
+                driver.actionMenu.favoriteIdentity = pinnedId;
+                favoriteAction.action.trigger();
+                driver.waitVerified(() => l.favoriteModel.isFavorite(pinnedId), 1500, "native QAction pins application");
+                driver.actionMenu.__menu.close();
+                l.favoriteModel.removeFavorite(pinnedId);
+                driver.waitVerified(() => JSON.stringify(l.favoriteSearchIds) === originalPins, 1500,
+                    "native pin test restores exact favorite identity/order");
+                driver.appGrid.positionViewAtBeginning();
                 driver.Window.window.requestActivate();
                 check.tryCompare(driver.Window.window, "active", true);
                 v.focusSearch();
@@ -159,6 +230,81 @@ Item {
                 driver.compare(orbitTitle.effectiveHorizontalAlignment,
                     v.rtl ? Text.AlignRight : Text.AlignLeft,
                     "section text follows the logical leading edge once");
+                // Real Qt pointer drag through production DragHandler/DropArea,
+                // committing to the native KAStats owner only on accepted drop.
+                l.expanded = true;
+                l.activePage = 0; l.editMode = true;
+                check.wait(100);
+                driver.homeScroll.contentY = 0;
+                driver.homeGrid.positionViewAtBeginning();
+                driver.verify(check.waitForPolish(driver.homeGrid), "favorite layout polished");
+                check.tryCompare(driver.pages,"pageAnimating",false,1500,"Home settles before review");
+                driver.captureSurface("home");
+                const pinOrder = JSON.stringify(l.favoriteSearchIds);
+                const firstPin = l.favoriteSearchIds[0];
+                const secondPin = l.favoriteSearchIds[1];
+                const firstTile = driver.homeGrid.itemAtIndex(0);
+                const secondTile = driver.homeGrid.itemAtIndex(1);
+                driver.verify(firstTile && secondTile, "real favorite delegates for reordering");
+                const name = named(firstTile, "movaAppName");
+                const menuButton = named(firstTile, "movaAppActionsButton");
+                driver.verify(name && name.height + 1 >= name.paintedHeight,
+                    "application name ink fits its actual two-line item");
+                const originalName = name.text;
+                name.text = v.local("مُحَرِّرُ المُسْتَنَدَاتِ وَمَلَفَّاتُ العَمَلِ", "Long application name for documents and workspace");
+                check.wait(40);
+                driver.verify(name.lineCount <= 2 && name.height + 1 >= name.paintedHeight,
+                    "long source-font label retains its natural two-line ink bounds");
+                name.text = Qt.binding(() => String(firstTile.model.compactName || firstTile.model.display || ""));
+                menuButton.forceActiveFocus();check.wait(20);
+                driver.verify(menuButton.visible && menuButton.activeFocus,"native actions retain their keyboard focus");
+                driver.verify(menuButton && menuButton.width >= 44 && menuButton.height >= 44
+                    && menuButton.x >= 0 && menuButton.x + menuButton.width <= firstTile.width + 1,
+                    "single action target fits narrow favorite card");
+                check.mousePress(firstTile, firstTile.width/2, firstTile.height/2, Qt.LeftButton);
+                check.mouseMove(firstTile, firstTile.width/2 + 16, firstTile.height/2, 30);
+                check.mouseMove(secondTile, secondTile.width/2, secondTile.height/2, 60);
+                check.wait(80);
+                driver.compare(JSON.stringify(l.favoriteSearchIds), pinOrder,
+                    "drag hover never changes persistent favorite order");
+                check.mouseRelease(secondTile, secondTile.width/2, secondTile.height/2, Qt.LeftButton);
+                check.wait(100);
+                driver.waitVerified(() => l.favoriteSearchIds[0] === secondPin && l.favoriteSearchIds[1] === firstPin,
+                    1500, "accepted Qt drop reorders the native favorites model");
+                l.moveFavorite(1, 0);
+                driver.waitVerified(() => JSON.stringify(l.favoriteSearchIds) === pinOrder, 1500,
+                    "private drag test restores native order");
+                // Closing during a held drag is cancellation, never accepted drop.
+                const cancelledSource = driver.homeGrid.itemAtIndex(0);
+                const cancelledTarget = driver.homeGrid.itemAtIndex(1);
+                check.mouseMove(cancelledSource,cancelledSource.width/2,cancelledSource.height/2,30);
+                check.mousePress(cancelledSource, cancelledSource.width/2, cancelledSource.height/2, Qt.LeftButton);
+                check.mouseMove(cancelledSource, cancelledSource.width/2 + 16, cancelledSource.height/2, 30);
+                check.mouseMove(cancelledTarget, cancelledTarget.width/2, cancelledTarget.height/2, 60);
+                driver.waitVerified(() => named(cancelledTarget,"movaFavoriteDrop").containsDrag,1000,
+                    "cancel control reaches the actual accepted drop target");
+                l.expanded = false;
+                check.mouseRelease(cancelledTarget, cancelledTarget.width/2, cancelledTarget.height/2, Qt.LeftButton);
+                check.wait(100);
+                driver.compare(JSON.stringify(l.favoriteSearchIds), pinOrder,
+                    "closed launcher refuses a held drop without changing native order");
+                l.expanded = true; l.activePage = 0; l.editMode = true;
+                check.wait(80);
+                const touchSource = driver.homeGrid.itemAtIndex(0);
+                const touchTarget = driver.homeGrid.itemAtIndex(1);
+                const reorderTouch = check.touchEvent(touchSource);
+                reorderTouch.press(0,touchSource,touchSource.width/2,touchSource.height/2).commit(); check.wait(40);
+                reorderTouch.move(0,touchSource,touchSource.width/2+24,touchSource.height/2).commit(); check.wait(40);
+                reorderTouch.move(0,touchTarget,touchTarget.width/2,touchTarget.height/2).commit();
+                check.wait(60);
+                driver.compare(JSON.stringify(l.favoriteSearchIds), pinOrder,"touch drag hover preserves order");
+                reorderTouch.release(0,touchTarget,touchTarget.width/2,touchTarget.height/2).commit();
+                check.wait(80);
+                driver.waitVerified(() => l.favoriteSearchIds[0] === secondPin && l.favoriteSearchIds[1] === firstPin,
+                    1500,"Qt touch drop reorders native favorites in edit mode");
+                l.moveFavorite(1,0);
+                driver.waitVerified(() => JSON.stringify(l.favoriteSearchIds) === pinOrder,1500,"touch test restores native order");
+                l.editMode = false;
                 // Rapid page changes use one finite driver. Input remains
                 // available throughout, hidden pages settle immediately, and
                 // Reduced Motion never starts a translation.
@@ -191,10 +337,13 @@ Item {
                     homeViewport: driver.homeScroll.height,
                     touch: true, keyboard: true, sessionMenu: v.compact,
                     nativeCategories: l.appRootModel.count - 1, categoryBrowsing: true,
-                    pageMotionSettled: true,
-                    palette: { background: String(Kirigami.Theme.backgroundColor),
-                               text: String(Kirigami.Theme.textColor),
-                               accent: String(Kirigami.Theme.highlightColor) }
+                    pageMotionSettled: true, nativeMenu: true, nativeFavoriteAction: true,
+                    nativeFavoriteDrop: true, nativeTouchDrop: true, cancelledDropRefused: true,
+                    nativeFolderNavigation: true, applicationInkFits: true, requestedFont: v.uiFontFamily,
+                    initialPalette: initialPalette,
+                    palette: { owner: String(nativeTheme), background: String(nativeTheme.backgroundColor),
+                               text: String(nativeTheme.textColor),
+                               accent: String(nativeTheme.highlightColor) }
                 }));
             } catch (error) {
                 console.error("MOOS_ADAPTIVE_INPUT_FAIL " + String(error));

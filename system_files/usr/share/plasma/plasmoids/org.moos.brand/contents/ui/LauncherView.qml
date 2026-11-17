@@ -11,6 +11,7 @@ import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.kirigami as Kirigami
 import org.moos.ui as MoUI
+import "code/kicker-tools.js" as KickerTools
 
 Item {
     id: view
@@ -63,10 +64,17 @@ Item {
 
     // Fit the current work area in logical pixels. Keep the normal wide
     // composition; reflow content instead of scaling text or touch targets.
-    implicitWidth: Math.min(design.dialogWidth,
+    readonly property bool immersive: launcher.tabletMode === true
+        || (launcher.popupAvailableWidth < 640
+            && launcher.popupAvailableHeight > launcher.popupAvailableWidth * 1.12)
+    readonly property bool spacious: !immersive
+        && launcher.popupAvailableWidth >= 1440 && launcher.popupAvailableHeight >= 780
+    implicitWidth: Math.min(immersive ? launcher.popupAvailableWidth - 24
+        : spacious ? 1040 : design.dialogWidth,
         Math.max(1, launcher.popupAvailableWidth - 8))
-    implicitHeight: Math.min(design.dialogHeight,
-        Math.max(1, launcher.popupAvailableHeight - 64))
+    implicitHeight: Math.min(immersive ? launcher.popupAvailableHeight - 24
+        : spacious ? 720 : design.dialogHeight,
+        Math.max(1, launcher.popupAvailableHeight - (immersive ? 24 : 64)))
     Layout.minimumWidth: implicitWidth
     Layout.minimumHeight: implicitHeight
     Layout.maximumWidth: implicitWidth
@@ -78,7 +86,7 @@ Item {
     readonly property int canvasMargin: compact ? space3 : space5
 
     function appColumns(availableWidth) {
-        return Math.max(1, Math.min(4, Math.floor(availableWidth / 112)));
+        return Math.max(1, Math.min(8, Math.floor(availableWidth / 112)));
     }
     function selectCategory(row) {
         const catalogue = view.launcher.appRootModel;
@@ -87,6 +95,7 @@ Item {
         // a Store install refreshes KService. Never build a second app index.
         if (row < 1 || row >= catalogue.count || !catalogue.modelForRow(row)) return;
         view.launcher.appsModelRow = row;
+        view.launcher.appFolderPath = [];
         applicationsGrid.currentIndex = 0;
         applicationsGrid.positionViewAtBeginning();
     }
@@ -102,6 +111,27 @@ Item {
     function sessionActionShown(actionId) {
         return ["lock-screen", "switch-user", "logout", "suspend",
                 "hibernate", "reboot", "shutdown"].indexOf(String(actionId)) >= 0;
+    }
+
+    MovaActionMenu { id: appActions; objectName: "movaAppActions" }
+    function openAppActions(tile) {
+        if (!tile || tile.index < 0) return;
+        const actions = tile.model.hasActionList === true ? tile.model.actionList : [];
+        KickerTools.fillActionMenu(i18n, appActions, actions,
+            view.favoritesModel, String(tile.model.favoriteId || ""));
+        if (tile.favoriteSurface) {
+            const extra = Array.from(appActions.actionList || []);
+            extra.push({type: "separator"},
+                {text: view.local("نقل للخلف", "Move earlier"), actionId: "_mova_move_earlier", enabled: tile.index > 0},
+                {text: view.local("نقل للأمام", "Move later"), actionId: "_mova_move_later", enabled: tile.index < view.favoritesModel.count - 1});
+            appActions.actionList = extra;
+        }
+        if (!appActions.actionList || appActions.actionList.length === 0) return;
+        appActions.visualParent = tile;
+        appActions.delegate = tile;
+        appActions.favoriteIdentity = tile.favoriteId;
+        appActions.nativeModel = tile.baseModel;
+        appActions.open();
     }
 
     // entranceReady drives both the panel's own fade+scale and the staggered
@@ -439,7 +469,7 @@ Item {
                 spacing: 0
 
                 Text {
-                    text: "MoOS"
+                    text: "Mova"
                     color: Kirigami.Theme.textColor
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeSubheading
@@ -644,7 +674,7 @@ Item {
                     id: navApps
                     page: 1
                     iconName: "moos-grid-symbolic"
-                    label: view.local("التطبيقات", "Applications")
+                    label: view.local("المكتبة", "Library")
                     navUp: navHome
                     navDown: navPlaces
                 }
@@ -753,62 +783,6 @@ Item {
                         height: Math.max(homeScroll.height, implicitHeight)
                         spacing: view.space3
 
-                        GridLayout {
-                            columns: 2
-                            Layout.fillWidth: true
-                            Layout.minimumHeight: 128 + view.space3
-                            Layout.preferredHeight: 128 + view.space3
-                            Layout.maximumHeight: 128 + view.space3
-                            columnSpacing: view.space3
-                            rowSpacing: view.space3
-
-                            CommandCard {
-                                objectName: "moosHomeOverview"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 240
-                                featured: true
-                                iconName: "moos-grid-symbolic"
-                                eyebrow: view.local("مساحة العمل", "WORKSPACE")
-                                title: view.narrow ? view.local("النوافذ", "Windows")
-                                    : view.local("كل نوافذك", "All your windows")
-                                onActivated: view.launcher.openRoute("moos://control/window/overview")
-                            }
-                            CommandCard {
-                                objectName: "moosHomeArrangement"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 180
-                                iconName: "moos-grid-symbolic"
-                                eyebrow: view.local("تنظيم", "ARRANGE")
-                                title: view.narrow ? view.local("تقسيم", "Tile")
-                                    : view.local("جنبًا إلى جنب", "Side by side")
-                                onActivated: view.launcher.openRoute("moos://control/arrange/halves")
-                            }
-                            CommandCard {
-                                objectName: "moosHomeSettings"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 180
-                                iconName: "moos-settings-symbolic"
-                                eyebrow: view.local("تحكم", "CONTROL")
-                                title: view.narrow ? view.local("الإعدادات", "Settings")
-                                    : view.local("إعدادات MoOS", "MoOS Settings")
-                                onActivated: view.launcher.openRoute("moos://settings/overview")
-                            }
-                            CommandCard {
-                                objectName: "moosHomeMira"
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: 180
-                                iconName: "moos-ai-symbolic"
-                                eyebrow: view.local("مساعدك", "ASSISTANT")
-                                title: view.narrow ? view.local("ميرا", "Mira")
-                                    : view.local("ابدأ مع ميرا", "Create with Mira")
-                                onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
-                            }
-                        }
-
                         RowLayout {
                             Layout.fillWidth: true
 
@@ -839,9 +813,11 @@ Item {
 
                         Item {
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: view.favoritesModel.count > 0
-                                ? favoritesGrid.cellHeight : emptyOrbit.implicitHeight
+                            Layout.fillHeight: false
+                            Layout.preferredHeight: view.favoritesModel.count > 0
+                                ? Math.max(1, Math.min(3, Math.ceil(view.favoritesModel.count / Math.max(1, favoritesGrid.columns)))) * favoritesGrid.cellHeight
+                                : emptyOrbit.implicitHeight
+                            Layout.minimumHeight: Layout.preferredHeight
 
                             GridView {
                                 id: favoritesGrid
@@ -852,8 +828,8 @@ Item {
                                 model: view.favoritesModel
                                 cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))
                                 cellHeight: Plasmoid.configuration.compactTiles
-                                    ? 82
-                                    : 96
+                                    ? 100
+                                    : 128
                                 keyNavigationWraps: true
                                 activeFocusOnTab: true
                                 readonly property int columns: Math.max(
@@ -970,6 +946,62 @@ Item {
                                     activeFocusOnTab: true
                                     onClicked: view.launcher.activePage = 1
                                 }
+                            }
+                        }
+
+                        GridLayout {
+                            columns: view.narrow ? 2 : 4
+                            Layout.fillWidth: true
+                            Layout.minimumHeight: view.narrow ? 144 : 76
+                            Layout.preferredHeight: view.narrow ? 144 : 76
+                            Layout.maximumHeight: view.narrow ? 144 : 76
+                            columnSpacing: view.space3
+                            rowSpacing: view.space3
+
+                            CommandCard {
+                                objectName: "moosHomeOverview"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 240
+                                featured: true
+                                iconName: "moos-grid-symbolic"
+                                eyebrow: view.local("مساحة العمل", "WORKSPACE")
+                                title: view.narrow ? view.local("النوافذ", "Windows")
+                                    : view.local("كل نوافذك", "All your windows")
+                                onActivated: view.launcher.openRoute("moos://control/window/overview")
+                            }
+                            CommandCard {
+                                objectName: "moosHomeArrangement"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-grid-symbolic"
+                                eyebrow: view.local("تنظيم", "ARRANGE")
+                                title: view.narrow ? view.local("تقسيم", "Tile")
+                                    : view.local("جنبًا إلى جنب", "Side by side")
+                                onActivated: view.launcher.openRoute("moos://control/arrange/halves")
+                            }
+                            CommandCard {
+                                objectName: "moosHomeSettings"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-settings-symbolic"
+                                eyebrow: view.local("تحكم", "CONTROL")
+                                title: view.narrow ? view.local("الإعدادات", "Settings")
+                                    : view.local("إعدادات MoOS", "MoOS Settings")
+                                onActivated: view.launcher.openRoute("moos://settings/overview")
+                            }
+                            CommandCard {
+                                objectName: "moosHomeMira"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-ai-symbolic"
+                                eyebrow: view.local("مساعدك", "ASSISTANT")
+                                title: view.narrow ? view.local("ميرا", "Mira")
+                                    : view.local("ابدأ مع ميرا", "Create with Mira")
+                                onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
                             }
                         }
 
@@ -1153,6 +1185,26 @@ Item {
                             }
                         }
 
+                        RowLayout {
+                            visible: view.launcher.appFolderPath.length > 0
+                            Layout.fillWidth: true
+                            PC3.ToolButton {
+                                objectName: "movaFolderBack"
+                                Layout.minimumWidth: view.targetSize; Layout.minimumHeight: view.targetSize
+                                icon.name: view.rtl ? "go-next-symbolic" : "go-previous-symbolic"
+                                text: view.local("رجوع إلى المجلد السابق", "Back to parent folder")
+                                display: PC3.AbstractButton.IconOnly
+                                onClicked: view.launcher.leaveAppFolder()
+                                PC3.ToolTip { text: parent.text }
+                            }
+                            PC3.Label {
+                                Layout.fillWidth: true
+                                text: view.launcher.appFolderPath.map(entry => entry.label).join(" / ")
+                                elide: Text.ElideMiddle; textFormat: Text.PlainText
+                                font.pixelSize: view.typeSecondary
+                            }
+                        }
+
                         GridView {
                             id: applicationsGrid
                             Layout.fillWidth: true
@@ -1162,8 +1214,8 @@ Item {
                             model: view.applicationsModel
                             cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))
                             cellHeight: Plasmoid.configuration.compactTiles
-                                ? 82
-                                : 96
+                                ? 100
+                                : 128
                             keyNavigationWraps: true
                             activeFocusOnTab: true
                             readonly property int columns: Math.max(
@@ -1854,13 +1906,21 @@ Item {
         required property var model
         required property var sourceModel
         property bool favoriteSurface: false
+        objectName: (favoriteSurface ? "movaFavorite_" : "movaApplication_") + index
+        readonly property var baseModel: sourceModel
+        readonly property string favoriteId: String(model.favoriteId || "")
+        readonly property var dragOwner: view.launcher
+        property bool dragConsumed: false
+        z: favoriteDragProxy.Drag.active ? 2 : 0
+        signal interactionConcluded()
+        onInteractionConcluded: view.launcher.closeLauncher()
 
         // The staggered reveal. Each tile arrives a beat after the one before
         // it, so the grid assembles instead of appearing — the difference
         // between a menu and a surface that was built for you.
         //
         // Cost is deliberately near zero: opacity and y only, no shaders and no
-        // per-frame work once settled. The delay is CAPPED at 11 steps so a
+        // per-frame work once settled. The delay is CAPPED at five short steps so a
         // large catalogue cannot turn the entrance into a queue, and the whole
         // thing collapses to an instant 1.0 when motion is off — the gate is
         // named in full rather than through view.motionMedium so it is legible
@@ -1871,7 +1931,7 @@ Item {
         // the live shell journal every time the launcher model changes.
         readonly property int revealDelay:
             Kirigami.Units.longDuration > 1
-                ? Math.max(0, Math.min(tile.index, 11)) * 24
+                ? Math.max(0, Math.min(tile.index, 5)) * 10
                 : 0
         opacity: view.entranceReady ? 1 : 0
         transform: Translate {
@@ -1899,16 +1959,133 @@ Item {
         enabled: model.disabled !== true
         hoverEnabled: true
         Accessible.name: String(model.display || "")
+        Accessible.description: String(model.description || "")
         Accessible.role: Accessible.Button
-        scale: down ? 0.985 : 1.0
-        function activate() { view.launcher.triggerEntry(sourceModel, index); }
-        onClicked: activate()
+        function activate() {
+            if (tile.Drag.active || favoriteDragProxy.Drag.active || tileDrag.active) return;
+            if (model.hasChildren === true && !tile.favoriteSurface) {
+                if (view.launcher.enterAppFolder(index, String(model.display || "")))
+                    applicationsGrid.currentIndex = 0;
+                return;
+            }
+            view.launcher.triggerEntry(sourceModel, index);
+        }
+        function movePinned(delta) {
+            if (tile.favoriteSurface) view.launcher.moveFavorite(tile.index, tile.index + delta);
+        }
+        onPressedChanged: if (pressed) dragConsumed = false
+        onClicked: {
+            if (!dragConsumed) activate();
+            dragConsumed = false;
+        }
+        onPressAndHold: view.openAppActions(tile)
         Keys.onReturnPressed: event => { tile.activate(); event.accepted = true; }
         Keys.onEnterPressed: event => { tile.activate(); event.accepted = true; }
         Keys.onSpacePressed: event => { tile.activate(); event.accepted = true; }
+        Keys.onMenuPressed: event => { view.openAppActions(tile); event.accepted = true; }
 
-        Behavior on scale {
-            NumberAnimation { duration: view.motionFast; easing.type: Easing.OutCubic }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.RightButton
+            onPressed: view.openAppActions(tile)
+        }
+        DragHandler {
+            id: tileDrag
+            property bool cancelled: false
+            target: null
+            acceptedDevices: view.launcher.editMode ? PointerDevice.AllDevices
+                : PointerDevice.Mouse | PointerDevice.Stylus
+            enabled: tile.favoriteId.length > 0 && tile.visible && view.visible
+            onCanceled: cancelled = true
+            onActiveTranslationChanged: if (active && tile.favoriteSurface) {
+                favoriteDragProxy.x = activeTranslation.x;
+                favoriteDragProxy.y = activeTranslation.y;
+            }
+            onActiveChanged: {
+                if (active) {
+                    cancelled = false;
+                    tile.dragConsumed = true;
+                    if (tile.favoriteSurface) {
+                        favoriteDragProxy.x = 0; favoriteDragProxy.y = 0;
+                        favoriteDragProxy.Drag.active = true;
+                    } else {
+                        tile.contentItem.grabToImage(result => {
+                            if (!tileDrag.active || !tile.visible || !view.visible) return;
+                            tile.Drag.imageSource = result.url;
+                            tile.Drag.active = true;
+                        });
+                    }
+                } else {
+                    if (favoriteDragProxy.Drag.active && !cancelled
+                            && tile.visible && view.visible && view.launcher.expanded)
+                        favoriteDragProxy.Drag.drop();
+                    favoriteDragProxy.Drag.active = false;
+                    tile.Drag.active = false;
+                    favoriteDragProxy.x = 0; favoriteDragProxy.y = 0;
+                }
+            }
+        }
+        Item {
+            id: favoriteDragProxy
+            objectName: "movaFavoriteDragProxy"
+            width: tile.width; height: tile.height
+            Drag.source: tile
+            Drag.hotSpot.x: width / 2; Drag.hotSpot.y: height / 2
+            Drag.dragType: Drag.Internal
+            Drag.keys: ["org.moos.mova.application"]
+            Drag.supportedActions: Qt.MoveAction
+            Rectangle {
+                anchors.fill: parent; anchors.margins: view.space1
+                visible: favoriteDragProxy.Drag.active
+                radius: view.radiusL
+                color: Qt.alpha(Kirigami.Theme.backgroundColor, .94)
+                border.color: Qt.alpha(Kirigami.Theme.highlightColor, .8)
+                border.width: 1
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: view.space2
+                    Kirigami.Icon {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: Plasmoid.configuration.compactTiles ? 32 : 52
+                        Layout.preferredHeight: width
+                        source: tile.model.decoration || "moos-cube-symbolic"
+                        animated: false
+                    }
+                    PC3.Label {
+                        Layout.fillWidth: true
+                        text: String(tile.model.compactName || tile.model.display || "")
+                        font.pixelSize: view.typeSecondary
+                        horizontalAlignment: Text.AlignHCenter
+                        textFormat: Text.PlainText; elide: Text.ElideRight
+                    }
+                }
+            }
+        }
+        Drag.dragType: Drag.Automatic
+        Drag.source: tile
+        Drag.keys: ["org.moos.mova.application"]
+        Drag.supportedActions: Qt.CopyAction | Qt.MoveAction
+        Drag.mimeData: ({"text/uri-list": [String(tile.model.url || "")]})
+        onVisibleChanged: if (!visible) {
+            tile.Drag.active = false;
+            favoriteDragProxy.Drag.active = false;
+        }
+        DropArea {
+            id: reorderDrop
+            objectName: "movaFavoriteDrop"
+            anchors.fill: parent
+            enabled: tile.favoriteSurface
+            keys: ["org.moos.mova.application"]
+            onEntered: event => {
+                event.accepted = !!event.source && event.source.dragOwner === view.launcher
+                    && event.source.favoriteSurface && event.source !== tile;
+            }
+            onDropped: event => {
+                const source = event.source;
+                if (!source || source.dragOwner !== view.launcher || !source.favoriteSurface
+                        || source === tile || source.index < 0 || tile.index < 0) return;
+                view.launcher.moveFavorite(source.index, tile.index);
+                event.accept(Qt.MoveAction);
+            }
         }
 
         // EVERY TILE IS A CARD, INCLUDING AT REST.
@@ -1919,7 +2096,7 @@ Item {
             radius: view.radiusM
             color: tile.down
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.26)
-                : tile.hovered || tile.activeFocus
+                : tile.hovered || tile.activeFocus || reorderDrop.containsDrag
                     ? Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
                     : "transparent"
             // Rim scale (THEME_REV 32): keyboard focus is the one state allowed
@@ -1941,17 +2118,26 @@ Item {
         contentItem: ColumnLayout {
             anchors.margins: view.space1
             spacing: view.space1
+            opacity: favoriteDragProxy.Drag.active ? .3 : 1
+            scale: tileFeedback.value
+            MoUI.SpringFeedback {
+                id: tileFeedback
+                active: tile.visible && view.visible
+                targetScale: tile.down ? view.design.pressScale
+                    : tile.hovered ? view.design.hoverScale : 1
+            }
 
             Kirigami.Icon {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: Plasmoid.configuration.compactTiles
                     ? Kirigami.Units.iconSizes.medium
-                    : 52
+                    : 60
                 Layout.preferredHeight: width
                 source: tile.model.decoration || "moos-cube-symbolic"
                 animated: false
             }
             Text {
+                objectName: "movaAppName"
                 Layout.fillWidth: true
                 text: String(tile.model.compactName || tile.model.display || "")
                 textFormat: Text.PlainText
@@ -1960,12 +2146,15 @@ Item {
                 font.pixelSize: view.typeSecondary
                 font.weight: Font.Medium
                 horizontalAlignment: Text.AlignHCenter
-                maximumLineCount: 1
+                wrapMode: Text.Wrap
+                maximumLineCount: 2
                 elide: Text.ElideRight
             }
         }
 
         PC3.ToolButton {
+            id: tileActionsButton
+            objectName: "movaAppActionsButton"
             anchors.top: parent.top
             // Logical trailing corner; inherited mirroring moves it left in RTL.
             anchors.right: parent.right
@@ -1973,69 +2162,19 @@ Item {
             width: view.targetSize
             height: view.targetSize
             z: 4
-            visible: !tile.favoriteSurface && (tile.hovered || view.launcher.editMode)
-                && String(tile.model.favoriteId || "").length > 0
-            checkable: true
-            checked: view.favoritesModel.isFavorite(String(tile.model.favoriteId || ""))
-            icon.name: "moos-star-symbolic"
-            text: view.favoritesModel.isFavorite(String(tile.model.favoriteId || ""))
-                ? view.local("إزالة من المثبتة", "Unpin")
-                : view.local("تثبيت في الرئيسية", "Pin to Home")
+            visible: (tile.hovered || tile.activeFocus || tileActionsButton.activeFocus || view.launcher.editMode)
+                && tile.favoriteId.length > 0
+            icon.name: "overflow-menu"
+            text: String(tile.model.compactName || tile.model.display || "")
+                + " · " + view.local("إجراءات التطبيق", "Application actions")
+            activeFocusOnTab: true
             display: PC3.AbstractButton.IconOnly
-            onClicked: view.launcher.toggleFavorite(String(tile.model.favoriteId || ""))
+            onClicked: view.openAppActions(tile)
             PC3.ToolTip.text: text
             PC3.ToolTip.visible: hovered && text.length > 0
             PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
         }
 
-        Row {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 1
-            z: 4
-            visible: tile.favoriteSurface && view.launcher.editMode
-            spacing: 1
-
-            PC3.ToolButton {
-                width: view.targetSize
-                height: view.targetSize
-                icon.name: view.rtl
-                    ? "moos-arrow-symbolic"
-                    : "moos-arrow-back-symbolic"
-                text: view.local("نقل للخلف", "Move earlier")
-                display: PC3.AbstractButton.IconOnly
-                enabled: tile.index > 0
-                onClicked: view.launcher.moveFavorite(tile.index, tile.index - 1)
-                PC3.ToolTip.text: text
-                PC3.ToolTip.visible: hovered && text.length > 0
-                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
-            }
-            PC3.ToolButton {
-                width: view.targetSize
-                height: view.targetSize
-                icon.name: "moos-trash-symbolic"
-                text: view.local("إزالة", "Remove")
-                display: PC3.AbstractButton.IconOnly
-                onClicked: view.launcher.toggleFavorite(String(tile.model.favoriteId || ""))
-                PC3.ToolTip.text: text
-                PC3.ToolTip.visible: hovered && text.length > 0
-                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
-            }
-            PC3.ToolButton {
-                width: view.targetSize
-                height: view.targetSize
-                icon.name: view.rtl
-                    ? "moos-arrow-back-symbolic"
-                    : "moos-arrow-symbolic"
-                text: view.local("نقل للأمام", "Move later")
-                display: PC3.AbstractButton.IconOnly
-                enabled: tile.index < view.favoritesModel.count - 1
-                onClicked: view.launcher.moveFavorite(tile.index, tile.index + 1)
-                PC3.ToolTip.text: text
-                PC3.ToolTip.visible: hovered && text.length > 0
-                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
-            }
-        }
     }
 
     component RecentTile: PC3.ItemDelegate {
@@ -2278,7 +2417,6 @@ Item {
         Accessible.name: command.title
         Accessible.description: command.eyebrow
         Accessible.role: Accessible.Button
-        scale: down ? 0.985 : 1
         onClicked: command.activated()
         Keys.onReturnPressed: event => {
             command.activated();
@@ -2291,13 +2429,6 @@ Item {
         Keys.onSpacePressed: event => {
             command.activated();
             event.accepted = true;
-        }
-
-        Behavior on scale {
-            NumberAnimation {
-                duration: view.motionFast
-                easing.type: Easing.OutCubic
-            }
         }
 
         // AMPLITUDE (artwork/MOOS_UI2_DESIGN.md). Resting fill was 0.025 /
@@ -2353,6 +2484,8 @@ Item {
 
         contentItem: RowLayout {
             spacing: view.space3
+            scale: command.down ? view.design.pressScale : 1
+            Behavior on scale { NumberAnimation { duration: view.motionFast; easing.type: Easing.OutCubic } }
 
             Rectangle {
                 visible: !view.narrow

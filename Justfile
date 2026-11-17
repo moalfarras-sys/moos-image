@@ -473,6 +473,7 @@ check:
     python3 tests/test_moos_launcher_keyboard.py
     python3 tests/test_launcher_adaptive.py
     python3 tests/test_launcher_destinations.py
+    python3 tests/test_mova_tablet_mode.py
     python3 tests/test_hub_adaptive.py
     # The bar is ONE capsule: this runs the real merge surgery out of
     # moos-bar-apply against appletsrc fixtures, so a change that can leave

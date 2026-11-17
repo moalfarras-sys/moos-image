@@ -127,6 +127,8 @@ the actual KCM also loads before its first accepted status document.
 Check secondary ink against the composed interactive fill too: a text-tinted
 active card at 0.09 measured 4.26:1 in a Light family despite a valid 0.72 ink role.
 
+**A moved favorite is not a refreshed search snapshot.** Native Kicker retains Instantiator objects on rowsMoved; refresh the existing favorite identity snapshot on its actual model signals, not only count/add/remove. Drag hover must not persist order, cancellation/closed launchers must refuse drop, and touch scrolling stays available outside edit mode. Keep native activity-aware application actions and modelForRow folder ownership. Plasma DBus Properties single-key update publishes a reply tuple on the current runtime: use the native GetAll map after KWin tabletModeChanged, retaining strict booleans, service-loss and malformed-state refusals; never coerce a tuple into tablet mode. Private Qt touch is separate from physical acceptance.
+
 **A direct sysctl write is not profile durability.** TuneD throughput overwrote
 the V3's three declared MoKernel memory values because its reapplication searches
 run/etc, not usr/lib. A canonical relative alias restores one existing policy;

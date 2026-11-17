@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "sources": [
+    {
+      "upstream": "https://invent.kde.org/plasma/plasma-desktop/-/blob/v6.8.3/applets/kicker/ActionMenu.qml",
+      "upstream_sha256": "469c93ee6f20a55850da30cc67800e61d482577cac9a9c9634b958fbbdcf51c0",
+      "local": "MovaActionMenu.qml",
+      "license": "GPL-2.0-or-later",
+      "changes": "Instance-owned menu, generic native delegate, destroyed/stale-identity delegate refusal and two existing favorite move actions."
+    },
+    {
+      "upstream": "https://invent.kde.org/plasma/plasma-desktop/-/blob/v6.8.3/applets/kicker/code/tools.js",
+      "upstream_sha256": "31d082a258de0f6cf427695ab46d53572cea56e0b1032ec9498ce05d2aaef1d3",
+      "local": "code/kicker-tools.js",
+      "license": "GPL-2.0-or-later",
+      "changes": "Byte-identical KDE native favorite/activity action helpers."
+    }
+  ],
+  "ownership": "Kicker owns all action IDs, favorite/activity persistence and app activation. Mova only presents its existing actions."
+}

@@ -12,6 +12,7 @@ import importlib.util
 import contextlib
 import os
 import json
+import hashlib
 import re
 import shutil
 import subprocess
@@ -29,6 +30,17 @@ def code(path):
 
 
 class AdaptiveLauncher(unittest.TestCase):
+    def test_native_action_helpers_keep_exact_provenance_and_licenses(self):
+        manifest=json.loads((VIEW.parent/'UPSTREAM_MOVA.json').read_text())
+        tools=next(s for s in manifest['sources'] if s['local']=='code/kicker-tools.js')
+        expected='31d082a258de0f6cf427695ab46d53572cea56e0b1032ec9498ce05d2aaef1d3'
+        self.assertEqual(tools['upstream_sha256'],expected)
+        self.assertEqual(hashlib.sha256((VIEW.parent/tools['local']).read_bytes()).hexdigest(),expected)
+        for name in ('MovaActionMenu.qml','code/kicker-tools.js'):
+            text=(VIEW.parent/name).read_text()
+            self.assertIn('SPDX-License-Identifier: GPL-2.0-or-later',text)
+            self.assertIn('Eike Hein',text)
+
     def test_work_area_is_owned_by_plasma_and_falls_back_to_current_screen(self):
         main, view = code(MAIN), code(VIEW)
         self.assertIn("root.screen >= 0", main)
@@ -103,7 +115,7 @@ class AdaptiveLauncher(unittest.TestCase):
         result = subprocess.run([shutil.which("node"), "-e", function
             + "\nprocess.stdout.write(JSON.stringify(" + json.dumps(sizes)
             + ".map(appColumns)));"], capture_output=True, text=True, timeout=10, check=True)
-        self.assertEqual(json.loads(result.stdout), [1, 1, 2, 2, 4, 4, 4])
+        self.assertEqual(json.loads(result.stdout), [1, 1, 2, 2, 4, 5, 8])
 
     @unittest.skipUnless(
         all(shutil.which(tool) for tool in ("kwin_wayland", "plasmawindowed", "spectacle", "dbus-daemon"))
@@ -128,6 +140,10 @@ class AdaptiveLauncher(unittest.TestCase):
                              [False, False, False, True])
             self.assertTrue(record["owner_portal_unchanged"] and record["source_unchanged"])
             self.assertTrue(all(c['input']['categoryBrowsing'] for c in record['cases']))
+            for field in ('nativeMenu','nativeFavoriteAction','nativeFavoriteDrop',
+                          'nativeTouchDrop','cancelledDropRefused','nativeFolderNavigation','applicationInkFits'):
+                self.assertTrue(all(c['input'][field] for c in record['cases']),field)
+
             quiet = subprocess.run(command + ["--family", "aurora", "--output", str(output / "quiet-glass")],
                                    capture_output=True, text=True, timeout=180)
             self.assertEqual(quiet.returncode, 0, quiet.stdout[-2500:] + quiet.stderr[-5000:])
@@ -140,7 +156,7 @@ class AdaptiveLauncher(unittest.TestCase):
                                         "--output", str(output / "wrong-style")],
                                         capture_output=True, text=True, timeout=60)
             self.assertNotEqual(wrong_style.returncode, 0, "Qt-only palette must not qualify a mismatched Plasma style")
-            self.assertIn("actual Kirigami palette mismatch", wrong_style.stderr)
+            self.assertIn("actual native Plasma style mismatch", wrong_style.stderr)
 
             category = subprocess.run(command + ["--output", str(output / "category"), "--broken-category"],
                                       capture_output=True, text=True, timeout=60)
@@ -173,6 +189,25 @@ class AdaptiveLauncher(unittest.TestCase):
             self.assertIn("MOOS_ADAPTIVE_ASSERT section text follows the logical leading edge once", log)
             self.assertIn("MOOS_ADAPTIVE_INPUT_FAIL", log)
             self.assertNotIn("MOOS_ADAPTIVE_INPUT_PASS", log)
+
+
+    @unittest.skipUnless(all(shutil.which(t) for t in ('kwin_wayland','plasmawindowed','spectacle','dbus-daemon'))
+                         and importlib.util.find_spec('gi'), 'native Plasma tools unavailable')
+    def test_native_mova_fault_controls(self):
+        with tempfile.TemporaryDirectory(prefix='moos-mova-faults-') as tmp:
+            for flag,message in (
+                ('--broken-order-snapshot','accepted Qt drop reorders the native favorites model'),
+                ('--broken-drop-cancel','closed launcher refuses a held drop without changing native order'),
+                ('--broken-folders','real nested KService group exists'),
+            ):
+                output=Path(tmp)/flag.removeprefix('--broken-')
+                result=subprocess.run([shutil.which('python3'),str(ROOT/'tests/launcher_adaptive_native.py'),
+                    '--native-popup',flag,'--output',str(output)],capture_output=True,text=True,timeout=90)
+                self.assertNotEqual(result.returncode,0,flag+' failed to refuse')
+                log=(output/'360x640-ar-launcher.log').read_text()
+                self.assertIn('MOOS_ADAPTIVE_ASSERT '+message,log)
+                self.assertIn('MOOS_ADAPTIVE_INPUT_FAIL',log)
+                self.assertNotIn('MOOS_ADAPTIVE_INPUT_PASS',log)
 
 
 if __name__ == "__main__":
