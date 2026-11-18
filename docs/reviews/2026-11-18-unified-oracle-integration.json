@@ -37,7 +37,7 @@
     "native_window_component": "180AR75/EN125 cases plus5stacked/mixed-title native windows; actual Kate pointer/EIS journey",
     "window_control_tests": 28,
     "native_appearance_tests": 9,
-    "source_gate": "running on d5d component source; final combined frozen-source check required",
+    "source_gate": "afc2 full check refused a native private TLS fixture timing assumption; final combined corrected-source check required",
     "local_image": "component d5d native ARM build in progress; final combined image required",
     "ci": "final combined head required; preserve original failed/cancelled attempts",
     "release": "not dispatched; require exact reviewed merge --expected-revision admission and all signatures/tree/attempt/artifact gates",
@@ -49,5 +49,29 @@
     "physicalV3 touch/pen/rotation/suspend and full daily acceptance",
     "AT and repeatable performance",
     "separate packaged recovery disk boot and final signed delivery"
-  ]
+  ],
+  "greeter_fixture": {
+    "original_full_check": "afc2c75f: expected curl35, received7; download remained refused",
+    "native_old_repeat": {
+      "runs": 5,
+      "failures": 2,
+      "failed_codes": [
+        7,
+        7
+      ],
+      "accepted_tcp_connections_each": 4,
+      "fixture_errors": 0,
+      "listener_thread_alive": true
+    },
+    "correction": "the private reset peer now waits for the first TLS handshake record byte0x16 within its existing2s socket bound before sending RST; it does not claim a complete ClientHello",
+    "retained_contract": "curl35, four accepted connections/four reset TLS records, no admission, zero fixture errors; production curl retries/timeouts/hash/signature/signer unchanged",
+    "native_fixed_repeat": {
+      "runs": 5,
+      "passed": 5,
+      "reset_connections": 20,
+      "HTTP404_connections": 20
+    },
+    "complete_greeter_tests": 12,
+    "plain_connection_negative": "one accepted connection, zero TLS-reset records and explicit fixture error"
+  }
 }
