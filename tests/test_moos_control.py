@@ -192,6 +192,70 @@ class StubMachine:
         self.dir.cleanup()
 
 
+class NightLightWriteFailure(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("kwriteconfig6") and shutil.which("kreadconfig6"),
+                         "Native KConfig tools unavailable")
+    def test_native_failed_write_or_notification_never_persists_an_opposite_pulse(self):
+        source = CONTROL.read_text()
+        seam = ('    run([*write, "--key", "Active", "--type", "bool", "--notify", "true" if wanted else "false"])\n'
+                '    night_light_notify()\n')
+        self.assertEqual(source.count(seam), 1)
+        old = ('    stored = run(["kreadconfig6", "--file", "kwinrc", "--group", "NightColor",\n'
+               '                  "--key", "Active", "--default", "false"]).strip() == "true"\n'
+               '    if stored == wanted:\n'
+               '        run([*write, "--key", "Active", "--type", "bool", "--notify",\n'
+               '             "false" if wanted else "true"])\n'
+               '    run([*write, "--key", "Active", "--type", "bool", "--notify", "true" if wanted else "false"])\n')
+        with tempfile.TemporaryDirectory(prefix="moos-night-write-failure-") as temporary:
+            root = Path(temporary)
+            config = root / "config"
+            config.mkdir()
+            env = {**os.environ, "HOME": str(root), "XDG_CONFIG_HOME": str(config),
+                   "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(root / "absent-private-bus")}
+            fixed = runpy.run_path(str(CONTROL), run_name="night_write_failure")
+            old_path = root / "old-pulse-control.py"
+            old_path.write_text(source.replace(seam, old, 1))
+            previous = runpy.run_path(str(old_path), run_name="old_pulse_control")
+            for requested in ("on", "off"):
+                wanted = requested == "on"
+                for version, module, fault in (("old", previous, "write"),
+                                               ("fixed", fixed, "write"),
+                                               ("fixed", fixed, "emit")):
+                    with self.subTest(requested=requested, version=version, fault=fault):
+                        personal = ('[NightColor]\nActive=' + str(wanted).lower()
+                                    + '\nMode=Constant\nNightTemperature=3900\nDayTemperature=6300\n')
+                        (config / "kwinrc").write_text(personal)
+                        calls = []
+
+                        def native(argv, **kwargs):
+                            calls.append(argv)
+                            if argv[0] == "busctl":
+                                if fault == "emit" and "emit" in argv:
+                                    raise module["Unavailable"]("injected notification failure")
+                                return ""
+                            if (fault == "write" and argv[0] == "kwriteconfig6"
+                                    and "Active" in argv and argv[-1] == str(wanted).lower()):
+                                raise module["Unavailable"]("injected desired policy write failure")
+                            result = subprocess.run(argv, env=env, text=True, capture_output=True,
+                                                    check=True, timeout=5)
+                            return result.stdout
+
+                        change = module["night_light"]
+                        snapshot = {"available": True, "enabled": not wanted, "running": False, "mode": 0}
+                        with mock.patch.dict(change.__globals__, run=native,
+                                             night_light_state=lambda **kw: snapshot):
+                            with self.assertRaisesRegex(module["Unavailable"], "injected"):
+                                change(requested)
+                        active = subprocess.check_output(["kreadconfig6", "--file", "kwinrc",
+                            "--group", "NightColor", "--key", "Active"], env=env, text=True,
+                            timeout=5).strip()
+                        self.assertEqual(active, str(not wanted if version == "old" else wanted).lower())
+                        if version == "fixed":
+                            self.assertEqual((config / "kwinrc").read_text(), personal)
+                            self.assertFalse(any(call[0] == "kwriteconfig6" and "Active" in call
+                                and call[-1] != str(wanted).lower() for call in calls))
+
+
 class NightLightReadback(unittest.TestCase):
     def test_native_reply_shapes_remain_unknown_instead_of_becoming_true(self):
         module = runpy.run_path(str(CONTROL), run_name="night_light_readback_test")
@@ -527,17 +591,17 @@ class MoosControlTests(unittest.TestCase):
 
     def test_night_light_modes_notify_kwin_and_read_it_back(self):
         write = ["kwriteconfig6", "--file", "kwinrc", "--group", "NightColor"]
-        read = ["kreadconfig6", "--file", "kwinrc", "--group", "NightColor", "--key", "Active",
-                "--default", "false"]
         reconfigure = ["busctl", "--user", "--expect-reply=no", "call", "org.kde.KWin",
                        "/KWin", "org.kde.KWin", "reconfigure"]
+        notify = ["busctl", "--user", "emit", "/kwinrc", "org.kde.kconfig.notify",
+                  "ConfigChanged", "a{saay}", "1", "NightColor", "2", "6", "65", "99", "116",
+                  "105", "118", "101", "4", "77", "111", "100", "101"]
         active = lambda value: [*write, "--key", "Active", "--type", "bool", "--notify", value]
         expected = {
-            "on": [[*write, "--key", "Mode", "--notify", "Constant"], read, active("true"), reconfigure],
-            "off": [read, active("false"), reconfigure],
+            "on": [[*write, "--key", "Mode", "--notify", "Constant"], active("true"), notify, reconfigure],
+            "off": [active("false"), notify, reconfigure],
             # The file already says on while KWin is off: force a real change notification.
-            "auto": [[*write, "--key", "Mode", "--notify", "DarkLight"], read, active("false"),
-                     active("true"), reconfigure],
+            "auto": [[*write, "--key", "Mode", "--notify", "DarkLight"], active("true"), notify, reconfigure],
         }
         root = self.machine.root
         for mode, calls in expected.items():
@@ -548,7 +612,7 @@ class MoosControlTests(unittest.TestCase):
                 self.machine.log.write_text("")
                 result = self.control("night-light", mode)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                acting = [call[:9] if call[0] == "busctl" else call
+                acting = [call[:9] if call[0] == "busctl" and "emit" not in call else call
                           for call in self.machine.calls() if call[0] != "logger"]
                 acting = [call for call in acting if "GetAll" not in call]
                 self.assertEqual(acting, calls)

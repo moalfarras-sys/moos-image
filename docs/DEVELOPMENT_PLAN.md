@@ -33,6 +33,11 @@ and a signed system update, and has explicitly approved the requested automated 
 checks. Physical host reboot/suspend remains coordinated with open editor work.
 
 The owner selects Oracle root as the final integration/release coordinator alongside V3.
+A late native KConfig failure control reproduces the Night Light opposite-pulse persistence defect.
+The successor sends only the requested value and the existing fixed KConfig notification;
+native watcher and unchanged already-off KWin readback pass. Final combined qualification
+remains required; malformed-notification recovery and physical on/auto remain unqualified
+(see `docs/reviews/2026-11-18-night-light-notification.json`).
 `fix/moos-complete-integration-20261118` is based on Oracle PR311
 `d5d4897a`, which already contains PR308/309/310 and layout525e5600. It pins the
 actual composed-base7.3.4 vmlinuz bytes while retaining original vendor lineage

@@ -37,7 +37,7 @@
     "native_window_component": "180AR75/EN125 cases plus5stacked/mixed-title native windows; actual Kate pointer/EIS journey",
     "window_control_tests": 28,
     "native_appearance_tests": 9,
-    "source_gate": "afc2 full check refused a native private TLS fixture timing assumption; final combined corrected-source check required",
+    "source_gate": "86a frozen full check in progress; later native notification correction requires final source qualification",
     "local_image": "component d5d native ARM build in progress; final combined image required",
     "ci": "final combined head required; preserve original failed/cancelled attempts",
     "release": "not dispatched; require exact reviewed merge --expected-revision admission and all signatures/tree/attempt/artifact gates",
@@ -73,5 +73,6 @@
     },
     "complete_greeter_tests": 12,
     "plain_connection_negative": "one accepted connection, zero TLS-reset records and explicit fixture error"
-  }
+  },
+  "night_light_successor": "docs/reviews/2026-11-18-night-light-notification.json"
 }

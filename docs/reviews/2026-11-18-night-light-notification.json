@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-18",
+  "integration_owner": "Oracle root; V3 retains disjoint physical acceptance",
+  "source_parent": "86a06b560a22bf0e123c3c724d035667603e0815",
+  "problem": "A native Active opposite-value notification pulse leaves the persistent opposite preference when the desired-value write fails.",
+  "correction": "Write only the requested preference; replay the existing KConfig ConfigChanged notification for fixed NightColor Active/Mode byte-array keys, then retain strict KWin enabled/mode/available acknowledgement. No opposite write or generic caller-supplied notification.",
+  "upstream_protocol": [
+    "https://raw.githubusercontent.com/KDE/kconfig/v6.32.0/src/core/kconfig.cpp",
+    "https://raw.githubusercontent.com/KDE/kconfig/v6.32.0/src/core/kconfigwatcher.cpp",
+    "https://raw.githubusercontent.com/KDE/kwin/v6.8.3/src/plugins/nightlight/nightlightmanager.cpp"
+  ],
+  "native_failure_control": {
+    "implementation": "actual private HOME/native kreadconfig6 and kwriteconfig6; injected command/notification failure, never owner bus",
+    "old_opposite_policy": "reproduced for on and off",
+    "fixed": "desired-write and emit failures refuse without changing the initial persistent preference in both modes",
+    "subcases": 6
+  },
+  "native_notification": {
+    "scope": "native KConfigWatcher reload on private bus; no owner KWin/device action",
+    "ready": {
+      "active": false,
+      "event": "ready",
+      "group": "NightColor",
+      "keys": [],
+      "mode": "Constant"
+    },
+    "changed": {
+      "active": true,
+      "event": "changed",
+      "group": "NightColor",
+      "keys": [
+        "Active",
+        "Mode"
+      ],
+      "mode": "Constant"
+    },
+    "refused_notifications": [
+      "wrong-path",
+      "wrong-key-type"
+    ],
+    "valid_replays_after_negatives": 1,
+    "recovery_after_ill_typed_notification": "unqualified; retained source/native-producer replay timeouts",
+    "loaded_libraries": [
+      "/usr/lib64/libKF6ConfigCore.so.6.32.0"
+    ],
+    "content_and_mtime_unchanged": true,
+    "native_package": "kf6-kconfig-6.32.0-1.fc44.aarch64",
+    "loaded_library_sha256": {
+      "/usr/lib64/libKF6ConfigCore.so.6.32.0": "bbd5ef71b406280add27b45842e2f967a34a34f51be800e3bc9442d9d20ddea3"
+    }
+  },
+  "installed_request": {
+    "scope": "source executor against installed KWin6.8.3, requested already-off policy only; no physical colour/on/auto claim",
+    "source_sha256": "d4a377f69de991a165e3de3ae7fc9569bb1439f77b91b686cba994af0f7bbb89",
+    "before": {
+      "enabled": false,
+      "running": false,
+      "available": true,
+      "mode": 1
+    },
+    "after": {
+      "enabled": false,
+      "running": false,
+      "available": true,
+      "mode": 1
+    },
+    "answer": "☀ الضوء الليلي متوقف | Night light off",
+    "elapsed_seconds": 0.086,
+    "kwinrc_bytes_unchanged": true
+  },
+  "fixture_build": "Existing moos-dev native Qt6.11.2/kf6-kconfig-devel6.31 headers; executable runs with actual host libKF6ConfigCore.so.6.32.0. No SDK/package/runtime replacement.",
+  "retained_refusals": {
+    "first_private_fixture": "wrong-type-first then correct source replay timed out",
+    "native_producer_control": "actual kwriteconfig6 --notify also timed out after that malformed signal; cause not diagnosed",
+    "scope": "all malformed signals stayed on a private bus; no recovery or universal upstream cure claimed"
+  },
+  "qualification": {
+    "full_control_suite": {
+      "tests": 55,
+      "exit": 0,
+      "seconds": 45.209
+    },
+    "full_source": "86a gate remains frozen; corrected final source needs its own full check",
+    "image_ci_delivery": "new final combined source/image/CI/signature/boot gates required; not installed or released",
+    "component_image": "d5d canonical ARM compile failed: kernel CONSTRAINT_MEMCG OOM killed two cc1plus processes under chosen3GiB/no-swap cap. Original log/kernel receipt retained; final combined full build needs corrected resource envelope."
+  },
+  "files": {
+    "system_files/usr/bin/moos-control": "d4a377f69de991a165e3de3ae7fc9569bb1439f77b91b686cba994af0f7bbb89",
+    "scripts/review/night-light-watcher.cpp": "b5ba29c38e72fbf2368213df670e9151fe1729ec1150df426491f91a769e6ef3",
+    "scripts/review/night-light-notification.py": "5721703f6f83f384b99082aa728e97dac6695d41a525bc4e56ce77c1ec452f12"
+  },
+  "fixture_build_command": "g++ -std=c++17 -fPIC scripts/review/night-light-watcher.cpp -I/usr/include/KF6/KConfig -I/usr/include/KF6/KConfigCore $(pkg-config --cflags --libs Qt6Core) -lKF6ConfigCore -o <private-watcher>"
+}

@@ -465,14 +465,30 @@ def night_light_state(timeout=5):
     return state
 
 
+def night_light_notify():
+    """Replay only NightColor's native KConfig notification, including no-op writes.
+
+    KConfig 6.32 notifyClients/Watcher uses QHash<QString, QByteArrayList>
+    (a{saay}) at /kwinrc. The fixed keys contain no caller-controlled bytes.
+    KWin 6.8 NightLightManager reloads through that existing watcher.
+    """
+    keys = (b"Active", b"Mode")
+    signal = ["busctl", "--user", "emit", "/kwinrc", "org.kde.kconfig.notify",
+              "ConfigChanged", "a{saay}", "1", "NightColor", str(len(keys))]
+    for key in keys:
+        signal.extend([str(len(key)), *(str(byte) for byte in key)])
+    run(signal)
+
+
 def night_light(value):
     """Apply through KWin's own config watcher, then read KWin back.
 
     KWin 6.8 reloads NightColor from a KConfig change notification; the global
     reconfigure call alone left the file Active=true while KWin stayed off and this
     verb still printed success (measured on the V3, signed 1162). A notification is
-    only sent for a changed value, so a file already holding the request (that same
-    stuck state) is first written to the opposite value. The existing
+    only sent for a changed value. Replay that native notification when a file
+    already holds the request; never persist the opposite policy as a pulse:
+    failure between two writes left the opposite policy on disk. The existing
     reconfigure call is retained alongside KWin's config watcher; neither call
     is an acknowledgement until the measured enabled policy and mode agree.
     """
@@ -486,12 +502,8 @@ def night_light(value):
         # Constant and DarkLight are KWin's own filter policies. Running does
         # not by itself prove a warm colour or a physical display result.
         run([*write, "--key", "Mode", "--notify", "Constant" if value == "on" else "DarkLight"])
-    stored = run(["kreadconfig6", "--file", "kwinrc", "--group", "NightColor",
-                  "--key", "Active", "--default", "false"]).strip() == "true"
-    if stored == wanted:
-        run([*write, "--key", "Active", "--type", "bool", "--notify",
-             "false" if wanted else "true"])
     run([*write, "--key", "Active", "--type", "bool", "--notify", "true" if wanted else "false"])
+    night_light_notify()
     # reconfigure is a no-reply method; waiting for an answer would only time out.
     run(["busctl", "--user", "--expect-reply=no", "call", "org.kde.KWin", "/KWin",
          "org.kde.KWin", "reconfigure"])
