@@ -1,0 +1,81 @@
+{
+  "scope": "read-only actual installed product/ASAR bytes plus private staging icon publication; no app execution/live source deployment",
+  "baseline": "a6a4eff36b9ce281ab4b82b3ee0bda14c654f4e7",
+  "source_sha256": "0df3b3f6d8641cacc1a84dcb0644f60bb495f5e64c2962499f3786e06317f384",
+  "cases": [
+    {
+      "app": "code",
+      "old_icon": "resources/app/extensions/references-view/media/demo.png",
+      "new_icon": "resources/app/resources/linux/code.png",
+      "icon_bytes": 220706,
+      "icon_sha256": "7537330cec94b308feaa9bb66db45b5554b8379ec7dce83990521d2860bca4b2",
+      "version": "1.145.2"
+    },
+    {
+      "app": "antigravity-ide",
+      "old_icon": "resources/app/extensions/references-view/media/demo.png",
+      "new_icon": "resources/app/resources/linux/code.png",
+      "icon_bytes": 249650,
+      "icon_sha256": "6302bfda474833dd8a8f6e33f9105510d91d9dc326f1f1c0788c38d8a88d246e",
+      "version": "IDE2.7.0 / core1.107.0"
+    },
+    {
+      "app": "antigravity",
+      "old_icon": "",
+      "new_icon": "",
+      "new_install_icon": "exclusive .moos-appdrop-icon-*.png in app tree",
+      "icon_bytes": 48633,
+      "icon_sha256": "b27f0e4a6f14f491ba31bb24533a1f43c677362b12a0744a53fdd09d7c785317",
+      "version": "2.33.0"
+    }
+  ],
+  "schema": 1,
+  "date": "2026-11-18",
+  "workstream": "P4.1/P4.6 existing Mo Store App Drop install-file product icons",
+  "implementation_owner": "system_files/usr/lib/moos/moos_appdrop.py",
+  "host": "Oracle native aarch64; no physical V3 acceptance claimed",
+  "sources": [
+    "https://github.com/electron/asar/blob/main/src/disk.ts",
+    "https://github.com/electron/asar/blob/main/src/filesystem.ts"
+  ],
+  "precedence": [
+    "reviewed pinned recipe icon",
+    "package desktop Icon",
+    "AppImage .DirIcon",
+    "matching native VS Code-family product metadata and standard Linux PNG",
+    "exact packed root icon.png prepared only in private install staging",
+    "existing general image fallback"
+  ],
+  "bounds": {
+    "icon_bytes": 4194304,
+    "png_max_side": 4096,
+    "asar_header_bytes": 4194304,
+    "asar_header_entries": 50000,
+    "asar_header_max_directory_depth": 32
+  },
+  "preserved": [
+    "all package, architecture, digest and publisher admission",
+    "no vendor code or dependency execution",
+    "no broad ASAR extraction or metadata-chosen output path",
+    "private exclusive icon publication follows existing app-tree swap and rollback",
+    "default launcher inspection stays read-only",
+    "no owner profiles, credentials, running apps or installed source changed"
+  ],
+  "tests": [
+    {
+      "command": "python3 tests/test_app_drop.py -v",
+      "count": 74,
+      "seconds": 145.357,
+      "result": "OK (skipped=1)",
+      "log_sha256": "99df09f3582e1b0f31361382e9c3366405bb2c2687ab82dd214fe64f7ab0a22a"
+    },
+    {
+      "command": "python3 tests/test_mo_store_pinned_updates.py -v",
+      "count": 30,
+      "seconds": 32.124,
+      "result": "OK",
+      "log_sha256": "21e66d5eae51dea1296403d87922a7e6ff6156e77101d2b3729a0fe0509bd316"
+    }
+  ],
+  "delivery_boundary": "Source correction and private/native product-byte readback only. The app-update audit owns separate real installed launcher repair/journeys. This does not qualify Plasma icon loader behavior, physical V3 rendering, complete image, signed promotion or booted OS delivery."
+}

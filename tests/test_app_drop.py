@@ -28,12 +28,14 @@ import importlib.machinery
 import importlib.util
 import contextlib
 import io
+import hashlib
 import json
 import os
 import select
 import shutil
 import signal
 import stat
+import struct
 import subprocess
 import sys
 import tarfile
@@ -611,6 +613,215 @@ class PortableArchives(Home):
             appdrop.install(plan)
         self.assertEqual((self.home / "Applications/noteforge/noteforge").read_bytes(), working)
         self.assertEqual([a["id"] for a in appdrop.installed()], ["noteforge"])
+
+
+class ProductIcons(Home):
+    """Real native icon regressions: product assets outrank extension/demo images.
+
+    ASAR support is a bounded single PNG read, not an application code loader/extractor.
+    """
+    PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+                        "0000000b49444154789c636000020000050001a5f645400000000049454e44ae426082")
+
+    def setUp(self):
+        super().setUp()
+        self.tree = self.home / "Applications/.editor.installing"
+        self.tree.mkdir(parents=True)
+        self.program = self.tree / "editor"
+        self.program.write_bytes(ELF)
+        self.program.chmod(0o755)
+        self.resources = self.tree / "resources"
+        self.resources.mkdir()
+
+    @staticmethod
+    def asar(header: dict, data: bytes = b"") -> bytes:
+        encoded = json.dumps(header).encode()
+        padded = encoded + b"\0" * (-len(encoded) % 4)
+        return struct.pack("<4I", 4, 8 + len(padded), 4 + len(padded), len(encoded)) + padded + data
+
+    def packed(self, entry=None, **extra):
+        files = {"icon.png": entry or {"size": len(self.PNG), "offset": "0"}, **extra}
+        archive = self.resources / "app.asar"
+        archive.write_bytes(self.asar({"files": files}, self.PNG))
+        return archive
+
+    def product(self):
+        app = self.resources / "app"
+        icon = app / "resources/linux/code.png"
+        icon.parent.mkdir(parents=True)
+        icon.write_bytes(self.PNG)
+        metadata = app / "product.json"
+        metadata.write_text(json.dumps({"applicationName": "editor", "linuxIconName": "editor"}))
+        demo = app / "extensions/references-view/media/demo.png"
+        demo.parent.mkdir(parents=True)
+        demo.write_bytes(self.PNG + b"demo" * 1000)
+        return icon, metadata, demo
+
+    def find(self, **kwargs):
+        return appdrop.find_launcher(self.tree, "Editor", "editor", **kwargs)
+
+    def test_standard_product_icon_beats_larger_extension_demo_without_writes(self):
+        icon, _metadata, demo = self.product()
+        # This is the old real failure: an unrelated screenshot wins solely by file size.
+        legacy = max(self.tree.rglob("*.png"), key=lambda path: path.stat().st_size)
+        self.assertEqual(legacy, demo)
+        before = sorted(str(path.relative_to(self.tree)) for path in self.tree.rglob("*"))
+        self.assertEqual(self.find()["icon"], str(icon))
+        self.assertEqual(sorted(str(path.relative_to(self.tree)) for path in self.tree.rglob("*")), before)
+
+    def test_pinned_desktop_and_diricon_precedence_stays_native(self):
+        icon, _metadata, _demo = self.product()
+        chosen = self.tree / "chosen.png"
+        chosen.write_bytes(self.PNG)
+        self.packed()
+        with mock.patch.object(appdrop, "_electron_packed_icon", side_effect=AssertionError("unneeded ASAR read")):
+            self.assertEqual(self.find(pinned={"icon": "chosen.png"}, prepare_icon=True)["icon"], str(chosen))
+            (self.tree / "editor.desktop").write_text("[Desktop Entry]\nIcon=chosen\n")
+            self.assertEqual(self.find(prepare_icon=True)["icon"], str(chosen))
+            (self.tree / "editor.desktop").unlink()
+            (self.tree / ".DirIcon").write_bytes(self.PNG)
+            self.assertEqual(self.find(prepare_icon=True)["icon"], str(self.tree / ".DirIcon"))
+            (self.tree / ".DirIcon").unlink()
+            self.assertEqual(self.find(prepare_icon=True)["icon"], str(icon))
+
+    def test_product_metadata_requires_matching_program_and_plain_files(self):
+        icon, metadata, _demo = self.product()
+        for data in ({"applicationName": "other", "linuxIconName": "editor"},
+                     {"applicationName": "editor"}, [], {"applicationName": "editor", "linuxIconName": False}):
+            with self.subTest(data=data):
+                metadata.write_text(json.dumps(data))
+                self.assertIsNone(appdrop._electron_product_icon(self.tree, self.program))
+        metadata.write_text('{"applicationName":"editor","applicationName":"other","linuxIconName":"editor"}')
+        self.assertIsNone(appdrop._electron_product_icon(self.tree, self.program))
+        metadata.unlink()
+        outside = self.home / "product.json"
+        outside.write_text(json.dumps({"applicationName": "editor", "linuxIconName": "editor"}))
+        metadata.symlink_to(outside)
+        self.assertIsNone(appdrop._electron_product_icon(self.tree, self.program))
+        metadata.unlink()
+        os.link(outside, metadata)
+        self.assertIsNone(appdrop._electron_product_icon(self.tree, self.program))
+        metadata.unlink()
+        outside.unlink()
+        metadata.write_text(json.dumps({"applicationName": "editor", "linuxIconName": "editor"}))
+        icon.write_bytes(b"not a PNG")
+        self.assertIsNone(appdrop._electron_product_icon(self.tree, self.program))
+        with mock.patch.object(appdrop, "MAX_ICON_BYTES", len(self.PNG) - 1):
+            self.assertFalse(appdrop._png_icon(self.PNG), "growth after fstat must still be bounded")
+
+    def test_packed_icon_only_prepares_an_exclusive_staging_file(self):
+        self.packed()
+        self.assertEqual(self.find()["icon"], "", "inspection must stay read-only")
+        poison = self.tree / ".moos-appdrop-icon-existing.png"
+        poison.symlink_to(self.outside)
+        prepared = Path(self.find(prepare_icon=True)["icon"])
+        self.assertEqual(prepared.read_bytes(), self.PNG)
+        self.assertEqual(prepared.parent, self.tree)
+        self.assertNotEqual(prepared, poison)
+        self.assertTrue(poison.is_symlink())
+        self.assertFalse(self.outside.exists())
+        self.assertEqual(stat.S_IMODE(prepared.stat().st_mode), 0o644)
+        final = self.tree.with_name("editor")
+        self.tree.rename(final)
+        result = appdrop.find_launcher(final, "Editor", "editor", prepared_icon=final / prepared.name)
+        self.assertEqual(result["icon"], str(final / prepared.name))
+        self.assertFalse(self.tree.exists())
+
+    def test_real_archive_install_publishes_packed_icon_at_final_path_and_rollback_preserves_it(self):
+        archive = self.tar_bytes([self.member("editor/editor", ELF, 0o755),
+                                 self.member("editor/resources/app.asar", self.asar(
+                                     {"files": {"icon.png": {"size": len(self.PNG), "offset": "0"}}}, self.PNG))])
+        plan = appdrop.plan_for(self.download("editor.tar.gz", archive), "Editor", "editor")
+        result = appdrop.install(plan)
+        entry = Path(result["desktop"])
+        text = entry.read_text()
+        icon = Path(next(line[5:] for line in text.splitlines() if line.startswith("Icon=")))
+        self.assertEqual(icon.parent, self.home / "Applications/editor")
+        self.assertEqual(icon.read_bytes(), self.PNG)
+        before = icon.read_bytes(), text, appdrop.read_record("editor")
+        plan = appdrop.plan_for(self.download("editor-update.tar.gz", archive), "Editor", "editor")
+        original = appdrop._write_atomic
+        def fail_record(path, *args):
+            if path.parent == appdrop.manifest_dir():
+                raise OSError("record publication refused")
+            return original(path, *args)
+        with mock.patch.object(appdrop, "_write_atomic", fail_record), self.assertRaises(OSError):
+            appdrop.install(plan)
+        self.assertEqual((icon.read_bytes(), entry.read_text(), appdrop.read_record("editor")), before)
+
+    def test_asar_refuses_malformed_header_path_links_ranges_and_icon_shape(self):
+        valid = {"size": len(self.PNG), "offset": "0"}
+        for label, entry in {
+            "link": {"link": "../../outside"}, "unpacked": {**valid, "unpacked": True},
+            "directory": {"files": {}}, "boolean size": {**valid, "size": True},
+            "huge size": {**valid, "size": appdrop.MAX_ICON_BYTES + 1},
+            "negative offset": {**valid, "offset": "-1"}, "leading zero": {**valid, "offset": "00"},
+            "out of file": {**valid, "offset": "999999"},
+            "integrity": {**valid, "integrity": {"algorithm": "SHA256", "hash": "0" * 64}},
+        }.items():
+            with self.subTest(label=label):
+                self.packed(entry)
+                self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        for key, child in [("../outside", valid), ("a/b", valid), ("a\\b", valid),
+                           ("a\nkey", valid), (".", valid), ("other", {"link": "icon.png"})]:
+            with self.subTest(key=key):
+                self.packed(**{key: child})
+                self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        valid_integrity = {"algorithm": "SHA256", "hash": hashlib.sha256(self.PNG).hexdigest(),
+                           "blockSize": 32, "blocks": [hashlib.sha256(self.PNG[start:start + 32]).hexdigest()
+                                                       for start in range(0, len(self.PNG), 32)]}
+        self.packed({**valid, "integrity": valid_integrity})
+        self.assertEqual(appdrop._electron_packed_icon(self.tree, self.program), self.PNG)
+        self.packed({**valid, "integrity": {**valid_integrity, "blocks": ["0" * 64] * 3}})
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        self.packed(other={})
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        archive = self.packed()
+        data = archive.read_bytes()
+        for damaged in [b"short", b"\0" * 16, data[:-1],
+                        struct.pack("<4I", 4, 4 * 1024 ** 3 - 4, 4, appdrop.MAX_ASAR_HEADER_BYTES + 1),
+                        data.replace(b"IHDR", b"JUNK"), data[:16]]:
+            with self.subTest(length=len(damaged)):
+                archive.write_bytes(damaged)
+                self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        archive.write_bytes(self.asar({"files": {"icon.png": valid}}, self.PNG[:16] + struct.pack(">II", 65535, 1) + self.PNG[24:]))
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        self.assertFalse(list(self.tree.glob(".moos-appdrop-icon-*")))
+        self.nothing_escaped()
+
+    def test_asar_refuses_duplicate_keys_entry_depth_and_budget(self):
+        archive = self.packed()
+        raw = b'{"files":{"icon.png":{"size":1,"size":2,"offset":"0"}}}'
+        padded = raw + b"\0" * (-len(raw) % 4)
+        archive.write_bytes(struct.pack("<4I", 4, 8 + len(padded), 4 + len(padded), len(raw)) + padded + self.PNG)
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        self.packed(other={"size": 1, "offset": "0"})
+        with mock.patch.object(appdrop, "MAX_ASAR_HEADER_ENTRIES", 1):
+            self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        nested = {"files": {}}
+        for _ in range(34):
+            nested = {"files": {"child": nested}}
+        archive.write_bytes(self.asar({"files": {"nested": nested}}, self.PNG))
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+
+    def test_asar_refuses_symlink_hardlink_parent_link_and_fifo_without_reading(self):
+        archive = self.packed()
+        outside = self.home / "app.asar"
+        archive.rename(outside)
+        archive.symlink_to(outside)
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        archive.unlink()
+        os.link(outside, archive)
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        archive.unlink()
+        os.mkfifo(archive)
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        archive.unlink()
+        self.resources.rmdir()
+        self.resources.symlink_to(self.home)
+        self.assertIsNone(appdrop._electron_packed_icon(self.tree, self.program))
+        self.assertEqual(outside.read_bytes()[-len(self.PNG):], self.PNG)
+        self.assertFalse(list(self.tree.glob(".moos-appdrop-icon-*")))
 
 
 class ActiveAppTrees(Home):
