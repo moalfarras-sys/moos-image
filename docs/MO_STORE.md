@@ -57,6 +57,14 @@ may exit while its real application stays open. `PartOf=graphical-session.target
 ends that group with the desktop. Manager rejection is an error, never an
 Opened result or an unowned `setsid` fallback. This adds no idle launch daemon.
 
+App Drop removal uses the same bounded process-reference check as updates before
+its first deletion. Observed users or unavailable inspection leave its program
+tree, launcher, receipt and menu unchanged. Catalogue, indexed dropped-app and
+remove-file requests retain a failed job with the existing localized refusal;
+normal application exit permits retry. This is a snapshot, not a launch/remove
+lifetime lease; concurrent launch, hidden/open-only references and arbitrary
+personal files inside a normally removed installation tree remain separate work.
+
 Android starts only on an explicit Store operation or confirmed one-time setup.
 The long-lived session belongs to `moos-android-session.service`, an on-demand
 user unit with no enable/autostart wiring, `PartOf=graphical-session.target` and

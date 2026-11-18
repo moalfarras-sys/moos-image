@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "plan_rows": [
+    "P4.1",
+    "P4.6"
+  ],
+  "branch": "fix/appdrop-active-removal-20261118",
+  "base_revision": "fbb8a46d15739fed90e94be440b32c3276c0020c",
+  "owner": "moos_appdrop.remove via moos-storectl lifecycle jobs",
+  "old_native": [
+    {
+      "mode": "cwd",
+      "native_guard": "app_in_use",
+      "before": "old runtime resource",
+      "remove_returned": true,
+      "after": "missing",
+      "child_still_alive": true,
+      "target_exists": false,
+      "receipt_exists": false
+    },
+    {
+      "mode": "maps",
+      "native_guard": "app_in_use",
+      "before": "old runtime resource",
+      "remove_returned": true,
+      "after": "missing",
+      "child_still_alive": true,
+      "target_exists": false,
+      "receipt_exists": false
+    }
+  ],
+  "fixed_native": [
+    {
+      "mode": "cwd",
+      "remove_verdict": "app_in_use",
+      "before": "old runtime resource",
+      "after": "old runtime resource",
+      "child_still_alive": true,
+      "target_exists": true,
+      "receipt_exists": true,
+      "removed_after_normal_exit": true,
+      "target_exists_after_remove": false
+    },
+    {
+      "mode": "maps",
+      "remove_verdict": "app_in_use",
+      "before": "old runtime resource",
+      "after": "old runtime resource",
+      "child_still_alive": true,
+      "target_exists": true,
+      "receipt_exists": true,
+      "removed_after_normal_exit": true,
+      "target_exists_after_remove": false
+    }
+  ],
+  "old_regression": {
+    "old_source_revision": "fbb8a46d15739fed90e94be440b32c3276c0020c",
+    "method": "Execute the exact old remove function with both new regression tests in private HOME",
+    "tests_run": 2,
+    "failures": 5,
+    "errors": 0,
+    "messages": [
+      "AssertionError: DropError not raised",
+      "AssertionError: DropError not raised",
+      "AssertionError: DropError not raised",
+      "AssertionError: DropError not raised",
+      "AssertionError: DropError not raised"
+    ]
+  },
+  "validation": [
+    {
+      "command": "python3 -B tests/test_app_drop.py -v",
+      "exit_code": 0,
+      "tests": 66,
+      "seconds": 42.872,
+      "skipped": 1,
+      "skip": "Existing host no-bubblewrap-path case; bubblewrap is installed"
+    },
+    {
+      "command": "python3 -B tests/test_store_open_and_ids.py",
+      "exit_code": 0,
+      "tests": 49,
+      "seconds": 10.541
+    },
+    {
+      "command": "python3 -B tests/test_moos_storectl.py",
+      "exit_code": 0,
+      "tests": 36,
+      "seconds": 0.266
+    },
+    {
+      "command": "python3 -B tests/test_store_open_and_ids.py DroppedIds.test_active_or_uninspectable_drop_removal_keeps_translatable_failed_jobs",
+      "old": "six errors: persisted jobs had no message_key",
+      "fixed_exit_code": 0,
+      "subcases": 6
+    },
+    {
+      "command": "python3 -B tests/test_whats_new.py",
+      "exit_code": 0,
+      "tests": 30,
+      "seconds": 4.639
+    },
+    {
+      "command": "python3 -B tests/test_repository_hygiene.py",
+      "exit_code": 0,
+      "tests": 4
+    },
+    {
+      "command": "python3 -B tests/test_docs_privacy.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -B tests/test_store_job_language.py",
+      "exit_code": 0,
+      "keys": 71
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "limits": [
+    "Observed process references are a snapshot, not a launch/removal lifetime lease.",
+    "Concurrent launches, open-only/hidden/other-account references remain outside the qualified scope.",
+    "Ordinary removal does not newly promise retention of arbitrary user files inside the installed application tree.",
+    "No owner application removal, GUI acceptance, host update, signed image, release dispatch or main merge.",
+    "Full combined-source qualification is recorded separately in the ignored local full-check receipt; PR image and signed/installed acceptance remain pending."
+  ],
+  "private_evidence": "test-results/appdrop-active-removal-20261118/",
+  "independent_review": "Read-only branch-audit agent reviewed final four-file product/test diff; no blocker found.",
+  "whats_new_receiver": {
+    "original_refusal": "The required new card exposes the former64-card receiver cap: four original suite failures because free-brain-measured disappears.",
+    "fix": "Runtime card cap128; unchanged64KiB file cap, entry validation, architecture filtering, sort, freshness and route rules. No gate edited or old card removed.",
+    "shipped_entries_total": 68,
+    "entries_per_architecture": 65,
+    "bytes": 62177,
+    "byte_budget": 65536,
+    "validation": "Original30 whats-new tests, including actual image-gate code, notifier/status, count limit and oversize refusal.",
+    "boundary": "Future history growth must respect the unchanged byte budget."
+  }
+}

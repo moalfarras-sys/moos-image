@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "app-drop-active-removal",
+      "merged": "2026-11-18T14:00:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "إزالة أكثر أماناً للتطبيقات",
+        "en": "Safer removal of applications"
+      },
+      "body": {
+        "ar": "عند رصد استخدام ملفات تطبيق ثبّتّه من ملف، يحتفظ المتجر به ويطلب إغلاقه بصورة عادية قبل الإزالة. إذا تعذّر التحقق، تبقى ملفاته كما هي ويمكنك إعادة المحاولة.",
+        "en": "When an app installed from a file is detected using its files, the Store keeps it and asks you to close it normally before removal. If usage cannot be checked, its files stay in place and you can retry."
+      }
+    },
+    {
       "id": "window-titles-centred",
       "merged": "2026-11-18T12:00:00Z",
       "glyph": "ui",

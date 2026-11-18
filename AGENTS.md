@@ -626,6 +626,15 @@ Keep original mixed frames and input/geometry controls. Never change the owner
 theme or product palette to repair a private fixture, or infer physical input
 or whole-shell acceptance from its native virtual output.
 
+**A stopped Store job does not make its target application idle.** Native private
+cwd/mmap children remained alive while App Drop remove returned true and deleted
+their resource/receipt. Reuse the existing bounded process-reference guard before
+any removal mutation, preserving tree/launcher/receipt/menu when use is observed
+or inventory is unavailable. Keep native cwd/exe/argv/maps old-failing/fixed
+controls, normal-exit recovery and localized failed jobs for catalogue/indexed/
+file routes. This snapshot is not a lifetime lease or a new guarantee to retain
+arbitrary personal files inside a normally removed installation directory.
+
 **An isolated extractor does not sandbox an installed app.** App Drop's native
 generated launcher reads a private synthetic Documents file while its old engine
 resolver reports sandboxed and selects Flatpak for an AppImage. Keep the actual

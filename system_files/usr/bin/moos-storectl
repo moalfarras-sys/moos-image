@@ -3766,6 +3766,8 @@ class Controller:
         try:
             removed = appdrop.remove(slug or app_id)
         except appdrop.DropError as failure:
+            if failure.code in ("app_in_use", "app_inspection_unavailable"):
+                raise self._vendor_failure(failure) from failure
             raise StoreError(f"{failure.code}: {failure.detail or failure.code}") from failure
         if not removed:
             job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
@@ -4120,7 +4122,10 @@ class Controller:
                                     message="App is not installed", message_key="not_installed")
                 job.finish_from_items("App removed", "app_removed")
             except appdrop.DropError as failure:
-                job.fail(f"{failure.code}: {failure.detail or failure.code}", [slug])
+                if failure.code in ("app_in_use", "app_inspection_unavailable"):
+                    job.fail(self._vendor_failure(failure), [slug])
+                else:
+                    job.fail(f"{failure.code}: {failure.detail or failure.code}", [slug])
             except Exception as error:                   # noqa: BLE001
                 job.fail(error, [slug])
             return exit_code(job.document["state"]), job.snapshot()
