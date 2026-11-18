@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "plan": ["P0", "P4.1"],
+  "integration_owner": "Oracle coordinator; final qualification and signing remain with the parent batch",
+  "parent_source": "a6a4eff36b9ce281ab4b82b3ee0bda14c654f4e7",
+  "journey": "Update a curated npm developer tool through the existing Store owner",
+  "observed_failure": {
+    "host": "moos-arm-oracle",
+    "architecture": "aarch64",
+    "booted_version": "44.20261118.964",
+    "booted_signed_digest": "sha256:82591024a1f52233fd93974dbfe166c599d2e44c14499bddae31331fcfc5d224",
+    "queued_version_at_probe": "44.20261118.966",
+    "command": "/usr/bin/moos-storectl update codex",
+    "exit": 1,
+    "result": "failed: [Errno 2] No such file or directory: '/usr/bin/npm'",
+    "original_private_log": "test-results/window-integration-20261118/codex-cli-update.log",
+    "original_log_sha256": "054a40f908031db5df30a45690292aa6c7d2f6cfa3d32a3f2fc069f82e3b52c5",
+    "native_missing_provider_control": {
+      "command": "python3 build_files/verify_desktop_parity.py --root / --npm-runtime",
+      "exit": 1,
+      "missing": ["/usr/bin/node", "/usr/bin/npm"],
+      "private_log_sha256": "fbc3ee827ca2300c2541d9d888e62376e1752f60144a2b930bb84cf8a58126bb"
+    }
+  },
+  "repair": {
+    "owner": "build-arm.sh package transaction and the existing verify_desktop_parity.py image gate",
+    "packages": ["nodejs22", "nodejs22-npm"],
+    "selection": "Reuse the same native package requirements already installed by build.sh for every x86 edition; retain ordinary repository/package verification.",
+    "closure": "Both architectures must ship executable /usr/bin/node and /usr/bin/npm. The fixed Store provider and its user-owned prefix remain unchanged.",
+    "runtime_gate": "Both image builds execute a bounded, dependency-free local tarball install/run/remove with the fixed system providers, offline and without lifecycle scripts, in private HOME/config/cache/prefix. A separate prefix sentinel must survive removal. This is an image fixture, not an owner app update.",
+    "environment": "Explicit /usr/bin:/bin; inherited NODE_OPTIONS and npm configuration are excluded. No user Node fallback, host package layering, shell executor, new SDK or new updater."
+  },
+  "executed_source_checks": [
+    {"command": "python3 tests/test_desktop_parity.py", "exit": 0, "tests": 16, "scope": "Provider closure/refusals and controlled runtime-fixture unit tests; native successful npm execution is not claimed", "private_log_sha256": "f30d44f4776e4e0586dcbfd90d71b39a164986e2dde02cb88c58f343f12ad26a"},
+    {"command": "python3 tests/test_moos_storectl.py", "exit": 0, "tests": 36, "private_log_sha256": "00103743959196b17e3eb7813378de2bb3edf32c64fc39334d1546c5fc787088"},
+    {"command": "bash -n build_files/build-arm.sh build_files/build.sh", "exit": 0},
+    {"command": "python3 -m py_compile build_files/verify_desktop_parity.py tests/test_desktop_parity.py", "exit": 0},
+    {"command": "git diff --check", "exit": 0}
+  ],
+  "remaining_acceptance": [
+    "Integrate the bounded source change into the coordinator's final frozen source and run the complete source gate.",
+    "Build and inspect the actual native ARM and x86 images; the new offline runtime gate must execute successfully against their installed providers.",
+    "Retain exact signature/source/digest/boot/promotion gates and rollback. After the signed successor is booted, rerun the real Store Codex update and verify installed version/data preservation.",
+    "No successful current-host Codex update, signed delivery or applied OS update follows from these source tests."
+  ],
+  "proposed_truth_file_note": "Nov18 P0/P4.1: signed964 Oracle Store Codex update fails because /usr/bin/npm is absent. ARM now declares the same nodejs22/nodejs22-npm requirements as x86. Existing cross-edition parity admission checks executable providers and runs a private offline install/run/remove on each finished image. The original installed refusal and52 passing source tests are retained; complete source/image/signature/boot and actual Store update readback remain required."
+}
