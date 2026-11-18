@@ -123,14 +123,26 @@ def frame(light: bool, profile: dict) -> None:
         extra.append(f'<rect id="{prefix}-center" width="24" height="24" fill="{background}"/>')
     write(target / "decoration.svg", svg.replace("</svg>", '\n'.join(extra) + '\n</svg>'))
     rc = (source / "theme.rc").read_text()
+    # Aurorae v2 centres the caption between the two button groups, so every
+    # px reserved here is caption room lost on both sides. The earlier 140 px
+    # TitleBorderLeft/Right left a 388 px window with no caption at all and
+    # elided "Open File — Documents" to two letters (native capture, 75 %).
+    # The three 44 px actions stay on one side (kwinrc XIA, mirrored for RTL);
+    # kwinrc's one explicit spacer on the other side is the action group's
+    # exact width, so the caption is centred on the window in both directions.
+    # Maximized edges are 0: the outermost action reaches the screen corner.
+    target_px, spacing, actions = 44, 2, 3
     settings = {"ActiveTextColor": ','.join(map(str, rgb(text))),
                 "InactiveTextColor": ','.join(map(str, rgb(secondary))),
                 "UseTextShadow": "false", "Animation": "140", "Shadow": "true",
                 "TitleHeight": "44", "TitleEdgeTop": "0", "TitleEdgeBottom": "0",
                 "TitleEdgeTopMaximized": "0", "TitleEdgeBottomMaximized": "0",
-                "TitleBorderLeft": "140", "TitleBorderRight": "140",
-                "ButtonWidth": "44", "ButtonHeight": "44", "ButtonSpacing": "2",
-                "ButtonMarginTop": "0"}
+                "TitleEdgeLeft": "4", "TitleEdgeRight": "4",
+                "TitleEdgeLeftMaximized": "0", "TitleEdgeRightMaximized": "0",
+                "TitleBorderLeft": "6", "TitleBorderRight": "6",
+                "ButtonWidth": str(target_px), "ButtonHeight": str(target_px), "ButtonSpacing": str(spacing),
+                "ButtonMarginTop": "0",
+                "ExplicitButtonSpacer": str(actions * target_px + (actions - 1) * spacing)}
     for key, value in settings.items():
         rc, count = re.subn(r'^'+key+r'=.*$', key+'='+value, rc, flags=re.M)
         if count != 1:

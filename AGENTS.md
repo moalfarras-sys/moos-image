@@ -603,6 +603,17 @@ actual agent, Python helper, recovery tests and controller lock; retain the
 unsigned workflow's existing no-publish constraints. A manual gate on the exact
 frozen source qualifies that source, not the missing future PR trigger.
 
+**A centred title alignment is not a centred caption.** Aurorae v2 centres
+the caption between the two button groups, never in the window: with XIA on one
+side every MoOS frame sat 36.5 (UI2) or 68 (Bloom) logical px off centre, both
+directions, while the theme rc claimed balance. Bloom's 140 px title borders
+also left a 388 px dialog with no caption. Keep the one disabled KDecoration
+spacer opposite the actions, sized by each theme's ExplicitButtonSpacer to its
+action group; keep `tests/test_window_caption_centring.py` and measure frame
+changes with `scripts/review/window-frames-native.py` (private KWin, never the
+owner's), whose detector must also refuse the old captures. Virtual KWin6.8
+refuses QPainter composition and crashed on screenshot; use O2 with no core.
+
 **A light colour scheme is not a complete light Plasma theme.** The native
 launcher fixture selected Light colours while inheriting Aurora's dark Plasma
 Style and icons. Its white labels/icons were real pixels of a mixed fixture,
