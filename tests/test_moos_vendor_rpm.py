@@ -424,6 +424,16 @@ class EntryRules(unittest.TestCase):
         self.assertEqual(spec.repo_url("aarch64"), "https://persistent.oaistatic.com/codex-app-prod/linux/rpm/aarch64")
         self.assertEqual(spec.key_fingerprint, FPR.lower())
 
+    def test_catalogue_icon_stays_inside_the_admitted_app_root(self):
+        catalogue = json.loads((ROOT / "system_files/usr/share/moos/store/catalog.json").read_text())
+        recipe = next(app["install"] for app in catalogue["apps"] if app["id"] == "chatgpt")
+        spec = vendor.parse_entry(recipe)
+        self.assertEqual(spec.icon, "/usr/lib/chatgpt/resources/icon-chatgpt.png")
+        for icon in ("../icon.png", "resources/../../icon.png", "./icon.png",
+                     "resources//icon.png", "resources/icon\nInjected.svg", "resources\\icon.png"):
+            with self.subTest(icon=icon), self.assertRaises(vendor.VendorError):
+                vendor.parse_entry({**recipe, "icon": icon})
+
     def test_bad_entries(self):
         bad = {
             "http repo": {"repo": "http://packages.example.com/rpm/$basearch"},

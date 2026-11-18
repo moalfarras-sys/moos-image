@@ -208,10 +208,21 @@ LayoutName=org.moos.ui2.switcher
 #   src/kcms/decoration/utils.cpp + settings.cpp — single-letter button codes:
 #     X=Close  I=Minimize  A=Maximize  M=Menu  N=ApplicationMenu
 #     S=OnAllDesktops  H=ContextHelp  F=KeepAbove  B=KeepBelow  _=Spacer
-# Close/min/max at the LEFT, nothing at the right -> XIA / (empty).
-# An empty ButtonsOnRight= is read as "no buttons" (readEntry returns the empty
-# string when the key is present-but-empty, so the built-in HIAX default does
-# NOT apply). Users' ~/.config/kwinrc still overrides this system default.
+# Close/min/max at the LEFT, no BUTTON at the right -> XIA / `_`.
+# A present ButtonsOnRight key replaces the built-in HIAX default. KDecoration
+# mirrors both lists for an RTL session, so Arabic puts the actions at the
+# right and the spacer at the left.
+#
+# The right side holds exactly one spacer `_`, never a button. Aurorae v2
+# centres the caption between the two button groups, so with nothing opposite
+# the actions every caption sat half a button group off the window centre
+# (measured in a private native KWin, 2026-11-18: +-36.5 px for MoOS UI2,
+# +-68 px for Bloom, in both directions). Each MoOS Aurorae theme sets
+# ExplicitButtonSpacer to its action group's width, which balances the bar.
+# KDecoration creates a spacer disabled (src/decorationbutton.cpp), so a press
+# on it still moves, maximizes or opens the window menu as the bar does.
+# GTK's mirror stays 'close,minimize,maximize:' — a headerbar already centres
+# its title. Users' ~/.config/kwinrc still overrides this system default.
 #
 # ---------------------------------------------------------------------------
 #  DECORATION: MoOS UI2 (Aurorae), not Breeze
@@ -248,4 +259,4 @@ LayoutName=org.moos.ui2.switcher
 library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__MoOSUI2
 ButtonsOnLeft=XIA
-ButtonsOnRight=
+ButtonsOnRight=_

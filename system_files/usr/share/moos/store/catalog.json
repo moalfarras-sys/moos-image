@@ -653,6 +653,7 @@
         "key_fingerprint": "3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4",
         "install_root": "/usr/lib/chatgpt",
         "exec": "ChatGPT",
+        "icon": "resources/icon-chatgpt.png",
         "desktop": "/usr/share/applications/chatgpt.desktop",
         "wm_class": "ChatGPT",
         "risk": "downloaded-executable",
