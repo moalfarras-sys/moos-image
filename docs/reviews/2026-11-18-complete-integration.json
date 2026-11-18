@@ -9,7 +9,7 @@
     "night_light": "016e518dcc0a9619bac6847314562eff0d9130dd"
   },
   "original_qualified_appdrop_source": "913f016babe26fc14b4f12bb6d13109001931819",
-  "test_permission": "requested asynchronously; pending; no new tests or CI dispatched",
+  "test_permission": "Owner explicitly approved automated source/image/CI/boot-fixture/post-update checks in chat; physical host reboot/suspend still coordinated separately.",
   "existing_pr311": {
     "repo": 44323788769,
     "repo_result": "failure: stale TitleHeight32 and ButtonWidth20 versus native44",
@@ -31,5 +31,36 @@
     "user_failure": "historical qualification159 source hygiene215>200; not reset"
   },
   "cleanup": "No deletion/unpin/prune; shared bytes and retained OCI refs do not establish whole-image reclaim. Preserve private/inaccessible evidence and active editor worktrees.",
-  "delivery": "No final aggregate tests/image/PR/merge/release/stage/reboot acceptance yet."
+  "delivery": "No final aggregate tests/image/PR/merge/release/stage/reboot acceptance yet.",
+  "preservation_merge": {
+    "revision": "1f4eaeddd6761b0b5000fc241c27d42c8d6672f6",
+    "tree_before": "187acf2290a97929e8068a4fea36e0fb4cdd34ca",
+    "tree_after": "187acf2290a97929e8068a4fea36e0fb4cdd34ca",
+    "purpose": "Record old Qt/private and patch-equivalent Center/Plasma plus detached proof ancestry; preserve current runtime tree, do not restore obsolete producers."
+  },
+  "source_geometry_reconciliation": {
+    "original_repo_failure": 44323788769,
+    "old_assertions": [
+      "TitleHeight=32",
+      "ButtonWidth=20"
+    ],
+    "prepared_assertions": [
+      "TitleHeight=44",
+      "ButtonWidth=44"
+    ],
+    "evidence": "PR311 native180 windows/18themes and original44px input/bar contract; every SVG/state/identity assertion retained. Not executed here while owner test permission is pending."
+  },
+  "system_update": {
+    "command": "/usr/bin/moai-do update",
+    "exit_code": 0,
+    "result": "already on the latest signed image",
+    "booted_version": "44.20261116.1162",
+    "new_source_delivery": "not yet promoted"
+  },
+  "news": {
+    "entries": 70,
+    "bytes": 63869,
+    "byte_limit": 65536,
+    "all_history_retained": true
+  }
 }

@@ -375,8 +375,10 @@ class MoOSVisualSystemTests(unittest.TestCase):
                 self.assertEqual(len(rc_files), 1, style)
                 rc = rc_files[0].read_text(encoding="utf-8")
                 self.assertIn("Animation=140", rc)
-                self.assertIn("TitleHeight=32", rc)
-                self.assertIn("ButtonWidth=20", rc)
+                # The reviewed native frame uses a 44px bar and button target;
+                # retain the exact contract alongside every SVG/state check.
+                self.assertIn("TitleHeight=44", rc)
+                self.assertIn("ButtonWidth=44", rc)
                 self.assertIn("RightButtons=HIAX", rc)
                 self.assertNotIn("macOS", rc)
 

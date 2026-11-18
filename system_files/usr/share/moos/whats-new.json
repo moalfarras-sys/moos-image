@@ -17,6 +17,19 @@
       "route": "moos://settings/appearance"
     },
     {
+      "id": "night-light-measured-policy",
+      "merged": "2026-11-18T15:00:00Z",
+      "glyph": "settings",
+      "title": {
+        "ar": "حالة الإضاءة الليلية الفعلية",
+        "en": "Measured Night Light state"
+      },
+      "body": {
+        "ar": "ميرا تقرأ إعداد الإضاءة الليلية المطبّق، وتتحقق من الوضع المطلوب بعد تغييره. عند تعذّر القراءة يظهر الرفض وتبقى اختياراتك محفوظة.",
+        "en": "Mira reads the applied Night Light policy and confirms the requested mode after a change. An unavailable read stays visible and preserves your choices."
+      }
+    },
+    {
       "id": "app-drop-active-removal",
       "merged": "2026-11-18T14:00:00Z",
       "glyph": "grid",

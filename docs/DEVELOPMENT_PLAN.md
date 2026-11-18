@@ -29,9 +29,8 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 ## Active delivery and acceptance batch
 
 Nov18 owner authorizes preserving/pushing all remaining source, correct integration
-and a signed system update, and explicitly requires asking before new tests.
-The permission question is pending. Prepare/review source and preserve evidence;
-no new test/build/CI/release dispatch is authorized until that answer.
+and a signed system update, and has explicitly approved the requested automated source/image/CI/boot-fixture
+checks. Physical host reboot/suspend remains coordinated with open editor work.
 
 V3 root owns `fix/moos-complete-integration-20261118`, based on Oracle PR311
 `1df01483`, which already contains PR308/309/310 and layout525e5600. It pins the
@@ -223,10 +222,9 @@ Do not replay its constituent PRs or alter its running inputs. Add the remaining
 App Drop/Night Light work once, preserve original historical source on GitHub,
 and reconcile truth files without dropping either native or lifecycle evidence.
 
-New tests require the owner's pending permission. Source preparation, read-only
-review and preservation of existing commits continue independently. A topic
-push with no open PR starts no configured push workflow; opening/updating a PR
-or changing main starts CI and therefore waits for that permission too.
+Owner permission for automated qualification is now granted. Freeze the complete
+source for its tests and image/CI. Preserve original refused runs and use a fresh
+first-attempt candidate after any source repair; host reboot remains separate.
 
 | Order / milestone | Outcome and implementation focus | Rows | Exit evidence |
 | --- | --- | --- | --- |
@@ -325,8 +323,8 @@ M0 evidence as measured performance or require another local VM image.
 1. اقرأ الحالة والفروع والـPRs والعمليات الحقيقية. root علىV3 يملك الدمج الكامل
    منPR311/1df01483 معApp Drop98fed279 وNight Light016e518d. لا تعِد دمج
    PR308/309/310 منفردة، ولا تغيّر مصدر إثباتاتOracle الجارية.
-2. المالك طلب السؤال قبل الاختبارات؛ سؤال الإذن معلّق. حضّر وراجع واحفظ المصدر،
-   ثم شغّل الفحوص فقط بعد الإجابة. لا تفتحPR أو تدفعmain لتجاوز هذا القيد عبرCI.
+2. المالك وافق صراحة على الفحوص الآلية؛ شغّل بوابات المصدر والصورة وCI
+   علىSHA ثابت، ونسّق حفظ المحررات قبلإعادة تشغيل الجهاز الفعلي.
 3. فرّق نتيجة913f الكاملة السابقة عن الشجرة المجمعة الجديدة. أصلح توقع32/20
    القديم إلى عقد44 الأصلي المقاس دون إسقاط تغطية الرسوم/الحالات/الهوية.
 4. احفظ كلcommit أصلي والأرشيف والعمل الخاص. لا تدفع أسرارًا أو صورًا خاصة
@@ -343,7 +341,7 @@ M0 evidence as measured performance or require another local VM image.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Aggregate preparation on V3 combines PR311/1df01483 with App Drop98fed279 and Night Light016e518d while retaining all original ancestry/provenance. Original913f full check is historical; new combined qualification is pending owner-requested test permission. No main merge or new signed release yet | Exact candidate source, all integrated fixes and no local override counted as release. |
+| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Aggregate preparation on V3 combines PR311/1df01483 with App Drop98fed279 and Night Light016e518d while retaining all original ancestry/provenance. Original913f full check is historical; new combined qualification is running after explicit owner test permission. No main merge or new signed release yet | Exact candidate source, all integrated fixes and no local override counted as release. |
 | P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Historical signed1162 x86 proofs/promotion43909184122 remain accepted for that release. New main fbb8a46d x8644289880001 fails sensor ABI after controller/audit passes; ARM44289879261 succeeds desktop two-boot/promotion. PR308 x86 then refuses exact composed-base kernel hash. These runs do not qualify successor source or the separately packaged recovery disk boot | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
@@ -351,7 +349,7 @@ M0 evidence as measured performance or require another local VM image.
 | P0.6 | Promote only proven digests and update the physical PC | Nov16 V3 boots signed1162/fc6dc666 at62156a3b, rollback1152 and pinned1078. Three x86 QCOW2/offline ISO/promotion43909184122 and native ARM43903637017 pass. Postcheck55/1 retains actual DDC failure; source successor is not installed. Physical journeys remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Reviewed Plymouth producer/native library and exact final initramfs gates are integrated for desktop and separate ARM recovery. Main ARM44289879261 passes recovery image/archive construction and desktop disk boot/promotion. The packaged recovery disk has no separate UEFI boot proof; keep that acceptance open and preserve old stock-package/source-log refusals | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
-| P0.9 | Run image-only gates before the merge | PR311 Repo44323788769 refuses old TitleHeight32/ButtonWidth20 assertions against reviewed native44px geometry; exact remaining SVG/state/identity controls stay intact. Its ARM44323788733/x8644323788622 jobs retain their original1df inputs. New combined-head Repo/image CI requires permission and remains mandatory before normal main merge | PR generic image gates block real image failures; no signing/publishing from PR. |
+| P0.9 | Run image-only gates before the merge | PR311 Repo44323788769 refuses old TitleHeight32/ButtonWidth20 assertions against reviewed native44px geometry; exact remaining SVG/state/identity controls stay intact. Its ARM44323788733/x8644323788622 jobs retain their original1df inputs. New combined-head Repo/image CI is approved and remains mandatory before normal main merge | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
 | P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Public1046 remains last anonymous qualification. Qualified1127 ISO is locally archived:5817565184bytes, SHA2566303b2147a9ed271180a6b63d86d8e6d48bee23b90a1cadec5b02617b112075f, detached signature verified. New hosting/account access and anonymous full/range acceptance remain open | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
