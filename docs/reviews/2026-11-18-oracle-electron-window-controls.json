@@ -89,6 +89,14 @@
       "after_sha256": "1cf79136d72cf70f12302bbfd941a54b9ede0dd0cfe7e43325d825a685e9fce2",
       "scope": "vendor record: icon '' -> resources/icon-chatgpt.png",
       "recovery": "~/.cache/moos-window-frames-20261118b/recovery/chatgpt.json.before"
+    },
+    {
+      "path": "/var/home/moos/.config/Code/User/settings.json",
+      "before_sha256": "7b11668aa288779fbebb6df22c59324031bf1c68db6f00538884f2c7f7ae79f0",
+      "after_sha256": "dcc035fd9dfd7498359b4e7018817317f5f35bf7a4eeaf476689c061d9bed2c9",
+      "scope": "owner editor settings: window.titleBarStyle native -> custom, + window.controlsStyle custom; before equals the 2026-11-10 recorded after-hash",
+      "recovery": "~/.cache/moos-window-frames-20261118b/recovery/vscode-settings.json.before",
+      "takes_effect": "after the owner restarts VS Code (not done here: this session runs inside it)"
     }
   ]
 }
