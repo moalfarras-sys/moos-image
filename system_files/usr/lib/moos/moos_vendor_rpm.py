@@ -247,12 +247,13 @@ RESERVED_SCHEMES = frozenset({
 # or security switch, and it leaves the program's language alone.
 LAUNCH_SWITCHES = frozenset({
     # Electron's Window Controls Overlay (BrowserWindow titleBarOverlay) on Linux mirrors its native
-    # minimize/maximize/close for a right-to-left UI locale, yet tells the page that its titlebar
-    # area is the unmirrored one. The page lays its drag region over the left, where the buttons are
-    # drawn: in Arabic a press on any of them moved ChatGPT 26.1111.71025's window instead (X11 and
-    # Wayland, Oracle 2026-11-18; the English control works). A left-to-right NATIVE direction draws
-    # the buttons where the page left room for them; the page itself stays Arabic and right-to-left.
-    # Retire it when the vendor runtime passes the Arabic button journey without it.
+    # minimize/maximize/close to the left for a right-to-left UI locale and reports that side
+    # correctly (getTitlebarAreaRect x=64 vs 0), but ChatGPT 26.1111.71025's right-to-left page
+    # reserves the opposite side and lays its drag region under the drawn buttons: in Arabic a press
+    # on any of them moved the window instead (X11 and Wayland, Oracle 2026-11-18; English works).
+    # A left-to-right NATIVE direction puts the buttons over the page's own icons, where a press
+    # reaches them; the page itself stays Arabic and right-to-left. Retire it when the vendor
+    # runtime passes the Arabic button journey without it.
     "--force-ui-direction=ltr",
 })
 
