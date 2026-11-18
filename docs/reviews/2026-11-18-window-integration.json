@@ -38,7 +38,7 @@
     "design": "shared 24px Tidal Cut tiles, original action glyphs, neutral material at rest and semantic interaction; all 18 palettes retain their identity/licences",
     "native_geometry": "44x44 native targets and title bar in restored/maximized; spacing2, caption borders6, balancing spacer136, RTL through KDecoration",
     "gtk": "GTK3/GTK4 min44; hide image only for supported close/minimize/maximize; preserve app/menu image; same source artwork and maximized restore",
-    "publication": "bounded subordinate moos-window-controls transaction, stages both GTK generations and bridge before publishing, readback and failure rollback; preserves0600 css; refuses links/hardlinks/mounts/unknown source and preserves concurrent personal writes",
+    "publication": "bounded subordinate transaction; Linux atomic NOREPLACE/EXCHANGE retains actual displaced files, stages both GTK generations and bridge, artwork before stylesheet before import (reverse retirement), readback and independent rollback; preserves0600 css, refuses links/hardlinks/mounts and unknown sources; observed late editor saves survive and conflicts retain recovery copies with paths",
     "launch": "moai-open refuses absent executable before the setsid fork can claim success"
   },
   "executed": {
@@ -75,13 +75,15 @@
       }
     ],
     "targeted_tests": {
-      "window_controls": 22,
+      "window_controls": 28,
       "captions": 5,
       "theme_safety": 25,
       "bloom_native_and_source": 10,
       "managed_launch": 12,
       "sensor_package": 5,
-      "whats_new": 30
+      "whats_new": 30,
+      "visual_contract": 16,
+      "native_component_choice": 9
     },
     "native_bind_refusal": "actual rootless container, same-filesystem bind under GTK4; helper refused before writing and private sentinel survived",
     "live_kate": "canonical detached launch, actual KWin geometry44; XTest/EIS cursor readback and fresh foreground guards; minimize at cell offsets-20/0/+20, maximize/restore, drag50x40, close and new-process reopen pass; Arabic document remains visible",
@@ -100,7 +102,8 @@
     },
     "full_source": "pending final frozen-source run",
     "image_and_ci": "pending new combined source",
-    "native_font_readback": "actual Kate maps immutable Meyar Sans/Arabic/Mono/MonoArabic files; no default/personal font edit"
+    "native_font_readback": "actual Kate maps immutable Meyar Sans/Arabic/Mono/MonoArabic files; no default/personal font edit",
+    "stacked_titles": "five distinct native KWin windows, Arabic stacked marks and mixed Latin/numbers; AR75% BloomLight, native44px bar, complete caption ink rows13.3..30.7; first duplicate-caption experiment retained as invalid and short-word ink-width heuristic refusal"
   },
   "retained_refusals": [
     "relative HOME/XDG paths loaded installed42/32 geometry; source harness now resolves absolute paths and checks actual bar",
@@ -110,7 +113,11 @@
     "current batch entries exceeded per-architecture64 limit; consolidated unshipped frame/GTK notes without changing reader limits",
     "original PR308 vendor-kernel hash refuses the final base signature append; exact final OCI and unchanged executable/original signature proven before pinning complete final bytes",
     "generic CMS probe rejects Authenticode encoding; no cryptographic validation success inferred",
-    "private ChatGPT Wayland + disable-feature/force-frame control still uses its own undecorated overlay; not shipped"
+    "private ChatGPT Wayland + disable-feature/force-frame control still uses its own undecorated overlay; not shipped",
+    "first combined CI repository run refused obsolete TitleHeight32/ButtonWidth20 source expectations; aggregate contract now requires all44 geometry, spacing2 and136 spacer; native old/clipped negative controls retained",
+    "old source93b22f69 actually overwrites a personal save made at its publishing syscall and reports success; final helper retains the actual displaced bytes through atomic exchange and refuses late appearance through NOREPLACE",
+    "first complete source run failed at native appearance fixture because reconcile now calls native_selected; fixture now loads the real subordinate function and retains the actual old-order overwrite negative",
+    "advisory Claude job reported is_error:true despite green status; it is not completed code review; independent algorithm review received and its late-write/rollback finding repaired"
   ],
   "kernel": {
     "base_manifest": "sha256:66f507a9b4d01e165c6b88ff6af0662ef1a6b4d669f872e439d53296438f99d0",

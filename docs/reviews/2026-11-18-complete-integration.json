@@ -62,5 +62,19 @@
     "bytes": 63869,
     "byte_limit": 65536,
     "all_history_retained": true
-  }
+  },
+  "window_successor": "d5d4897a344790e18c4c3d7d8753ffbeff6fa82b",
+  "first_combined_check": {
+    "revision": "aab4fc7c4278fcbfbef0adddc12c092e81130096",
+    "exit_code": 1,
+    "seconds": 685.795,
+    "failure": "test_kde_appearance_library native owner fixture still extracted old reconcile dependencies; d5d4897a updates native_selected extraction and retains the old-order negative."
+  },
+  "first_local_image": {
+    "revision": "aab4fc7c4278fcbfbef0adddc12c092e81130096",
+    "exit_code": 1,
+    "seconds": 625.022,
+    "result": "Stopped only the owned build process group while downloading packages because its source was superseded by the late-CSS-write data-preservation correction. No image success/qualification claimed."
+  },
+  "new_source_requirements": "Re-run targeted late-publication/native-owner/visual checks, full just check and actual image on the new frozen successor; previous results remain separate."
 }

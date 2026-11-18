@@ -33,13 +33,15 @@ and a signed system update, and has explicitly approved the requested automated 
 checks. Physical host reboot/suspend remains coordinated with open editor work.
 
 V3 root owns `fix/moos-complete-integration-20261118`, based on Oracle PR311
-`1df01483`, which already contains PR308/309/310 and layout525e5600. It pins the
+`d5d4897a`, which already contains PR308/309/310 and layout525e5600. It pins the
 actual composed-base7.3.4 vmlinuz bytes while retaining original vendor lineage
 and exact gates, and supplies native44px Tidal Cut frames/GTK transactions.
-Its existing ARM44323788733/x8644323788622 jobs stay frozen and monitored,
-not cancelled or duplicated. Repo44323788769 refuses stale32px/20px geometry
-assertions against the reviewed44px native result; reconcile those exact
-assertions, keeping all SVG/state/identity and actual native negative controls.
+Earlier1df ARM44323788733/x8644323788622 results remain historical. Repo44323788769
+refused stale32px/20px geometry assertions; the successor keeps exact44px
+height/width/spacing/margins plus every SVG/state/identity control. First aggregate
+aab fullcheck separately refused the stale native appearance fixture;d5 extracts
+the real native_selected dependency and retains the old-order negative. Its
+atomic GTK publication now preserves late personal writes with native race controls.
 [Window proof](reviews/2026-11-18-window-integration.json).
 
 The aggregate adds App Drop98fed279/qualified source913f016b and local Night

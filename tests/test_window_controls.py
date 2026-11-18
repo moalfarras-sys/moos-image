@@ -307,21 +307,132 @@ class Transaction(unittest.TestCase):
         css.chmod(0o600)
         before = self.contents()
         changes, snapshots = self.helper["plan"]("apply", self.config, CONTROLS / "MoOSUI2BloomLight")
-        replace = os.replace
+        rename = self.helper["rename_file"]
         calls = 0
-        def fail_once(source, target):
+        def fail_once(source, target, flags):
             nonlocal calls
             calls += 1
             if calls == 5:
                 raise OSError("native publication failure control")
-            return replace(source, target)
-        with mock.patch.object(os, "replace", side_effect=fail_once):
+            return rename(source, target, flags)
+        with mock.patch.dict(self.helper["publish"].__globals__, rename_file=fail_once):
             with self.assertRaisesRegex(OSError, "publication failure"):
                 self.helper["publish"](changes, snapshots)
         self.assertEqual(self.contents(), before)
         self.assertEqual(list(self.config.rglob(".moos-caption-*")), [])
         self.install("MoOSUI2BloomLight")
         self.assertEqual(css.stat().st_mode & 0o777, 0o600)
+
+    def test_late_editor_save_is_retained_by_the_actual_atomic_exchange(self):
+        css = self.config / "gtk-4.0/gtk.css"
+        css.parent.mkdir(parents=True)
+        css.write_bytes(b"personal before")
+        css.chmod(0o600)
+        changes, before = self.helper["plan"]("apply", self.config, CONTROLS / "MoOSUI2Bloom")
+        rename = self.helper["rename_file"]
+        edited = False
+        def editor_save(source, target, flags):
+            nonlocal edited
+            # Race after the last check, at the actual publishing syscall.
+            if target == css and not edited:
+                edited = True
+                css.write_bytes(b"personal saved during publication")
+            return rename(source, target, flags)
+        with mock.patch.dict(self.helper["publish"].__globals__, rename_file=editor_save):
+            with self.assertRaisesRegex(ValueError, "changed at publication"):
+                self.helper["publish"](changes, before)
+        self.assertEqual(css.read_bytes(), b"personal saved during publication")
+        self.assertEqual(css.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(set(self.contents()), {css.relative_to(self.config)})
+        self.assertEqual(list(self.config.rglob(".moos-caption-*")), [])
+
+    def test_a_new_destination_racing_publication_is_not_overwritten(self):
+        changes, before = self.helper["plan"]("apply", self.config, CONTROLS / "MoOSUI2Bloom")
+        target_css = self.config / "gtk-4.0/gtk.css"
+        rename = self.helper["rename_file"]
+        def create_before_rename(source, target, flags):
+            if target == target_css:
+                target.write_bytes(b"new personal file")
+            return rename(source, target, flags)
+        with mock.patch.dict(self.helper["publish"].__globals__, rename_file=create_before_rename):
+            with self.assertRaises(FileExistsError):
+                self.helper["publish"](changes, before)
+        self.assertEqual(target_css.read_bytes(), b"new personal file")
+        self.assertEqual(set(self.contents()), {target_css.relative_to(self.config)})
+
+    def test_a_rollback_conflict_does_not_strand_other_published_files(self):
+        self.install()
+        before = self.contents()
+        conflict = self.config / "gtk-4.0/moos-window-controls.css"
+        changes, snapshots = self.helper["plan"]("apply", self.config, CONTROLS / "MoOSUI2BloomLight")
+        rename = self.helper["rename_file"]
+        failed = False
+        def fail_with_personal_save(source, target, flags):
+            nonlocal failed
+            if target == self.config / "gtk-3.0/moos-window-controls.css" and not failed:
+                failed = True
+                conflict.write_bytes(b"personal concurrent edit")
+                raise OSError("publication failure with conflict")
+            return rename(source, target, flags)
+        # Dict order puts GTK3 before GTK4; move GTK4 first to exercise a
+        # conflict in an already published file while other writes need undo.
+        changes = dict(sorted(changes.items(), key=lambda item: "gtk-4.0" not in item[0].parts))
+        with mock.patch.dict(self.helper["publish"].__globals__, rename_file=fail_with_personal_save):
+            with self.assertRaisesRegex(OSError, "with conflict"):
+                self.helper["publish"](changes, snapshots)
+        self.assertEqual(conflict.read_bytes(), b"personal concurrent edit")
+        actual = self.contents()
+        recovery = {key: value for key, value in actual.items() if key.name.startswith(".moos-caption-")}
+        self.assertEqual(len(recovery), 1)
+        self.assertEqual(next(iter(recovery.values())), before[conflict.relative_to(self.config)])
+        actual = {key: value for key, value in actual.items() if key not in recovery and key != conflict.relative_to(self.config)}
+        self.assertEqual(actual, {key: value for key, value in before.items() if key != conflict.relative_to(self.config)})
+
+    def test_artwork_is_complete_before_a_live_stylesheet_is_published(self):
+        changes, before = self.helper["plan"]("apply", self.config, CONTROLS / "MoOSUI2Bloom")
+        rename = self.helper["rename_file"]
+        def observe(source, target, flags):
+            if target.name in ("gtk.css", "moos-window-controls.css"):
+                for path, data in changes.items():
+                    if path.suffix == ".svg":
+                        self.assertEqual(path.read_bytes(), data)
+            return rename(source, target, flags)
+        with mock.patch.dict(self.helper["publish"].__globals__, rename_file=observe):
+            self.helper["publish"](changes, before)
+
+    def test_retirement_preserves_a_late_save_and_restores_other_files(self):
+        self.install()
+        css = self.config / "gtk-4.0/moos-window-controls.css"
+        before_files = self.contents()
+        changes, before = self.helper["plan"]("remove", self.config)
+        rename = self.helper["rename_file"]
+        edited = False
+        def save_before_retirement(source, target, flags):
+            nonlocal edited
+            if source == css and not edited:
+                edited = True
+                css.write_bytes(b"personal replacement during retirement")
+            return rename(source, target, flags)
+        with mock.patch.dict(self.helper["publish"].__globals__, rename_file=save_before_retirement):
+            with self.assertRaisesRegex(ValueError, "changed at retirement"):
+                self.helper["publish"](changes, before)
+        self.assertEqual(css.read_bytes(), b"personal replacement during retirement")
+        actual = self.contents()
+        actual.pop(css.relative_to(self.config))
+        before_files.pop(css.relative_to(self.config))
+        self.assertEqual(actual, before_files)
+        self.assertEqual(list(self.config.rglob(".moos-caption-*")), [])
+
+    def test_an_unavailable_atomic_primitive_refuses_without_a_clobbering_fallback(self):
+        self.install()
+        before_files = self.contents()
+        changes, before = self.helper["plan"]("apply", self.config, CONTROLS / "MoOSUI2BloomLight")
+        with mock.patch.dict(self.helper["publish"].__globals__,
+                             rename_file=mock.Mock(side_effect=OSError("atomic exchange unavailable"))):
+            with self.assertRaisesRegex(OSError, "unavailable"):
+                self.helper["publish"](changes, before)
+        self.assertEqual(self.contents(), before_files)
+        self.assertEqual(list(self.config.rglob(".moos-caption-*")), [])
 
     def test_linked_css_parent_assets_and_hardlinked_files_refuse_before_any_write(self):
         for target in ("gtk-3.0/gtk.css", "gtk-4.0", "gtk-3.0/assets",
