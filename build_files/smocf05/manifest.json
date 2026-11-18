@@ -17,7 +17,7 @@
     "installed": false,
     "loaded": false,
     "key_enrolled": false,
-    "vendor_kernel_sha256": "95b80a8cdecb42a0d94ae012bec5f8eeeb054ae97bd655ba1c5f9a41cdb0383d",
+    "vendor_kernel_sha256": "6647362468eb74206db196e89207bd98b50634b8b8ecaf094d1905be094e836a",
     "vendor_core_sha256": "a7adc7dbfbde5c426f71548bc7a483763b8fab0fb386063e39e6e8781f6d3ae4",
     "vendor_transport_sha256": "96de772fce0b4af65d1d654ac77617747816cb5d09099200c351201876c289a6"
 }
