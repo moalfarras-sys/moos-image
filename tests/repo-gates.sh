@@ -423,6 +423,7 @@ python3 tests/test_moos_visual_tier.py
 python3 tests/test_tidal_horizon.py
 python3 tests/test_tidal_portals.py
 python3 tests/test_moos_theme_safety.py
+python3 tests/test_window_controls.py
 python3 tests/test_moos_visual_system.py
 # The MoOS settings front door must ship with its owned icon and
 # private live-state helper, and every command must remain a fixed

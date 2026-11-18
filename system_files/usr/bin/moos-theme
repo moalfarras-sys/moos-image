@@ -245,6 +245,9 @@ snapshot_theme_state() {
     snapshot_config_file "$snapshot" gtk4-settings "$config/gtk-4.0/settings.ini" || return 1
     snapshot_config_file "$snapshot" gtk4-css "$config/gtk-4.0/gtk.css" || return 1
     snapshot_config_file "$snapshot" gtk4-moos-css "$config/gtk-4.0/moos-ui2.css" || return 1
+    snapshot_config_file "$snapshot" gtk3-css "$config/gtk-3.0/gtk.css" || return 1
+    snapshot_config_file "$snapshot" gtk3-window-controls "$config/gtk-3.0/moos-window-controls.css" || return 1
+    snapshot_config_file "$snapshot" gtk4-window-controls "$config/gtk-4.0/moos-window-controls.css" || return 1
     snapshot_config_file "$snapshot" xsettingsd "$config/xsettingsd/xsettingsd.conf" || return 1
 
     for key in color-scheme gtk-theme icon-theme cursor-theme font-name monospace-font-name; do
@@ -289,6 +292,9 @@ restore_theme_state() {
     restore_config_file "$snapshot" gtk4-settings "$config/gtk-4.0/settings.ini" || restore_failed=1
     restore_config_file "$snapshot" gtk4-css "$config/gtk-4.0/gtk.css" || restore_failed=1
     restore_config_file "$snapshot" gtk4-moos-css "$config/gtk-4.0/moos-ui2.css" || restore_failed=1
+    restore_config_file "$snapshot" gtk3-css "$config/gtk-3.0/gtk.css" || restore_failed=1
+    restore_config_file "$snapshot" gtk3-window-controls "$config/gtk-3.0/moos-window-controls.css" || restore_failed=1
+    restore_config_file "$snapshot" gtk4-window-controls "$config/gtk-4.0/moos-window-controls.css" || restore_failed=1
     restore_config_file "$snapshot" xsettingsd "$config/xsettingsd/xsettingsd.conf" || restore_failed=1
 
     for key in color-scheme gtk-theme icon-theme cursor-theme font-name monospace-font-name; do
@@ -797,6 +803,148 @@ run_with_timeout() {
 # Konsole, GTK, the desktop scene and the lock screen land on the same half.
 # Deliberately do not write kdeglobals here: that is the file watched by the path
 # unit, and touching it would turn a one-shot reconciliation into a feedback loop.
+# CLIENT-SIDE DECORATIONS WEAR THE MOOS FRAME'S OWN BUTTONS.
+#
+# KWin draws every server-side MoOS frame from an Aurorae theme; GTK3, GTK4,
+# libadwaita and Chromium/Electron's GTK caption buttons draw their own. Plasma's
+# gtkconfig bridge cannot paint QML Aurorae buttons: on the live V3 all 24 images
+# it wrote were empty SVGs, and nothing imported them, so a Mo app showed MoOS
+# buttons while the GTK or Chromium window beside it showed grey Adwaita discs or
+# plain glyphs. artwork/generate_moos_window_controls.py cuts every Aurorae button
+# state into /usr/share/moos/window-controls/<frame>/. The set matching the frame
+# is copied into ~/.config/gtk-{3,4}.0 (the only GTK paths Flatpak apps can read)
+# and imported by gtk.css. Another decoration removes only our import and file;
+# copied assets stay, so a restored older gtk.css never shows a blank button.
+window_controls_source() {
+    local frame="${1:-}" library theme directory
+    if [ -z "$frame" ]; then
+        library="$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key library 2>/dev/null)" || return 1
+        [ "$library" = org.kde.kwin.aurorae.v2 ] || return 1
+        frame="$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme 2>/dev/null)" || return 1
+    fi
+    theme="${frame#__aurorae__svg__}"
+    [ "$theme" != "$frame" ] && [[ "$theme" =~ ^MoOSUI2[A-Za-z0-9]*$ ]] || return 1
+    directory="${MOOS_WINDOW_CONTROLS_DIR:-/usr/share/moos/window-controls}/$theme"
+    [ -f "$directory/window-controls.css" ] && [ ! -L "$directory" ] || return 1
+    printf '%s\n' "$directory"
+}
+
+window_controls_installed() {
+    local source="$1" target="$2" image
+    [ -d "$target" ] && [ ! -L "$target" ] || return 1
+    for image in "$source"/*.svg; do
+        [ -f "$image" ] || return 1
+        cmp -s -- "$image" "$target/${image##*/}" || return 1
+    done
+}
+
+window_controls_imported() {
+    [ -f "$1/gtk.css" ] && grep -Fq "@import 'moos-window-controls.css';" "$1/gtk.css"
+}
+
+# Plasma's window-decorations-gtk-module (gtk-modules in gtk-3.0/settings.ini)
+# loads gtk-3.0/window_decorations.css for the Breeze GTK theme at the user
+# priority AFTER gtk.css, so nothing in gtk.css can override it. gtkconfig paints
+# its 24 assets/ images from the KWin decoration and cannot paint QML Aurorae:
+# measured on the V3, every GTK3 caption button drew zero pixels with or without
+# a gtk.css rule, and appeared at priority 801. Fill exactly those 24 names with
+# the MoOS state images; other files in assets/ and other frames stay gtkconfig's.
+WINDOW_CONTROL_BRIDGE_STATES="normal:active hover:hover active:pressed backdrop-normal:inactive backdrop-hover:hover-inactive backdrop-active:pressed-inactive"
+
+window_controls_bridge() {
+    local source="$1" check="${2:-}" assets button from pair name failed=0
+    assets="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/assets"
+    [ -n "$check" ] || mkdir -p "$assets" || return 1
+    for button in close minimize maximize maximized; do
+        from="$button"
+        [ "$button" = maximized ] && from=restore
+        for pair in $WINDOW_CONTROL_BRIDGE_STATES; do
+            name="$assets/$button-${pair%%:*}.svg"
+            cmp -s -- "$source/$from-${pair#*:}.svg" "$name" && continue
+            [ -z "$check" ] || return 1
+            cp -- "$source/$from-${pair#*:}.svg" "$name.tmp.$$" \
+                && mv -f -- "$name.tmp.$$" "$name" \
+                || { rm -f -- "$name.tmp.$$"; failed=1; }
+        done
+    done
+    [ "$failed" -eq 0 ]
+}
+
+apply_window_controls() {
+    local source theme config gtk directory target staging css
+    config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    if ! source="$(window_controls_source "${1:-}")"; then
+        remove_window_controls
+        return $?
+    fi
+    theme="${source##*/}"
+    for gtk in gtk-3.0 gtk-4.0; do
+        directory="$config/$gtk"
+        target="$directory/moos-window-controls/$theme"
+        mkdir -p "$directory/moos-window-controls" || return 1
+        if ! window_controls_installed "$source" "$target"; then
+            staging="$(mktemp -d "$directory/moos-window-controls/.$theme.XXXXXX")" || return 1
+            if ! cp -- "$source"/*.svg "$staging"/ \
+                    || ! window_controls_installed "$source" "$staging"; then
+                rm -rf -- "$staging"
+                return 1
+            fi
+            # Only MoOS writes this per-frame directory; swap it whole.
+            rm -rf -- "$target" && mv -T -- "$staging" "$target" \
+                || { rm -rf -- "$staging"; return 1; }
+        fi
+        css="$directory/moos-window-controls.css"
+        if ! cmp -s -- "$source/window-controls.css" "$css"; then
+            cp -- "$source/window-controls.css" "$css.tmp.$$" \
+                && mv -f -- "$css.tmp.$$" "$css" \
+                || { rm -f -- "$css.tmp.$$"; return 1; }
+        fi
+        if ! window_controls_imported "$directory"; then
+            # GTK ignores an @import that follows a rule, so ours goes first.
+            # gtkconfig only prepends its own colors.css import when missing.
+            { printf "@import 'moos-window-controls.css';\n"
+              [ ! -f "$directory/gtk.css" ] || cat -- "$directory/gtk.css"
+            } >"$directory/gtk.css.tmp.$$" \
+                && mv -f -- "$directory/gtk.css.tmp.$$" "$directory/gtk.css" \
+                || { rm -f -- "$directory/gtk.css.tmp.$$"; return 1; }
+        fi
+    done
+    window_controls_bridge "$source"
+}
+
+remove_window_controls() {
+    local config gtk directory failed=0
+    config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    for gtk in gtk-3.0 gtk-4.0; do
+        directory="$config/$gtk"
+        if window_controls_imported "$directory"; then
+            sed -i -e "/^@import 'moos-window-controls\\.css';\$/d" \
+                -e "s/@import 'moos-window-controls\\.css';//" "$directory/gtk.css" \
+                || failed=1
+        fi
+        rm -f -- "$directory/moos-window-controls.css" || failed=1
+    done
+    [ "$failed" -eq 0 ]
+}
+
+window_controls_complete() {
+    local source config gtk directory
+    config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    if ! source="$(window_controls_source "${1:-}")"; then
+        for gtk in gtk-3.0 gtk-4.0; do
+            ! window_controls_imported "$config/$gtk" || return 1
+        done
+        return 0
+    fi
+    for gtk in gtk-3.0 gtk-4.0; do
+        directory="$config/$gtk"
+        window_controls_installed "$source" "$directory/moos-window-controls/${source##*/}" || return 1
+        cmp -s -- "$source/window-controls.css" "$directory/moos-window-controls.css" || return 1
+        window_controls_imported "$directory" || return 1
+    done
+    window_controls_bridge "$source" check
+}
+
 apply_supplements() {
     local wallpaper_policy="${1:-state}"
     local ini xs v svc n scene_status supplement_failed=0
@@ -916,6 +1064,9 @@ apply_supplements() {
             printf "@import 'moos-ui2.css';\n" >>"$css_gtk" || supplement_failed=1
         fi
     fi
+    # The selected profile's frame, not kwinrc: this pass can run before KWin
+    # has read back the new decoration, and full_theme_complete checks both.
+    apply_window_controls "$deco" || supplement_failed=1
 
     # Wayland GTK/libadwaita apps.
     if command -v gsettings >/dev/null 2>&1; then
@@ -1132,6 +1283,7 @@ automatic_supplements_complete() {
         grep -Fqx "Net/ThemeName \"$gtk_theme\"" "$xs" || return 1
         grep -q '^Net/SoundThemeName "moos"$' "$xs" || return 1
     fi
+    window_controls_complete "$deco" || return 1
     return 0
 }
 
@@ -1379,6 +1531,11 @@ reconcile() {
 
     command -v kreadconfig6 >/dev/null 2>&1 || return 0
 
+    # gtkconfig rewrites window_decorations.css (a watched path) and empties its
+    # caption images whenever the KWin frame changes; restore the MoOS buttons
+    # for whichever frame is live, independent of the look's own owner below.
+    apply_window_controls || echo "moos-theme: window controls were not restored" >&2
+
     # A native downloaded/saved look is also valid while KDE's day/night mode
     # is enabled. Follow the actual selected package; the native switcher owns
     # when that selection changes. Do not try to load it as a curated profile.
@@ -1610,6 +1767,9 @@ guard_theme_defaults() {
     kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos || return 1
     # /etc/xdg supplies the initial enabled state. A personal mute belongs to
     # the owner and must survive theme reconciliation and the next login.
+    # Client-side buttons follow whichever frame KWin actually uses, including
+    # a native or personal decoration choice made outside a MoOS profile.
+    apply_window_controls || return 1
 }
 
 # Read the effective motion policy from every live MoOS wallpaper containment.
