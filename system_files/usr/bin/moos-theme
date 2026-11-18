@@ -1384,7 +1384,7 @@ reconcile() {
     # when that selection changes. Do not try to load it as a curated profile.
     lnf="$(current)"
     if ! load_profile "$lnf" >/dev/null 2>&1; then
-        /usr/libexec/moos-session-appearance check-native >/dev/null 2>&1 \
+        native_selected >/dev/null 2>&1 \
             && /usr/libexec/moos-session-appearance sync-native
         return $?
     fi
@@ -1395,7 +1395,7 @@ reconcile() {
     # icon/colour selection immediately enters sync_auto and is overwritten.
     # Native whole-look transitions still use the strict automatic path once
     # their selected profile's components match. Missing packages are refused.
-    if /usr/libexec/moos-session-appearance check-native >/dev/null 2>&1; then
+    if native_selected >/dev/null 2>&1; then
         /usr/libexec/moos-session-appearance sync-native
         return $?
     fi
@@ -1518,8 +1518,94 @@ pin_switch_targets() {
     kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel "$dark"
 }
 
+# Return a bounded, native button layout only for this selected curated frame.
+# The shared appearance validator still admits every component/font; this does
+# not create another profile or turn an unknown look into a MoOS profile.
+validated_frame_layout() {
+    local lnf scheme style konsole_profile konsole_profile_name prefer_dark icons
+    local adw_css cursor deco wallpaper wallpaper_package label qt_widget_style gtk_theme
+    local database row library frame left right actions code without
+    lnf="$(current)" || return 1
+    [[ "$lnf" =~ ^org\.moos\.ui2(\.[a-z0-9_-]+)*$ ]] || return 2
+    database="${MOOS_THEME_PROFILE_DB:-/usr/share/moos/theme-profiles.tsv}"
+    row="$(awk -F '\t' -v wanted="$lnf" '
+        $1 == wanted { count++; if (NF != 17) bad=1; row=$0 }
+        END { if (count != 1 || bad) exit 1; print row }
+    ' "$database")" || return 1
+    [ -n "$row" ] || return 1
+    load_profile "$lnf" >/dev/null 2>&1 || return 1
+    [[ "$deco" =~ ^__aurorae__svg__MoOSUI2[A-Za-z0-9]*$ ]] || return 1
+    library="$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key library 2>/dev/null)" || return 1
+    frame="$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme 2>/dev/null)" || return 1
+    [ "$library" = org.kde.kwin.aurorae.v2 ] && [ "$frame" = "$deco" ] || return 2
+    # An explicit empty group is a valid choice. An absent key would instead
+    # make KWin use its own defaults, so never confuse those two states.
+    left="$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft --default __moos_missing_window_layout__ 2>/dev/null)" || return 1
+    right="$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnRight --default __moos_missing_window_layout__ 2>/dev/null)" || return 1
+    # KWin 6.8's native codes (kcms/decoration/utils.cpp), including its
+    # ExcludeFromCapture action E. Repeated spacers are legitimate; ambiguous
+    # duplicated actions, unknown codes and oversized values remain refused.
+    actions="${left}${right}"
+    [[ "$actions" =~ ^[MNSHIAXFBE_]*$ ]] && [ "${#actions}" -le 64 ] || return 1
+    for code in M N S H I A X F B E; do
+        without="${actions//"$code"/}"
+        [ "$((${#actions} - ${#without}))" -le 1 ] || return 1
+    done
+    /usr/libexec/moos-session-appearance check-components >/dev/null 2>&1 || return 1
+    printf '%s|%s|%s|%s\n' "$lnf" "$frame" "$left" "$right"
+}
+
+guard_caption_layout() {
+    local before after status
+    before="$(validated_frame_layout)" || {
+        status=$?
+        [ "$status" = 2 ] && return 0
+        echo "moos-theme: caption layout is unavailable; preserving it" >&2
+        return 1
+    }
+    # Only the exact previous MoOS action layout needs this disabled balancing
+    # spacer. Personal pairs, including empty groups, keep their native owner.
+    case "$before" in *'|XIA|') ;; *) return 0 ;; esac
+    after="$(validated_frame_layout)" || return 1
+    [ "$after" = "$before" ] || {
+        echo "moos-theme: caption layout changed; preserving the newer choice" >&2
+        return 1
+    }
+    kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnRight _ || return 1
+    after="$(validated_frame_layout)" || return 1
+    [ "$after" = "${before}_" ] || {
+        # A different readback may be a concurrent native KCM choice. Never
+        # restore a whole old config over it or announce that it was applied.
+        echo "moos-theme: caption spacer readback did not match" >&2
+        return 1
+    }
+    run_with_timeout gdbus call --session --dest org.kde.KWin --object-path /KWin \
+        --method org.kde.KWin.reconfigure >/dev/null 2>&1 || {
+        echo "moos-theme: caption spacer is saved; KWin reload was unavailable" >&2
+        return 1
+    }
+}
+
+native_selected() {
+    local layout status native_status=1
+    /usr/libexec/moos-session-appearance check-native >/dev/null 2>&1 && native_status=0
+    layout="$(validated_frame_layout)" || {
+        status=$?
+        # Other installed native looks/decorations retain their original
+        # admission. Invalid data in this curated frame is never a new route.
+        [ "$status" = 2 ] && return "$native_status"
+        return 1
+    }
+    [ "$native_status" = 0 ] && return 0
+    # The legacy canonical pair is migrated by guard, not silently classified
+    # as a personal choice. Canonical explicit Apply remains strictly XIA/_;
+    # the native resume route preserves other valid personal button layouts.
+    case "$layout" in *'|XIA|'|*'|XIA|_') return 1 ;; *) return 0 ;; esac
+}
+
 guard_theme_defaults() {
     command -v kwriteconfig6 >/dev/null 2>&1 || return 1
+    guard_caption_layout || return 1
     pin_switch_targets || return 1
     kwriteconfig6 --file kdeglobals --group Sounds --key Theme moos || return 1
     # /etc/xdg supplies the initial enabled state. A personal mute belongs to
@@ -2173,11 +2259,11 @@ case "$command_name" in
         ;;
     native-selected)
         [ "$#" -eq 1 ] || exit 2
-        /usr/libexec/moos-session-appearance check-native
+        native_selected
         ;;
     resume-native)
         [ "$#" -eq 1 ] || exit 2
-        /usr/libexec/moos-session-appearance check-native \
+        native_selected \
             && /usr/libexec/moos-session-appearance sync-native
         ;;
     settle-lnf)
