@@ -1,0 +1,224 @@
+{
+  "date": "2026-11-09",
+  "target": "Oracle ARM only",
+  "source_before": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+  "source_fix": "14e3b42a4a30a614ed2bb02cfa1eabe8ecd68340",
+  "full_source_check": {
+    "source": "14e3b42a4a30a614ed2bb02cfa1eabe8ecd68340",
+    "exit": 0,
+    "source_unchanged": true,
+    "seconds": 1678.715,
+    "utc": "2026-11-09T17:26:04.203347+00:00",
+    "workload": "Full source check while a read-only Btrfs scrub and owner ChatGPT/VS Code/agents run; not performance acceptance"
+  },
+  "native_boot": {
+    "version": "44.20261109.908",
+    "digest": "sha256:e35020527b9a576c454a9adddb069ae8bcf6682764eef9e6c364d77d968b8e42",
+    "labels": {
+      "org.opencontainers.image.revision": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+      "org.opencontainers.image.version": "44.20261109.908"
+    }
+  },
+  "installed": {
+    "host": "moos-arm-oracle",
+    "architecture": "aarch64",
+    "cpus": 2,
+    "memory_gib": 11.6,
+    "gpu": "llvmpipe software renderer",
+    "plasma": "6.8.2",
+    "qt": "6.11.2",
+    "kernel": "7.2.15-200.fc44.aarch64",
+    "boot_id": "2ab79900-c770-4b44-88dc-9f9fa4588db8",
+    "boot_seconds": 14.577,
+    "rollback": "44.20261104.890",
+    "signed_origin_preserved": true,
+    "pending_os_update": false,
+    "administrative_access_available": true,
+    "selinux": "Enforcing"
+  },
+  "updates": {
+    "canonical_user_store_exit": 0,
+    "canonical_system_image_exit": 0,
+    "canonical_system_flatpak_exit": 0,
+    "pending_app_updates": 0,
+    "system_flatpak_real_exit_receipt": 6296175227,
+    "system_flatpak_alt_id_note": "remote-ls --updates still lists OCI subjects; installed commit Alt-id exactly equals remote commit and actual update reports no transaction. Not counted as an unapplied update.",
+    "flutter_extension": "3.147.20261109",
+    "codex_extension_selected": "26.1007.21434",
+    "codex_pin": true,
+    "codex_bulk_update_refusal_retained": true,
+    "codex_restored_by_official_manager": true
+  },
+  "disk": {
+    "read_only_scrub": "finished",
+    "duration_seconds": 1701,
+    "checked_gib": 151.56,
+    "errors": 0,
+    "free_gib_approx": 39.07,
+    "smart": "Virtual block device; no physical SMART acceptance",
+    "no_cleanup_or_pruning": true
+  },
+  "screen": {
+    "before": "1280x720",
+    "configured_after": "1600x900",
+    "scale": 0.75,
+    "applied": false,
+    "requires": "Next normal native session/reboot",
+    "file": "/var/home/moos/.config/systemd/user/plasma-kwin_wayland.service.d/20-moos-arm-virtual-output.conf",
+    "before_sha256": "816e7c35898a15ca6212cefce7a8379c76bf8b4f4473f3a94911694d276a08d5",
+    "after_sha256": "0b7993b1696a35f4b09d821626768671a3b0669f73a67afd2c92692128af10d8",
+    "recovery": "/var/home/moos/moos-image/test-results/owner-maintenance-20261109/virtual-output-before.conf",
+    "scope": "Native cloud-display owner only. No compositor/portal/Remote restart, authentication or input policy change. Higher source resolution is not proof of received stream clarity or frame latency."
+  },
+  "visible_journeys": {
+    "calculator": "Native AT-SPI C,1,2,+,3,4,= returns46; maximized full button painting inspected at100%, normal close confirmed. ydotool attempt did not establish keyboard input.",
+    "launcher": "Installed native launcher open/capture/close at100%, temporary shortcut restored; initial wrong-bus refusal retained.",
+    "final_scale": "Owner explicitly chose75%; restored through KScreen. 1600x900 takes effect at next native session.",
+    "touch": "No physical touchscreen on Oracle; EIS input ready at public status. No physical touch or pen claim."
+  },
+  "icons": {
+    "visible_launchers": 43,
+    "missing_absolute_icon_paths": 0,
+    "chatgpt_native_icon_repaired": true,
+    "canonical_recipe_and_native_helper_index_source_fixed": true,
+    "native_old_relative_path_refusal_retained": true,
+    "catalogue_gate_unchanged": true,
+    "targeted_tests": {
+      "vendor": 83,
+      "catalogue": 73,
+      "index": 19,
+      "backend_vendor": 26
+    }
+  },
+  "remaining": {
+    "native_selfcheck": {
+      "passed": 50,
+      "failed": 1
+    },
+    "native_postcheck": {
+      "passed": 55,
+      "failed": 1
+    },
+    "bar_failure": "Required org.kde.plasma.keyboardindicator, org.kde.kdeconnect, org.kde.plasma.vault absent from current native extraItems and package inventory; not added as phantom load entries and gate not weakened.",
+    "windows_android": "Neither engine is installed on Oracle. No whole-OS or universal application compatibility claim.",
+    "source_delivery": "Icon source fix is not in signed908. Current-source image/PR/signed delivery remains separate.",
+    "authentication": "New service process and public readiness will be checked after reboot; no account login claim.",
+    "restart": "Requested by owner; new boot and service readback pending. Source display1600 candidate rejected because Auto1280 downsampling softens text; final native1280x720/75% is read back."
+  },
+  "temporary_units": {
+    "recoverably_retired_completed_one_shots": 3,
+    "first_errors_preserved": true,
+    "postboot_collection_unit": "moos-owner-postboot-audit-20261109.service",
+    "meaning": "Audit collection success is not a healthy-system verdict; inspect postboot-audit.json after actual new boot."
+  },
+  "repository": {
+    "fsck_exit": 0,
+    "dangling_records_retained": 32,
+    "head_and_origin_refs_checked": 207,
+    "not_ancestors_of_current_main": [
+      {
+        "ref": "refs/heads/codex/owner-maintenance-20261109",
+        "sha": "14e3b42a4a30a614ed2bb02cfa1eabe8ecd68340"
+      },
+      {
+        "ref": "refs/heads/codex/remote-image-ci-20261109",
+        "sha": "b5d88c1fb31a073840a7b099d745ed8497fef0ce"
+      },
+      {
+        "ref": "refs/remotes/origin/codex/remote-image-ci-20261109",
+        "sha": "b5d88c1fb31a073840a7b099d745ed8497fef0ce"
+      }
+    ],
+    "worktrees": [
+      "/var/home/moos/moos-image                14e3b42a [codex/owner-maintenance-20261109]",
+      "/var/home/moos/moos-ci-coverage-20261109 b5d88c1f [codex/remote-image-ci-20261109]",
+      "/var/home/moos/moos-font-pair-20261108   4303a206 [codex/remote-portal-recovery-20261109]",
+      "/var/home/moos/moos-ui-next-20261020     3d29fdec [codex/adaptive-desktop-20261020]"
+    ],
+    "stashes": 4,
+    "seconds": 25.653
+  },
+  "private_evidence": "test-results/owner-maintenance-20261109 (ignored; no private desktop captures, configs, database backups or credentials committed)",
+  "upstream_sources": [
+    "https://docs.flatpak.org/en/latest/using-flatpak.html",
+    "https://code.visualstudio.com/updates/v1_145",
+    "https://antigravity.google/download",
+    "https://github.com/gtsteffaniak/filebrowser/releases/tag/v2.0.2-stable",
+    "https://github.com/coder/code-server/releases/tag/v4.145.2",
+    "https://github.com/immich-app/immich/releases/tag/v3.3.6"
+  ],
+  "service_updates_staged": {
+    "filebrowser_quantum": "2.0.1-stable -> 2.0.2-stable",
+    "web_studio": "code-server4.143.1 ->4.145.2 (Code1.145.2)",
+    "photos": "Immich3.3.5 ->3.3.6",
+    "official_asset_sha256_verified": true,
+    "official_arm64_image_pinned": "ghcr.io/immich-app/immich-server@sha256:e1981983b1c13f6024b57d72e7ecae3342eed1581201ab09fb248932d86c593a",
+    "independent_sqlite_online_backup_integrity": "ok",
+    "postgres_dump_compressed_bytes": 18779566,
+    "postgres_gzip_full_decoded_sha_matches": true,
+    "old_binary_generations_and_containers_preserved": true,
+    "only_declared_version_paths_and_server_image_changed": true,
+    "requires": "Normal reboot and actual new process/image/public-readiness evidence; staged is not delivered",
+    "private_recovery": "test-results/owner-maintenance-20261109/service-recovery,0700/0600; no owner profile or credentials committed"
+  },
+  "installed_app_versions": {
+    "flatpak": {
+      "Curtail": "1.17.0",
+      "Chrome": "157.0.8103.38-1",
+      "Chromium": "157.0.8103.38",
+      "GIMP": "3.2.8",
+      "Calculator": "51.1",
+      "Ptyxis": "50.1",
+      "Krita": "5.3.4.1",
+      "LibreOffice": "26.8.2.2",
+      "VLC": "3.0.24"
+    },
+    "native_user": {
+      "Code": "1.145.2",
+      "Cursor": "3.29.9",
+      "OpenCode Desktop": "1.19.5",
+      "Antigravity": "2.29.1",
+      "Antigravity IDE": "2.6.0",
+      "ChatGPT": "26.1103.60933-1",
+      "Claude Code": "2.1.319",
+      "Codex CLI": "0.167.0",
+      "Antigravity CLI": "1.5.3"
+    },
+    "scope": "Current canonical readback/verified source archive receipts; app version is not a successful full GUI/authentication journey."
+  },
+  "screen_final_choice": {
+    "chosen_resolution": "1280x720",
+    "scale": 0.75,
+    "physical_readback": {
+      "height": 720,
+      "width": 1280
+    },
+    "logical_screen": {
+      "height": 960,
+      "width": 1707
+    },
+    "configured_and_running_match": true,
+    "earlier_1600x900_candidate_rejected": true,
+    "reason": "The actual native cloud-display owner reports Auto1280 on this essential software-GPU tier. A1600 desktop would be downscaled and soften small text. Owner authorized75% on current resolution or a higher one; retain1:1 source/capture budget instead of claiming a sharper larger source. Received client frames/latency and physical touch remain unmeasured.",
+    "original_virtual_output_bytes_restored": true,
+    "native_helper_message_refusal": "The display change acknowledgement calls the previous configured size current, even when actual KScreen remains1280x720. Preserve that wrong message; exact config bytes and native KScreen readback are authoritative.1600 was never running in this audit."
+  },
+  "native_service_generation_ledger": [
+    {
+      "prefix": "/var/home/moos/.local/lib/code-server-4.145.2-linux-arm64",
+      "regular_files": 6033,
+      "regular_bytes": 675891723,
+      "symlinks": 12,
+      "inventory_sha256": "982eb460592b864208df0abd838bbc9e6c3bddcbf7864ab17a3a0e835ab13dd9",
+      "retirement": "Official user-local install. Keep prior generation as rollback until actual new service/auth/data acceptance; do not call it signed immutable OS delivery."
+    },
+    {
+      "prefix": "/var/home/moos/.local/lib/moos-files/v2.0.2-stable",
+      "regular_files": 1,
+      "regular_bytes": 26498676,
+      "symlinks": 0,
+      "inventory_sha256": "44bc27941ea0775828b958b97c12c58f07cb834f49f6b5071442ccd9ed3d43ef",
+      "retirement": "Official user-local install. Keep prior generation as rollback until actual new service/auth/data acceptance; do not call it signed immutable OS delivery."
+    }
+  ]
+}

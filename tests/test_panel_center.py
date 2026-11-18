@@ -418,7 +418,10 @@ class PanelCenter(unittest.TestCase):
             for language in ('ar_SA.UTF-8','en_US.UTF-8'):
                 for scheme,reduced in cases:
                     light=reduced
-                    env['LANG']=language;env['LC_ALL']=language;env['MOOS_CENTER_SCHEME']=scheme
+                    # LANGUAGE outranks LANG for the shell's local(): an Arabic owner session
+                    # exports LANGUAGE=ar, and the inherited value drew the en_US variant in
+                    # Arabic, so its 'Wi-Fi' details control was never found (Oracle 2026-11-18).
+                    env['LANG']=language;env['LC_ALL']=language;env['LANGUAGE']=language.split('_')[0];env['MOOS_CENTER_SCHEME']=scheme
                     (base/'XDG_CONFIG_HOME/kdeglobals').write_text((ROOT/('system_files/usr/share/color-schemes/'+scheme+'.colors')).read_text()+'\n[KDE]\nAnimationDurationFactor='+('0' if reduced else '1')+'\n[Icons]\nTheme='+scheme+'\n')
                     style='MoOSUI2' if scheme=='MoOSUI2Dark' else 'MoOSUI2Light' if scheme=='MoOSUI2Light' else scheme
                     (base/'XDG_CONFIG_HOME/plasmarc').write_text('[Theme]\nname='+style+'\n')
