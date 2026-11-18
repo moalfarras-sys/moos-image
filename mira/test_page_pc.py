@@ -34,7 +34,9 @@ REAL_LOOK = pc.read_look
 TREE_SCHEMAS = Path(__file__).resolve().parent.parent / 'system_files/usr/lib/moai'
 HOME = str(Path.home())
 
-STATUS = {'volume': 42, 'muted': False, 'brightness': 70, 'night_light': False, 'wifi': True, 'bluetooth': None,
+STATUS = {'volume': 42, 'muted': False, 'brightness': 70, 'night_light': False,
+          'night_light_enabled': False, 'night_light_available': True, 'night_light_mode': 1,
+          'wifi': True, 'bluetooth': None,
           'theme': 'aurora', 'dnd': False, 'mic_muted': False, 'power_profile': 'balanced'}
 # What a journal, a service status or a MoOS log can carry from the base image.
 LEAKY = ('Sep 29 kernel: Linux version 7.2.7-200.fc44.x86_64 (gcc (GCC) 16.1 (Red Hat 16.1-1)) #1 SMP\n'
@@ -129,6 +131,9 @@ class Executor:
                 self.status['wifi'] = value == 'on'
             elif name == 'toggle_night_light':
                 self.status['night_light'] = value != 'off'
+                self.status['night_light_enabled'] = value != 'off'
+                if value != 'off':
+                    self.status['night_light_mode'] = 0 if value == 'on' else 1
             elif name == 'set_mic_mute':
                 self.status['mic_muted'] = value == 'mute'
             elif name == 'set_do_not_disturb':
@@ -175,7 +180,7 @@ class PcPageTest(unittest.TestCase):
         runner = patch('moai_tools.execute', side_effect=self.exe)
         runner.start()
         self.addCleanup(runner.stop)
-        look = patch('pages.pc.read_look', return_value={'motion': 'gentle', 'clarity': 'solid', 'night': 'off'})
+        look = patch('pages.pc.read_look', return_value={'motion': 'gentle', 'clarity': 'solid'})
         self.look = look.start()
         self.addCleanup(look.stop)
         self.host = Host('en')
@@ -239,10 +244,9 @@ class PcPageTest(unittest.TestCase):
         self.assertFalse(pc.toggle_on({'wifi': False}, 'wifi'))
 
     def test_look_is_read_where_moos_theme_verifies_it(self):
-        with tempfile.TemporaryDirectory() as folder, \
-                patch.object(pc, 'SYSTEM_CONFIG', Path(folder) / 'no-system-defaults'):
+        with tempfile.TemporaryDirectory() as folder:
             config = Path(folder)
-            self.assertEqual(REAL_LOOK(config), {'motion': None, 'clarity': None, 'night': 'off'})
+            self.assertEqual(REAL_LOOK(config), {'motion': None, 'clarity': None})
             (config / 'moos-appearancerc').write_text('[Material]\nClarity=solid\n')
             (config / 'plasma-org.kde.plasma.desktop-appletsrc').write_text(
                 '[Containments][179]\nplugin=org.kde.plasma.folder\nwallpaperplugin=org.moos.ui2.wallpaper\n\n'
@@ -260,18 +264,39 @@ class PcPageTest(unittest.TestCase):
             (config / 'moos-appearancerc').write_text('[Material]\nClarity=fancy\n')
             self.assertIsNone(REAL_LOOK(config)['clarity'])
 
-    def test_night_light_mode_is_read_from_kwin_config(self):
-        with tempfile.TemporaryDirectory() as user, tempfile.TemporaryDirectory() as system:
-            self.assertEqual(pc.read_night(user, system), 'off', 'no config: KWin keeps it off')
-            (Path(user) / 'kwinrc').write_text('[NightColor]\nActive=true\nMode=Constant\n')
-            self.assertEqual(pc.read_night(user, system), 'on')
-            (Path(user) / 'kwinrc').write_text('[Other]\nMode=Constant\n[NightColor]\nActive=true\nMode=DarkLight\n')
-            self.assertEqual(pc.read_night(user, system), 'auto', "Plasma's schedule is not 'always on'")
-            (Path(user) / 'kwinrc').write_text('[NightColor]\nActive=false\nMode=Constant\n')
-            self.assertEqual(pc.read_night(user, system), 'off')
-            (Path(system) / 'kwinrc').write_text('[NightColor]\nActive=true\n')
-            (Path(user) / 'kwinrc').write_text('[Compositing]\nBackend=OpenGL\n')
-            self.assertEqual(pc.read_night(user, system), 'auto', 'the system default applies when the user has none')
+    def test_night_light_uses_measured_policy_and_never_the_config_prediction(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder)
+            personal = '[NightColor]\nActive=true\nMode=Constant\nNightTemperature=3900\n'
+            (config / 'kwinrc').write_text(personal)
+            # Real failure: the file says on while the answering compositor is off.
+            measured = pc.parse_status({'status': 'ok', 'output': json.dumps(STATUS)})
+            self.assertEqual(pc.read_night(measured), 'off')
+            self.assertNotIn('night', REAL_LOOK(config), 'file state is no longer an applied-policy owner')
+            measured.update(night_light_enabled=True, night_light=False, night_light_mode=1)
+            self.assertEqual(pc.read_night(measured), 'auto', 'inhibition does not erase the schedule')
+            measured['night_light_mode'] = 0
+            self.assertEqual(pc.read_night(measured), 'on')
+            self.assertEqual((config / 'kwinrc').read_text(), personal)
+
+    def test_night_light_unknown_and_older_executor_state_stay_inert(self):
+        for raw in ({'night_light': False},
+                    {**STATUS, 'night_light_available': False},
+                    {**STATUS, 'night_light_mode': True},
+                    {**STATUS, 'night_light_mode': 2},
+                    {**STATUS, 'night_light_enabled': 'false'},
+                    {**STATUS, 'night_light': 0}):
+            with self.subTest(raw=raw):
+                measured = pc.parse_status({'status': 'ok', 'output': json.dumps(raw)})
+                self.assertIsNone(pc.read_night(measured))
+                self.page.update(status=measured, statusState='ok')
+                before = list(self.exe.calls)
+                for mode in pc.NIGHT:
+                    self.page.setNightLight(mode)
+                self.assertEqual(self.exe.calls, before)
+        self.page.update(status=STATUS, statusState='error')
+        self.page.setNightLight('on')
+        self.assertEqual(self.exe.calls, [])
 
     def test_hardware_shows_only_what_scan_gives_without_foreign_names(self):
         scan = {'os': 'MoOS', 'version': '44.20260927.952', 'cpu': 'Intel(R) Core(TM) i5-14400F', 'cores': 16,
@@ -327,7 +352,7 @@ class PcPageTest(unittest.TestCase):
         state = self.page.state
         self.assertEqual(state['status']['volume'], 42)
         self.assertIsNone(state['status']['bluetooth'])
-        self.assertEqual(state['look'], {'motion': 'gentle', 'clarity': 'solid', 'night': 'off'})
+        self.assertEqual(state['look'], {'motion': 'gentle', 'clarity': 'solid'})
         self.assertRegex(state['readAt'], r'^\d\d:\d\d:\d\d$')
 
     def test_an_unreachable_executor_is_said_plainly_in_both_languages(self):
@@ -521,17 +546,45 @@ class PcPageTest(unittest.TestCase):
 
     def test_night_light_modes_run_and_are_read_back(self):
         self.read_status()
-        self.look.return_value = {'motion': 'gentle', 'clarity': 'solid', 'night': 'auto'}
         self.page.setNightLight('auto')
         self.settle(lambda: not self.page.state['busy'].get('night'))
         self.assertIn(('toggle_night_light', {'value': 'auto'}), self.exe.calls, "Plasma's schedule, kept")
-        self.assertEqual(self.page.state['look']['night'], 'auto')
+        self.assertEqual(pc.read_night(self.page.state['status']), 'auto')
         self.assertEqual(self.page.state['notes']['levels'], {'status': 'ok', 'text': 'Night light: Automatic · confirmed'})
         count = len(self.exe.calls)
         self.page.setNightLight('bright')
         self.page.setToggle('night_light', True)       # the old on/off tile is gone: its mode is the choice
         pump(timeout=0.1)
         self.assertEqual(len(self.exe.calls), count)
+
+    def test_night_light_cannot_confirm_an_old_matching_snapshot_after_read_failure(self):
+        self.exe.status.update(night_light=True, night_light_enabled=True, night_light_mode=1)
+        self.read_status()
+        self.exe.answers['get_system_status'] = {'status': 'error', 'error': 'moai_control_unreachable'}
+        self.page.setNightLight('auto')
+        self.settle(lambda: not self.page.state['busy'].get('night'))
+        self.assertEqual(self.page.state['statusState'], 'error')
+        self.assertEqual(self.page.state['notes']['levels']['status'], 'pending')
+        self.assertIn('night', self.page.state['awaiting'])
+        self.assertFalse(self.page._matches('night', 'auto'))
+        self.exe.answers.pop('get_system_status')
+        self.read_status()
+        self.assertNotIn('night', self.page.state['awaiting'])
+        self.assertEqual(self.page.state['notes']['levels']['status'], 'ok')
+
+    def test_night_light_stale_or_malformed_policy_never_confirms_from_retained_state(self):
+        self.read_status()
+        self.page.update(status={**self.page.state['status'], 'night_light_enabled': True})
+        self.page._stamp = 100
+        self.page.on_ctl('ctl:night', {'tool': 'toggle_night_light', 'args': {'value': 'auto'},
+            'result': {'status': 'ok'}, 'stamp': 99, 'read': dict(self.page.state['status'])})
+        self.assertEqual(self.page.state['notes']['levels']['status'], 'pending')
+        self.assertIn('night', self.page.state['awaiting'])
+        self.page.on_ctl('ctl:night', {'tool': 'toggle_night_light', 'args': {'value': 'auto'},
+            'result': {'status': 'ok'}, 'stamp': 101,
+            'read': {**self.page.state['status'], 'night_light_mode': None}})
+        self.assertEqual(self.page.state['notes']['levels']['status'], 'pending')
+        self.assertIsNone(pc.read_night(self.page.state['status']))
 
     def test_a_failed_control_says_why(self):
         self.read_status()
@@ -730,7 +783,7 @@ class PcPageTest(unittest.TestCase):
 
     def test_motion_and_clarity_read_back_from_the_look(self):
         self.read_status()
-        self.look.return_value = {'motion': 'alive', 'clarity': 'solid', 'night': 'off'}
+        self.look.return_value = {'motion': 'alive', 'clarity': 'solid'}
         self.page.setMotion('alive')
         self.settle(lambda: not self.page.state['busy'].get('motion'))
         self.assertIn(('set_motion', {'level': 'alive'}), self.exe.calls)

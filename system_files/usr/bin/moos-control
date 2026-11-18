@@ -432,12 +432,37 @@ def brightness(value):
 NIGHT_LIGHT_BUDGET = 3.0
 
 
-def night_light_enabled(timeout=5):
-    enabled = busctl_data("get-property", "org.kde.KWin", "/org/kde/KWin/NightLight",
-                          "org.kde.KWin.NightLight", "enabled", timeout=timeout)
-    if not isinstance(enabled, bool):
+def night_light_state(timeout=5):
+    """One measured KWin 6.8 NightLight snapshot, never a kwinrc prediction.
+
+    The native enum is Constant=0, DarkLight=1. `running` describes the filter,
+    not a warm colour: an automatic daytime filter can run at 6500 K.
+    Validate the native variants as well as their Python values. A missing or
+    older interface must remain unavailable instead of inventing an off state.
+    """
+    output = run(["busctl", "--user", "--json=short", "call", "org.kde.KWin",
+                  "/org/kde/KWin/NightLight", "org.freedesktop.DBus.Properties",
+                  "GetAll", "s", "org.kde.KWin.NightLight"], timeout=timeout)
+    try:
+        document = json.loads(output)
+        if not isinstance(document, dict) or document.get("type") != "a{sv}":
+            raise ValueError("wrong Night Light signature")
+        reply = document["data"]
+    except (ValueError, KeyError, TypeError) as error:
+        raise Unavailable("unexpected Night Light reply from KWin") from error
+    if not isinstance(reply, list) or len(reply) != 1 or not isinstance(reply[0], dict):
         raise Unavailable("unexpected Night Light reply from KWin")
-    return enabled
+    state = {}
+    for key in ("enabled", "running", "available", "mode"):
+        value = reply[0].get(key)
+        signature = "u" if key == "mode" else "b"
+        expected = int if key == "mode" else bool
+        if (not isinstance(value, dict) or value.get("type") != signature
+                or type(value.get("data")) is not expected
+                or (key == "mode" and value["data"] not in (0, 1))):
+            raise Unavailable("unexpected Night Light reply from KWin")
+        state[key] = value["data"]
+    return state
 
 
 def night_light(value):
@@ -447,14 +472,19 @@ def night_light(value):
     reconfigure call alone left the file Active=true while KWin stayed off and this
     verb still printed success (measured on the V3, signed 1162). A notification is
     only sent for a changed value, so a file already holding the request (that same
-    stuck state) is first written to the opposite value. reconfigure is kept for
-    the older Plasma in other editions.
+    stuck state) is first written to the opposite value. The existing
+    reconfigure call is retained alongside KWin's config watcher; neither call
+    is an acknowledgement until the measured enabled policy and mode agree.
     """
     one_of(value, ("on", "off", "auto"), "night-light")
+    if not night_light_state(timeout=NIGHT_LIGHT_BUDGET)["available"]:
+        raise Unavailable("Night Light is unavailable in KWin")
     wanted = value != "off"
+    wanted_mode = 0 if value == "on" else 1
     write = ["kwriteconfig6", "--file", "kwinrc", "--group", "NightColor"]
     if wanted:
-        # Constant is warm now; DarkLight is Plasma's own day/night schedule.
+        # Constant and DarkLight are KWin's own filter policies. Running does
+        # not by itself prove a warm colour or a physical display result.
         run([*write, "--key", "Mode", "--notify", "Constant" if value == "on" else "DarkLight"])
     stored = run(["kreadconfig6", "--file", "kwinrc", "--group", "NightColor",
                   "--key", "Active", "--default", "false"]).strip() == "true"
@@ -470,7 +500,10 @@ def night_light(value):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise Unavailable("KWin did not apply the Night Light change")
-        if night_light_enabled(timeout=max(1, remaining)) == wanted:
+        measured = night_light_state(timeout=max(1, remaining))
+        if not measured["available"]:
+            raise Unavailable("Night Light became unavailable in KWin")
+        if measured["enabled"] == wanted and (not wanted or measured["mode"] == wanted_mode):
             break
         time.sleep(min(0.1, max(0, deadline - time.monotonic())))
     return {"on": "🌙 الضوء الليلي يعمل | Night light on",
@@ -1354,11 +1387,12 @@ def status():
     except Unavailable:
         state["brightness"] = None
     try:
-        state["night_light"] = bool(busctl_data(
-            "get-property", "org.kde.KWin", "/org/kde/KWin/NightLight",
-            "org.kde.KWin.NightLight", "running", timeout=left()))
+        measured = night_light_state(left())
+        state.update(night_light=measured["running"], night_light_enabled=measured["enabled"],
+                     night_light_available=measured["available"], night_light_mode=measured["mode"])
     except Unavailable:
-        state["night_light"] = None
+        state.update(night_light=None, night_light_enabled=None,
+                     night_light_available=None, night_light_mode=None)
     try:
         state["wifi"] = run(["nmcli", "radio", "wifi"], timeout=left()).strip() == "enabled"
     except Unavailable:

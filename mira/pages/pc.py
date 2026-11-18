@@ -56,7 +56,7 @@ STRINGS = {
     'pcp_no_brightness': ('لا تسمح هذه الشاشة بضبط السطوع من هنا', "This screen's brightness can't be set from here"),
     'pcp_night_light': ('الضوء الليلي', 'Night light'),
     'pcp_night_on': ('دائم', 'Always on'),
-    'pcp_night_warm': ('دافئ الآن', 'Warm now'),
+    'pcp_night_running': ('المرشح يعمل', 'Filter running'),
     'pcp_night_settings': ('إعدادات الضوء الليلي', 'Night light settings'),
     # quick controls
     'pcp_controls': ('التحكم السريع', 'Quick controls'),
@@ -224,7 +224,7 @@ MOTION_BY_MODE = {'0': 'still', '1': 'gentle', '2': 'alive'}
 SETTINGS_PAGE = re.compile(r'[a-z][a-z-]{1,39}')     # the executor checks it against the registry's pages
 SETTINGS_GROUP = {'audio': 'levels', 'display': 'levels', 'night-light': 'levels', 'window-behavior': 'windows',
                   'desktops': 'windows', 'about': 'hardware', 'storage': 'hardware'}
-LOOK_KEYS = ('motion', 'clarity', 'night')             # read from config files, not get_system_status
+LOOK_KEYS = ('motion', 'clarity')                     # read from config files, not get_system_status
 NO_READBACK = ('switch_keyboard_layout', 'show_windows', 'arrange_windows', 'switch_desktop', 'open_settings',
                'take_screenshot')
 LEVELS = ('volume', 'brightness')                     # a newer value waits for the running one, never dropped
@@ -355,8 +355,10 @@ def _half(text, lang):
 
 
 def parse_status(result):
-    """get_system_status → {volume, muted, brightness, night_light, wifi, bluetooth, theme, dnd,
-    mic_muted, power_profile}; None for any value this machine cannot tell. None when unreadable."""
+    """Canonical executor status, including measured Night Light policy.
+
+    Missing fields from an older executor stay unknown. None when unreadable.
+    """
     if not isinstance(result, dict) or result.get('status') != 'ok':
         return None
     try:
@@ -369,9 +371,12 @@ def parse_status(result):
     for key in ('volume', 'brightness'):
         value = raw.get(key)
         out[key] = round(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
-    for key in ('muted', 'night_light', 'wifi', 'bluetooth', 'dnd', 'mic_muted'):
+    for key in ('muted', 'night_light', 'night_light_enabled', 'night_light_available',
+                'wifi', 'bluetooth', 'dnd', 'mic_muted'):
         value = raw.get(key)
         out[key] = value if isinstance(value, bool) else None
+    mode = raw.get('night_light_mode')
+    out['night_light_mode'] = mode if type(mode) is int and mode in (0, 1) else None
     for key in ('theme', 'power_profile'):
         value = raw.get(key)
         out[key] = value if isinstance(value, str) and value else None
@@ -400,9 +405,6 @@ def toggle_on(status, key):
     return value if isinstance(value, bool) else None
 
 
-SYSTEM_CONFIG = Path('/etc/xdg')      # the system-wide KDE defaults under the user's own config
-
-
 def _config_home():
     return Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config')
 
@@ -419,41 +421,38 @@ def _ini_value(text, group, key):
     return value
 
 
-def read_night(config=None, system=None):
-    """The night-light MODE as KWin reads it (kwinrc [NightColor]): off | on (Constant) | auto (any
-    schedule). The user's file wins over the system default, and Active defaults to false."""
-    config = Path(config) if config else _config_home()
-    system = Path(system) if system else SYSTEM_CONFIG
-    active, mode = '', ''
-    for folder in (Path(system), config):          # later wins, as KConfig cascades
-        try:
-            text = (folder / 'kwinrc').read_text(encoding='utf-8', errors='replace')
-        except OSError:
-            continue
-        active = _ini_value(text, '[NightColor]', 'Active') or active
-        mode = _ini_value(text, '[NightColor]', 'Mode') or mode
-    if active.lower() not in ('true', '1'):
+def read_night(status):
+    """Applied mode from the canonical executor's typed KWin snapshot.
+
+    Old executors exposing only `night_light` cannot tell enabled policy or
+    schedule. Their missing fields are unknown; never fall back to a file that
+    KWin may have refused to load.
+    """
+    if not isinstance(status, dict) or status.get('night_light_available') is not True:
+        return None
+    if any(type(status.get(key)) is not bool for key in ('night_light', 'night_light_enabled')):
+        return None
+    mode = status.get('night_light_mode')
+    if type(mode) is not int or mode not in (0, 1):
+        return None
+    if not status['night_light_enabled']:
         return 'off'
-    return 'on' if mode == 'Constant' else 'auto'
+    return 'on' if mode == 0 else 'auto'
 
 
 def read_look(config=None):
-    """Wallpaper motion, glass clarity and the night-light mode, read where they are applied from:
+    """Wallpaper motion and glass clarity, read where they are applied from:
     the MoOS wallpaper's MotionMode in Plasma's desktop config (every MoOS desktop must agree),
-    moos-appearancerc's [Material] Clarity (unset means clear) and kwinrc's [NightColor].
+    and moos-appearancerc's [Material] Clarity (unset means clear).
     None for what cannot be told."""
     config = Path(config) if config else _config_home()
-    look = {'motion': None, 'clarity': None, 'night': None}
+    look = {'motion': None, 'clarity': None}
     try:
         text = (config / 'moos-appearancerc').read_text(encoding='utf-8', errors='replace')
         value = _ini_value(text, '[Material]', 'Clarity')
         look['clarity'] = value if value in CLARITY else ('clear' if value == '' else None)
     except OSError:
         look['clarity'] = None
-    try:
-        look['night'] = read_night(config)
-    except OSError:
-        look['night'] = None
     try:
         text = (config / 'plasma-org.kde.plasma.desktop-appletsrc').read_text(encoding='utf-8', errors='replace')
     except OSError:
@@ -553,7 +552,7 @@ class PcPage(Page):
     def initial(self):
         return {
             'status': {}, 'statusState': 'idle', 'statusError': '', 'statusCode': '', 'readAt': '',
-            'look': {'motion': None, 'clarity': None, 'night': None},
+            'look': {'motion': None, 'clarity': None},
             'busy': {},          # control key -> True while it runs
             'wanted': {},        # level key -> the value on its way (running or queued)
             'awaiting': {},      # control key -> 'approval' | 'settle'
@@ -657,6 +656,8 @@ class PcPage(Page):
             return theme_family(status.get('theme')) == want
         if key == 'power':
             return status.get('power_profile') == want
+        if key == 'night':
+            return self._state['statusState'] == 'ok' and read_night(status) == want
         if key in LOOK_KEYS:
             return look.get(key) == want
         return False
@@ -710,8 +711,9 @@ class PcPage(Page):
 
     @Slot(str)
     def setNightLight(self, mode):
-        """off, on (warm all the time) or auto (Plasma's own day/night schedule)."""
-        if mode in NIGHT:
+        """off, constant or Plasma's own day/night schedule, when measurable."""
+        if (mode in NIGHT and self._state['statusState'] == 'ok'
+                and read_night(self._state['status']) is not None):
             self._control('night', 'toggle_night_light', {'value': mode}, mode)
 
     # ── quick controls ───────────────────────────────────────────────
@@ -1104,7 +1106,10 @@ class PcPage(Page):
             out['saved'] = bool(found) and Path(out['file']).is_file()
         elif tool not in NO_READBACK:
             out['stamp'] = time.monotonic()
-            out['read'] = parse_status(moai_tools.execute('get_system_status', {}))
+            reading = moai_tools.execute('get_system_status', {})
+            out['read'] = parse_status(reading)
+            if tool == 'toggle_night_light':
+                out['read_result'] = reading
             if look:
                 out['look'] = read_look()
         return out
@@ -1144,7 +1149,8 @@ class PcPage(Page):
             return
         fields = {}
         stamp = result.get('stamp', 0.0)
-        if result.get('read') and stamp >= self._stamp:
+        fresh_read = bool(result.get('read')) and stamp >= self._stamp
+        if fresh_read:
             self._stamp = stamp
             fields.update(status=result['read'], readAt=time.strftime('%H:%M:%S'), statusState='ok',
                           statusError='', statusCode='')
@@ -1172,7 +1178,15 @@ class PcPage(Page):
                 self.refreshWindows()
             return
         want = self._want(key, result['args'])
-        if self._matches(key, want):
+        # A successful executor call does not make an old snapshot a new
+        # acknowledgement. In particular, a failed read after an already-on
+        # request must not confirm the retained selection. A later real status
+        # may settle it through the existing page poller.
+        if key == 'night' and not fresh_read and stamp >= self._stamp and result.get('read') is None:
+            raw = result.get('read_result')
+            self._raw['status'] = raw
+            self.update(statusState='error', statusError=_why(raw, self.lang), statusCode=status_code(raw))
+        if (key != 'night' or fresh_read) and self._matches(key, want):
             self._expect.pop(key, None)
             self._note(group, 'ok', self._done_text(key, want))
         else:
@@ -1410,10 +1424,11 @@ class PcPage(Page):
             row['canFocus'] = row['canClose'] = row['unique']
         self.update(
             sample=True,
-            status={'volume': 42, 'muted': False, 'brightness': 70, 'night_light': True, 'wifi': True,
+            status={'volume': 42, 'muted': False, 'brightness': 70, 'night_light': True,
+                    'night_light_enabled': True, 'night_light_available': True, 'night_light_mode': 1, 'wifi': True,
                     'bluetooth': True, 'theme': 'dark', 'dnd': False, 'mic_muted': False, 'power_profile': 'balanced'},
             statusState='ok', readAt='12:00:00',
-            look={'motion': 'gentle', 'clarity': 'balanced', 'night': 'auto'},
+            look={'motion': 'gentle', 'clarity': 'balanced'},
             layout='العربية (مثال)' if not en else 'Arabic (sample)',
             awaiting={'bluetooth': 'approval'},
             notes={'controls': {'status': 'pending', 'text': self.text('pcp_waiting') + ' · '
