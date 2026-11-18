@@ -895,7 +895,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=160", apply,
+            "THEME_REV=167", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -1286,13 +1286,15 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("anchors.margins: view.canvasMargin", launcher)
         self.assertEqual(
             launcher.count("cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))"),
-            2,
-            "Pinned and All Apps must share the calm four-column rhythm",
+            1,
+            "The library must derive readable columns from the actual viewport",
         )
+        self.assertEqual(launcher.count("cellWidth: Math.max(1, Math.floor(width / view.favoriteColumns(width, view.favoritesModel.count)))"), 1)
+        self.assertIn("cellHeight: view.appRowHeight(height, Plasmoid.configuration.compactTiles ? 100 : 128)", launcher)
         self.assertNotRegex(
             launcher,
             r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})",
-            "the app grid must never densify past four columns",
+            "grid density must derive from actual available room",
         )
         self.assertGreaterEqual(
             launcher.count("view.targetSize"),
@@ -1312,7 +1314,7 @@ class TestMoOSUI2(unittest.TestCase):
         )
         self.assertNotRegex(dock, r'font\.family\s*:\s*"')
         # One compact entry; the actual destinations stay inside Home.
-        self.assertIn('Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"', dock)
+        self.assertIn('Accessible.name: root.rtl ? "موڤا · مشغّل MoOS" : "Mova · MoOS Launcher"', dock)
         compact = dock.split("compactRepresentation:", 1)[1].split("fullRepresentation:", 1)[0]
         self.assertEqual(compact.count("onClicked:"), 1)
         self.assertNotIn("MoUI.IconButton {", compact)
@@ -1525,8 +1527,8 @@ class TestMoOSUI2(unittest.TestCase):
         # only in the lists that remove a stale instance or home copy.
         hero_package = SHARE / "plasma/plasmoids/org.moos.heroclock"
 
-        self.assertIn("implicitWidth: Math.min(design.dialogWidth,", launcher)
-        self.assertIn("implicitHeight: Math.min(design.dialogHeight,", launcher)
+        self.assertIn("implicitWidth: Math.min(immersive ? launcher.popupAvailableWidth - 24", launcher)
+        self.assertIn("implicitHeight: Math.min(immersive ? launcher.popupAvailableHeight - 24", launcher)
         self.assertIn('view.local("خيارات الجلسة", "Session actions")', launcher)
         self.assertNotIn('TRUSTED LOCAL SESSION', launcher)
         self.assertNotIn("import QtQuick.Shapes", launcher)
@@ -1622,7 +1624,7 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("readonly property int motionMedium: design.duration(", launcher)
         self.assertIn("design.motionGeometry", launcher)
         self.assertIn(
-            "Math.max(0, Math.min(tile.index, 11)) * 24",
+            "Math.max(0, Math.min(tile.index, 5)) * 10",
             launcher,
             "DelegateModel index=-1 teardown must never create a negative "
             "PauseAnimation duration",

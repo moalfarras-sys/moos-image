@@ -7,14 +7,14 @@
             }
         ],
         "Category": "Application Launchers",
-        "Description": "The MoOS launcher for applications, files, folders, settings, places and system actions.",
-        "Description[ar]": "قائمة MoOS للتطبيقات والملفات والمجلدات والإعدادات والأماكن وإجراءات النظام.",
+        "Description": "Mova, the native MoOS launcher for applications, files, folders, settings, places and system actions.",
+        "Description[ar]": "موڤا، مشغّل MoOS الأصلي للتطبيقات والملفات والمجلدات والإعدادات والأماكن وإجراءات النظام.",
         "EnabledByDefault": true,
         "Icon": "moos-logo",
         "Id": "org.moos.brand",
         "License": "GPL-3.0-or-later",
-        "Name": "MoOS Launcher",
-        "Name[ar]": "قائمة MoOS",
+        "Name": "Mova · MoOS",
+        "Name[ar]": "موڤا · MoOS",
         "Version": "2.0.0"
     },
     "X-Plasma-API-Minimum-Version": "6.0",

@@ -220,7 +220,11 @@ Item {
         start = launcher.index("    // One calm material layer.")
         end = launcher.index("    // A still, low-amplitude horizon", start)
         background = launcher[start:end]
-        background = background.replace("anchors.fill: parent", "id: material; anchors.fill: parent", 1)
+        # The shipped sheet names itself (its scroll edges fade into this exact
+        # material); the probe addresses that same object as `material`.
+        self.assertEqual(background.count("id: canvasGlass"), 1,
+                         "launcher material must keep exactly one shipped id")
+        background = background.replace("id: canvasGlass", "id: material", 1)
         probe = """
 import QtQuick
 import org.kde.kirigami as Kirigami

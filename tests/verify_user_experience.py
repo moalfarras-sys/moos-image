@@ -3142,7 +3142,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=160" in apply_theme_code,
+require("THEME_REV=167" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -3967,7 +3967,7 @@ _compact_brand = brand_main_qml.split("compactRepresentation:", 1)[1].split("ful
 # buttons in the dock; preserve both real routes on Home instead.
 require('id: compactLogo' in _compact_brand
         and 'source: "file:///usr/share/moos/moos-logo.png"' in _compact_brand
-        and 'Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"' in _compact_brand
+        and 'Accessible.name: root.rtl ? "موڤا · مشغّل MoOS" : "Mova · MoOS Launcher"' in _compact_brand
         and _compact_brand.count('onClicked:') == 1
         and 'MoUI.IconButton {' not in _compact_brand
         and 'visible: false' not in _compact_brand
@@ -4047,16 +4047,16 @@ require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         and "Layout.maximumWidth: implicitWidth" in launcher_view_qml
         and "Layout.maximumHeight: implicitHeight" in launcher_view_qml
         and "launcher.popupAvailableWidth - 8" in launcher_view_qml
-        and "launcher.popupAvailableHeight - 64" in launcher_view_qml
+        and "launcher.popupAvailableHeight - (immersive ? 24 : 64)" in launcher_view_qml
         and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
-        "the full launcher must enforce and report its unclipped 792x576 representation to "
+        "the full launcher must enforce and report its work-area-bounded representation to "
         "the plasmawindowed smoke")
 # Commercial shell language: the generated spacing rhythm, 40px affordances, functional
-# text no smaller than 11px, and four columns that still ride the type ramp.
+# text no smaller than 11px, and columns derived from readable cell widths.
 # An early four-column launcher was rejected because it drove labels down to
 # 7–10px; the current one is only acceptable because every pixelSize below
 # stays on the 11+ type tokens — that pairing is what this gate holds, and
-# densifying past four columns remains out.
+# fixed column counts may not override actual available room.
 _design_tokens = json.loads(read("artwork/moos-design/tokens.json"))
 _launcher_tokens = {
     "space1": "design.space1", "space2": "design.space2",
@@ -4082,13 +4082,15 @@ require("Press Meta to open" not in launcher_view_qml
         and "يفتح بزر Meta" not in launcher_view_qml
         and launcher_view_qml.count(
             "cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))"
-        ) == 2
-        and "Math.max(1, Math.min(4, Math.floor(availableWidth / 112)))" in launcher_view_qml
+        ) == 1
+        and "cellWidth: Math.max(1, Math.floor(width / view.favoriteColumns(width, view.favoritesModel.count)))" in launcher_view_qml
+        and "snapMode: GridView.SnapToRow" in launcher_view_qml
+        and "Math.max(1, Math.min(8, Math.floor(availableWidth / 112)))" in launcher_view_qml
         and re.search(
             r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})", launcher_view_qml
         ) is None,
         "the open launcher must drop the redundant Meta pill and keep the calm "
-        "four-column Pinned/Applications rhythm on the 11px+ type ramp")
+        "readable adaptive Pinned/Applications rhythm on the 11px+ type ramp")
 _launcher_type_expressions = re.findall(
     r"font\.pixelSize\s*:\s*([^\n]+)", launcher_view_qml
 )
@@ -4105,7 +4107,7 @@ require("readonly property string uiFontFamily: Qt.application.font.family"
         and re.search(r'font\.family\s*:\s*"', brand_main_qml) is None
         and _compact_brand.count("Layout.minimumWidth: root.design.targetControl") == 2
         and "Layout.minimumHeight: root.design.targetControl" in _compact_brand
-        and 'toolTipMainText: "MoOS"' in brand_main_qml
+        and 'toolTipMainText: "Mova · MoOS"' in brand_main_qml
         and "Accessible.role: Accessible.Button" in _compact_brand
         and "ToolTip.visible" not in _compact_brand,
         "the sole dock launcher must retain the session font, parent and input 44px "
@@ -4124,13 +4126,16 @@ require(re.search(r"anchors\.(?:left|right)\s*:\s*view\.rtl\s*\?",
 # Favorites are user state.  Defining helper functions is not enough: require a
 # second occurrence in the composed UI so pin/unpin/reorder are reachable from
 # controls, and require all of them to operate on RootModel.favoritesModel.
-for operation, model_call in (
-    ("toggleFavorite(", ("addFavorite(", "removeFavorite(")),
-    ("moveFavorite(", ("moveRow(",)),
-):
-    require(brand_qml.count(operation) >= 2 and all(call in brand_main_qml for call in model_call),
-            f"launcher favorite operation {operation.rstrip('(')!r} must be reachable in the "
-            "UI and persist through Kicker's favorites model")
+require(brand_qml.count("moveFavorite(") >= 2 and "moveRow(" in brand_main_qml,
+        "favorite reordering must reach the native persistent Kicker model")
+_native_favorite_tools = read("system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/code/kicker-tools.js")
+require("KickerTools.fillActionMenu(i18n, appActions" in launcher_view_qml
+        and "Tools.triggerAction(delegate.baseModel, delegate.index" in brand_qml
+        and "_kicker_favorite_add" in _native_favorite_tools
+        and "favoriteModel.addFavorite(favoriteId)" in _native_favorite_tools
+        and "favoriteModel.removeFavorite(favoriteId)" in _native_favorite_tools
+        and "favoriteModel.setFavoriteOn(favoriteId, favoriteActivity)" in _native_favorite_tools,
+        "native application actions and activity-aware pin/unpin must remain reachable")
 require("favoritesModel.favorites" not in brand_main_qml
         and "favorites.favorites" not in brand_main_qml,
         "KAStatsFavoritesModel.favorites is a compatibility stub that returns nothing; "

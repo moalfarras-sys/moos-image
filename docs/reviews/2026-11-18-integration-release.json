@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "integration_owner": "Codex root",
+  "branch": "fix/moos-integration-release-20261118",
+  "base_revision": "0c16f86e4fc186633325587cd876cf4ea5c8db0e",
+  "main_at_audit": "dbdfdd66b891b667b23786e654737cb1fd8a92f4",
+  "scope": "Reconcile completed native Control Center, Mova, hardware, Mira and release work; qualify one exact source before signed delivery. Existing archived sources and personal work remain preserved.",
+  "branches": {
+    "audited_refs": 260,
+    "audited_worktrees": 22,
+    "already_ancestors_of_base": [
+      "033f64482669d54f4ae11417e568dc42b64fc9fc",
+      "6ea5008901cdd682d53a0ff5e674b9df627b8e59"
+    ],
+    "patch_equivalent": [
+      {
+        "old_tip": "1f7badf7aacac7d91b16d22e223a22bf85fb6c0e",
+        "integrated_commit": "6ea5008901cdd682d53a0ff5e674b9df627b8e59",
+        "stable_patch_id": "294d2e6aaa242d0b169b9c897c7e8e4caa76dab5"
+      },
+      {
+        "old_tip": "7da18a5eb8f74c9f19fc15bedf1d343b715c5936",
+        "integrated_commit": "62156a3bdad58aa5d7e83616461e831bcca3be9d",
+        "stable_patch_id": "1193e6a0a72cb52d55b2b790ab43e316410c9f46"
+      }
+    ],
+    "retained_archive": {
+      "revision": "fc48abc90847d292467b5cb33aaa7517dec5c245",
+      "reason": "Provenance-only Qt vendor-2 input is superseded by current vendor-3 admission, SDK checks and both upstream repairs. Do not restore older producer inputs over the qualified implementation.",
+      "untracked_copy": "Seven regular untracked QtQuick files in the native-ui-boot worktree are byte-identical to this archive; preserved without deletion or staging."
+    },
+    "result": "No additional unique production repair found outside the combined base among the audited refs. Original Mova and Center evidence PRs remain represented by real ancestry."
+  },
+  "installed_before": {
+    "version": "44.20261116.1162",
+    "digest": "sha256:fc6dc6667032e679299af0568651d66a99efbf4b866e69c98264f6a0a57f2d11",
+    "signed_rollback": "44.20261114.1152",
+    "pinned_recovery": "44.20261019.1078",
+    "staged_successor": false,
+    "session": "Native Plasma/KWin 6.8.3 Wayland, 3840x2160 at scale 2.5; internal eDP disabled. Personal Bloom, output geometry and native owners are preserved.",
+    "health": {
+      "system_failed": "moos-hardware-adapt: retained root DDC exit1 on the earlier boot internal-panel topology; current external DP requires its own native DDC success, not an inferred skip.",
+      "kernel": "Nov17 Thunderbolt TX/RX ring warnings and configuration timeouts persist without an established repair.",
+      "shell": "Actual Plasma/KWin processes remain active; two later search fixture cores belong to private offscreen probes, not the running shell.",
+      "trust": "Secure Boot disabled at readback; out-of-tree module taint remains. No firmware, kernel-trust or security-policy change performed.",
+      "recovery": "Signed deployment origins and three present kernel/initrd entries retained; no new rollback boot inferred."
+    }
+  },
+  "qualification": {
+    "combined_source": "pending",
+    "native_search_correction": "passed native private old/fixed controls; installed successor journey pending",
+    "local_image": "pending",
+    "signed_candidate": "not dispatched",
+    "promotion": "not performed",
+    "host_stage": "not performed",
+    "host_reboot": "not performed"
+  },
+  "retained_release_refusal": {
+    "revision": "dbdfdd66b891b667b23786e654737cb1fd8a92f4",
+    "run": 44157887989,
+    "attempt": 1,
+    "cause": "All three x86 editions refuse the unchanged high-severity npm audit before image composition. The locked build dependency picomatch 4.0.7 is affected by GHSA-fc5q-39xc-vjpf. Latest input and upstream remedies require current verification; no audit waiver or failed-run rerun is authorized by this record.",
+    "upstream_review": {
+      "checked_local": "2026-11-18T00:40:00+01:00",
+      "advisory": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+      "range": "<=4.0.7",
+      "patched_version": null,
+      "official_latest": "4.0.7",
+      "official_commit": "6bb40679c218cefba5d4e9662408c5fdf699a8bb",
+      "native_bounded_controls": "Verified official archive SRI; short controls complete under1ms, both reported long single-branch extglobs exceed the bounded1s child timeout. Unmerged PR237 leaves alternatives/regressions; PR238 retains the original timeout; PR262 is not an approved/remediated package. No safe audited replacement input established.",
+      "sri": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="
+    }
+  },
+  "remaining_acceptance": [
+    "Exact new source gates and native search-provider preference old/fixed controls.",
+    "Final image, first-attempt signed artifact and required QCOW2, offline ISO and ARM proofs before promotion.",
+    "Signed host staging, ordinary reboot and exact immutable payload readback before retiring recorded user-local compatibility copies.",
+    "Physical touch, internal-panel orientation/touch/suspend, owner speech and phone journeys remain separate unqualified device acceptance."
+  ],
+  "theme_revision": 167,
+  "native_search_fix": {
+    "revision": "8b494af393debb27c2ba03da94bdd6693c3af4f2",
+    "cause": "Milou ResultsModel.favoriteIds expects KRunner plugin IDs; the inherited canonical Kicker application-ID binding overrides native provider priority and its config watcher.",
+    "repair": "Leave the Milou property unset, preserving native defaults and personal provider order. Application pin client, identities, row observers, alias pruning and mutations stay under KAStats.",
+    "executed": "Nine launcher tests pass in86.461s. Native private EN defaults rank an actual services result first; private personal AR shell-first preference stays first. Restoring only the old binding fails. Existing pin/menu/folder/pointer/Qt-touch/drop/cancel/focus/style controls remain.",
+    "sources": [
+      "https://github.com/KDE/milou/blob/v6.8.3/lib/resultsmodel.cpp",
+      "https://github.com/KDE/krunner/blob/v6.32.0/src/model/resultsmodel.h"
+    ]
+  }
+}
