@@ -18,12 +18,12 @@
     "A catalogue-relative icon is not an absolute RPM payload member.",
     "A pinned extension is not excluded from the official bulk CLI updater."
   ],
-  "refs_audited": 269,
-  "unique_ref_tips": 195,
+  "refs_audited": 271,
+  "unique_ref_tips": 196,
   "non_ancestor_ref_tips": 0,
   "worktrees": {
-    "count": 5,
-    "tracked_and_untracked_status_before_metadata": "all clean; no deletion, reset or archive retirement"
+    "count": 6,
+    "tracked_and_untracked_status_before_metadata": "all clean at b677 before intentional tests/docs successor; no deletion/reset/retirement"
   },
   "included_runtime_changes": [
     "native18-frame Tidal Cut44px targets/captions and GTK3/4 bridge",
@@ -37,8 +37,8 @@
     "native_window_component": "180AR75/EN125 cases plus5stacked/mixed-title native windows; actual Kate pointer/EIS journey",
     "window_control_tests": 28,
     "native_appearance_tests": 9,
-    "source_gate": "86a frozen full check in progress; later native notification correction requires final source qualification",
-    "local_image": "component d5d native ARM build in progress; final combined image required",
+    "source_gate": "86a full check exits1 at launcher touch; successor native fixture9 tests pass, final complete check required",
+    "local_image": "d5 cgroup OOM; b677 operator-induced paused-status refusal at44%; final full image required",
     "ci": "final combined head required; preserve original failed/cancelled attempts",
     "release": "not dispatched; require exact reviewed merge --expected-revision admission and all signatures/tree/attempt/artifact gates",
     "host": "Oracle remains signed964 with signed961 rollback; no stage/reboot"
@@ -74,5 +74,6 @@
     "complete_greeter_tests": 12,
     "plain_connection_negative": "one accepted connection, zero TLS-reset records and explicit fixture error"
   },
-  "night_light_successor": "docs/reviews/2026-11-18-night-light-notification.json"
+  "night_light_successor": "docs/reviews/2026-11-18-night-light-notification.json",
+  "launcher_fixture_successor": "docs/reviews/2026-11-18-launcher-input-fixture.json"
 }

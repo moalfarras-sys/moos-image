@@ -24,7 +24,10 @@ parser.add_argument("--broken-drop-cancel", action="store_true")
 parser.add_argument("--broken-folders", action="store_true")
 parser.add_argument("--broken-home-focus", action="store_true")
 parser.add_argument("--broken-runner-preferences", action="store_true")
+parser.add_argument("--broken-popup-reopen", action="store_true")
 args=parser.parse_args()
+if args.broken_popup_reopen and not args.native_popup:
+    parser.error("--broken-popup-reopen requires --native-popup")
 S=Path(__file__).resolve().parents[1]
 O=args.output
 O.mkdir(mode=0o700,parents=True,exist_ok=False)
@@ -114,6 +117,24 @@ def one(width,height,language,light,reduced):
             main=package/'contents/ui/main.qml'
             main_body=main.read_text()
             opening='\n    PlasmaCore.AppletPopup {\n        id: nativePopupProof\n        appletInterface: root\n        visualParent: root\n        popupDirection: Qt.TopEdge\n        mainItem: Item {\n            id: nativePopupProxy\n            implicitWidth: root.fullRepresentationItem ? root.fullRepresentationItem.implicitWidth : 0\n            implicitHeight: root.fullRepresentationItem ? root.fullRepresentationItem.implicitHeight : 0\n            Layout.minimumWidth: implicitWidth\n            Layout.minimumHeight: implicitHeight\n            Layout.maximumWidth: implicitWidth\n            Layout.maximumHeight: implicitHeight\n        }\n    }\n    Timer {\n        interval: 500\n        running: true\n        onTriggered: {\n            const surface = root.fullRepresentationItem;\n            if (!surface) throw Error("native popup has no full representation");\n            surface.parent = nativePopupProxy;\n            surface.anchors.fill = nativePopupProxy;\n            nativePopupProof.visible = true;\n        }\n    }\n'
+            if not args.broken_popup_reopen:
+                opening += """
+    function reopenNativePopupProof() {
+        if (!root.expanded) return;
+        const surface = root.fullRepresentationItem;
+        if (!surface) throw Error("reopened native popup has no full representation");
+        surface.parent = nativePopupProxy;
+        surface.anchors.fill = nativePopupProxy;
+        nativePopupProof.visible = true;
+    }
+    Connections {
+        target: root
+        function onExpandedChanged() {
+            if (root.expanded) Qt.callLater(root.reopenNativePopupProof);
+            else nativePopupProof.visible = false;
+        }
+    }
+"""
             main.write_text(main_body[:main_body.rfind('}')]+opening+main_body[main_body.rfind('}'):])
 
         merged=root/'config/menus/applications-merged'
@@ -282,7 +303,7 @@ try:
     matrix=[(360,640,'ar',False,True),(600,960,'en',True,False),
             (960,540,'ar',True,True),(1536,864,'en',False,False)]
     if args.short_only: matrix=matrix[2:3]
-    if args.broken_backtab or args.broken_alignment or args.broken_style or args.broken_order_snapshot or args.broken_drop_cancel or args.broken_folders or args.broken_home_focus or args.broken_runner_preferences: matrix=matrix[:1]
+    if args.broken_backtab or args.broken_alignment or args.broken_style or args.broken_order_snapshot or args.broken_drop_cancel or args.broken_folders or args.broken_home_focus or args.broken_runner_preferences or args.broken_popup_reopen: matrix=matrix[:1]
     for size in matrix:
         case=one(*size);report['cases'].append(case)
         (O/'receipt.json').write_text(json.dumps(report,indent=2)+'\n')

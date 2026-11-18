@@ -152,12 +152,22 @@ class AdaptiveLauncher(unittest.TestCase):
             self.assertTrue(all(c['input']['categoryBrowsing'] for c in record['cases']))
             for field in ('nativeMenu','nativeFavoriteAction','nativeFavoriteDrop',
                           'nativeTouchDrop','cancelledDropRefused','nativeFolderNavigation',
-                          'applicationInkFits','nativeProviderPreference'):
+                          'applicationInkFits','nativeProviderPreference',
+                          'nativeWindowReopen','touchFrameDelivery'):
                 self.assertTrue(all(c['input'][field] for c in record['cases']),field)
             self.assertEqual({c['runner_preference_source'] for c in record['cases']},
                              {'native-default','private-personal'})
             for case in record['cases']:
                 self.assertEqual(case['input']['runnerFavorites'],case['runner_favorites'])
+
+            old_popup = subprocess.run(command + ["--short-only",
+                "--broken-popup-reopen", "--output", str(output / "old-popup-reopen")],
+                capture_output=True, text=True, timeout=60)
+            self.assertNotEqual(old_popup.returncode, 0, "a reparented window must not qualify native popup input")
+            log = (output / "old-popup-reopen/960x540-ar-launcher.log").read_text()
+            self.assertIn("MOOS_ADAPTIVE_ASSERT reopened content retains the actual native window owner", log)
+            self.assertIn("MOOS_ADAPTIVE_INPUT_FAIL", log)
+            self.assertNotIn("MOOS_ADAPTIVE_INPUT_PASS", log)
 
             quiet = subprocess.run(command + ["--family", "aurora", "--output", str(output / "quiet-glass")],
                                    capture_output=True, text=True, timeout=180)

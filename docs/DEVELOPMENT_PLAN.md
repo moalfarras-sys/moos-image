@@ -38,6 +38,14 @@ The successor sends only the requested value and the existing fixed KConfig noti
 native watcher and unchanged already-off KWin readback pass. Final combined qualification
 remains required; malformed-notification recovery and physical on/auto remain unqualified
 (see `docs/reviews/2026-11-18-night-light-notification.json`).
+The final private launcher fixture retains the86a full-check Qt-touch refusal,
+requires the same actual AppletPopup after reopen and current native delegate
+identities/rendered touch delivery. All9 tests/8 native viewport cases and original
+broken controls pass; production launcher/image runtime inputs are unchanged.
+The b677 local image was stopped by the coordinator freezing its cgroup; Buildah
+refused paused status at44%. Keep that operator-induced failure and the earlier
+3GiB OOM distinct; final local image, full source and exact-head CI remain required.
+[Input fixture proof](reviews/2026-11-18-launcher-input-fixture.json).
 `fix/moos-complete-integration-20261118` is based on Oracle PR311
 `d5d4897a`, which already contains PR308/309/310 and layout525e5600. It pins the
 actual composed-base7.3.4 vmlinuz bytes while retaining original vendor lineage
