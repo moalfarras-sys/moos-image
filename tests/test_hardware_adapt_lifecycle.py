@@ -23,6 +23,13 @@ assert "image=" not in stamp.group(1) and "booted_img" not in stamp.group(1), (
 for field in ("cpu=", "ram=", "chassis=", "battery=", "gpu=", "display="):
     assert field in stamp.group(1), f"hardware stamp does not track {field[:-1]} changes"
 
+# A system service can have no HOME. ddcutil 3.0.2 exits before probing
+# if it cannot derive its dynamic sleep cache path. Keep the cache private
+# to the unit lifetime and derive the path from systemd's runtime prefix.
+assert "RuntimeDirectory=moos-hardware-adapt" in service.splitlines()
+assert "RuntimeDirectoryMode=0700" in service.splitlines()
+assert "Environment=XDG_CACHE_HOME=%t/moos-hardware-adapt" in service.splitlines()
+
 assert "After=graphical.target" in service, (
     "hardware adaptation must be ordered after graphical.target"
 )

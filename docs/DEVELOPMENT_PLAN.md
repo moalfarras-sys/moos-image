@@ -82,7 +82,12 @@ after replacement boot and validation. The locally retained 1139 offline ISO
 passed a fresh full-byte checksum and detached-signature check. Most 1078 files
 share storage with retained OSTree objects. The historical user qualification
 159 failure has a preserved log and was cleared after the d8 source pass.
-The installed hardware-adapt service last returned 1 during DDC detection.
+The V3 service reproduced exit 1 while ddcutil could not locate its dynamic
+sleep cache. A private systemd runtime cache restored a completed, inactive
+oneshot and a new stamp with the same mixed display topology. The temporary
+override under /run expires at boot. The signed successor must carry the unit
+setting and pass its own postboot readback. The existing PowerDevil policy and
+zram size were preserved.
 
 The V3 audit at 6315e997 includes all 70 local branch tips, 216 live GitHub
 branch tips and 36 worktree heads. Seven untracked historical Qt files in the
@@ -452,7 +457,7 @@ M0 evidence as measured performance or require another local VM image.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P5.1 | Hardware qualification lab | Nov16 V3 installed1162 has actual bound SMOCF05 and SensorProxy accelerometer. Source successor avoids DDC on a validated connector-owned internal eDP backlight;22 controls retain external, malformed and missing-bus failures. Current failed adapter/SMBus/EFI warning and earlier USB4/fingerprint faults remain explicit. Native luminance/hotplug/suspend and Home Assistant acceptance remain open; no reset or speculative firmware change | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
+| P5.1 | Hardware qualification lab | Nov16 V3 installed1162 has actual bound SMOCF05 and SensorProxy accelerometer. Source successor avoids DDC on a validated connector-owned internal eDP backlight;22 controls retain external, malformed and missing-bus failures. V3’s native adapter now completes with a private runtime cache on mixed displays. SMBus/EFI warnings and earlier USB4/fingerprint faults remain explicit. Native luminance/hotplug/suspend and Home Assistant acceptance remain open; no reset or speculative firmware change | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
 | P5.2 | Laptop policy | Nov18 V3 remains signed1162/stock7.3.3 with preserved rollback. Historical Nov11 balanced-battery/MoKernel and BIOS1.06 evidence is scoped to that workload, not fresh battery or suspend acceptance. Three-class policy, two suspend cycles each, endurance and repeated boots remain open; no profile or firmware changes in this audit | Three laptop classes, lid/battery/brightness/power and two suspend cycles each. |
 | P5.3 | Touch/tablet policy | Nov16 recorded installed7.3.3 SMOCF05/accelerometer and owner-confirmed four-direction rotation at1.45 after exact temporary normalized-key alias/cache. User retains tablet-only; detached transition lacks native capture. Nov18 still boots signed1162 with eDP disabled and availability metadata unresolved. The source alias is merged; its old x86 cycle later refused picomatch, and current x86 refuses stock7.3.4 sensor input. Signed successor/live-copy retirement, module-key enrollment and physical touch/suspend/pen acceptance remain open. [Live proof](reviews/2026-11-16-v3-live-rotation.json) | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
 | P5.4 | Performance budgets per hardware tier | Historical active-workload samples and local index repairs are retained in PROJECT_STATE/evidence; they are not controlled current idle or comparative OS benchmarks. Establish comparable baselines before choosing optimization work | Record workload, power/thermal state, background work, sample count/duration and refresh rate; compare cold/warm launch p50/p95, frame misses, boot, PSS/CPU/wakeups, battery and mixed-engine load. Declare tolerances before the change, repeat against the same baseline and reject material regressions in another critical metric. |

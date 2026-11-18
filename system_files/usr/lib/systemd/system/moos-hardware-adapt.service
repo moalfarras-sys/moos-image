@@ -11,6 +11,10 @@ Wants=local-fs.target
 
 [Service]
 Type=oneshot
+# ddcutil needs a cache location even when the system manager omits HOME.
+RuntimeDirectory=moos-hardware-adapt
+RuntimeDirectoryMode=0700
+Environment=XDG_CACHE_HOME=%t/moos-hardware-adapt
 # Repetitive timers must see the finished oneshot return to inactive.
 # Completion is proven from ExecMainExitTimestampMonotonic, not an active latch.
 RemainAfterExit=no

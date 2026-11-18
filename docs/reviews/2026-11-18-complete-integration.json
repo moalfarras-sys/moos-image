@@ -171,5 +171,84 @@
     "assertions_in_observed_walk": 50,
     "long_native_animation_refused": true,
     "contract": "One input per gesture. Observe both native scroll owners until they settle within two seconds. Keep original displacement, orthogonal-axis, focus and navigation assertions."
+  },
+  "v3_mixed_display_ddc": {
+    "installed_edition": "44.20261116.1162",
+    "ddcutil": "3.0.2-1.fc44",
+    "topology": "external DP enabled, connected internal eDP disabled; adapter runs physical DDC probe",
+    "original_service": {
+      "exec_main_status": 1,
+      "native_journal": "Unable to determine dynamic sleep cache file name",
+      "separate_service_completions_local_time": [
+        "21:05:15",
+        "21:06:00"
+      ],
+      "physical_brightness_unmeasured": true
+    },
+    "native_cases": [
+      {
+        "case": "unset",
+        "exit": 1,
+        "invalid_displays": 0,
+        "stdout_bytes": 142,
+        "stderr_bytes": 50,
+        "stderr_sha256": "678213bcf9b8a0394b0fa4120970071863f609df472c234e4a3070a53623042f",
+        "stderr_known": [
+          "cache",
+          "sleep",
+          "file name"
+        ]
+      },
+      {
+        "case": "cache",
+        "exit": 0,
+        "invalid_displays": 2,
+        "stdout_bytes": 278,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_known": []
+      },
+      {
+        "case": "home",
+        "exit": 0,
+        "invalid_displays": 2,
+        "stdout_bytes": 278,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_known": []
+      }
+    ],
+    "fixed_systemd_unit_file_test": {
+      "service_exit": 0,
+      "result": {
+        "exit": 0,
+        "invalid_displays": 2,
+        "stderr_bytes": 0,
+        "mode": "0700"
+      },
+      "diagnostic": "",
+      "runtime_cleaned": true
+    },
+    "live_compatibility": {
+      "path": "/run/systemd/system/moos-hardware-adapt.service.d/80-moos-v3-ddc-cache.conf",
+      "sha256": "7fc6e573d4e5a03726b3aaa35439167b1dbda38cf7687291fe99873a14d606e0",
+      "retirement": "expires on reboot. Verify replacement booted unit data, current topology, service exit receipt, policy and stamp.",
+      "active_state": "inactive",
+      "sub_state": "dead",
+      "result": "success",
+      "condition_result": true,
+      "exit_status": 0,
+      "exit_timestamp_monotonic": 130163553533,
+      "stamp_scope": "probe",
+      "system_or_user_failed_units": 0,
+      "powerdevil_policy": "POWERDEVIL_NO_DDCUTIL=1",
+      "powerdevil_policy_sha256": "87dc214b08ffd9961850cf992cd68de1d87349f5e3477dac08ee7b1f6561a460",
+      "zram_bytes": 8589934592,
+      "user_manager_reload": "best-effort reload reported a connection error; active PowerDevil environment and drop-in directly verified"
+    },
+    "selfcheck": "51 passed, 2 failed, 3 notes; known local brand and Bloom packages",
+    "postcheck": "55 passed, 1 failed; known local brand package",
+    "display_probe_tests": 22,
+    "unit_verification": "systemd-analyze verify and hardware lifecycle gate passed"
   }
 }
