@@ -582,6 +582,8 @@ check:
     # left, GSettings and the portal said right, and half the desktop
     # disagreed with the other half.
     python3 tests/test_window_button_consistency.py
+    # Aurorae centres captions between button groups; the balancing spacer keeps them centred.
+    python3 tests/test_window_caption_centring.py
     # MoOS's own windows must never take the title bar from KWin: buttons on
     # the left are only safe while the compositor reserves that strip.
     python3 tests/test_first_party_window_frame.py

@@ -1160,6 +1160,8 @@ full_theme_complete() {
         --key theme 2>/dev/null)" = "$deco" ] || return 1
     [ "$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 \
         --key ButtonsOnLeft 2>/dev/null)" = XIA ] || return 1
+    [ "$(kreadconfig6 --file kwinrc --group org.kde.kdecoration2 \
+        --key ButtonsOnRight 2>/dev/null)" = _ ] || return 1
     [ "$(kreadconfig6 --file ksplashrc --group KSplash --key Theme 2>/dev/null)" \
         = "$lnf" ] || return 1
     [ "$(kreadconfig6 --file ksplashrc --group KSplash --key Engine 2>/dev/null)" \
@@ -1235,6 +1237,10 @@ apply() {
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key library org.kde.kwin.aurorae.v2 || write_failed=1
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key theme "$deco" || write_failed=1
         kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft XIA || write_failed=1
+        # One balancing spacer opposite the actions keeps the Aurorae caption
+        # centred on the window (each theme's ExplicitButtonSpacer equals its
+        # action group); it is disabled for input, so it is not a button.
+        kwriteconfig6 --file kwinrc --group org.kde.kdecoration2 --key ButtonsOnRight _ || write_failed=1
         kwriteconfig6 --file ksplashrc --group KSplash --key Theme "$lnf" || write_failed=1
         kwriteconfig6 --file ksplashrc --group KSplash --key Engine None || write_failed=1
         kwriteconfig6 --file kcminputrc --group Mouse --key cursorTheme "$cursor" || write_failed=1

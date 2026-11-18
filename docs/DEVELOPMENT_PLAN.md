@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-17. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-18. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -27,6 +27,12 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 | Trustworthy delivery | Matching source/artifact evidence, all edition-specific boot gates, signed promotion, installed readback and working recovery |
 
 ## Active delivery and acceptance batch
+
+Nov9-10 Oracle maintenance records (integrated from local branch codex/owner-maintenance-20261109): signed908/911 boots with rollback, canonical app updates, read-only Btrfs scrubs with0 errors, recoverable storage retirement and the per-app Code75% Wayland client/frame workaround with exact recovery. Source14e3b42 (catalogue-relative ChatGPT icon through unchanged path guards) now integrates with its two passing suites; it was not in908. These are historical maintenance receipts, not current acceptance. [Nov9](reviews/2026-11-09-oracle-maintenance.json), [Nov10 maintenance](reviews/2026-11-10-oracle-maintenance.json), [display/apps](reviews/2026-11-10-oracle-display-and-apps.json), [storage](reviews/2026-11-10-deep-storage-maintenance.md).
+
+Nov18 P2.5/P2.10 window frames: captions on every MoOS Aurorae frame are centred and survive dialogs in source (one disabled spacer opposite XIA, per-theme ExplicitButtonSpacer, Bloom title borders6). Private native KWin passes90/90 fixed windows at75-150% Arabic/English and refuses25/25 before/installed; static arithmetic covers all18 frames. Next: signed candidate and installed readback on Oracle/V3; real pointer/touch on the bar; 44px touch targets for the UI2 family on tablets; move the LTR Overview hot corner off the window-action corner (owner choice). [Evidence](reviews/2026-11-18-window-frames.json).
+
+Nov18 P2.3 Meyar in native Chromium/Electron: a family-less per-locale fallback is now generic sans-serif, so VS Code-class apps map Meyar Arabic instead of PakType Naqsh; named/generic requests unchanged; live Oracle /etc copy recorded with exact recovery. After reboot the owner VS Code no longer maps PakType; it maps Noto Sans Arabic through its system-ui-first stack. Next: glyph-family readback for a system-ui generic alias (withdrawn unproven), signed delivery, and a qualified Flatpak-browser policy without reopening the generic-preference refusal. [Evidence](reviews/2026-11-18-meyar-chromium-fallback.json).
 
 Nov14 P0.7/P0.9: actual native recovery log43484822112 retains stock Plymouth24.004.60-24 although the main ARM image carries the reviewed fix. The slim installer now consumes the same native producer/package admission and unchanged exact-archive gate;10 controls pass and the old source fails3 wiring controls. ARM PRs build and inspect this distinct recovery image before the desktop. P0.1 release coordination also pins the reviewed merge through `--expected-revision`; a real local branch-advance control refuses before API access, while the old unpinned command selects the later source.24 release controls pass. The owned f91 coordinator is explicitly held before merge/dispatch; its full source0/1089.754s and ongoing image/CI proofs remain preserved. Qualify the successor and its actual native recovery bytes before delivery. [Proof](reviews/2026-11-14-arm-recovery-release.json).
 
