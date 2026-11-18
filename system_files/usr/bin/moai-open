@@ -27,6 +27,12 @@ if [ "${1:-}" = "--wait" ]; then
     shift
 fi
 [ $# -ge 1 ] || { echo "usage: moai-open [--app [--wait]] <command> [args...]" >&2; exit 2; }
+# setsid -f acknowledges the fork even if its child cannot exec. Refuse that
+# known failure before either launch path can announce a nonexistent program.
+command -v -- "$1" >/dev/null 2>&1 || {
+    echo "البرنامج غير مثبت. | Program not found: $1" >&2
+    exit 127
+}
 
 uid="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${uid}}"

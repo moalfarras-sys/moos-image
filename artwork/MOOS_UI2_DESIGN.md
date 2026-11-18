@@ -172,6 +172,12 @@ sample. Every important edge must remain legible with compositing disabled.
   for work and desktop content.
 
 Responsive layout is based on logical width/height, not one owner's 4K screen.
+Window actions use the shared Tidal Cut tile and original MoOS glyphs, with a
+44px native input extent around24px artwork in restored and maximized frames.
+The title stays inside KWin's reserved strip; GTK retains its own header layout
+and uses the same action artwork. Personal button pairs remain native choices.
+Application-owned Electron overlays need their own qualified adapter; a GTK
+stylesheet cannot claim to repair them.
 Login controls in particular must fit the 640×480 firmware/TCG mode while
 remaining full-sized at normal desktop resolutions.
 

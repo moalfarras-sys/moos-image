@@ -17,7 +17,12 @@
     "installed": false,
     "loaded": false,
     "key_enrolled": false,
-    "vendor_kernel_sha256": "95b80a8cdecb42a0d94ae012bec5f8eeeb054ae97bd655ba1c5f9a41cdb0383d",
+    "vendor_kernel_sha256": "6647362468eb74206db196e89207bd98b50634b8b8ecaf094d1905be094e836a",
     "vendor_core_sha256": "a7adc7dbfbde5c426f71548bc7a483763b8fab0fb386063e39e6e8781f6d3ae4",
-    "vendor_transport_sha256": "96de772fce0b4af65d1d654ac77617747816cb5d09099200c351201876c289a6"
+    "vendor_transport_sha256": "96de772fce0b4af65d1d654ac77617747816cb5d09099200c351201876c289a6",
+    "vendor_rpm_kernel_sha256": "95b80a8cdecb42a0d94ae012bec5f8eeeb054ae97bd655ba1c5f9a41cdb0383d",
+    "vendor_kernel_pe_body_sha256": "5e31a68d99838ab2ecf6691de2c810c58e0e9cc4230ae4893665e62df8bd913b",
+    "vendor_kernel_signatures": "original signed vendor PE table retained byte-for-byte; upstream base adds its Universal Blue signature; no executable-byte change",
+    "vendor_base_manifest_sha256": "66f507a9b4d01e165c6b88ff6af0662ef1a6b4d669f872e439d53296438f99d0",
+    "vendor_base_kernel_layer": "sha256:c89fdd63ab158a34ea97ee24d4f8faf33a11462feb6ffb0f8010c8451eb879a5"
 }

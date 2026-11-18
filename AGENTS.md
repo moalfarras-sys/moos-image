@@ -1933,3 +1933,7 @@ Arabic journey. A scoped source PATH is development evidence, never signed insta
 Display-connection journal failures remain fatal, but a message alone does not identify
 startup or prove a restart: the native30 Chromium-owned failures occurred at+1563..1571s.
 Preserve those failures and refuse unavailable/partial journal queries.
+
+**A relative XDG path can load the installed frame instead of the reviewed source.** Resolve private HOME/data/config paths before starting KWin, retain copied asset hashes and require the actual native title extent to match the declared bar. Gtk allocations can precede its first managed Wayland buffer: wait boundedly for the actual caption set before placing/maximizing, and preserve the empty-window refusal. A pixel-sized icon is not its input extent; qualify both on real native owners.
+
+**An upstream signature append changes a whole-file kernel digest.** The stock7.3.4 RPM kernel and final base retain identical executable/non-certificate bytes and the original signature, while the base appends one Universal Blue PE certificate. Keep exact source-manifest/layer/blob and original-RPM readback, every certificate extent and the complete final hash. Production admission still compares one exact full-file digest; never generalize PE normalization into acceptance or infer machine trust from certificate subjects.

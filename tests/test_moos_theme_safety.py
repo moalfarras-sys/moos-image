@@ -1447,7 +1447,10 @@ class NativeWindowLayoutMigration(unittest.TestCase):
                 XDG_STATE_HOME=str(base/'state'),XDG_CACHE_HOME=str(base/'cache'),XDG_RUNTIME_DIR=str(base/'run'),
                 DBUS_SESSION_BUS_ADDRESS='unix:path='+str(base/'run/absent-bus'),
                 PATH=str(base/'bin')+os.pathsep+os.environ.get('PATH','/usr/bin:/bin'),
-                MOOS_THEME_PROFILE_DB=str(db),LAYOUT_TRACE=str(trace),LAYOUT_WRITER=writer,
+                MOOS_THEME_PROFILE_DB=str(db),
+                MOOS_WINDOW_CONTROLS_DIR=str(ROOT/'system_files/usr/share/moos/window-controls'),
+                MOOS_WINDOW_CONTROLS_HELPER=str(ROOT/'system_files/usr/libexec/moos-window-controls'),
+                LAYOUT_TRACE=str(trace),LAYOUT_WRITER=writer,
                 LAYOUT_COMPONENTS='yes' if components else 'no',LAYOUT_RELOAD='yes' if reload_ok else 'no')
             result=subprocess.run([BASH,str(script),operation],env=env,capture_output=True,text=True,timeout=15)
             calls=[json.loads(line) for line in trace.read_text().splitlines()] if trace.exists() else []

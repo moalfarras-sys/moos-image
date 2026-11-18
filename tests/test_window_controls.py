@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import os
 import re
+import runpy
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -32,6 +34,14 @@ def functions(source: str) -> str:
 
 
 class Generated(unittest.TestCase):
+    def test_only_supported_actions_hide_the_native_icon_and_targets_fit_touch(self):
+        css = (CONTROLS / "MoOSUI2/window-controls.css").read_text()
+        hidden = re.search(r"([^{}]+)\{\s*opacity: 0;", css).group(1)
+        for selector in hidden.strip().split(","):
+            self.assertRegex(selector, r"button(?:\.titlebutton)?\.(close|minimize|maximize)\s*> image")
+        self.assertIn("min-width: 44px;", css)
+        self.assertIn("min-height: 44px;", css)
+
     def test_generator_matches_committed_assets(self):
         result = subprocess.run([sys.executable, str(GENERATOR), "--check"],
                                 capture_output=True, text=True, timeout=120)
@@ -61,9 +71,16 @@ class Generated(unittest.TestCase):
 
     def test_states_keep_the_frames_semantic_colours(self):
         bloom = (CONTROLS / "MoOSUI2Bloom/close-hover.svg").read_text()
-        self.assertIn("#F36D75", bloom.upper())
+        self.assertIn('data-moos-role="face"', bloom)
         aurorae = (AURORAE / "MoOSUI2Bloom/close.svg").read_text()
         self.assertIn('id="hover-center"', aurorae)
+
+    def test_unavailable_native_actions_remain_distinct_from_enabled_actions(self):
+        for frame in CONTROLS.iterdir():
+            for action in ("close", "minimize", "maximize", "restore"):
+                self.assertNotEqual((frame / f"{action}-active.svg").read_bytes(),
+                                    (frame / f"{action}-deactivated.svg").read_bytes(),
+                                    (frame.name, action))
 
 
 class Installed(unittest.TestCase):
@@ -96,6 +113,7 @@ class Installed(unittest.TestCase):
                               + 'done\n')
             env = dict(os.environ, XDG_CONFIG_HOME=str(config), HOME=str(base),
                        MOOS_WINDOW_CONTROLS_DIR=str(CONTROLS), RUNS=str(runs), OPERATION=operation,
+                       MOOS_WINDOW_CONTROLS_HELPER=str(ROOT / "system_files/usr/libexec/moos-window-controls"),
                        PATH=str(base / "bin") + os.pathsep + os.environ.get("PATH", "/usr/bin:/bin"))
             result = subprocess.run([BASH, str(driver)], env=env, capture_output=True,
                                     text=True, timeout=60)
@@ -161,11 +179,23 @@ class Installed(unittest.TestCase):
         self.assertTrue(assets, "a restored older gtk.css must never import blank buttons")
 
     def test_unknown_or_traversing_frames_are_not_installed(self):
-        for frame in ("MoOSUI2../../etc", "Breeze", "MoOSUI2Missing"):
+        for frame in ("MoOSUI2../../etc", "Breeze"):
             result, files, _ = self.run_owner(frame=frame)
             self.assertEqual(result.returncode, 0, (frame, result.stderr))
             self.assertNotIn(IMPORT, files["gtk-3.0/gtk.css"].decode(), frame)
             self.assertFalse(any("moos-window-controls/" in name for name in files), frame)
+
+    def test_missing_moos_source_refuses_and_preserves_the_previous_delivery(self):
+        def missing(config, env, driver):
+            before = {p: p.read_bytes() for p in config.rglob("*") if p.is_file()}
+            reader = Path(env["PATH"].split(os.pathsep)[0]) / "kreadconfig6"
+            reader.write_text(reader.read_text().replace("MoOSUI2Bloom", "MoOSUI2Missing"))
+            result = subprocess.run([BASH, str(driver)], env=env, capture_output=True, timeout=60)
+            after = {p: p.read_bytes() for p in config.rglob("*") if p.is_file()}
+            return result.returncode, before == after
+        result, _, outcome = self.run_owner(frame="MoOSUI2Bloom", inspect=missing)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(outcome, (3, True))
 
     def test_completeness_refuses_a_missing_import_or_changed_asset(self):
         def tamper(config, env, driver):
@@ -254,6 +284,99 @@ class Wired(unittest.TestCase):
         self.assertIn("PathChanged=%h/.config/gtk-3.0/window_decorations.css", watcher)
         for name in ("gtk3-css", "gtk3-window-controls", "gtk4-window-controls"):
             self.assertEqual(source.count(f'_config_file "$snapshot" {name} '), 2, name)
+
+
+class Transaction(unittest.TestCase):
+    def setUp(self):
+        self.helper = runpy.run_path(str(ROOT / "system_files/usr/libexec/moos-window-controls"))
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.config = Path(self.temporary.name) / "config"
+
+    def install(self, frame="MoOSUI2Bloom"):
+        changes, before = self.helper["plan"]("apply", self.config, CONTROLS / frame)
+        self.helper["publish"](changes, before)
+
+    def contents(self):
+        return {p.relative_to(self.config): (p.read_bytes(), p.stat().st_mode)
+                for p in self.config.rglob("*") if p.is_file()}
+
+    def test_mid_publication_failure_restores_both_gtk_versions_and_private_modes(self):
+        self.install()
+        css = self.config / "gtk-3.0/gtk.css"
+        css.chmod(0o600)
+        before = self.contents()
+        changes, snapshots = self.helper["plan"]("apply", self.config, CONTROLS / "MoOSUI2BloomLight")
+        replace = os.replace
+        calls = 0
+        def fail_once(source, target):
+            nonlocal calls
+            calls += 1
+            if calls == 5:
+                raise OSError("native publication failure control")
+            return replace(source, target)
+        with mock.patch.object(os, "replace", side_effect=fail_once):
+            with self.assertRaisesRegex(OSError, "publication failure"):
+                self.helper["publish"](changes, snapshots)
+        self.assertEqual(self.contents(), before)
+        self.assertEqual(list(self.config.rglob(".moos-caption-*")), [])
+        self.install("MoOSUI2BloomLight")
+        self.assertEqual(css.stat().st_mode & 0o777, 0o600)
+
+    def test_linked_css_parent_assets_and_hardlinked_files_refuse_before_any_write(self):
+        for target in ("gtk-3.0/gtk.css", "gtk-4.0", "gtk-3.0/assets",
+                       "gtk-4.0/moos-window-controls/MoOSUI2Bloom"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as tmp:
+                config = Path(tmp) / "config"
+                victim = Path(tmp) / "personal"; victim.mkdir()
+                sentinel = victim / "keep"; sentinel.write_bytes(b"personal")
+                path = config / target; path.parent.mkdir(parents=True)
+                path.symlink_to(victim)
+                with self.assertRaises(ValueError):
+                    self.helper["plan"]("apply", config, CONTROLS / "MoOSUI2Bloom")
+                self.assertEqual(sentinel.read_bytes(), b"personal")
+                self.assertEqual(list(victim.iterdir()), [sentinel])
+                self.assertFalse((config / "gtk-3.0/moos-window-controls.css").exists())
+        self.install()
+        asset = self.config / "gtk-3.0/assets/close-normal.svg"
+        os.link(asset, self.config / "keep.svg")
+        before = self.contents()
+        with self.assertRaises(ValueError):
+            self.install("MoOSUI2BloomLight")
+        self.assertEqual(self.contents(), before)
+
+    def test_unknown_files_survive_and_personal_stylesheet_collision_refuses(self):
+        self.install()
+        directory = self.config / "gtk-4.0/moos-window-controls/MoOSUI2Bloom"
+        (directory / "personal.txt").write_bytes(b"keep")
+        self.install()
+        self.assertEqual((directory / "personal.txt").read_bytes(), b"keep")
+        (self.config / "gtk-4.0/moos-window-controls.css").write_bytes(b"personal CSS")
+        before = self.contents()
+        with self.assertRaisesRegex(ValueError, "personal stylesheet"):
+            self.install("MoOSUI2BloomLight")
+        self.assertEqual(self.contents(), before)
+
+    def test_destination_changed_after_preflight_is_preserved(self):
+        self.install()
+        changes, before = self.helper["plan"]("apply", self.config, CONTROLS / "MoOSUI2BloomLight")
+        css = self.config / "gtk-4.0/gtk.css"
+        css.write_bytes(b"new personal choice")
+        current = self.contents()
+        with self.assertRaisesRegex(ValueError, "changed during staging"):
+            self.helper["publish"](changes, before)
+        self.assertEqual(self.contents(), current)
+
+    def test_same_filesystem_bind_mount_is_refused_before_traversal(self):
+        original = Path.read_text
+        def mounted(path, *args, **kwargs):
+            if str(path) == "/proc/self/mountinfo":
+                return f"1 0 0:1 / {self.config}/gtk-4.0/assets rw - tmpfs tmpfs rw\n"
+            return original(path, *args, **kwargs)
+        with mock.patch.object(Path, "read_text", mounted):
+            with self.assertRaisesRegex(ValueError, "mounted GTK"):
+                self.install()
+        self.assertFalse(self.config.exists())
 
 
 if __name__ == "__main__":

@@ -59,10 +59,10 @@ def contrast_pairs(svg):
     for group in ET.fromstring(svg):
         if group.get("id", "").startswith("deactivated"):
             continue
-        circle = next(e for e in group.iter() if e.tag.endswith("circle"))
-        glyph = list(list(group)[1])[1]
+        face = next(e for e in group.iter() if e.get("data-moos-role") == "face")
+        glyph = next(e for e in group.iter() if e.get("data-moos-role") == "glyph")
         inks = {e.get("fill") for e in glyph.iter() if e.get("fill")}
-        ratios.extend(bloom.contrast(ink, circle.get("fill")) for ink in inks)
+        ratios.extend(bloom.contrast(ink, face.get("fill")) for ink in inks)
     if not ratios or min(ratios) < 4.5:
         raise ValueError("unreadable Bloom action")
     return ratios
@@ -150,8 +150,8 @@ class BloomTests(unittest.TestCase):
                     # Restored old same-colour ink must fail the identical predicate.
                     root = ET.fromstring(svg)
                     for group in root:
-                        fill = next(e for e in group.iter() if e.tag.endswith("circle")).get("fill")
-                        for e in list(list(group)[1])[1].iter():
+                        fill = next(e for e in group.iter() if e.get("data-moos-role") == "face").get("fill")
+                        for e in next(e for e in group.iter() if e.get("data-moos-role") == "glyph").iter():
                             if e.get("fill"):
                                 e.set("fill", fill)
                     with self.assertRaises(ValueError):

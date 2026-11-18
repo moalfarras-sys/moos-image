@@ -453,7 +453,7 @@ def build_aurorae(key: str, meta: dict) -> None:
     # The family owns one Aurorae geometry and interaction contract. Re-render
     # the rc from semantic roles so titles, spacing and RTL behaviour cannot
     # drift from the Graphite/Tidal pair.
-    write(dst / f"{meta['style']}rc", gen.aurorae_art.aurorae_rc(p))
+    gen.aurorae_art.render_aurorae_suite(dst, p, plugin_name=meta['style'])
     write(dst / "metadata.desktop", f"""[Desktop Entry]
 Name={meta['name']}
 Comment={meta['desc']}

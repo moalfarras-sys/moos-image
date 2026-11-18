@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "window-titles-centred",
+      "merged": "2026-11-18T16:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "أزرار موحّدة وإطار أوضح للنوافذ",
+        "en": "Clearer frames and shared window actions"
+      },
+      "body": {
+        "ar": "أزرار إطار MoOS تحمل قصّة Tidal Cut مع مساحة ضغط أكبر. العنوان يبقى في وسط الإطار بالعربية والإنجليزية، وأزرار GTK تتبع الإطار المختار. التطبيقات التي ترسم شريطها بنفسها تحتفظ بمالكها الأصلي.",
+        "en": "MoOS frame buttons share a Tidal Cut shape and larger input targets. Captions stay centered in Arabic and English, and GTK buttons follow the selected frame. Apps that draw their own bars retain their native owner."
+      },
+      "route": "moos://settings/appearance"
+    },
+    {
       "id": "chatgpt-window-buttons-arabic",
       "merged": "2026-11-18T14:00:00Z",
       "glyph": "ui",
@@ -13,32 +27,6 @@
       "body": {
         "ar": "في الواجهة العربية كانت أزرار الإغلاق والتصغير والتكبير في ChatGPT تحرّك النافذة بدل أن تعمل. صارت على اليمين وتعمل، والتطبيق ما زال بالعربية. للشريط الجانبي والرجوع والتقدّم استخدم قائمة عرض أو Ctrl+Shift+S وCtrl+[. يصل التغيير مع تحديث التطبيق من المتجر.",
         "en": "With an Arabic interface, ChatGPT's close, minimise and maximise buttons moved the window instead of working. They now sit on the right and work, and the app stays Arabic. For its sidebar, back and forward use the View menu, Ctrl+Shift+S or Ctrl+[. It arrives when you update the app in the Store."
-      }
-    },
-    {
-      "id": "window-buttons-everywhere",
-      "merged": "2026-11-18T13:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "أزرار النوافذ نفسها في كل تطبيق",
-        "en": "The same window buttons in every app"
-      },
-      "body": {
-        "ar": "تطبيقات GTK وlibadwaita وأزرار Chrome المرسومة بـGTK صارت تعرض أزرار الإغلاق والتصغير والتكبير نفسها التي في إطار MoOS المختار، وتتبعه عند تغيير الثيم. وأزرار تطبيقات GTK3 التي كانت تختفي تماماً عادت ظاهرة.",
-        "en": "GTK, libadwaita and Chrome's GTK-drawn captions now show the same close, minimise and maximise buttons as your MoOS frame, and follow it when the theme changes. GTK3 caption buttons that used to be invisible are back."
-      }
-    },
-    {
-      "id": "window-titles-centred",
-      "merged": "2026-11-18T12:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "عناوين نوافذ في المنتصف وكاملة",
-        "en": "Centred, complete window titles"
-      },
-      "body": {
-        "ar": "عنوان كل نافذة صار في منتصفها تماماً بالعربية والإنجليزية، مع أزرار الإغلاق والتصغير والتكبير في مكانها. نوافذ الحوار الصغيرة في إطار Bloom تعرض عنوانها كاملاً بدل أن يختفي أو يُقص، وزر النافذة المكبّرة يصل إلى زاوية الشاشة.",
-        "en": "Every window title now sits exactly in the middle of its window in Arabic and English, with close, minimise and maximise where they were. Small dialogs in the Bloom frame show their whole title instead of losing or cutting it, and a maximised window's outer button reaches the screen corner."
       }
     },
     {

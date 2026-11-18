@@ -329,39 +329,45 @@ def _button_svg(name: str, p: Mapping[str, str]) -> str:
         "shade": p["primary"],
         "appmenu": p["primary"],
     }[name]
+    def mix(ink: str, background: str, alpha: float) -> str:
+        channels = lambda value: tuple(int(value.lstrip("#")[i:i+2], 16) for i in (0, 2, 4))
+        return "#" + "".join(f"{round(a * alpha + b * (1 - alpha)):02X}"
+                             for a, b in zip(channels(ink), channels(background)))
+
+    def contrast(one: str, other: str) -> float:
+        def luminance(value: str) -> float:
+            rgb = [int(value.lstrip("#")[i:i+2], 16) / 255 for i in (0, 2, 4)]
+            linear = [v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4 for v in rgb]
+            return sum(v * w for v, w in zip(linear, (.2126, .7152, .0722)))
+        lo, hi = sorted((luminance(one), luminance(other)))
+        return (hi + .05) / (lo + .05)
+
+    # This small asymmetric cut belongs to the existing Tidal Horizon language.
+    # All actions share one quiet material at rest; colour identifies a state,
+    # never a red/yellow/green traffic-light arrangement.
+    shape = "M17 10H27L34 17V27A7 7 0 0 1 27 34H17A7 7 0 0 1 10 27V17A7 7 0 0 1 17 10Z"
     body: list[str] = []
     for state in BUTTON_STATES:
         inactive = state.endswith("-inactive") or state == "inactive"
         disabled = state.startswith("deactivated")
         hover = state.startswith("hover")
         pressed = state.startswith("pressed")
-        if disabled:
-            disc, disc_opacity = p["surface"], 0.18
-            glyph, glyph_opacity = p["muted"], 0.34
-        elif pressed:
-            disc, disc_opacity = semantic, 0.92
-            glyph, glyph_opacity = p["selected_text"], 1.0
-        elif hover:
-            disc, disc_opacity = semantic, 0.26 if inactive else 0.34
-            glyph, glyph_opacity = semantic, 0.78 if inactive else 1.0
-        elif inactive:
-            disc, disc_opacity = p["surface"], 0.10
-            glyph, glyph_opacity = p["muted"], 0.58
-        else:
-            disc, disc_opacity = p["surface"], 0.16
-            glyph, glyph_opacity = p["text"], 0.84
-        scale = ' transform="translate(10 10) scale(.92) translate(-10 -10)"' if pressed else ""
+        fill = mix(semantic, p["surface"], .32 if pressed else .18) if hover or pressed else mix(p["text"], p["surface"], .035 if inactive else .07)
+        ink = mix(p["text"], fill, .38) if disabled else p["text"]
+        if not disabled and contrast(ink, fill) < 4.5:
+            ink = max((p["text"], "#14202D", "#F1F5F4"), key=lambda value: contrast(value, fill))
+        if not disabled and contrast(ink, fill) < 4.5:
+            raise SystemExit(f"{name}/{state}: window button ink has insufficient contrast")
+        scale = ' transform="translate(22 22) scale(.94) translate(-22 -22)"' if pressed else ""
         body.append(
-            f'  <g id="{state}-center"{scale}>'
-            f'<rect x="1" y="1" width="18" height="18" rx="6.2" fill="{semantic}" '
-            f'fill-opacity="{disc_opacity * 0.78:.3f}"/>'
-            f'<rect x="2" y="2" width="16" height="16" rx="5.2" fill="{disc}" '
-            f'fill-opacity="{disc_opacity:.3f}"/>'
-            f'<g opacity="{glyph_opacity:.3f}">{_glyph(name, glyph)}</g></g>'
+            f'  <g id="{state}-center"><rect width="44" height="44" fill="#000" fill-opacity="0"/>'
+            f'<g{scale}><path data-moos-role="face" d="{shape}" fill="{fill}"/>'
+            f'<path d="M17 10H27L34 17L33.3 17.7L26.6 11H17Z" fill="{mix(ink, fill, .2)}"/>'
+            f'<g data-moos-role="glyph" transform="translate(12 12)">{_glyph(name, ink)}</g></g></g>'
         )
     return "\n".join((
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">',
+        '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">',
         f'  <!-- MoOS {name}: visible glyph at rest, semantic colour on interaction. -->',
         *body,
         "</svg>",
@@ -391,39 +397,35 @@ RightButtons=HIAX
 BorderLeft=1
 BorderRight=1
 BorderBottom=1
-TitleEdgeTop=5
-TitleEdgeBottom=5
-TitleEdgeLeft=10
-TitleEdgeRight=10
-TitleBorderLeft=10
-TitleBorderRight=10
-TitleHeight=32
+TitleEdgeTop=0
+TitleEdgeBottom=0
+TitleEdgeLeft=4
+TitleEdgeRight=4
+TitleBorderLeft=6
+TitleBorderRight=6
+TitleHeight=44
 
 TitleEdgeTopMaximized=0
 TitleEdgeBottomMaximized=0
 TitleEdgeLeftMaximized=0
 TitleEdgeRightMaximized=0
 
-ButtonWidth=20
-ButtonHeight=20
-ButtonSpacing=6
-# Centred arithmetic, verified against AuroraeButtonGroup.qml and measured on
-# screen. Restored: the bar is TitleEdgeTop(5)+TitleHeight(32)+TitleEdgeBottom(5)
-# = 42, centre 21; a 20px button needs top = 21-10 = 11 = TitleEdgeTop + 6.
-# Maximized: the edges collapse to 0, bar = 32, centre 16, top = 6. The
-# maximized key does NOT inherit ButtonMarginTop — it defaults to 0 (measured:
-# pills started at device row 0), so it must be set explicitly.
-ButtonMarginTop=6
-ButtonMarginTopMaximized=6
+ButtonWidth=44
+ButtonHeight=44
+ButtonSpacing=2
+# Native input remains 44px in both states; only the 24px artwork is inset.
+# Maximized targets reach the screen edge. No client content enters this bar.
+ButtonMarginTop=0
+ButtonMarginTopMaximized=0
 # Aurorae v2 centres the caption between the two button groups, not in the
 # window. MoOS keeps all three actions on one side (kwinrc XIA, mirrored by
 # KDecoration for RTL) and puts one explicit spacer `_` on the other side. The
-# spacer is exactly the action group (3 x 20 + 2 x 6 = 72), so the caption is
+# spacer is exactly the action group (3 x 44 + 2 x 2 = 136), so the caption is
 # centred on the window in both directions. KDecoration disables spacer input,
 # so the title bar still drags and double-clicks through it. Measured in a
 # private native KWin (scripts/review/window-frames-native.py): +-36.5 px off
 # centre with nothing opposite the actions, within 1.3 px with this spacer.
-ExplicitButtonSpacer=72
+ExplicitButtonSpacer=136
 
 PaddingLeft=18
 PaddingRight=18
@@ -563,12 +565,13 @@ def validate_aurorae_suite(
     rc = expected_rc.read_text(encoding="utf-8")
     for setting in (
         "Animation=140",
-        "TitleHeight=32",
-        "ButtonWidth=20",
+        "TitleHeight=44",
+        "ButtonWidth=44",
+        "ButtonHeight=44",
         "RightButtons=HIAX",
-        "ButtonMarginTop=6",
-        "ButtonMarginTopMaximized=6",
-        "ExplicitButtonSpacer=72",
+        "ButtonMarginTop=0",
+        "ButtonMarginTopMaximized=0",
+        "ExplicitButtonSpacer=136",
     ):
         if setting not in rc:
             raise SystemExit(f"{expected_rc} is missing required setting {setting}")

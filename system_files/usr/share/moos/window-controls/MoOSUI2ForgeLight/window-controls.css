@@ -8,8 +8,8 @@ headerbar button.titlebutton.minimize, .titlebar button.titlebutton.minimize,
 windowcontrols > button.minimize,
 headerbar button.titlebutton.maximize, .titlebar button.titlebutton.maximize,
 windowcontrols > button.maximize {
-  min-width: 24px;
-  min-height: 24px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   margin: 0 1px;
   border: none;
@@ -20,8 +20,15 @@ windowcontrols > button.maximize {
   background-position: center;
   background-size: 24px 24px;
 }
-headerbar button.titlebutton image, .titlebar button.titlebutton image,
-windowcontrols > button > image {
+headerbar button.titlebutton.close > image,
+.titlebar button.titlebutton.close > image,
+windowcontrols > button.close > image,
+headerbar button.titlebutton.minimize > image,
+.titlebar button.titlebutton.minimize > image,
+windowcontrols > button.minimize > image,
+headerbar button.titlebutton.maximize > image,
+.titlebar button.titlebutton.maximize > image,
+windowcontrols > button.maximize > image {
   opacity: 0;
 }
 headerbar button.titlebutton.close, .titlebar button.titlebutton.close, windowcontrols > button.close {

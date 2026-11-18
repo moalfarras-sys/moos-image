@@ -69,29 +69,9 @@ def readable_pair(background: str) -> tuple[str, str]:
 
 
 def button(name: str, background: str, accent: str, text: str) -> str:
-    semantic = {"close": "#F36D75", "minimize": "#F2BE4F", "maximize": "#45C58A",
-                "restore": "#45C58A"}.get(name, accent)
-    groups = []
-    for state in glyphs.BUTTON_STATES:
-        disabled = state.startswith("deactivated")
-        inactive = state.endswith("-inactive") or state == "inactive"
-        pressed = state.startswith("pressed")
-        hover = state.startswith("hover")
-        alpha = .18 if disabled else (.65 if inactive else (1.0 if hover or pressed else .94))
-        fill = mix(semantic, background, alpha)
-        if disabled:
-            ink = mix(text, fill, .36)
-        else:
-            fill, ink = readable_pair(fill)
-        radius = 10.5 if hover else 9
-        transform = 'translate(22 22) scale(.92) translate(-22 -22)' if pressed else 'translate(0 0)'
-        # The transparent extent is the native 44px input target. The visible
-        # 18px circle stays compact on a PC while the hit area also fits touch.
-        groups.append(f'<g id="{state}-center"><rect width="44" height="44" fill="#000000" fill-opacity="0"/>'
-                      f'<g transform="{transform}"><circle cx="22" cy="22" r="{radius}" fill="{fill}"/>'
-                      f'<g transform="translate(12 12)">{glyphs._glyph(name, ink)}</g></g></g>')
-    return ('<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">\n'
-            + '\n'.join(groups) + '\n</svg>\n')
+    return glyphs._button_svg(name, {"surface": background, "text": text,
+                                   "muted": text, "negative": "#F36D75",
+                                   "secondary": accent, "primary": accent})
 
 
 def frame(light: bool, profile: dict) -> None:
