@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-18",
+  "plan_rows": [
+    "P0 release",
+    "P1.7 Mo PC Remote"
+  ],
+  "owner_direction": "Fix every build failure with full authority, without waiving gates; then build, update and restart the system.",
+  "base": "5eb3cb66 (main after PR305)",
+  "failure": {
+    "runs": [
+      "44157887989 (dbdfdd66)",
+      "44205782703 (5eb3cb66)"
+    ],
+    "step": "Controller bundle is built from the committed source -> scripts/npm-audit-gate.sh high",
+    "advisory": "GHSA-fc5q-39xc-vjpf: picomatch <=4.0.7 ReDoS, severity high, first_patched_version null (read 2026-11-18)",
+    "only_failure": "All three x86 editions failed only at this step; Windows build and .NET tests passed; ARM is unaffected.",
+    "dependency_paths": [
+      "vite 8.3.4 -> picomatch ^4.0.7",
+      "vite -> tinyglobby -> picomatch",
+      "fdir -> picomatch",
+      "vite-plugin-pwa -> workbox-build -> @rollup/plugin-* -> @rollup/pluginutils -> picomatch"
+    ],
+    "upstream": "picomatch PRs #246 and #254-#265 are open, all from non-members; none merged."
+  },
+  "rejected_alternatives": [
+    "Narrowing the audit to production dependencies: weakens the existing gate.",
+    "Vendoring one of the unreviewed competing picomatch fixes: unreviewed supply-chain input.",
+    "Rerunning or waiving the refused build."
+  ],
+  "repair": {
+    "summary": "Remove Vite, @vitejs/plugin-react and vite-plugin-pwa. scripts/build.mjs runs the pipeline Vite 8 ran on the already-locked engines: rolldown 1.2.14 (oxc JSX automatic runtime and minifier, Vite's app output options), lightningcss 1.33.0 with Vite's es2020 CSS targets, hashed index.html tags, public/ copy, the same manifest, and sw/sw.js bundled with workbox-core/workbox-precaching 7.4.1 into one classic sw.js with a generated precache list.",
+    "lock": {
+      "old_sha256": "ab4983ca9193c108755d0c4e8a002fb5021da807b0ad7be9b5415cde5a16b7ba",
+      "new_sha256": "f351a6e73cb1a6339eb34ee9b9adcc2de5cfd519a653196bb5b9b5003aa69a1c",
+      "entries_old_new": [
+        478,
+        127
+      ],
+      "version_changes": "none for retained packages; @rolldown/pluginutils is pinned by override to rolldown's previously locked 1.0.1 (npm would otherwise choose 1.1.1, published 2026-11-13, under two weeks old)",
+      "picomatch": "absent (npm ls picomatch empty)"
+    },
+    "guards_added": [
+      "build refuses any asset name the agent's pre-login policy would not serve",
+      "build refuses url()/@import in the stylesheet (no CSS asset pipeline)",
+      "build refuses more than one JavaScript chunk or stylesheet, a missing dev entry tag, and emptying any directory other than agent/wwwroot or dist",
+      "coordinates.test.ts now checks skipWaiting()/clientsClaim() in the worker source and the committed sw.js instead of vite.config.ts text"
+    ],
+    "dev_server": "npm run dev / preview use scripts/dev.mjs: rebuild on change, proxy /api and /ws with Host and Origin rewritten to MO_AGENT; no hot module replacement."
+  },
+  "equivalence": {
+    "css": "byte-identical to the Vite output (38940 bytes)",
+    "manifest": "byte-identical",
+    "precache": "same 11 unique URLs; every non-hashed revision MD5 identical except index.html, whose tags changed",
+    "workbox_runtime": "same embedded versions (core/precaching/routing/strategies 7.4.0 markers), now inside sw.js instead of workbox-0bb07689.js",
+    "javascript": "same rolldown engine; differs by Vite's 670-byte modulepreload polyfill (single chunk, unused) and minor declaration grouping"
+  },
+  "executed": {
+    "audit_high": "npm audit: no high-or-worse advisories (exit 0)",
+    "audit_low": "npm audit: no low-or-worse advisories (exit 0)",
+    "repeat_build": "rm node_modules; npm ci; npm run build: all wwwroot sha256 identical to the first build",
+    "typecheck": "tsc --noEmit exit 0",
+    "unit": "npm test exit 0 (17 suites)",
+    "freshness": "bundle-freshness.test.ts PASS (BUILD v57 · MoOS Glass Console, matching worker)",
+    "bundle_tracking": "tests/test_shipped_bundle_is_tracked.py OK",
+    "browser": {
+      "runner": "scripts/browser-test.mjs, Playwright 1.62.1, local Chromium 1254",
+      "exit": 0,
+      "passes": 6,
+      "log_sha256": "143fc401f2ac1c5d3d7dfb4c69facdac45ae28040a7eb57a506b95f91f0d5bd3"
+    },
+    "service_worker_upgrade": "private Chromium probe: the old Vite/Workbox controller installs and controls the page; after serving the new build, update() fires controllerchange, the single workbox-precache-v2 cache now holds the new 11 entries and not the old bundle; a fresh install renders the shell offline. Negative: the same new build without skipWaiting() fails (no controllerchange, old bundle remains).",
+    "shipped_sha256": {
+      "index.html": "d5cb58c8addacd6a96a0f8ea24bf313e94444fe5e56c3668cbd80ecac641ae13",
+      "sw.js": "95f7904656be28a1addb8e18549f266100b9d94851ac716dc8fb25bcdf9c5803",
+      "manifest.webmanifest": "74078524e60525e04c1e14b34bbc8cc0baa0eeb42426d58399320e6768edb548",
+      "assets/index-CCqYJ2BG.js": "a0af4cd73204b0f7493d4a585788645d62c798bb53e8ec86ca65f9116c63e6cf",
+      "assets/index-ZUyQwIL-.css": "654c90c082fefc0d21abca3f0463fce560a05907636b4d4463d236fa3883ba2a"
+    },
+    "full_check": "just check exit 0 / 1185 s on the staged migration tree (base 5eb3cb66)",
+    "dev_server": "preview serves wwwroot with SPA fallback and 502 on an unreachable agent; dev build into gitignored dist/ proxies HTTP and WebSocket to a private fake agent with Host/Origin rewritten (101 + echo)"
+  },
+  "not_claimed": [
+    "Owner phone acceptance of the rebuilt Remote (install, update, stream, input) on the real tailnet.",
+    "Signed x86 candidate, QCOW2/ISO proofs, promotion, V3 stage and reboot: separate release steps.",
+    "Workflow comments that still say 'vite' are unchanged (no workflow-scope edit in this slice); the CI commands themselves are tool-agnostic npm scripts."
+  ]
+}
