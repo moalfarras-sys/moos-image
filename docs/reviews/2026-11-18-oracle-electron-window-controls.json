@@ -44,7 +44,7 @@
         "ChatGPT quit by SIGTERM while its Codex app-server was idle (0 CPU ticks over 5 s) and reopened with `moos-storectl run chatgpt` (canonical moai-open --app scope); argv carries the switch; panel shows the ChatGPT icon",
         "primary window: minimise pass (glyph centre and both cell edges), maximise pass, close pass (window closes, app keeps its background process as designed; reopened with moos-storectl run chatgpt)"
       ],
-      "cost": "the page's own sidebar/back/forward icons now lie under the window buttons; Ctrl+B or Ctrl+Shift+S (sidebar), Ctrl+[ / Ctrl+] and mouse back, and the View menu still reach them"
+      "cost": "the page's own sidebar/back/forward icons now lie under the window buttons; the View menu (collapse/expand sidebar, back, forward) and Ctrl+Shift+S still reach them: the menu item collapsed the sidebar and Ctrl+Shift+S restored it on the owner window; Ctrl+B (an unlisted binding) changed nothing"
     },
     "retire_when": "the vendor runtime passes the Arabic minimise/maximise/close journey without the switch and its titlebar content leaves room on the drawn side"
   },

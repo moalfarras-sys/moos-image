@@ -11,8 +11,8 @@
         "en": "ChatGPT's window buttons work in Arabic"
       },
       "body": {
-        "ar": "في الواجهة العربية كانت أزرار الإغلاق والتصغير والتكبير في ChatGPT تحرّك النافذة بدل أن تعمل. صارت على اليمين وتعمل، والتطبيق ما زال بالعربية. للشريط الجانبي والرجوع والتقدّم استخدم Ctrl+B وCtrl+[ وCtrl+] أو قائمة عرض. يصل التغيير مع تحديث التطبيق من المتجر.",
-        "en": "With an Arabic interface, ChatGPT's close, minimise and maximise buttons moved the window instead of working. They now sit on the right and work, and the app stays Arabic. For its sidebar, back and forward use Ctrl+B, Ctrl+[ and Ctrl+] or the View menu. It arrives when you update the app in the Store."
+        "ar": "في الواجهة العربية كانت أزرار الإغلاق والتصغير والتكبير في ChatGPT تحرّك النافذة بدل أن تعمل. صارت على اليمين وتعمل، والتطبيق ما زال بالعربية. للشريط الجانبي والرجوع والتقدّم استخدم قائمة عرض أو Ctrl+Shift+S وCtrl+[. يصل التغيير مع تحديث التطبيق من المتجر.",
+        "en": "With an Arabic interface, ChatGPT's close, minimise and maximise buttons moved the window instead of working. They now sit on the right and work, and the app stays Arabic. For its sidebar, back and forward use the View menu, Ctrl+Shift+S or Ctrl+[. It arrives when you update the app in the Store."
       }
     },
     {
