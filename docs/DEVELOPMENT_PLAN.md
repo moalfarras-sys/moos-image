@@ -32,7 +32,8 @@ Nov18 owner authorizes preserving/pushing all remaining source, correct integrat
 and a signed system update, and has explicitly approved the requested automated source/image/CI/boot-fixture
 checks. Physical host reboot/suspend remains coordinated with open editor work.
 
-V3 root owns `fix/moos-complete-integration-20261118`, based on Oracle PR311
+The owner selects Oracle root as the final integration/release coordinator alongside V3.
+`fix/moos-complete-integration-20261118` is based on Oracle PR311
 `d5d4897a`, which already contains PR308/309/310 and layout525e5600. It pins the
 actual composed-base7.3.4 vmlinuz bytes while retaining original vendor lineage
 and exact gates, and supplies native44px Tidal Cut frames/GTK transactions.
@@ -219,10 +220,12 @@ For every task:
 
 The owner-authorized complete integration above is the current entry point.
 Boot/security/data-loss fixes still preempt the same M0→M1→M2/M3→M4→M5 queue.
-One V3 root owns aggregate integration; Oracle PR311 owns its frozen1df proofs.
-Do not replay its constituent PRs or alter its running inputs. Add the remaining
-App Drop/Night Light work once, preserve original historical source on GitHub,
-and reconcile truth files without dropping either native or lifecycle evidence.
+One Oracle root now owns final aggregate integration/release; V3 retains physical
+acceptance and disjoint work. PR313 includes d5d4897a and the preserved Oracle
+maintenance ancestry; all269 known refs are covered. Keep constituent component
+and V3 proofs with their actual sources; freeze one final combined candidate,
+then preserve its source/tree/attempt/signature and release admission.
+[Current ownership/audit](reviews/2026-11-18-unified-oracle-integration.json).
 
 Owner permission for automated qualification is now granted. Freeze the complete
 source for its tests and image/CI. Preserve original refused runs and use a fresh

@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-18",
+  "integration_owner": "Oracle Codex root, explicitly selected by the owner alongside the V3 Codex session",
+  "combined_parent": "bf461aba94a4eed9c0d4eca8141b6661b59cd92c",
+  "preserved_source_parent": "d8b58fa95356d80c5cebb86bd50274fac837e2b4",
+  "tree_before_metadata": "4f8b8b2d83e79139ade96eb8458c94ff49f6a123",
+  "maintenance_parent": "3251a03b0a128be88e5a73afe21377056124dc4a",
+  "ancestry_only_merge": true,
+  "icon_patch": "14e3b42a is patch-equivalent in the combined source; current native path guards and later launcher switches retained",
+  "exact_historical_receipts": {
+    "docs/reviews/2026-11-09-oracle-maintenance.json": "1bc3a8461f08b2d027b59b7fb807f9e5e2bb0b60f4e38cb334742794df74566d",
+    "docs/reviews/2026-11-10-deep-storage-maintenance.md": "6e71def9c51b9b080f27978094f559373a8e5909e58a926dc4d0a6da0362d332",
+    "docs/reviews/2026-11-10-oracle-display-and-apps.json": "62afd1154ed1b4d49652f55ecde80496179367b92e3211403ac539f463a45784",
+    "docs/reviews/2026-11-10-oracle-display-and-apps.md": "bb7ac4e18755ab4e6c1e9480b60328f0f719b26bde8c6c9d417f359ee3bdb796",
+    "docs/reviews/2026-11-10-oracle-maintenance.json": "cf924e9d97da84c9001bab3bd42bc7aceb68e2d2352d00b00ecd28e32ed218dd"
+  },
+  "restored_guidance": [
+    "A catalogue-relative icon is not an absolute RPM payload member.",
+    "A pinned extension is not excluded from the official bulk CLI updater."
+  ],
+  "refs_audited": 269,
+  "unique_ref_tips": 195,
+  "non_ancestor_ref_tips": 0,
+  "worktrees": {
+    "count": 5,
+    "tracked_and_untracked_status_before_metadata": "all clean; no deletion, reset or archive retirement"
+  },
+  "included_runtime_changes": [
+    "native18-frame Tidal Cut44px targets/captions and GTK3/4 bridge",
+    "atomic late-write-safe caption publication and per-file recovery",
+    "ChatGPT launcher mitigation with unresolved toolbar reservation documented",
+    "exact stock7.3.4 sensor admission",
+    "App Drop refuses observed users before resource-tree removal",
+    "measured KWin Night Light policy/readback in existing Mira/control owners"
+  ],
+  "qualification": {
+    "native_window_component": "180AR75/EN125 cases plus5stacked/mixed-title native windows; actual Kate pointer/EIS journey",
+    "window_control_tests": 28,
+    "native_appearance_tests": 9,
+    "source_gate": "running on d5d component source; final combined frozen-source check required",
+    "local_image": "component d5d native ARM build in progress; final combined image required",
+    "ci": "final combined head required; preserve original failed/cancelled attempts",
+    "release": "not dispatched; require exact reviewed merge --expected-revision admission and all signatures/tree/attempt/artifact gates",
+    "host": "Oracle remains signed964 with signed961 rollback; no stage/reboot"
+  },
+  "open_scope": [
+    "ChatGPT vendor toolbar overlap",
+    "owner Code restart",
+    "physicalV3 touch/pen/rotation/suspend and full daily acceptance",
+    "AT and repeatable performance",
+    "separate packaged recovery disk boot and final signed delivery"
+  ]
+}
