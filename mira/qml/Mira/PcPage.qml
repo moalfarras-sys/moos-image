@@ -166,18 +166,25 @@ PageFrame {
                 font.pixelSize: Theme.tiny + 1; color: Theme.ink3
                 Layout.fillWidth: true
             }
-            // the night light's MODE is KWin's own config (read back from kwinrc); "warm now" is KWin running it
+            // Policy and running state come from the same measured executor snapshot.
             RowLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: 2
                 spacing: 10
                 SegRow {
+                    objectName: "nightLightMode"
                     icon: "bulb"; label: mira.s.pcp_night_light; accent: Theme.amber
                     options: [{ key: "off", label: mira.s.pcp_off }, { key: "on", label: mira.s.pcp_night_on }, { key: "auto", label: mira.s.pcp_auto }]
-                    current: (pcp.st.look || {}).night || ""
+                    current: pcp.statusKnown && pcp.status.night_light_available === true
+                             && typeof pcp.status.night_light === "boolean"
+                             && typeof pcp.status.night_light_enabled === "boolean"
+                             && (pcp.status.night_light_mode === 0 || pcp.status.night_light_mode === 1)
+                             ? (!pcp.status.night_light_enabled ? "off"
+                                : pcp.status.night_light_mode === 0 ? "on" : "auto") : ""
+                    available: current !== ""
                     working: !!pcp.busyMap.night
                     waiting: pcp.awaiting.night || ""
-                    extra: pcp.statusKnown && pcp.status.night_light === true ? mira.s.pcp_night_warm : ""
+                    extra: pcp.statusKnown && pcp.status.night_light === true ? mira.s.pcp_night_running : ""
                     onPicked: function(key) { mira.pcPage.setNightLight(key) }
                 }
                 IconButton {
