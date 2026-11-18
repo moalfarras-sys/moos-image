@@ -125,7 +125,7 @@
     "Concurrent launches, open-only/hidden/other-account references remain outside the qualified scope.",
     "Ordinary removal does not newly promise retention of arbitrary user files inside the installed application tree.",
     "No owner application removal, GUI acceptance, host update, signed image, release dispatch or main merge.",
-    "Full combined-source qualification is recorded separately in the ignored local full-check receipt; PR image and signed/installed acceptance remain pending."
+    "Full source passes at913f016b; PR image and signed/installed acceptance remain pending. Final documents are separately validated."
   ],
   "private_evidence": "test-results/appdrop-active-removal-20261118/",
   "independent_review": "Read-only branch-audit agent reviewed final four-file product/test diff; no blocker found.",
@@ -138,5 +138,72 @@
     "byte_budget": 65536,
     "validation": "Original30 whats-new tests, including actual image-gate code, notifier/status, count limit and oversize refusal.",
     "boundary": "Future history growth must respect the unchanged byte budget."
-  }
+  },
+  "full_source_qualification": {
+    "revision": "913f016babe26fc14b4f12bb6d13109001931819",
+    "tree": "6e2a87daab02be1d0f4f78f5b8eb9ab952d497a3",
+    "exit_code": 0,
+    "seconds": 1302.628,
+    "started_utc": "2026-11-18T13:54:10Z",
+    "finished_utc": "2026-11-18T14:15:53Z",
+    "log_sha256": "e3d6454451ad91a41703afc292f50ec1cb7e7f7ae425805126d32b57bc1cef2e",
+    "final_revision": "913f016babe26fc14b4f12bb6d13109001931819",
+    "tracked_state": "",
+    "command": "just check via an owned systemd user unit:4GiB, no swap, CPU quota200%",
+    "boundary": "Final historical wording and this result record are a subsequent docs-only correction; no runtime or test bytes changed after the qualified source."
+  },
+  "merge_simulations": [
+    {
+      "branch": "origin/fix/window-controls-unified-20261118",
+      "exit_code": 1,
+      "prospective_tree": "53c215b7133f2978325817906ca02300eaa5eb09",
+      "conflicted_paths": [
+        "PROJECT_STATE.md",
+        "docs/DEVELOPMENT_PLAN.md",
+        "system_files/usr/share/moos/whats-new.json"
+      ],
+      "stderr": ""
+    },
+    {
+      "branch": "origin/fix/arm-oracle-window-controls-20261118",
+      "exit_code": 1,
+      "prospective_tree": "d0c486de15348d2aacc5a901e681e751fe90543b",
+      "conflicted_paths": [
+        "PROJECT_STATE.md",
+        "docs/DEVELOPMENT_PLAN.md",
+        "system_files/usr/share/moos/whats-new.json"
+      ],
+      "stderr": ""
+    },
+    {
+      "branch": "fix/mira-nightcolor-state-20261118",
+      "exit_code": 0,
+      "prospective_tree": "7737a12f82a4b794cdaf3e6e4ac1c687eb3d41cd",
+      "conflicted_paths": [],
+      "stderr": ""
+    }
+  ],
+  "final_documentation_validation": [
+    {
+      "command": "python3 -B tests/test_repository_hygiene.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -B tests/test_docs_privacy.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -B tests/test_whats_new.py",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --quiet 913f016b -- system_files tests build_files Containerfile Containerfile.arm Justfile",
+      "exit_code": 0
+    }
+  ],
+  "final_documentation_review": "Independent read-only review confirmed the later3 Markdown/proofJSON changes are documentation only;70 plan rows and all Outcome/Required acceptance columns remain."
 }

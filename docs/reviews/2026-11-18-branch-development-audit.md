@@ -17,10 +17,15 @@
 | `fix/smocf05-kernel-734-20261118`، `51a0a925`، [PR308](https://github.com/moalfarras-sys/moos-image/pull/308) | **يحتاج إصلاحًا قبل الدمج.** Repo وARM ناجحان، وصورة x86 ترفض بصمة ملف النواة الفعلي؛ التشخيص المحدد أدناه. أبقِ ملكية العمل والمواد المخزنة في مسار الحساس القائم. |
 | `fix/window-controls-unified-20261118`، `7b7d5ed1`، [PR309](https://github.com/moalfarras-sys/moos-image/pull/309) | يبقى لمالك إصلاح النوافذ. Repo وARM ناجحان؛ x86 يرفض ABI الحساس7.3.3 مع مدخل7.3.4. هذا ليس دليل عطل بصري، لكنه بوابة لازمة قبل الدمج. |
 | `fix/window-layout-migration-20261118`، `525e5600` | داخل PR309 بالفعل؛ لا تكرر دمجه أو تنفيذه. |
-| `origin/fix/arm-oracle-window-controls-20261118`، `2b0588a4`، [PR310](https://github.com/moalfarras-sys/moos-image/pull/310) | عمل نوافذ جارٍ، Repo ناجح وx86/ARM قيد البناء وقت الفحص؛ لا يبدأ بناء موازٍ ولا يُعد ناجحًا مقدمًا. |
+| `origin/fix/arm-oracle-window-controls-20261118`، `2b0588a4`، [PR310](https://github.com/moalfarras-sys/moos-image/pull/310) | وقت الفحص الأول كانت الصور جارية؛ القراءة النهائية تثبت نجاح Repo/ARM وفشل x86 عند ABI الحساس القديم. يبقى فرع النوافذ لمالكه. |
 | `feat/control-center-glass-20261117` المحلي، `1f7badf7` | patch-id مكافئ لـ`6ea50089` الموجود في main؛ لا يحتاج دمجًا ثانيًا. |
 | `fix/plasma-683-stable-stack`، `7da18a5e` | patch-id مكافئ لـ`62156a3b` الموجود في main؛ لا تعِد إدخال مدخلاته القديمة. |
 | `archive/qtquick-original-review-20261114`، `fc48abc9` | احفظه كدليل تاريخي. main يحمل مصدر Qt أحدث مع provenance/licence إضافيين؛ دمج المنتج القديم يعيد بايتات تجاوزها التطوير. |
+
+التحقق المباشر بـ`git ls-remote --heads origin` عند13:55:48 UTC يؤكد210 رؤوس
+مطابقة للجرد اسمًا وSHA؛ لا مراجع محذوفة/قديمة ولا رؤوس متحركة. من سبعة أسماء
+محلية بلا نظير بعيد، خمسة موجودة فيmain؛ الجديدان فقط Night Light وwindow-layout.
+الـcommit الوحيد غير المنشور فوق نظيره البعيد هو Center المكافئ أصلًا لـmain.
 
 الفروع الأخرى أسلاف مثبتة للمرجع المذكور، ولذلك لا تحمل commits ناقصة منه.
 هذا يسمح بمراجعة تقاعدها لاحقًا؛ لم يُحذف أي فرع أو cache أو شجرة عمل.
@@ -32,11 +37,11 @@
 
 | المصدر / run | النتيجة المثبتة |
 | --- | --- |
-| main `fbb8a46d)، [x86 44289880001](https://github.com/moalfarras-sys/moos-image/actions/runs/44289880001) | attempt1 فاشل لـmoos وNVIDIA بسبب ABI الحساس؛ cloud يوقّع. فحوص controller/audit تمر: عائق picomatch القديم أزيل، ولا يُعاد تنفيذه. |
+| main `fbb8a46d`، [x86 44289880001](https://github.com/moalfarras-sys/moos-image/actions/runs/44289880001) | attempt1 فاشل لـmoos وNVIDIA بسبب ABI الحساس؛ cloud يوقّع. فحوص controller/audit تمر: عائق picomatch القديم أزيل، ولا يُعاد تنفيذه. |
 | PR308، [44291500894](https://github.com/moalfarras-sys/moos-image/actions/runs/44291500894) | `stock kernel/module drift: vendor_kernel_sha256`. |
 | PR309، [44294342876](https://github.com/moalfarras-sys/moos-image/actions/runs/44294342876) | رفض ABI7.3.3 أمام مدخل النواة7.3.4؛ لم تتجاوز الشريحة بوابة الصورة. |
-| main `fbb8a46d)، [ARM 44289879261](https://github.com/moalfarras-sys/moos-image/actions/runs/44289879261) | attempt1 ناجح، بما فيه صورة recovery وفحص أرشيفها، وإقلاع قرص **سطح المكتب** وترقيته. انتهت الترقية13:44:48 UTC. إقلاع قرص recovery المعبأ نفسه غير مختبر. |
-| PR310، [x86 44301842646](https://github.com/moalfarras-sys/moos-image/actions/runs/44301842646) / [ARM 44301844597](https://github.com/moalfarras-sys/moos-image/actions/runs/44301844597) | قيد التنفيذ في آخر قراءة لهذه اللقطة؛ يعاد قراءة نفس IDs، دون dispatch أو rerun. |
+| main `fbb8a46d`، [ARM 44289879261](https://github.com/moalfarras-sys/moos-image/actions/runs/44289879261) | attempt1 ناجح، بما فيه صورة recovery وفحص أرشيفها، وإقلاع قرص **سطح المكتب** وترقيته. انتهت الترقية13:44:48 UTC. إقلاع قرص recovery المعبأ نفسه غير مختبر. |
+| PR310، [x86 44301842646](https://github.com/moalfarras-sys/moos-image/actions/runs/44301842646) / [ARM 44301844597](https://github.com/moalfarras-sys/moos-image/actions/runs/44301844597) | اكتمل ARM بنجاح، وفشل x86 عند `kernel/core package does not match reviewed ABI`؛ لا rerun ولا dispatch جديد. |
 
 تشخيص PR308 من المدخلات الموجودة، دون بناء جديد أو تعديل بوابة:
 
@@ -94,6 +99,19 @@ rollback1152 و1078 مثبت، ولا deployment staged. النواة7.3.3-200،
 حُدّث حد القارئ إلى128 بطاقة مع بقاء حد64KiB وكل التحقق والترتيب والاختبارات؛
 لم تُحذف بطاقة ولم تتغير بوابة. الحجم62,177 بايت، فتوسّع السجل اللاحق يحتاج
 احترام ميزانية البايتات القائمة. هذا تصحيح استقبال ضمن إعلان سلوك الشريحة.
+
+الفحص الكامل `just check` نجح عند `913f016babe26fc14b4f12bb6d13109001931819`
+والشجرة `6e2a87daab02be1d0f4f78f5b8eb9ab952d497a3`، exit0 خلال1,302.628ث،
+مع شجرة نظيفة ثابتة قبل التشغيل وبعده. التصحيحات النهائية للعبارات التاريخية
+في الوثائق منفصلة عن هذا SHA؛ تحققها مذكور في سجل الشريحة.
+
+محاكاة `merge-tree` مع PR309 ومع PR310 تؤكد تعارضات في `PROJECT_STATE.md`
+والخطة وwhat’s-new فقط. تغييرات البرنامج تندمج نصيًا دون تعارض، ومنها
+`moos-storectl`: مسار PR310 لتحديث launcher منفصل عن رفض الإزالة هنا.
+يلزم حفظ دليل الفرعين وتسوية ترتيب البطاقات وتاريخ دمجها الفعلي، وإعادة فحص
+القارئ بحد البايتات القائم؛ لا تترك الدمج يحذف سجلًا دون مراجعة. محاكاة دمج
+Night Light مع فرع هذه الشريحة نظيفة أيضًا؛ ليست بديلًا عن تأهيل الشجرة المدمجة.
+لم تُنفذ أي من هذه الدمجات الفعلية.
 
 ## ما بقي في الخطة؟
 
