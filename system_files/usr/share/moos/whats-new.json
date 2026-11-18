@@ -16,6 +16,19 @@
       }
     },
     {
+      "id": "meyar-in-electron-apps",
+      "merged": "2026-11-18T12:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "العربية بخط معيار في تطبيقات المتصفح",
+        "en": "Arabic in Meyar inside browser-based apps"
+      },
+      "body": {
+        "ar": "التطبيقات المبنية على Chromium وElectron المثبتة على النظام، مثل VS Code، تكتب العربية الآن بخط معيار العربي بدل خط أردي غريب، أياً كانت لغة واجهتها. اختياراتك للخطوط وخط الطرفية لم تتغير.",
+        "en": "Chromium and Electron apps installed on the system, such as VS Code, now write Arabic in Meyar Arabic instead of an unrelated Urdu face, whatever their interface language. Your own font choices and the terminal font are unchanged."
+      }
+    },
+    {
       "id": "mova-launcher-glass",
       "merged": "2026-11-17T21:30:00Z",
       "glyph": "grid",
@@ -915,20 +928,6 @@
         "en": "Mo AI's model list now starts with what was measured on your machine: each model with its seconds — to answer, and to run an action. \"Measure now\" repeats it in two minutes, and a model the provider refused, or that didn't answer in Arabic, says so."
       },
       "route": "moos://settings/assistant"
-    },
-    {
-      "id": "hub-second-faces",
-      "merged": "2026-09-18T13:48:43Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "بطاقات سطح المكتب تجيب السؤال الذي يليها",
-        "en": "The desk's cards answer the question that comes next"
-      },
-      "body": {
-        "ar": "لكل بطاقة على سطح المكتب وجه ثانٍ: الطقس يعرض الساعات الستّ القادمة، والجهاز يعرض سرعة الشبكة والمساحة المتبقية بالجيجابايت. تُقلب من قائمة سطح المكتب ويُحفظ اختيارك، وما لا يمكن قياسه يظهر شَرطة.",
-        "en": "Every card on the desk has a second face: weather shows the next six hours, and the device card shows network speed and the space left in gigabytes. Turn them from the desktop's menu; anything that cannot be measured shows a dash."
-      },
-      "route": "moos://settings/desktop"
     }
   ]
 }

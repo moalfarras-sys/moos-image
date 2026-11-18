@@ -52,6 +52,65 @@ class MeyarDelivery(unittest.TestCase):
                     path = subprocess.check_output(['fc-match','-f','%{file}',family],env=env,text=True)
                     self.assertEqual(Path(path).parent, FONTS)
 
+    @unittest.skipUnless(shutil.which('fc-match'), 'native Fontconfig unavailable')
+    def test_nameless_locale_fallback_selects_meyar_arabic(self):
+        """Chromium/Electron fall back per locale with no family in the pattern.
+
+        Measured on Oracle 2026-11-18: an English-UI VS Code renderer mapped
+        PakType Naqsh for Arabic under the old policy and Meyar Arabic under
+        this one. The old control removes only the nameless rule from the same
+        file and must reproduce a non-Meyar choice, or this test proves nothing.
+        """
+        from native_meyar_fontconfig import configure
+        policy = ROOT / 'system_files/etc/fonts/conf.d/00-moos-meyar-defaults.conf'
+        text = policy.read_text()
+        rule = text[text.index('  <match target="pattern">'):text.index('</match>') + len('</match>\n')]
+        self.assertIn('qual="all" name="family" compare="eq"', rule)
+        self.assertIn('<edit name="family" mode="assign" binding="strong"><string>sans-serif</string>', rule)
+        self.assertLess(text.index(rule), text.index('<alias binding="strong"><family>sans-serif</family>'),
+                        'the nameless rule must run before the generic alias expands sans-serif')
+
+        def first_covering(env, query, codepoint):
+            listing = subprocess.check_output(['fc-match', '-s', '-f', '%{family[0]}\t%{charset}\n', query],
+                                              env=env, text=True)
+            for line in listing.splitlines():
+                family, _, charset = line.partition('\t')
+                for span in charset.split():
+                    low, _, high = span.partition('-')
+                    if int(low, 16) <= codepoint <= int(high or low, 16):
+                        return family
+            return None
+
+        named = ('Noto Sans:lang=en', 'serif:lang=ar', 'Kawkab Mono', 'monospace', 'sans-serif:lang=ar',
+                 'Personal Choice', 'Meyar Arabic')
+        results = {}
+        with tempfile.TemporaryDirectory(prefix='meyar-nameless-') as tmp:
+            for fixed in (False, True):
+                private = Path(tmp) / ('fixed' if fixed else 'old')
+                private.mkdir()
+                env = dict(os.environ, HOME=str(private), XDG_CONFIG_HOME=str(private),
+                           XDG_DATA_HOME=str(private), XDG_CACHE_HOME=str(private),
+                           LANG='C.UTF-8', LC_ALL='C.UTF-8')
+                configure(env, private)
+                if not fixed:
+                    old = private / '00-old-policy.conf'
+                    old.write_text(text.replace(rule, ''))
+                    conf = Path(env['FONTCONFIG_FILE'])
+                    body = conf.read_text()
+                    self.assertEqual(body.count(str(policy)), 1)
+                    conf.write_text(body.replace(str(policy), str(old)))
+                arabic = {lang: first_covering(env, ':lang=' + lang, 0x627) for lang in ('en', 'de', 'fr', 'ar')}
+                latin = first_covering(env, ':lang=en', 0x61)
+                matches = {q: subprocess.check_output(['fc-match', '-f', '%{family[0]}', q], env=env, text=True)
+                           for q in named}
+                results[fixed] = (arabic, latin, matches)
+        old_arabic, _old_latin, old_matches = results[False]
+        new_arabic, new_latin, new_matches = results[True]
+        self.assertEqual(new_arabic, dict.fromkeys(new_arabic, 'Meyar Arabic'))
+        self.assertEqual(new_latin, 'Meyar Sans')
+        self.assertNotEqual(old_arabic['en'], 'Meyar Arabic', 'old control no longer reproduces the defect')
+        self.assertEqual(new_matches, old_matches, 'a named or generic request changed')
+
     @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'native Qt unavailable')
     def test_native_fixed_font_chooser_and_old_dual_classification(self):
         from native_meyar_fontconfig import configure

@@ -1888,6 +1888,10 @@ prototypes also fail later personal precedence and fixed-cell acceptance; keep
 those refusals and do not ship them. Require actual glyph-family readback,
 personal/generic/mono controls and owner-config preservation before a wider
 font-default change. Private headless pixels are not installed desktop input.
+Native host Electron uses that family-less locale set too: an English-UI VS
+Code renderer mapped PakType Naqsh for Arabic. Only a pattern with no family
+value becomes generic sans-serif (named and generic requests are unchanged);
+keep the old-policy control that reproduces the non-Meyar choice.
 
 **A failed service-manager query is unknown, never zero failed units.** Both selfcheck and post-update checks must retain the manager command exit before parsing one plain, locale-stable snapshot per scope. Keep partial-output/nonzero, malformed-success, real failure and exact crash-handler-only controls. A healthy current snapshot never clears earlier greeter crashes or driver errors, and testing source helpers does not update immutable installed helpers.
 
