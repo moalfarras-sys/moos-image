@@ -3,9 +3,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { BUILD } from "../src/types.ts";
 
-// The controller is TypeScript, but the image does not ship TypeScript. It ships the vite
-// output, and that output is COMMITTED, at moremote/agent/wwwroot — vite.config.ts writes
-// there (`outDir: "../agent/wwwroot"`) and build.sh copies the directory into the image.
+// The controller is TypeScript, but the image does not ship TypeScript. It ships the built
+// output, and that output is COMMITTED, at moremote/agent/wwwroot — scripts/build.mjs writes
+// there (OUT_DIR in build.config.mjs) and build.sh copies the directory into the image.
 //
 // So there are two copies of this UI in the repo and only one of them ever reaches a phone.
 // Editing src/ and not running `npm run build` leaves the source correct, every test in this
