@@ -9,7 +9,11 @@ import tempfile
 
 MAGIC = b'~Module signature appended~\n'
 LIMIT = 2 * 1024 * 1024
-KERNEL = '7.3.3-200.fc44.x86_64'
+KERNEL = '7.3.4-200.fc44.x86_64'
+# Every package/source name derives from this one reviewed stock kernel.
+KERNEL_VERSION, KERNEL_RELEASE = KERNEL.rsplit('.', 1)[0].split('-', 1)
+KERNEL_EVR = f'{KERNEL_VERSION}-{KERNEL_RELEASE}'
+PACKAGE_RELEASE = '200.1.moos1.fc44'
 VERMAGIC = KERNEL + ' SMP preempt mod_unload'
 RELATIVE = f'usr/lib/modules/{KERNEL}/updates/moos/st_lsm6dsx_i2c.ko.xz'
 VENDOR = f'usr/lib/modules/{KERNEL}/kernel/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.ko.xz'

@@ -404,7 +404,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     if [ "$IMAGE_NAME" != moos-cloud ]; then \
         MOOS_SENSOR_COMPOSE=1 python3 /ctx/smocf05/admit.py compose \
-            /ctx/smocf05/kmod-moos-smocf05-7.3.3-200.1.moos1.fc44.x86_64.rpm; \
+            /ctx/smocf05/kmod-moos-smocf05-7.3.4-200.1.moos1.fc44.x86_64.rpm; \
     fi
 COPY system_files/ /
 COPY --from=moremote-build /out/ /usr/lib/mo-remote/

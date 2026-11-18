@@ -15,12 +15,14 @@ import shutil
 import stat
 import subprocess
 
-from module import CERTIFICATE, KERNEL, RELATIVE, metadata, regular, require, run, sha, verify_signature
+from module import (CERTIFICATE, KERNEL, KERNEL_EVR, KERNEL_VERSION, PACKAGE_RELEASE, RELATIVE,
+                    metadata, regular, require, run, sha, verify_signature)
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 NAME = 'kmod-moos-smocf05'
-NVR = NAME + '-7.3.3-200.1.moos1.fc44'
+NVR = f'{NAME}-{KERNEL_VERSION}-{PACKAGE_RELEASE}'
+TARBALL = f'linux-{KERNEL_VERSION}.tar.xz'
 
 
 def build(module, proof_file, key, output):
@@ -53,15 +55,15 @@ def build(module, proof_file, key, output):
     shutil.copyfile(HERE / 'module.der', sources / 'module.der')
     # The native SRPM archive is supplied by the build receipt's existing tree.
     import tarfile
-    archive = proof_file.parent / 'source-rpm/linux-7.3.3.tar.xz'
-    expected_archive = json.loads((ROOT / 'scripts/review/smocf05-module.json').read_text())['source_members']['linux-7.3.3.tar.xz']
+    archive = proof_file.parent / 'source-rpm' / TARBALL
+    expected_archive = json.loads((ROOT / 'scripts/review/smocf05-module.json').read_text())['source_members'][TARBALL]
     require(sha(archive) == expected_archive, 'unreviewed license source archive')
     license_names = {'COPYING': 'COPYING', 'LICENSES/preferred/GPL-2.0': 'GPL-2.0'}
     with tarfile.open(archive, 'r|xz') as source:
         for member in source:
-            if member.name in {'linux-7.3.3/' + name for name in license_names}:
+            if member.name in {f'linux-{KERNEL_VERSION}/' + name for name in license_names}:
                 require(member.isfile() and 0 < member.size < 50000, 'invalid license member')
-                name = license_names[member.name.removeprefix('linux-7.3.3/')]
+                name = license_names[member.name.removeprefix(f'linux-{KERNEL_VERSION}/')]
                 (sources / name).write_bytes(source.extractfile(member).read())
     for name in license_names.values():
         regular(sources / name, 50000)
@@ -77,8 +79,8 @@ def build(module, proof_file, key, output):
     specs.mkdir()
     spec = specs / (NAME + '.spec')
     spec.write_text(f'''Name: {NAME}
-Version: 7.3.3
-Release: 200.1.moos1.fc44
+Version: {KERNEL_VERSION}
+Release: {PACKAGE_RELEASE}
 Summary: MoOS V3 motion sensor upstream ACPI backport
 License: GPL-2.0-only
 URL: https://github.com/moalfarras-sys/moos-image
@@ -89,7 +91,7 @@ Source2: COPYING
 Source3: PROVENANCE.json
 Source4: GPL-2.0
 Requires: kernel-uname-r = {KERNEL}
-Requires: kernel-modules-core = 7.3.3-200.fc44
+Requires: kernel-modules-core = {KERNEL_EVR}
 Provides: kmod-moos-smocf05-uname-r = {KERNEL}
 %global debug_package %{{nil}}
 %description

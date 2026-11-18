@@ -1,19 +1,19 @@
 {
-  "schema": 1,
-  "kernel": "7.3.3-200.fc44.x86_64",
-  "signer": "36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6",
-  "rpm_base_url": "https://kojipkgs.fedoraproject.org/packages/kernel/7.3.3/200.fc44/data/signed/6d9f90a6/",
-  "rpms": {
-    "kernel-7.3.3-200.fc44.src.rpm": "602e8a3b636a17438bd92001fb542844820f2a86c53b793c76e5d9dbfbbf1e29",
-    "kernel-devel-7.3.3-200.fc44.x86_64.rpm": "e846ece3daa9ff5f563bc663f8c31488050d00726dcaff0ba46b9df62e2788d0"
-  },
-  "source_members": {
-    "linux-7.3.3.tar.xz": "dab92554b98f51a00055b96733b9efe35b2011e5a5f64003c48e4c94dd9a1c01",
-    "patch-7.3-redhat.patch": "1e5b77c3700c316cac114bf86d9dd0df9ba3605e0d7a87659f34026b284c0a18",
-    "linux-kernel-test.patch": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "kernel.spec": "817cc42f66fc6a50088c96019dfddcbcf7b2b94bc7f2a20149ee6d3962e74ae3"
-  },
-  "header_sha256": "a04f47c39a421bbf3ca53a4d5793e921c392362aff8569aec5911059f8051e68",
-  "vermagic": "7.3.3-200.fc44.x86_64 SMP preempt mod_unload",
-  "scope": "Native offline compile and signature review only. No install, load, enrollment or image integration."
+    "schema": 1,
+    "kernel": "7.3.4-200.fc44.x86_64",
+    "signer": "36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6",
+    "rpm_base_url": "https://kojipkgs.fedoraproject.org/packages/kernel/7.3.4/200.fc44/data/signed/6d9f90a6/",
+    "rpms": {
+        "kernel-7.3.4-200.fc44.src.rpm": "a4e236d22922ca27763f8ef4ecedf615d6ab1573d97a6ca5c2754ce88b580b6c",
+        "kernel-devel-7.3.4-200.fc44.x86_64.rpm": "40d961d85e01f0bc3efd70c9e40ea7b6370375856431c38cf61ccfb5463132da"
+    },
+    "source_members": {
+        "linux-7.3.4.tar.xz": "62d8bdaaa7aeb18c52fd672de74f76e62906e673bcbdf762f80116a4197b6232",
+        "patch-7.3-redhat.patch": "d002b13472ed8046b4ace48293b5fb74bc5eba2faf58d8cafff40678c6e7c22e",
+        "linux-kernel-test.patch": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "kernel.spec": "2f8a4b689bbaf051eb037e1dc8b4d8085f3ccd98525114face534a80093c9dc6"
+    },
+    "header_sha256": "a04f47c39a421bbf3ca53a4d5793e921c392362aff8569aec5911059f8051e68",
+    "vermagic": "7.3.4-200.fc44.x86_64 SMP preempt mod_unload",
+    "scope": "Native offline compile and signature review only. No install, load, enrollment or image integration."
 }
