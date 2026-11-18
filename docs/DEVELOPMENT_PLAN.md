@@ -44,7 +44,11 @@ identities/rendered touch delivery. All9 tests/8 native viewport cases and origi
 broken controls pass; production launcher/image runtime inputs are unchanged.
 The b677 local image was stopped by the coordinator freezing its cgroup; Buildah
 refused paused status at44%. Keep that operator-induced failure and the earlier
-3GiB OOM distinct; final local image, full source and exact-head CI remain required.
+3GiB OOM distinct. V3 subsequently built the 6315e997 image in 900 seconds
+and verified eleven shipped files against source. This build reused the cached
+Plasma transaction. The fresh x86 dependency failure is recorded below.
+V3 also reproduced a delayed Store wheel event in Arabic at 250% scale. Its
+probe now waits for the page and shelf to settle before measuring either axis.
 [Input fixture proof](reviews/2026-11-18-launcher-input-fixture.json).
 `fix/moos-complete-integration-20261118` is based on Oracle PR311
 `d5d4897a`, which already contains PR308/309/310 and layout525e5600. It pins the
@@ -70,13 +74,24 @@ production bytes. Private captures/build trees, credentials and inaccessible
 native evidence directories are not publication candidates. No blanket add,
 prune or worktree removal is authorized by an inventory.
 
-V3 still boots signed1162/fc6dc666, rollback1152 and pinned1078, no staged update.
-The latest proven x86 promotion is1162; ARM966 is independent. Keep booted1162
-and physically booted1152.1078 is the only retirement candidate, after acceptance,
-exact tuple/authority readback and preserving needed recovery state. Shared files
-and OCI refs prevent promising a whole-image space gain;254GiB is free.
-The hardware-adapt failure remains real; the user qualification159 failure is
-historical215-line hygiene, not a device failure. No failure was reset.
+The signed-update helper on V3 reports 1162 current, 1152 available for rollback
+and no staged deployment. ARM966 has a separate promotion. Only 1078 is pinned.
+At least four readable files in its local configuration differ from both surviving
+deployments. Preserve its private configuration and metadata before retiring it
+after replacement boot and validation. The locally retained 1139 offline ISO
+passed a fresh full-byte checksum and detached-signature check. Most 1078 files
+share storage with retained OSTree objects. The historical user qualification
+159 failure has a preserved log and was cleared after the d8 source pass.
+The installed hardware-adapt service last returned 1 during DDC detection.
+
+The V3 audit at 6315e997 includes all 70 local branch tips, 216 live GitHub
+branch tips and 36 worktree heads. Seven untracked historical Qt files in the
+older review tree match the named GitHub archive byte for byte. Exact-head
+repository and ARM image checks passed. The x86 job 44347819021 and a fresh
+transaction on its exact base both refused libavcodec 8.1.3-3 because no enabled
+repository provided liboapv.so.11. Qualify the original transaction when the
+provider is published to the stable repositories. Preserve the first attempt.
+[V3 qualification](reviews/2026-11-18-complete-integration.json).
 
 After approved qualification, push one final reviewed tree, let exact-head PR
 image gates complete, integrate once, then freeze the actual merge SHA through
@@ -359,8 +374,8 @@ M0 evidence as measured performance or require another local VM image.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Aggregate preparation on V3 combines PR311/1df01483 with App Drop98fed279 and Night Light016e518d while retaining all original ancestry/provenance. Original913f full check is historical; new combined qualification is running after explicit owner test permission. No main merge or new signed release yet | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Historical signed1162 x86 proofs/promotion43909184122 remain accepted for that release. New main fbb8a46d x8644289880001 fails sensor ABI after controller/audit passes; ARM44289879261 succeeds desktop two-boot/promotion. PR308 x86 then refuses exact composed-base kernel hash. These runs do not qualify successor source or the separately packaged recovery disk boot | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | PR313 preserves the reviewed window, sensor, Store/App Drop and Night Light work. All 70 local and 216 GitHub branch tips were ancestors of 6315e997 on V3. Oracle coordinates the final merge and release after successor qualification. | Exact candidate source, all integrated fixes and no local override counted as release. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Signed x86 1162 and ARM 966 have independent promotion receipts. PR313 at 6315e997 passed ARM image CI. Its x86 package solver refused the missing stable liboapv.so.11 provider before image construction. The separately packaged ARM recovery disk still needs its own UEFI boot evidence. | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
