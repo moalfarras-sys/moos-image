@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "chatgpt-window-buttons-arabic",
+      "merged": "2026-11-18T14:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "أزرار نافذة ChatGPT تعمل بالعربية",
+        "en": "ChatGPT's window buttons work in Arabic"
+      },
+      "body": {
+        "ar": "في الواجهة العربية كانت أزرار الإغلاق والتصغير والتكبير في ChatGPT تحرّك النافذة بدل أن تعمل. صارت على اليمين وتعمل، والتطبيق ما زال بالعربية. للشريط الجانبي والرجوع والتقدّم استخدم Ctrl+B وCtrl+[ وCtrl+] أو قائمة عرض. يصل التغيير مع تحديث التطبيق من المتجر.",
+        "en": "With an Arabic interface, ChatGPT's close, minimise and maximise buttons moved the window instead of working. They now sit on the right and work, and the app stays Arabic. For its sidebar, back and forward use Ctrl+B, Ctrl+[ and Ctrl+] or the View menu. It arrives when you update the app in the Store."
+      }
+    },
+    {
       "id": "window-titles-centred",
       "merged": "2026-11-18T12:00:00Z",
       "glyph": "ui",
@@ -914,20 +927,6 @@
         "ar": "على جهاز لا يرسم التمويه، أو إذا أطفأتَه بنفسك، كانت أسطح MoOS تبقى شفّافة فيقرأ نصّ النافذة التي خلفها من خلالها. صارت الأسطح تقرأ إعداد جهازك كما يقرأه النظام، وتزداد كثافةً بلا تمويه، فيستقرّ النص فوق سطح.",
         "en": "On a machine that does not paint blur — or when you turn blur off — MoOS surfaces stayed translucent, and the window behind read straight through them. Surfaces now read your machine's setting the way the system reads it, and grow denser without blur, so text sits on a surface."
       }
-    },
-    {
-      "id": "free-brain-measured",
-      "merged": "2026-09-18T15:23:50Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "Mo AI يقيس أسرع عقل مجاني على جهازك",
-        "en": "Mo AI measures the fastest free brain on your machine"
-      },
-      "body": {
-        "ar": "قائمة النماذج في Mo AI صارت تبدأ بما قِيس على جهازك: كل نموذج ومعه ثوانيه — كم أخذ ليردّ وكم أخذ لينفّذ أمراً. وزرّ «قِس الآن» يعيد القياس في دقيقتين. ونموذج رفضه المزوّد أو لم يجب بالعربية يقول ذلك بصراحة.",
-        "en": "Mo AI's model list now starts with what was measured on your machine: each model with its seconds — to answer, and to run an action. \"Measure now\" repeats it in two minutes, and a model the provider refused, or that didn't answer in Arabic, says so."
-      },
-      "route": "moos://settings/assistant"
     }
   ]
 }

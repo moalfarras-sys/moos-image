@@ -34,6 +34,7 @@ import ast
 import base64
 import bz2
 import contextlib
+import dataclasses
 import email.message
 import gzip
 import hashlib
@@ -433,6 +434,36 @@ class EntryRules(unittest.TestCase):
                      "resources//icon.png", "resources/icon\nInjected.svg", "resources\\icon.png"):
             with self.subTest(icon=icon), self.assertRaises(vendor.VendorError):
                 vendor.parse_entry({**recipe, "icon": icon})
+
+    def test_only_reviewed_launch_switches_reach_the_entry(self):
+        """The catalogue's ChatGPT entry carries the measured RTL window-controls workaround, and
+        nothing but LAUNCH_SWITCHES can ride along: a sandbox, platform or direction switch that
+        was not reviewed is a bad entry."""
+        catalogue = json.loads((ROOT / "system_files/usr/share/moos/store/catalog.json").read_text())
+        recipe = next(app["install"] for app in catalogue["apps"] if app["id"] == "chatgpt")
+        self.assertEqual(vendor.parse_entry(recipe).switches, ("--force-ui-direction=ltr",))
+        self.assertEqual(vendor.LAUNCH_SWITCHES, frozenset({"--force-ui-direction=ltr"}))
+        self.assertEqual(vendor.parse_entry(ENTRY).switches, ())
+        spec = vendor.parse_entry({**ENTRY, "switches": ["--force-ui-direction=ltr"] * 2})
+        self.assertEqual(spec.switches, ("--force-ui-direction=ltr",))
+        self.assertEqual(vendor.parse_entry(spec), spec, "an Entry keeps its switches when checked again")
+        for label, switches in {
+            "sandbox off": ["--no-sandbox"],
+            "other direction": ["--force-ui-direction=rtl"],
+            "platform": ["--ozone-platform=x11"],
+            "feature list": ["--enable-features=Evil"],
+            "padded": [" --force-ui-direction=ltr"],
+            "injected": ["--force-ui-direction=ltr %F\nX=1"],
+            "not a string": [1],
+            "not a list": "--force-ui-direction=ltr",
+            "too many": ["--force-ui-direction=ltr"] * 5,
+        }.items():
+            with self.subTest(label), self.assertRaises(vendor.VendorError) as caught:
+                vendor.parse_entry({**ENTRY, "switches": switches})
+            self.assertEqual(caught.exception.code, "bad_entry")
+        forged = dataclasses.replace(vendor.parse_entry(ENTRY), switches=("--no-sandbox",))
+        with self.assertRaises(vendor.VendorError):
+            vendor.parse_entry(forged)
 
     def test_bad_entries(self):
         bad = {
@@ -1098,6 +1129,17 @@ class Launchers(Home):
                 self.assertCode("unsafe_path", vendor.launcher_text, "app", exec_path=exec_path, name="App")
         self.assertIn('Exec="/home/100%%/App" %U', vendor.launcher_text("app", exec_path="/home/100%/App", name="A"))
 
+    def test_reviewed_switches_follow_the_program_and_nothing_else_does(self):
+        text = vendor.launcher_text("app", exec_path="/home/u/Applications/app/App", name="App",
+                                    switches=["--force-ui-direction=ltr"])
+        self.assertIn('Exec="/home/u/Applications/app/App" --force-ui-direction=ltr %U\n', text)
+        self.assertIn("TryExec=/home/u/Applications/app/App\n", text)
+        self.assertIn('Exec="/x" %U\n', vendor.launcher_text("app", exec_path="/x", name="A"))
+        for switch in ("--no-sandbox", "--force-ui-direction=ltr\nX-Evil=1", "%F", ""):
+            with self.subTest(switch=switch):
+                self.assertCode("bad_entry", vendor.launcher_text, "app", exec_path="/x", name="A",
+                                switches=[switch])
+
     def test_reserved_schemes_and_bad_ids(self):
         self.assertCode("bad_entry", vendor.launcher_text, "app", exec_path="/x", name="A", schemes=["https"])
         for bad in ("../app", "App", "a", "a/b", "a.b"):
@@ -1155,6 +1197,68 @@ class Records(Home):
         self.assertTrue(vendor.intact("app"))
         (self.records() / "app.json").unlink()
         self.assertFalse(vendor.intact("app"))
+
+    def test_refresh_brings_an_intact_launcher_to_todays_catalogue_without_a_download(self):
+        """The installed ChatGPT predates its reviewed switch and in-folder icon. refresh_launcher
+        rewrites MoOS's own launcher from the catalogue and the app folder, keeps the names MoOS
+        wrote from the package, records the icon, and is a no-op the second time."""
+        tree = self.apps() / "app"
+        tree.mkdir(parents=True)
+        (tree / "App").write_bytes(b"\x7fELF")
+        (tree / ".moos-vendor").write_text("app\n")
+        (tree / "resources").mkdir()
+        (tree / "resources/icon.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * 64)
+        vendor.write_launcher("app", exec_path=str(tree / "App"), name="App \\ Studio",
+                              comment="Talk to it", categories="Utility;Development;", wm_class="App",
+                              schemes=["appx"])
+        record = {"schema": 1, "id": "app", "kind": "vendor-rpm", "epoch": 0, "version": "2.0",
+                  "release": "1", "icon": ""}
+        self.records().mkdir(parents=True, exist_ok=True)
+        (self.records() / "app.json").write_text(json.dumps(record))
+        launcher = self.home / ".local/share/applications/org.moos.vendor.app.desktop"
+        old = launcher.read_text()
+        self.assertIn("Icon=application-x-executable\n", old)
+        entry = {**ENTRY, "icon": "resources/icon.png", "install_root": "/usr/lib/app",
+                 "switches": ["--force-ui-direction=ltr"]}
+        self.assertTrue(vendor.refresh_launcher("app", entry, refresh_menu=False))
+        new = launcher.read_text()
+        self.assertIn(f'Exec="{tree / "App"}" --force-ui-direction=ltr %U\n', new)
+        self.assertIn(f"Icon={tree / 'resources/icon.png'}\n", new)
+        for kept in ("Name=App \\\\ Studio\n", "Comment=Talk to it\n", "Categories=Utility;Development;\n",
+                     "StartupWMClass=App\n", "MimeType=x-scheme-handler/appx;\n", "X-MoOS-Vendor=app\n"):
+            self.assertIn(kept, new)
+        self.assertEqual(vendor.installed("app")["icon"], "resources/icon.png")
+        self.assertTrue(vendor.intact("app"))
+        self.assertFalse(vendor.refresh_launcher("app", entry, refresh_menu=False), "a second pass changes nothing")
+        self.assertEqual(launcher.read_text(), new)
+        # The catalogue dropping the workaround takes it off again (its retirement path).
+        self.assertTrue(vendor.refresh_launcher("app", {**entry, "switches": []}, refresh_menu=False))
+        self.assertIn(f'Exec="{tree / "App"}" %U\n', launcher.read_text())
+
+    def test_refresh_leaves_what_it_cannot_reproduce_alone(self):
+        entry = {**ENTRY, "switches": ["--force-ui-direction=ltr"]}
+        self.assertFalse(vendor.refresh_launcher("app", entry, refresh_menu=False), "nothing installed")
+        self.install_files()
+        launcher = self.home / ".local/share/applications/org.moos.vendor.app.desktop"
+        # A marked launcher of another shape (a second group, a person's edit) is not rewritten.
+        odd = launcher.read_text() + "[Desktop Action Evil]\nExec=evil\n"
+        launcher.write_text(odd)
+        self.assertFalse(vendor.refresh_launcher("app", entry, refresh_menu=False))
+        self.assertEqual(launcher.read_text(), odd)
+        # Not intact (the marker is gone): nothing is touched either.
+        launcher.write_text(vendor.launcher_text("app", exec_path=str(self.apps() / "app/App"), name="App"))
+        (self.apps() / "app/.moos-vendor").unlink()
+        before = launcher.read_bytes()
+        self.assertFalse(vendor.refresh_launcher("app", entry, refresh_menu=False))
+        self.assertEqual(launcher.read_bytes(), before)
+        # A foreign launcher in MoOS's name is never replaced.
+        (self.apps() / "app/.moos-vendor").write_text("app\n")
+        launcher.write_text("[Desktop Entry]\nName=Mine\nExec=mine\n")
+        self.assertFalse(vendor.refresh_launcher("app", entry, refresh_menu=False))
+        self.assertEqual(launcher.read_text(), "[Desktop Entry]\nName=Mine\nExec=mine\n")
+        # An unreviewed switch is refused before anything is read.
+        self.assertCode("bad_entry", vendor.refresh_launcher, "app", {**ENTRY, "switches": ["--no-sandbox"]},
+                        refresh_menu=False)
 
     def test_remove_takes_only_what_carries_the_marker(self):
         self.install_files()

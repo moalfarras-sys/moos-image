@@ -178,6 +178,26 @@ class ThePublicSuffixList(unittest.TestCase):
 
 
 class EveryNewCatalogueRuleBites(unittest.TestCase):
+    def test_vendor_launch_switches_are_only_the_helpers_reviewed_ones(self):
+        """ChatGPT's RTL window-controls workaround is admitted because moos_vendor_rpm reviews it;
+        a sandbox/platform switch, a repeat or a helper without the list stops the build."""
+        self.assertEqual(gate.vendor_launch_switches(SYSTEM / gate.VENDOR_RPM_HELPER.lstrip("/")),
+                         frozenset({"--force-ui-direction=ltr"}))
+        self.assertEqual(errors_for(lambda c: None), [])
+        message = ("app chatgpt.install.switches must be distinct reviewed launch switches "
+                   "['--force-ui-direction=ltr']")
+        for label, switches in {"sandbox off": ["--no-sandbox"], "platform": ["--ozone-platform=x11"],
+                                "repeat": ["--force-ui-direction=ltr"] * 2, "empty": [],
+                                "not a list": "--force-ui-direction=ltr"}.items():
+            with self.subTest(label):
+                self.assertEqual(errors_for(lambda c: app(c, "chatgpt")["install"].update(switches=switches)),
+                                 [message])
+        with tempfile.TemporaryDirectory() as raw:
+            root = mirror_root(Path(raw), {gate.VENDOR_RPM_HELPER: "subprocess.run(['rpmkeys', '--checksig'])\n"})
+            errors = errors_for(lambda c: None, root=root)
+        self.assertIn("app chatgpt: cannot read the reviewed launch switches: moos_vendor_rpm.py has no "
+                      "literal LAUNCH_SWITCHES", errors)
+
     def refused(self, mutate, fragment, **kwargs):
         errors = errors_for(mutate, **kwargs)
         self.assertTrue(any(fragment in error for error in errors),
@@ -845,7 +865,8 @@ class TheScriptFailsTheBuild(unittest.TestCase):
             root = mirror_root(Path(raw), {
                 gate.CATALOG: json.dumps(catalog, ensure_ascii=False, indent=1),
                 gate.MOOS_STORECTL: storectl,
-                gate.VENDOR_RPM_HELPER: "subprocess.run(['rpmkeys', '--checksig', p])\n"})
+                gate.VENDOR_RPM_HELPER: ("LAUNCH_SWITCHES = frozenset({'--force-ui-direction=ltr'})\n"
+                                         "subprocess.run(['rpmkeys', '--checksig', p])\n")})
             env = dict(os.environ, MOOS_TEST_ROOT=str(root), PYTHONDONTWRITEBYTECODE="1")
             return subprocess.run([sys.executable, str(GATE_PATH)], env=env, text=True,
                                   capture_output=True, timeout=120)

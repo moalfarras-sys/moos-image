@@ -139,7 +139,7 @@ KINDS = {
                    "required": {"kind", "repo", "package", "key_fingerprint", "install_root",
                                 "exec", "desktop", "wm_class", "risk", "requires_review",
                                 "external"},
-                   "optional": {"icon"}},
+                   "optional": {"icon", "switches"}},
 }
 RETIRED_KINDS = {
     "appimage": "the bare-file appimage kind is retired: an AppImage is an appdrop recipe "
@@ -368,6 +368,19 @@ def code(raw, marker):
 def has_control(value):
     """Reject C0/C1 controls while allowing Arabic shaping marks such as ZWNJ."""
     return any(unicodedata.category(ch) == "Cc" for ch in value)
+
+
+def vendor_launch_switches(path: Path) -> frozenset:
+    """moos_vendor_rpm.LAUNCH_SWITCHES read from its source as a literal, without importing it."""
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "LAUNCH_SWITCHES"
+                and isinstance(node.value, ast.Call) and getattr(node.value.func, "id", "") == "frozenset"
+                and len(node.value.args) == 1):
+            value = ast.literal_eval(node.value.args[0])
+            if isinstance(value, (set, frozenset)) and all(isinstance(item, str) for item in value):
+                return frozenset(value)
+    raise ValueError(f"{path.name} has no literal LAUNCH_SWITCHES")
 
 
 def load_source_module(name: str, path: Path):
@@ -1086,6 +1099,20 @@ def check_catalog(catalog, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR,
                 require(icon.lower().endswith((".png", ".svg")),
                         f"{label}.install.icon must be a .png or .svg file")
             clean_text(inst.get("wm_class"), f"{label}.install.wm_class", WM_CLASS_RE)
+            if "switches" in inst:
+                # Only the vendor helper's own reviewed LAUNCH_SWITCHES (one authority): a
+                # measured runtime workaround, never a sandbox, platform or feature switch.
+                switches = inst["switches"]
+                try:
+                    reviewed = vendor_launch_switches(root / VENDOR_RPM_HELPER.lstrip("/"))
+                except (OSError, SyntaxError, ValueError) as error:
+                    reviewed = frozenset()
+                    require(False, f"{label}: cannot read the reviewed launch switches: {error}")
+                require(isinstance(switches, list) and 0 < len(switches) <= 4
+                        and len(set(switches)) == len(switches)
+                        and all(isinstance(item, str) and item in reviewed for item in switches),
+                        f"{label}.install.switches must be distinct reviewed launch switches "
+                        f"{sorted(reviewed)}")
 
     facts["app_ids"] = app_ids
 

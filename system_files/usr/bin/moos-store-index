@@ -139,6 +139,9 @@ VENDOR_PACKAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
 VENDOR_FINGERPRINT_RE = re.compile(r"^[0-9A-Fa-f]{40}$")
 VENDOR_SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.-]{1,31}$")
 VENDOR_WM_CLASS_RE = re.compile(r"^[A-Za-z0-9._ -]{1,80}$")
+# The reviewed Chromium switches a vendor launcher may carry; moos_vendor_rpm.LAUNCH_SWITCHES is
+# the authority and tests/test_moos_vendor_rpm.py holds the two lists equal.
+VENDOR_LAUNCH_SWITCHES = frozenset({"--force-ui-direction=ltr"})
 VENDOR_EVR_RE = re.compile(r"^[A-Za-z0-9._+~^]{1,128}$")
 VENDOR_MARKER = ".moos-vendor"
 
@@ -2247,6 +2250,12 @@ def sanitize_vendor_install(raw: dict, app_id: object) -> dict:
         raise CatalogError(f"catalog schemes for {app_id!r} are invalid")
     if schemes:
         result["schemes"] = list(dict.fromkeys(schemes))
+    switches = raw.get("switches", [])
+    if (not isinstance(switches, list) or len(switches) > 4
+            or not all(isinstance(item, str) and item in VENDOR_LAUNCH_SWITCHES for item in switches)):
+        raise CatalogError(f"catalog switches for {app_id!r} are not reviewed launcher switches")
+    if switches:
+        result["switches"] = list(dict.fromkeys(switches))
     return result
 
 

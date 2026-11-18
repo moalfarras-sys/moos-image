@@ -46,6 +46,9 @@ CATALOGUE ENTRY (`install` of kind "vendor-rpm"), checked by parse_entry():
   icon?            payload path of a PNG or SVG icon
   schemes?         up to 4 URL schemes the launcher hands to the app (x-scheme-handler). The
                    catalogue names them, never the package; http, https, file, moos … are refused.
+  switches?        up to 4 Chromium switches MoOS's launcher passes, each exactly one of the reviewed
+                   LAUNCH_SWITCHES (a measured workaround for the vendor's runtime, with its
+                   retirement condition); any other switch is refused.
 
 API for moos-storectl. Every failure is VendorError(code, detail): `code` is one of ERROR_CODES and
 is stable (the Store owns the bilingual words for it), `detail` is for a log only.
@@ -72,7 +75,10 @@ is stable (the Store owns the bilingual words for it), `detail` is for a log onl
        switches, userns}
   desktop_fields(data, fallback_name) -> {name, comment, categories, icon_name}
   write_launcher(app_id, *, exec_path, name, comment="", icon="", categories="Utility;",
-                 wm_class="", schemes=()) -> Path
+                 wm_class="", schemes=(), switches=()) -> Path
+  refresh_launcher(app_id, entry, *, refresh_menu=True) -> bool
+      rewrite an intact install's own launcher to today's catalogue (switches, in-folder icon)
+      without a download; True when it changed
   install(app_id, entry, *, arch=None, info=None, display_name="", progress=None,
           cancelled=None, opener=None, run=subprocess.run, convert=None,
           refresh_menu=True, proc_sys=Path("/proc/sys")) -> dict (the record)
@@ -104,8 +110,8 @@ INTEGRATION NOTES (moos-storectl, install.kind "vendor-rpm"):
          "install_root": "/usr/lib/chatgpt", "exec": "ChatGPT",
          "icon": "/usr/share/pixmaps/chatgpt.png",
          "desktop": "/usr/share/applications/chatgpt.desktop", "wm_class": "ChatGPT",
-         "schemes": ["codex"], "risk": "downloaded-executable", "requires_review": true,
-         "external": true}
+         "schemes": ["codex"], "switches": ["--force-ui-direction=ltr"],
+         "risk": "downloaded-executable", "requires_review": true, "external": true}
     Its own .desktop asks to handle codex: links — and http, https and office documents, which
     MoOS does not grant (only the catalogue's `schemes` reach the launcher). That build ships no
     chrome-sandbox: its Chromium runtime uses the user-namespace sandbox (sandbox_report()).
@@ -236,6 +242,19 @@ RESERVED_SCHEMES = frozenset({
     "about", "blob", "mailto", "tel", "sms", "moos", "appstream", "trash", "desktop", "applications",
     "settings", "kcm", "help", "man", "info",
 })
+# Chromium switches a catalogue entry may put on MoOS's launcher. Each is a reviewed, measured
+# workaround for one defect of a vendor's own runtime on MoOS, never a sandbox, network, extension
+# or security switch, and it leaves the program's language alone.
+LAUNCH_SWITCHES = frozenset({
+    # Electron's Window Controls Overlay (BrowserWindow titleBarOverlay) on Linux mirrors its native
+    # minimize/maximize/close for a right-to-left UI locale, yet tells the page that its titlebar
+    # area is the unmirrored one. The page lays its drag region over the left, where the buttons are
+    # drawn: in Arabic a press on any of them moved ChatGPT 26.1111.71025's window instead (X11 and
+    # Wayland, Oracle 2026-11-18; the English control works). A left-to-right NATIVE direction draws
+    # the buttons where the page left room for them; the page itself stays Arabic and right-to-left.
+    # Retire it when the vendor runtime passes the Arabic button journey without it.
+    "--force-ui-direction=ltr",
+})
 
 _RPM_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,127}")
 _FINGERPRINT = re.compile(r"[0-9A-Fa-f]{40}")
@@ -335,6 +354,7 @@ class Entry:
     wm_class: str
     icon: str = ""
     schemes: tuple[str, ...] = ()
+    switches: tuple[str, ...] = ()
 
     def repo_url(self, arch: str) -> str:
         return self.repo.replace("$basearch", check_arch(arch)).rstrip("/")
@@ -389,7 +409,7 @@ def parse_entry(entry: Mapping[str, Any]) -> Entry:
     """The catalogue's word for one vendor package, checked field by field (an Entry too: anyone can
     construct one, so it is checked again rather than trusted)."""
     if isinstance(entry, Entry):
-        entry = {**dataclasses.asdict(entry), "schemes": list(entry.schemes)}
+        entry = {**dataclasses.asdict(entry), "schemes": list(entry.schemes), "switches": list(entry.switches)}
     if not isinstance(entry, Mapping):
         raise VendorError("bad_entry", "the entry is not an object")
     repo = entry.get("repo")
@@ -437,9 +457,20 @@ def parse_entry(entry: Mapping[str, Any]) -> Entry:
     for scheme in schemes:
         if not isinstance(scheme, str) or not _SCHEME.fullmatch(scheme) or scheme in RESERVED_SCHEMES:
             raise VendorError("bad_entry", f"scheme {scheme!r}"[:80])
+    switches = _launch_switches(entry.get("switches") or [])
     return Entry(repo=repo, package=package, key_fingerprint=fingerprint.lower(),
                  install_root=install_root, exec=exec_rel, desktop=desktop, wm_class=wm_class,
-                 icon=icon, schemes=tuple(dict.fromkeys(schemes)))
+                 icon=icon, schemes=tuple(dict.fromkeys(schemes)), switches=switches)
+
+
+def _launch_switches(switches: Any) -> tuple[str, ...]:
+    """Only reviewed LAUNCH_SWITCHES, exactly as listed, at most four, in catalogue order."""
+    if not isinstance(switches, (list, tuple)) or len(switches) > 4:
+        raise VendorError("bad_entry", "switches")
+    for switch in switches:
+        if not isinstance(switch, str) or switch not in LAUNCH_SWITCHES:
+            raise VendorError("bad_entry", f"switch {switch!r}"[:80])
+    return tuple(dict.fromkeys(switches))
 
 
 # ── version order, exactly as rpm compares ───────────────────────────────────
@@ -1862,7 +1893,8 @@ def _exec_argument(path: str) -> str:
 
 
 def launcher_text(app_id: str, *, exec_path: str, name: str, comment: str = "", icon: str = "",
-                  categories: str = "Utility;", wm_class: str = "", schemes: Iterable[str] = ()) -> str:
+                  categories: str = "Utility;", wm_class: str = "", schemes: Iterable[str] = (),
+                  switches: Iterable[str] = ()) -> str:
     app_id = check_id(app_id)
     name = _clean_text(name, 80)
     comment = _clean_text(comment, 160)
@@ -1876,10 +1908,12 @@ def launcher_text(app_id: str, *, exec_path: str, name: str, comment: str = "", 
     for scheme in schemes:
         if not _SCHEME.fullmatch(scheme) or scheme in RESERVED_SCHEMES:
             raise VendorError("bad_entry", f"scheme {scheme!r}"[:80])
+    switches = _launch_switches(list(switches))
     lines = ["[Desktop Entry]", "Type=Application", f"Name={name.replace(chr(92), chr(92) * 2)}"]
     if comment:
         lines.append(f"Comment={comment.replace(chr(92), chr(92) * 2)}")
-    lines += [f"Exec={_exec_argument(exec_path)} %U", f"TryExec={_desktop_path(exec_path)}",
+    lines += [f"Exec={_exec_argument(exec_path)}{''.join(' ' + switch for switch in switches)} %U",
+              f"TryExec={_desktop_path(exec_path)}",
               f"Icon={_desktop_path(icon) if icon else 'application-x-executable'}",
               "Terminal=false", f"Categories={categories}"]
     if schemes:
@@ -1946,13 +1980,94 @@ def _write_atomic(path: Path, data: bytes, mode: int) -> None:
 
 
 def write_launcher(app_id: str, *, exec_path: str, name: str, comment: str = "", icon: str = "",
-                   categories: str = "Utility;", wm_class: str = "", schemes: Iterable[str] = ()) -> Path:
+                   categories: str = "Utility;", wm_class: str = "", schemes: Iterable[str] = (),
+                   switches: Iterable[str] = ()) -> Path:
     """org.moos.vendor.<id>.desktop — written by MoOS; a file there that MoOS did not write is refused."""
     path = _claim_launcher(app_id)
     text = launcher_text(app_id, exec_path=exec_path, name=name, comment=comment, icon=icon,
-                         categories=categories, wm_class=wm_class, schemes=schemes)
+                         categories=categories, wm_class=wm_class, schemes=schemes, switches=switches)
     _write_atomic(path, text.encode("utf-8"), 0o644)
     return path
+
+
+def _launcher_fields(data: bytes | None) -> dict[str, str] | None:
+    """Name, Comment, Categories of a launcher MoOS wrote, or None when it is not that shape."""
+    if data is None:
+        return None
+    try:
+        lines = data.decode("utf-8").split("\n")
+    except UnicodeDecodeError:
+        return None
+    if not lines or lines[0] != "[Desktop Entry]":
+        return None
+    fields: dict[str, str] = {}
+    for line in lines[1:]:
+        if line.startswith("["):
+            return None                                  # MoOS's launcher has exactly one group
+        key, sep, value = line.partition("=")
+        if sep and key in ("Name", "Comment", "Categories"):
+            if key in fields:
+                return None
+            fields[key] = value.replace("\\\\", "\\")
+    if not fields.get("Name") or not _CATEGORIES.fullmatch(fields.get("Categories", "")):
+        return None
+    return fields
+
+
+def _tree_icon(final: Path, spec: Entry, recorded: Any) -> str:
+    """The icon install() would name for this folder: the recorded one while it is a real icon
+    file, else the catalogue icon when the package put it inside the app folder; "" for generic."""
+    candidates = []
+    if isinstance(recorded, str) and recorded:
+        candidates.append((recorded, recorded))
+    rel = _inside(spec.icon, spec.install_root) if spec.icon else None
+    if rel:
+        candidates.append((rel, spec.icon))
+    for relative, kind in candidates:
+        try:
+            relative = _relative_path(relative, "icon")
+        except VendorError:
+            continue
+        data = _read_small(final / relative, MAX_EXTRA_BYTES + 1)
+        if data and len(data) <= MAX_EXTRA_BYTES and _icon_ok(data, kind):
+            return relative
+    return ""
+
+
+def refresh_launcher(app_id: str, entry: Mapping[str, Any] | Entry, *, refresh_menu: bool = True) -> bool:
+    """Bring an intact install's launcher to what install() writes today, with no download.
+
+    A catalogue change that concerns only the launcher (a reviewed LAUNCH_SWITCHES workaround, a
+    catalogue icon inside the app folder) must not wait for the publisher's next build. Only
+    MoOS's own launcher of an intact install is rewritten; its Name, Comment and Categories are
+    the ones MoOS wrote from the package, everything else is recomputed from the catalogue and the
+    app folder. A launcher of another shape is left alone. True when the launcher changed."""
+    app_id = check_id(app_id)
+    spec = parse_entry(entry)
+    if not intact(app_id):
+        return False
+    path = launcher_path(app_id)
+    data = _read_small(path, 64 * 1024)
+    fields = _launcher_fields(data)
+    record = installed(app_id)
+    if fields is None or record is None:
+        return False
+    final = app_dir(app_id)
+    icon_rel = _tree_icon(final, spec, record.get("icon"))
+    text = launcher_text(app_id, exec_path=str(final / spec.exec), name=fields["Name"],
+                         comment=fields.get("Comment", ""), icon=str(final / icon_rel) if icon_rel else "",
+                         categories=fields["Categories"], wm_class=spec.wm_class, schemes=spec.schemes,
+                         switches=spec.switches).encode("utf-8")
+    if text == data:
+        return False
+    _write_atomic(path, text, 0o644)
+    if (record.get("icon") or "") != icon_rel:
+        record = {**record, "icon": icon_rel}
+        _write_atomic(record_path(app_id), (json.dumps(record, ensure_ascii=False, indent=2) + "\n").encode(),
+                      0o644)
+    if refresh_menu:
+        _refresh_menu()
+    return True
 
 
 def _refresh_menu() -> None:
@@ -2170,7 +2285,7 @@ def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None =
         exec_path = str(final / spec.exec)
         write_launcher(app_id, exec_path=exec_path, name=fields["name"], comment=fields["comment"],
                        icon=str(final / icon_rel) if icon_rel else "", categories=fields["categories"],
-                       wm_class=spec.wm_class, schemes=spec.schemes)
+                       wm_class=spec.wm_class, schemes=spec.schemes, switches=spec.switches)
         launcher_written = True
         record = {"schema": 1, "id": app_id, "kind": "vendor-rpm", "package": resolved["name"],
                   "arch": resolved["arch"], "epoch": resolved["epoch"], "version": resolved["version"],

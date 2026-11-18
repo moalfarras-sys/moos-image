@@ -616,6 +616,16 @@ changes with `scripts/review/window-frames-native.py` (private KWin, never the
 owner's), whose detector must also refuse the old captures. Virtual KWin6.8
 refuses QPainter composition and crashed on screenshot; use O2 with no core.
 
+**A mirrored overlay is not a mirrored page.** In Arabic, Electron's Window Controls
+Overlay draws ChatGPT's buttons at the left and reports that side correctly, but its
+RTL page reserves the opposite side: its drag region turned every press into a window
+move (owner and private X11/Wayland controls; English passes). Keep those controls.
+Carry `--force-ui-direction=ltr` only through the vendor launcher allowlist and its
+no-download refresh; never admit sandbox/platform switches, patch vendor bytes or move
+KWin's buttons. A KWin-framed window does not qualify a client-drawn caption: read back
+the target's active state and geometry before every click, and keep its covered page
+controls reachable. VS Code's HTML `controlsStyle: custom` avoids the overlay entirely.
+
 **A light colour scheme is not a complete light Plasma theme.** The native
 launcher fixture selected Light colours while inheriting Aurora's dark Plasma
 Style and icons. Its white labels/icons were real pixels of a mixed fixture,
