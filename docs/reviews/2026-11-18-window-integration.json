@@ -81,7 +81,8 @@
       "bloom_native_and_source": 10,
       "managed_launch": 12,
       "sensor_package": 5,
-      "whats_new": 30
+      "whats_new": 30,
+      "visual_contract": 16
     },
     "native_bind_refusal": "actual rootless container, same-filesystem bind under GTK4; helper refused before writing and private sentinel survived",
     "live_kate": "canonical detached launch, actual KWin geometry44; XTest/EIS cursor readback and fresh foreground guards; minimize at cell offsets-20/0/+20, maximize/restore, drag50x40, close and new-process reopen pass; Arabic document remains visible",
@@ -110,7 +111,8 @@
     "current batch entries exceeded per-architecture64 limit; consolidated unshipped frame/GTK notes without changing reader limits",
     "original PR308 vendor-kernel hash refuses the final base signature append; exact final OCI and unchanged executable/original signature proven before pinning complete final bytes",
     "generic CMS probe rejects Authenticode encoding; no cryptographic validation success inferred",
-    "private ChatGPT Wayland + disable-feature/force-frame control still uses its own undecorated overlay; not shipped"
+    "private ChatGPT Wayland + disable-feature/force-frame control still uses its own undecorated overlay; not shipped",
+    "first combined CI repository run refused obsolete TitleHeight32/ButtonWidth20 source expectations; aggregate contract now requires all44 geometry, spacing2 and136 spacer; native old/clipped negative controls retained"
   ],
   "kernel": {
     "base_manifest": "sha256:66f507a9b4d01e165c6b88ff6af0662ef1a6b4d669f872e439d53296438f99d0",
