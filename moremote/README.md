@@ -136,7 +136,7 @@ Common commands inside `controller/`:
 | Command          | What it does                               |
 | ---------------- | ------------------------------------------ |
 | `npm install`    | Install frontend dependencies              |
-| `npm run dev`    | Vite dev server on :5173 (proxies to agent)|
+| `npm run dev`    | Dev server on :5173: rebuilds on change, proxies /api and /ws to the agent |
 | `npm run build`  | Build the PWA into `agent/wwwroot`         |
 | `npm run gen-icons` | Regenerate icons + `app.ico` from `Logo.png` |
 
@@ -296,7 +296,7 @@ MoPC/
 │  ├─ Web/           # REST API + WebSocket streaming/control
 │  ├─ Tray/          # tray menu, "Remote active" banner, change-PIN dialog
 │  └─ wwwroot/       # built PWA (generated)
-├─ controller/       # React + Vite + TypeScript PWA
+├─ controller/       # React + TypeScript PWA (rolldown build, Workbox runtime)
 │  └─ src/           # auth screens, remote canvas, gesture engine, toolbar
 ├─ scripts/          # build.ps1, dev.ps1, install.ps1, uninstall.ps1, install-service.ps1
 ├─ installer/        # Inno Setup script (.exe installer)
@@ -306,5 +306,5 @@ MoPC/
 ## Tech stack
 
 - **Agent:** C# / .NET 10 — ASP.NET Core (Kestrel) HTTP + WebSocket, WinForms tray, P/Invoke `SendInput`, **DXGI Desktop Duplication** (Vortice) with a GDI `BitBlt` fallback, Argon2id, DPAPI.
-- **Controller:** React + Vite + TypeScript, PWA, canvas rendering, Pointer-Events gesture engine.
+- **Controller:** React + TypeScript (built by scripts/build.mjs with rolldown/lightningcss), PWA, canvas rendering, Pointer-Events gesture engine.
 - **Transport:** WebSocket binary JPEG frames over Tailscale.
