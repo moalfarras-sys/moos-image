@@ -445,6 +445,8 @@ of ongoing release builds; no generic successful image clears that condition.
 
 **A packaged module is not an enrolled module key.** Exact7.3.3 SMOCF05 RPM admission preserves vendor vmlinuz/core/transport bytes and checks the actual packaged PKCS#7 content, RPM metadata/dependencies, full license, depmod resolution, native tamper refusal and private vendor recovery. Strip before signing/compression. The RPM header is unsigned; complete pinned RPM bytes, dedicated pinned module signature and final OS cosign are distinct authorities. Native MOK/keyring/probe and real rotation remain required; never disable enforcement or publish a private key.
 
+**A maximized Electron frame is not a painted client.** Native Oracle Code1.145.2 at75% paints only part of its full frame; forced device scale1 retains the failure. Preserve that control and the100%/X11/native fractional-feature-disabled positives. Owner phone feedback rejected extra UI enlargement despite full painting: fix buffer bounds separately from UI density, and do not increase zoom/fonts merely because the viewer is a phone. Carry a qualified per-app workaround through its existing CLI and Store launchers, preserving the owner's output scale and exact recovery; a local launch flag is not a signed OS repair. Retire it only after the current vendor app passes the same native scale, bounds and input journey. Match actual app identity before accepting a capture: a newly appearing GIMP unresponsive dialog was wrongly labelled Krita, and a foreground Krita obscured LibreOffice. Keep those refusals, settled exact-app retakes and native first-run consent separate from functional and phone acceptance. Run display probes on the actual session, retain a sandboxed Qt abort as a diagnostic failure, and never erase it to make a postcheck green.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly
@@ -603,6 +605,17 @@ actual agent, Python helper, recovery tests and controller lock; retain the
 unsigned workflow's existing no-publish constraints. A manual gate on the exact
 frozen source qualifies that source, not the missing future PR trigger.
 
+**A centred title alignment is not a centred caption.** Aurorae v2 centres
+the caption between the two button groups, never in the window: with XIA on one
+side every MoOS frame sat 36.5 (UI2) or 68 (Bloom) logical px off centre, both
+directions, while the theme rc claimed balance. Bloom's 140 px title borders
+also left a 388 px dialog with no caption. Keep the one disabled KDecoration
+spacer opposite the actions, sized by each theme's ExplicitButtonSpacer to its
+action group; keep `tests/test_window_caption_centring.py` and measure frame
+changes with `scripts/review/window-frames-native.py` (private KWin, never the
+owner's), whose detector must also refuse the old captures. Virtual KWin6.8
+refuses QPainter composition and crashed on screenshot; use O2 with no core.
+
 **A light colour scheme is not a complete light Plasma theme.** The native
 launcher fixture selected Light colours while inheriting Aurora's dark Plasma
 Style and icons. Its white labels/icons were real pixels of a mixed fixture,
@@ -635,6 +648,8 @@ app subsurfaces. Check alpha and full-desktop composition before diagnosing blac
 paint or changing geometry; resizing that root may change the global display.
 
 **A Java dialog can paint while its main frame is blank.** Native Ghidra with Java25 showed tips over an empty main frame on Wayland. Preserve the old/fixed/restored GUI captures and inspect current OpenJDK XWM: its non-reparenting switch tests presence, not a truth value. Scope that setting to the GUI launcher, carry the host session decision across Toolbx and preserve caller values/X11 behavior. Require actual canonical project/program/decompiler/normal-close and environment/argument controls; a version string, headless decompile or first dialog is not GUI acceptance. Never change global Java/WM state, install another JDK or infer a cold new-OS result from1078.
+
+**An unpatched advisory in a build-only package still blocks release.** GHSA-fc5q-39xc-vjpf covers every picomatch release; Vite8 and the vite-plugin-pwa/Workbox build chain require it, so the unchanged high audit refused every signed x86 build although the shipped bundle contains only React. Do not narrow the audit to production dependencies, vendor an unreviewed fork or rerun the refused build. The controller now uses the same engines Vite8 drove (locked rolldown/oxc and lightningcss) plus the Workbox runtime modules bundled into one sw.js; the lock carries no glob matcher. Keep CSS/manifest/precache revisions equal to the old output, the pre-login asset-name refusal, the identical repeat build, browser journeys and a real old-Workbox-to-new upgrade with its no-skipWaiting negative. A browser fixture is not owner phone acceptance.
 
 **A dependency-only update can change shipped JavaScript.** The Oct21 signed cycle correctly refused Vite8.2.0 at the high-audit gate before image composition. Preserve that refusal, audit the exact old/new locks and retain the existing Dependabot ancestry. Rebuild and commit the generated controller asset/index/service-worker together, then require an identical second build, the unchanged freshness gate and isolated browser input journeys. Run the unchanged suite with its supported existing Node22; Node26 removed its experimental transform flag. Never remove tests, waive the audit or count an uncommitted derived bundle as qualified source.
 
@@ -1877,6 +1892,10 @@ prototypes also fail later personal precedence and fixed-cell acceptance; keep
 those refusals and do not ship them. Require actual glyph-family readback,
 personal/generic/mono controls and owner-config preservation before a wider
 font-default change. Private headless pixels are not installed desktop input.
+Native host Electron uses that family-less locale set too: an English-UI VS
+Code renderer mapped PakType Naqsh for Arabic. Only a pattern with no family
+value becomes generic sans-serif (named and generic requests are unchanged);
+keep the old-policy control that reproduces the non-Meyar choice.
 
 **A failed service-manager query is unknown, never zero failed units.** Both selfcheck and post-update checks must retain the manager command exit before parsing one plain, locale-stable snapshot per scope. Keep partial-output/nonzero, malformed-success, real failure and exact crash-handler-only controls. A healthy current snapshot never clears earlier greeter crashes or driver errors, and testing source helpers does not update immutable installed helpers.
 

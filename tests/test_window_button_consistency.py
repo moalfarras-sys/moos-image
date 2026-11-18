@@ -3,7 +3,8 @@
 
 MEASURED ON THE LIVE SESSION (2026-09-06):
 
-    kwinrc  org.kde.kdecoration2  ButtonsOnLeft = XIA, ButtonsOnRight = (empty)
+    kwinrc  org.kde.kdecoration2  ButtonsOnLeft = XIA, ButtonsOnRight = (empty;
+                                  since 2026-11-18 one balancing spacer `_`)
     gsettings org.gnome.desktop.wm.preferences button-layout
                                               = 'appmenu:minimize,maximize,close'
     xdg Settings portal, same key             = 'appmenu:minimize,maximize,close'
@@ -68,17 +69,26 @@ class ButtonsAgree(unittest.TestCase):
             "the GTK layout must mirror kwinrc's ButtonsOnLeft exactly")
 
     def test_nothing_is_left_on_the_right_in_either_system(self) -> None:
-        """MoOS puts everything on the left; a stray right-hand button in one
-        system only is precisely the split this gate exists to stop."""
+        """MoOS puts every BUTTON on the left; a stray right-hand button in one
+        system only is precisely the split this gate exists to stop.
+
+        KWin's right side carries exactly one spacer `_` (no button: KDecoration
+        disables spacer input). It balances the Aurorae caption, which is
+        centred between the two button groups; see
+        tests/test_window_caption_centring.py. A GTK headerbar centres its own
+        title, so the GTK mirror keeps nothing after the colon."""
         m = re.search(r"^ButtonsOnRight=(\S*)$", self.kwinrc, re.M)
         self.assertIsNotNone(m)
-        self.assertEqual(m.group(1), "", "kwinrc must keep the right side empty")
+        self.assertEqual(m.group(1), "_",
+                         "kwinrc's right side must hold only the balancing spacer")
+        self.assertFalse(set(m.group(1)) - {"_"}, "no window button may sit on the right")
         self.assertTrue(self.gtk_layout().endswith(":"),
                         "the GTK layout must end at the colon — nothing on the right")
 
     def test_the_kde_side_is_still_written_by_the_same_owner(self) -> None:
         """One writer for both halves, or they drift again."""
         self.assertIn("--key ButtonsOnLeft XIA", self.theme)
+        self.assertIn("--key ButtonsOnRight _", self.theme)
         self.assertIn("org.gnome.desktop.wm.preferences button-layout", self.theme)
 
 

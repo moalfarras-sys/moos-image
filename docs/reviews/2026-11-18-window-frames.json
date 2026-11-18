@@ -1,0 +1,893 @@
+{
+  "date": "2026-11-18",
+  "plan_rows": [
+    "P2.5",
+    "P2.10"
+  ],
+  "journey": "Window title bar: caption and close/minimize/maximize actions on MoOS Aurorae frames, Arabic RTL and English LTR, restored and maximized, 75-150% scale.",
+  "host": {
+    "hostname": "moos-arm-oracle",
+    "booted": "signed ARM 44.20261116.953 sha256:7b09fc86976d87e486ea22647849f6899550fbdc649e68a898f570b83c9aca9c",
+    "staged": "44.20261117.957 (not booted)",
+    "rollback": "44.20261114.931",
+    "kwin": "6.8.3-1.fc44",
+    "aurorae": "6.8.3-1.fc44 (org.kde.kwin.aurorae.v2)",
+    "qt": "6.11.2",
+    "session": "Wayland Virtual-0 1280x720 at 75% (1707x960 logical), ar_SA, Bloom Light"
+  },
+  "live_observation": "A local private capture of the owner's desktop (kept local, not committed) shows the maximized VS Code caption centred 51 device px (68 logical) left of the window centre with the actions mirrored to the right. User kwinrc has no decoration group: buttons come from /etc/xdg/kwinrc (XIA, empty right), theme from kdedefaults.",
+  "upstream_reading": {
+    "aurorae_v2": "v6.8.3 v2/decoration.cpp: updateCaption() centres between leftButtons.right+TitleBorderLeft and rightButtons.left-TitleBorderRight; paint() elides with painter->fontMetrics() before setting the title font (upstream; MoOS title and general fonts are identical Meyar Sans 10, so not a MoOS defect today); borders() clamps Normal side borders to 4-6 px, so Bloom's 0 still has a resize border.",
+    "kdecoration": "v6.8.3 src/decorationbuttongroup.cpp swaps left/right lists for RTL; src/decorationbutton.cpp creates Spacer disabled, so it does not consume title-bar presses.",
+    "kde_gtk_config": "v6.8.3 kded/configvalueprovider.cpp ignores '_' when deriving the GTK button layout, so GTK/Flatpak stay close,minimize,maximize:."
+  },
+  "harness": "scripts/review/window-frames-native.py: private dbus-daemon without service activation, private HOME/XDG, kwin_wayland --virtual (O2 llvmpipe, RLIMIT_CORE=0), stored kwinoutputconfig scale, PySide6 windows 380/480/720/1040 px + maximized, KWin scripting placement/geometry, ScreenShot2 CaptureWindow, per-row background ink detection.",
+  "before": [
+    {
+      "run": "before / installed",
+      "theme": "MoOSUI2BloomLight",
+      "scale": 0.75,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": ""
+      },
+      "windows": 5,
+      "failures": 5,
+      "caption_offsets_logical_px": [
+        null,
+        -69.3,
+        -68.7,
+        -68.7,
+        -69.3
+      ],
+      "captions_present": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        null,
+        false,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "before / installed",
+      "theme": "MoOSUI2BloomLight",
+      "scale": 1.0,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": ""
+      },
+      "windows": 5,
+      "failures": 5,
+      "caption_offsets_logical_px": [
+        null,
+        67.5,
+        68.0,
+        67.0,
+        67.5
+      ],
+      "captions_present": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        null,
+        false,
+        false,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "before / installed",
+      "theme": "MoOSUI2",
+      "scale": 1.0,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": ""
+      },
+      "windows": 5,
+      "failures": 5,
+      "caption_offsets_logical_px": [
+        -36.5,
+        -36.5,
+        -36.5,
+        -36.5,
+        -36.5
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "before / installed",
+      "theme": "MoOSUI2",
+      "scale": 1.0,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": ""
+      },
+      "windows": 5,
+      "failures": 5,
+      "caption_offsets_logical_px": [
+        35.5,
+        35.5,
+        35.5,
+        35.0,
+        35.5
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "before / installed",
+      "theme": "MoOSUI2BloomLight",
+      "scale": 0.75,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": ""
+      },
+      "windows": 5,
+      "failures": 5,
+      "caption_offsets_logical_px": [
+        null,
+        -69.3,
+        -68.7,
+        -68.7,
+        -69.3
+      ],
+      "captions_present": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        null,
+        false,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    }
+  ],
+  "after": [
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2BloomLight",
+      "scale": 0.75,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.7,
+        -0.7,
+        -0.7,
+        -0.7,
+        -1.3
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Bloom",
+      "scale": 0.75,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.7,
+        -0.7,
+        -0.7,
+        -0.7,
+        -0.7
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2",
+      "scale": 0.75,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.7,
+        -0.7,
+        -0.7,
+        -0.7,
+        -1.3
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Light",
+      "scale": 0.75,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.7,
+        -0.7,
+        -0.7,
+        -0.7,
+        -1.3
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2BloomLight",
+      "scale": 1.0,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.5,
+        -0.5,
+        -0.5,
+        -1.0,
+        -0.5
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Bloom",
+      "scale": 1.0,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.5,
+        -0.5,
+        -0.5,
+        -1.0,
+        -0.5
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2",
+      "scale": 1.0,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.5,
+        -0.5,
+        -0.5,
+        -1.0,
+        -0.5
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Light",
+      "scale": 1.0,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.5,
+        -0.5,
+        -0.5,
+        -1.0,
+        -0.5
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2BloomLight",
+      "scale": 1.25,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.4,
+        -0.8,
+        0.0,
+        -0.4,
+        -0.8
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Aurora",
+      "scale": 1.25,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.4,
+        -0.8,
+        0.0,
+        -0.4,
+        -0.8
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2BloomLight",
+      "scale": 1.5,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        0.0,
+        -0.7,
+        0.0,
+        -0.3,
+        -0.7
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Bloom",
+      "scale": 1.5,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        0.0,
+        -0.3,
+        0.0,
+        -0.3,
+        -0.3
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2",
+      "scale": 1.5,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.7,
+        -0.7,
+        -0.7,
+        -0.7,
+        -0.7
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Light",
+      "scale": 1.5,
+      "lang": "ar",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.3,
+        -0.7
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "right"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2BloomLight",
+      "scale": 1.5,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        0.0,
+        -0.3,
+        -0.3,
+        -0.7,
+        0.0
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Bloom",
+      "scale": 1.5,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        0.0,
+        -0.3,
+        -0.3,
+        -0.3,
+        0.0
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2",
+      "scale": 1.5,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        0.0,
+        -0.3,
+        -0.3,
+        -0.7,
+        0.0
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    },
+    {
+      "run": "fixed source",
+      "theme": "MoOSUI2Light",
+      "scale": 1.5,
+      "lang": "en",
+      "buttons": {
+        "left": "XIA",
+        "right": "_"
+      },
+      "windows": 5,
+      "failures": 0,
+      "caption_offsets_logical_px": [
+        0.0,
+        -0.3,
+        -0.3,
+        -0.7,
+        0.0
+      ],
+      "captions_present": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "captions_complete": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "action_side": [
+        "left"
+      ]
+    }
+  ],
+  "static_gate": "tests/test_window_caption_centring.py evaluates the v2 arithmetic for all 18 shipped frames with the shipped kwinrc at 380/480/720/1707 px, LTR/RTL, restored/maximized; it refuses old Bloom (-68, negative room at 388), old UI2 (+36), new frames with the old empty right side, and old 8 px spacer with the new buttons; restoring old kwinrc gives 19 failures and old Bloom rc 1 failure.",
+  "retained_refusals": [
+    "First private KWin attempt used KWIN_COMPOSE=Q: virtual 6.8.3 refused QPainter composition and kwin_wayland SIGSEGV'd on the first ScreenShot2 call (coredump PID 312633, private socket wayland-frames, app-code scope; core stored inaccessible). Later runs use O2 and RLIMIT_CORE=0; no further KWin core records.",
+    "The first 150% English analysis mislabelled UI2 actions 'right' because the dark frame's bright top edge counted as caption ink; the image showed correct left actions. The per-row background detector fixes it and still fails every before/installed capture.",
+    "The first --check evaluation treated an exact 0.0 offset as missing; corrected frame_failures() re-evaluates every saved run."
+  ],
+  "not_qualified": [
+    "Signed image delivery and installed-session readback (owner reboot into a candidate carrying this source).",
+    "Physical pointer/touch on the title bar and the spacer region; private KWin has no fake input here.",
+    "MoOS UI2 family's 20 px action targets on touch-first tablets (Bloom's are 44 px).",
+    "LTR: top-left Overview hot corner coincides with maximized window actions (owner's RTL session has actions top-right and has the hot corner disabled).",
+    "All 18 frames rendered natively: 4 representative frames (both geometries, dark/light) plus Aurora at 125% were rendered; the 16 UI2-family layouts are byte-identical, and all 18 are covered by the static gate."
+  ],
+  "live_motion_readback": {
+    "tier": "essential (detected: virtual display adapter, no accelerated render node)",
+    "owner_kwinrc_plugins": {
+      "scaleEnabled": true,
+      "squashEnabled": true,
+      "slideEnabled": true,
+      "dimscreenEnabled": true,
+      "blurEnabled": false,
+      "magiclampEnabled": false,
+      "dialogparentEnabled": false
+    },
+    "kwin_isEffectSupported_false": [
+      "scale",
+      "squash",
+      "slide",
+      "dimscreen",
+      "fadingpopups",
+      "slidingpopups"
+    ],
+    "kwin_loaded": "shakecursor outputlocator colorpicker zoom screenedge windowview tileseditor overview highlightwindow systembell kscreen",
+    "compositing": "OpenGL ES 3.2 Mesa 26.2.6 llvmpipe",
+    "reading": "KWin reports animation effects unsupported on software rendering, so the essential tier's enabled window/desktop/popup animations do not run on Oracle; windows open, close and minimize without animation. No change was made: forcing animations (KWIN_EFFECTS_FORCE_ANIMATIONS) would add compositor and Remote encode CPU without a measured win. The tier description should not be read as active motion on llvmpipe hosts."
+  }
+}
