@@ -186,6 +186,15 @@ def one(entry: dict) -> tuple[dict | None, str]:
 
 
 class CatalogueV2Kinds(unittest.TestCase):
+    def test_vendor_payload_icon_survives_indexing_with_its_scope(self):
+        app = next(app for app in json.loads(CATALOG.read_text())["apps"] if app["id"] == "chatgpt")
+        recipe = index.sanitize_vendor_install(app["install"], app["id"])
+        self.assertEqual(recipe["icon"], "resources/icon-chatgpt.png")
+        for icon in ("../icon.png", "resources/../../icon.png", "./icon.png",
+                     "resources//icon.png", "resources/icon\nInjected.svg", "resources\\icon.png"):
+            with self.subTest(icon=icon), self.assertRaises(index.CatalogError):
+                index.sanitize_vendor_install({**app["install"], "icon": icon}, app["id"])
+
     """docs/MO_STORE.md "catalog.json (v2)": every new field survives, with type checks."""
 
     def test_a_web_app_keeps_its_address_hosts_identity_permissions_and_accent(self):

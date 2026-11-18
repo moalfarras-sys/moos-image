@@ -240,10 +240,13 @@ assert.match(remote, /if \(mode === "off"\) return false;[^\n]*\n\s*if \(mode ==
 // A phone that keeps running yesterday's app after an update is indistinguishable from an update
 // that never shipped. Both halves are needed: the worker must not wait, and the page must reload
 // when a new one takes over.
-const vite = readFileSync(join(import.meta.dirname, "..", "vite.config.ts"), "utf8");
+const worker = readFileSync(join(import.meta.dirname, "..", "sw", "sw.js"), "utf8");
+const shippedWorker = readFileSync(join(import.meta.dirname, "..", "..", "agent", "wwwroot", "sw.js"), "utf8");
 const main = readFileSync(join(import.meta.dirname, "..", "src", "main.tsx"), "utf8");
-assert.match(vite, /skipWaiting: true/, "a waiting service worker serves the old app for ever");
-assert.match(vite, /clientsClaim: true/);
+assert.match(worker, /^self\.skipWaiting\(\);$/m, "a waiting service worker serves the old app for ever");
+assert.match(worker, /^clientsClaim\(\);$/m);
+assert.match(shippedWorker, /skipWaiting\(\)/, "the committed sw.js must carry the no-wait update");
+assert.match(shippedWorker, /clients\.claim\(\)/, "the committed sw.js must claim open pages");
 assert.match(main, /controllerchange/, "the page must reload when a new worker takes over");
 // A Home Screen app is resumed, not reloaded: without a check on the way back to the foreground an
 // installed copy kept the previous controller until it was force-quit (measured, 2026-10-06).

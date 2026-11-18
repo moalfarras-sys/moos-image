@@ -9,7 +9,7 @@ was entirely hidden and "Ed" of "Edit" was covered, leaving the menu reading
 VS Code's editor-layout toggles, confirming the controls were on the left.
 
 MoOS puts window buttons on the left by design (kwinrc ButtonsOnLeft=XIA,
-ButtonsOnRight empty — the macOS arrangement). That is only safe as long as the
+no button on the right, only a balancing spacer). That is only safe as long as the
 compositor owns the title bar: KWin reserves the strip, so nothing in the client
 area can be underneath it. An application that draws its OWN title bar has to
 reserve that space itself, and an app written for right-hand buttons does not.

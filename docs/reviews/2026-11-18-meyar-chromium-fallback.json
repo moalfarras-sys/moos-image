@@ -1,0 +1,144 @@
+{
+  "date": "2026-11-18",
+  "plan_rows": [
+    "P2.3",
+    "P2.10"
+  ],
+  "journey": "Arabic text in a native (non-Flatpak) Chromium/Electron app (VS Code 1.145.2) on Oracle with an English or other non-Arabic UI locale.",
+  "owner_observation": "Owner asked to fix Meyar on Oracle; the live VS Code chat painted Arabic in a non-Meyar face (local private capture, not committed).",
+  "live_renderer_before": "Owner's VS Code renderer processes mapped /usr/share/fonts/paktype-naqsh/PakTypeNaqsh.ttf (no Meyar Arabic).",
+  "mechanism": "Blink/Chromium per-character fallback on Linux queries a pattern with only FC_LANG (UI locale). 00-moos-meyar-defaults.conf aliases only the generic sans-serif, which 49-sansserif appends after those aliases ran; 61-moos-brand's sans-serif alias is weak, so FC_LANG ranks first: fonts declaring both en and ar (PakType Naqsh) win for an English UI.",
+  "change": "A pattern rule at the top of 00-moos-meyar-defaults.conf assigns strong sans-serif only when the pattern has no family value (qual=all against a sentinel string), before the existing generic aliases.",
+  "fontconfig_controls": {
+    "fixture": "tests/native_meyar_fontconfig.py (native fonts.conf normalization, source fonts/policy, private cache)",
+    "changed": {
+      ":lang=en arabic": [
+        "PakType Naqsh",
+        "Meyar Arabic"
+      ],
+      ":lang=en latin_a": [
+        "Noto Sans",
+        "Meyar Sans"
+      ],
+      ":lang=en-us arabic": [
+        "Noto Sans Arabic",
+        "Meyar Arabic"
+      ],
+      ":lang=en-us latin_a": [
+        "PakType Naqsh",
+        "Meyar Sans"
+      ],
+      ":lang=de arabic": [
+        "PakType Naqsh",
+        "Meyar Arabic"
+      ],
+      ":lang=de latin_a": [
+        "Noto Sans",
+        "Meyar Sans"
+      ],
+      ":lang=fr arabic": [
+        "Kawkab Mono,Kawkab Mono Light",
+        "Meyar Arabic"
+      ],
+      ":lang=fr latin_a": [
+        "Noto Sans",
+        "Meyar Sans"
+      ],
+      ":lang=fr arrow": [
+        "Kawkab Mono,Kawkab Mono Light",
+        "IBM Plex Sans"
+      ],
+      ":lang=ar arabic": [
+        "Noto Sans Arabic",
+        "Meyar Arabic"
+      ],
+      ":lang=ar latin_a": [
+        "Noto Sans",
+        "Meyar Sans"
+      ],
+      ":lang=ja arabic": [
+        "Noto Sans Arabic",
+        "Meyar Arabic"
+      ],
+      ":lang=ja latin_a": [
+        "Noto Sans",
+        "Meyar Sans"
+      ],
+      "match :lang=ar": [
+        "Noto Sans Arabic",
+        "Meyar Sans"
+      ],
+      "match :lang=en": [
+        "Noto Sans",
+        "Meyar Sans"
+      ]
+    },
+    "unchanged_count": 52,
+    "unchanged_named_and_generic": {
+      "match sans-serif:lang=ar": "Meyar Sans",
+      "match sans-serif:lang=en": "Meyar Sans",
+      "match sans-serif": "Meyar Sans",
+      "match monospace": "Meyar Mono",
+      "match monospace:lang=ar": "Meyar Mono",
+      "match serif:lang=ar": "Noto Naskh Arabic",
+      "match Noto Sans:lang=en": "Noto Sans",
+      "match Noto Sans Arabic": "Noto Sans Arabic",
+      "match DejaVu Sans": "Noto Sans Arabic",
+      "match Personal Choice": "Noto Sans Arabic",
+      "match Meyar Arabic": "Meyar Arabic",
+      "match Meyar Sans:lang=ar": "Meyar Sans",
+      "match Kawkab Mono": "Kawkab Mono,Kawkab Mono Light",
+      "match system-ui:lang=ar": "Noto Sans Arabic",
+      "first-arabic Noto Sans:lang=en": "PakType Naqsh",
+      "first-arabic Meyar Sans:lang=en": "PakType Naqsh",
+      "first-arabic monospace:lang=en": "Meyar Mono Arabic"
+    }
+  },
+  "native_electron_control": {
+    "app": "VS Code /var/home/moos/Applications/code/code, isolated --user-data-dir/--extensions-dir, --disable-extensions, FONTCONFIG_FILE fixture",
+    "old_policy_renderer_maps": [
+      "/usr/share/fonts/google-droid-sans-fonts/DroidSansFallbackFull.ttf",
+      "/usr/share/fonts/google-droid-sans-fonts/DroidSans.ttf",
+      "/usr/share/fonts/google-noto/NotoSansArabic-Regular.ttf",
+      "/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf",
+      "/usr/share/fonts/liberation-serif-fonts/LiberationSerif-Regular.ttf",
+      "/usr/share/fonts/paktype-naqsh/PakTypeNaqsh.ttf",
+      "/var/home/moos/moos-image/system_files/usr/share/fonts/meyar/MeyarMono[wght].ttf",
+      "/var/home/moos/moos-image/system_files/usr/share/fonts/meyar/MeyarSans[wght].ttf"
+    ],
+    "fixed_policy_renderer_maps": [
+      "/usr/share/fonts/google-droid-sans-fonts/DroidSansFallbackFull.ttf",
+      "/usr/share/fonts/google-droid-sans-fonts/DroidSans.ttf",
+      "/usr/share/fonts/google-noto/NotoSansArabic-Regular.ttf",
+      "/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf",
+      "/usr/share/fonts/liberation-serif-fonts/LiberationSerif-Regular.ttf",
+      "/var/home/moos/moos-image/system_files/usr/share/fonts/meyar/MeyarArabic[wght].ttf",
+      "/var/home/moos/moos-image/system_files/usr/share/fonts/meyar/MeyarMono[wght].ttf",
+      "/var/home/moos/moos-image/system_files/usr/share/fonts/meyar/MeyarSans[wght].ttf"
+    ],
+    "result": "old maps PakType Naqsh and no Meyar Arabic; fixed maps Meyar Arabic and no PakType Naqsh. Mapped files are not pixel acceptance.",
+    "cleanup": "all private instance processes verified gone; one empty /tmp profile directory left for reboot cleanup (rm was refused)"
+  },
+  "live_copy": {
+    "path": "/etc/fonts/conf.d/00-moos-meyar-defaults.conf",
+    "pristine_sha256": "bfa123dbc890653fc68600a914e65dd06e061288045843c39448b17090d9dedc",
+    "installed_sha256": "650e418c3290718053df365121c35e0397ec2909417864b9a1caa8924eaeaee7",
+    "receipt": "~/.local/state/moos/compat/meyar-nameless-20261118/RECEIPT.json",
+    "readback": "system fc-match :lang=en/en-us/de/fr/ar first Arabic = Meyar Arabic; sans-serif:lang=ar Meyar Sans, monospace Meyar Mono, serif:lang=ar Noto Naskh Arabic, Noto Sans:lang=en Noto Sans unchanged",
+    "retirement": "becomes unmodified once a booted signed image ships identical bytes; otherwise restore /usr/etc copy"
+  },
+  "not_qualified": [
+    "Which face paints owner VS Code chat Arabic after reboot (maps Noto Sans Arabic; Meyar Arabic is a Noto Sans Arabic derivative, so pixels differ mainly in dots)",
+    "Owner VS Code painted pixels after restart/reboot",
+    "Flatpak Chrome/Chromium: runtime fontconfig and the MoOS per-app policy intentionally carry no generic defaults (earlier refusal retained)",
+    "named-family+lang=en fontconfig queries (Skia matchFamilyStyleCharacter path) still rank PakType first; Blink on Linux does not use it for per-character fallback",
+    "signed image delivery"
+  ],
+  "post_reboot_readback": {
+    "booted": "signed ARM 44.20261117.957 (rollback 953), boot 10c0f6b0",
+    "etc_copy": "/etc keeps 650e418c over pristine /usr/etc bfa123db after the staged-deployment /etc merge",
+    "fontconfig": "fc-match -s :lang=en first Arabic-covering face = Meyar Arabic",
+    "owner_vscode": "Owner VS Code (started after reboot) maps NotoSansArabic Regular/SemiBold/Bold and no PakType Naqsh; the chat Arabic now paints a regular naskh-sans face instead of the Urdu face (local private capture).",
+    "system_ui_finding": "VS Code's Linux workbench stack is system-ui, Ubuntu, Droid Sans, sans-serif. fc-match must escape it (system\\-ui; an unescaped '-' parses as size and asked for family 'system'). Live system\\-ui resolves to Cantarell. A strong system-ui alias to Meyar passed fixture controls, but isolated VS Code trees under current and system-ui policies mapped identical faces (Meyar Arabic and Noto Sans Arabic both), so the painted family was not established. It was withdrawn from this change; it needs glyph-family readback (e.g. CDP CSS.getPlatformFontsForNode or private-KWin pixels) before shipping."
+  }
+}

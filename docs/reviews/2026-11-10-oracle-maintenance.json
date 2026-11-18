@@ -1,0 +1,163 @@
+{
+  "date": "2026-11-10",
+  "target": "moos-arm-oracle/aarch64",
+  "disk_capacity_bytes": 214748364800,
+  "booted_before": "44.20261109.908",
+  "staged": "44.20261109.911",
+  "staged_digest": "sha256:9907ef983655eb54e3471fef00fc0940bc9822bcb1de82a66a6581b2c2f19350",
+  "independent_cosign_exit": 0,
+  "user_app_update_exit": 0,
+  "pending_updates": 0,
+  "system_app_updater_exit": 0,
+  "system_app_updater_finished_monotonic": 32405098467,
+  "native_selfcheck_before": {
+    "passed": 52,
+    "failed": 0
+  },
+  "native_postcheck_before": {
+    "passed": 56,
+    "failed": 0
+  },
+  "flatpak_integrity_dry_run": {
+    "user_refs": 55,
+    "system_refs": 35,
+    "both_exit": 0
+  },
+  "disk": {
+    "last_full_scrub_date": "2026-11-09",
+    "last_full_scrub_seconds": 1701,
+    "last_full_scrub_errors": 0,
+    "current_device_error_counters": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "kernel_errors_current_boot": 0,
+    "available_before_cleanup_bytes": 43554402304,
+    "available_after_cleanup_bytes": 61163405312,
+    "available_after_reboot_bytes": 61155979264
+  },
+  "cleanup": {
+    "removed_exact_untagged_images": 70,
+    "remaining_images": 55,
+    "all_55_named_container_ancestry_images_preserved": true,
+    "removed_file_or_directory_targets": 15,
+    "file_logical_bytes": 4258070218,
+    "combined_measured_free_space_increase_bytes": 17609003008,
+    "note": "Image and file retirement overlapped; their observed free-space deltas must not be added.",
+    "private_manifests": "test-results/owner-maintenance-20261110/{image,file}-cleanup-receipt.json"
+  },
+  "services": {
+    "files": "FileBrowser Quantum2.0.2-stable",
+    "studio": "code-server4.145.2/Code1.145.2",
+    "photos": "Immich3.3.6",
+    "healthy_application_containers": 4,
+    "last_backup_exit": 0
+  },
+  "reboot": {
+    "owner_explicitly_approved": true,
+    "applied": true,
+    "postboot_verification_pending": false,
+    "requested_at_utc": "2026-11-10T08:06:20.261429+00:00",
+    "normal_native_helper_scheduled": true,
+    "before_boot_id": "5a4857ec-ecf1-428c-8ce4-40e980b96467",
+    "new_boot_id": "86ab0362-52da-46bf-b7cf-6c5992cba7b1",
+    "actual_version": "44.20261109.911",
+    "rollback_version": "44.20261109.908",
+    "boot_seconds": 15.295
+  },
+  "preserved": [
+    "owner files, projects, credentials and profiles",
+    "signed boot and rollback",
+    "all named/container image ancestry",
+    "previous service/app recovery generations",
+    "developer SDKs and current release-proof artifacts"
+  ],
+  "limitations": [
+    "No physical SMART/GPU/touch evidence on the virtual Oracle host",
+    "Service liveness is not authenticated login or universal app acceptance",
+    "Performance samples include owner tools, Remote and maintenance; no idle/performance-win claim",
+    "Live derived FileBrowser SQLite index integrity read refused database is locked; no unlock or service interruption, no account database integrity claim.",
+    "The post-update diagnostic remains55/1 due the preserved historical display-tool crash; current51 native selfchecks, service readiness and zero failed-unit snapshots do not erase it."
+  ],
+  "private_evidence": "test-results/owner-maintenance-20261110; no desktop captures, service configs, account data or credentials committed",
+  "checks": "Final post-cleanup and postboot checks have separate per-command exit/evidence receipts; a unit start is not completion.",
+  "final_pre_reboot_commands": {
+    "selfcheck": 0,
+    "post-update": 0,
+    "app-updates": 0,
+    "system-failed": 0,
+    "user-failed": 0
+  },
+  "performance": {
+    "sample_seconds": 30,
+    "workload": "Owner ChatGPT, Code, browsers/MCP/Remote/cloud services and native health checks; not idle",
+    "after_kwin_one_core_cpu_percent": 5.96,
+    "after_plasmashell_one_core_cpu_percent": 0.27,
+    "no_controlled_speedup_claim": true
+  },
+  "postboot_contract": {
+    "unit": "moos-owner-maintenance-20261110-verification.service",
+    "preflight_exit": 0,
+    "required": [
+      "changed boot ID",
+      "signed exact911 deployment",
+      "908 rollback",
+      "native desktop and Remote input ready",
+      "native selfcheck/postcheck and zero failed services",
+      "Store pending updates zero",
+      "service endpoints and current disk/kernel results"
+    ],
+    "retirement": "Both exact finished Nov9/Nov10 private verification units recoverably archived; original failure receipts retained; no product failure state cleared."
+  },
+  "postboot": {
+    "status": "Applied; current services healthy; historical diagnostic refusals retained",
+    "initial_selfcheck": {
+      "passed": 42,
+      "failed": 1,
+      "reason": "Three native Podman healthcheck units fail during starting at09:07:48-51, then native healthy/failing_streak0 receipts appear at09:08:19-21 without a manual service reset."
+    },
+    "initial_postcheck": {
+      "passed": 46,
+      "failed": 0
+    },
+    "settled_selfcheck": {
+      "exit": 0,
+      "passed": 51,
+      "notes": 4
+    },
+    "settled_postcheck": {
+      "exit": 1,
+      "passed": 55,
+      "failed": 1,
+      "reason": "Historical09:25:03 kscreen-doctor -o display:0 SIGABRT, PID16028, inside app-org.chromium.Chromium-9826.scope; caller parent16025 is not independently attributed. Native Wayland-scoped output probe exits0 at1280x720/75%. Gate and crash history are unchanged."
+    },
+    "current_failed_system_units": [],
+    "current_failed_user_units": [],
+    "service_health": {
+      "remote_input_ready": true,
+      "photos_version": {
+        "major": 3,
+        "minor": 3,
+        "patch": 6,
+        "prerelease": null
+      },
+      "photos_ping": {
+        "res": "pong"
+      },
+      "http": {
+        "files": 200,
+        "studio": 200
+      }
+    },
+    "encrypted_local_backup": {
+      "exit": 0,
+      "exec_main_exit_monotonic": 1184878253
+    },
+    "finished_diagnostic_units_recoverably_retired": 2,
+    "first_and_settled_failure_receipts_preserved": true,
+    "no_new_reboot_to_clear_failure_history": true
+  }
+}

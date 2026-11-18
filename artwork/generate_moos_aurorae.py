@@ -415,7 +415,15 @@ ButtonSpacing=6
 # pills started at device row 0), so it must be set explicitly.
 ButtonMarginTop=6
 ButtonMarginTopMaximized=6
-ExplicitButtonSpacer=8
+# Aurorae v2 centres the caption between the two button groups, not in the
+# window. MoOS keeps all three actions on one side (kwinrc XIA, mirrored by
+# KDecoration for RTL) and puts one explicit spacer `_` on the other side. The
+# spacer is exactly the action group (3 x 20 + 2 x 6 = 72), so the caption is
+# centred on the window in both directions. KDecoration disables spacer input,
+# so the title bar still drags and double-clicks through it. Measured in a
+# private native KWin (scripts/review/window-frames-native.py): +-36.5 px off
+# centre with nothing opposite the actions, within 1.3 px with this spacer.
+ExplicitButtonSpacer=72
 
 PaddingLeft=18
 PaddingRight=18
@@ -560,6 +568,7 @@ def validate_aurorae_suite(
         "RightButtons=HIAX",
         "ButtonMarginTop=6",
         "ButtonMarginTopMaximized=6",
+        "ExplicitButtonSpacer=72",
     ):
         if setting not in rc:
             raise SystemExit(f"{expected_rc} is missing required setting {setting}")

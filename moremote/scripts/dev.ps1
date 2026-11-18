@@ -1,4 +1,4 @@
-# Dev mode: runs the agent (localhost:8765) + the Vite dev server (localhost:5173)
+# Dev mode: runs the agent (localhost:8765) + the controller dev server (localhost:5173, scripts/dev.mjs)
 # in two windows. The dev server proxies /api and /ws to the agent.
 # Open http://localhost:5173 in a browser (or from your phone over Tailscale: use the agent URL).
 $ErrorActionPreference = "Stop"

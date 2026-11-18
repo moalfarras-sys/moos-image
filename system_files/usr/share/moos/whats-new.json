@@ -3,6 +3,32 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "window-titles-centred",
+      "merged": "2026-11-18T12:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "عناوين نوافذ في المنتصف وكاملة",
+        "en": "Centred, complete window titles"
+      },
+      "body": {
+        "ar": "عنوان كل نافذة صار في منتصفها تماماً بالعربية والإنجليزية، مع أزرار الإغلاق والتصغير والتكبير في مكانها. نوافذ الحوار الصغيرة في إطار Bloom تعرض عنوانها كاملاً بدل أن يختفي أو يُقص، وزر النافذة المكبّرة يصل إلى زاوية الشاشة.",
+        "en": "Every window title now sits exactly in the middle of its window in Arabic and English, with close, minimise and maximise where they were. Small dialogs in the Bloom frame show their whole title instead of losing or cutting it, and a maximised window's outer button reaches the screen corner."
+      }
+    },
+    {
+      "id": "meyar-in-electron-apps",
+      "merged": "2026-11-18T12:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "العربية بخط معيار في تطبيقات المتصفح",
+        "en": "Arabic in Meyar inside browser-based apps"
+      },
+      "body": {
+        "ar": "التطبيقات المبنية على Chromium وElectron المثبتة على النظام، مثل VS Code، تكتب العربية الآن بخط معيار العربي بدل خط أردي غريب، أياً كانت لغة واجهتها. اختياراتك للخطوط وخط الطرفية لم تتغير.",
+        "en": "Chromium and Electron apps installed on the system, such as VS Code, now write Arabic in Meyar Arabic instead of an unrelated Urdu face, whatever their interface language. Your own font choices and the terminal font are unchanged."
+      }
+    },
+    {
       "id": "mova-launcher-glass",
       "merged": "2026-11-17T21:30:00Z",
       "glyph": "grid",
@@ -902,33 +928,6 @@
         "en": "Mo AI's model list now starts with what was measured on your machine: each model with its seconds — to answer, and to run an action. \"Measure now\" repeats it in two minutes, and a model the provider refused, or that didn't answer in Arabic, says so."
       },
       "route": "moos://settings/assistant"
-    },
-    {
-      "id": "hub-second-faces",
-      "merged": "2026-09-18T13:48:43Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "بطاقات سطح المكتب تجيب السؤال الذي يليها",
-        "en": "The desk's cards answer the question that comes next"
-      },
-      "body": {
-        "ar": "لكل بطاقة على سطح المكتب وجه ثانٍ: الطقس يعرض الساعات الستّ القادمة، والجهاز يعرض سرعة الشبكة والمساحة المتبقية بالجيجابايت. تُقلب من قائمة سطح المكتب ويُحفظ اختيارك، وما لا يمكن قياسه يظهر شَرطة.",
-        "en": "Every card on the desk has a second face: weather shows the next six hours, and the device card shows network speed and the space left in gigabytes. Turn them from the desktop's menu; anything that cannot be measured shows a dash."
-      },
-      "route": "moos://settings/desktop"
-    },
-    {
-      "id": "moai-reports",
-      "merged": "2026-09-18T12:27:25Z",
-      "glyph": "report",
-      "title": {
-        "ar": "Mo AI يخبرك بالنتيجة بدل أن يرمي لك سجلاً",
-        "en": "Mo AI tells you the result instead of paging a log at you"
-      },
-      "body": {
-        "ar": "عندما ينفّذ Mo AI أمراً، صار يعرض أول ستة أسطر ويقول كم بقي، بدل صفحة كاملة. و«فحص الجهاز» الذي كان يفتح نافذة ولا يطبع شيئاً ثم يظهر صفّاً أحمر، صار يعيد حالة جهازك بالكلمات: الإصدار، هل هو موقّع، وما وجده الفحص.",
-        "en": "When Mo AI runs something it now shows the first six lines and says how many are left, instead of a full page. And the hardware check that used to open a window, print nothing and leave a red \"failed\" row now answers in words: the version, whether it is signed, and what the check found."
-      }
     }
   ]
 }
