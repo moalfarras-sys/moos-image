@@ -16,6 +16,19 @@
       }
     },
     {
+      "id": "window-buttons-everywhere",
+      "merged": "2026-11-18T13:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "أزرار النوافذ نفسها في كل تطبيق",
+        "en": "The same window buttons in every app"
+      },
+      "body": {
+        "ar": "تطبيقات GTK وlibadwaita وأزرار Chrome المرسومة بـGTK صارت تعرض أزرار الإغلاق والتصغير والتكبير نفسها التي في إطار MoOS المختار، وتتبعه عند تغيير الثيم. وأزرار تطبيقات GTK3 التي كانت تختفي تماماً عادت ظاهرة.",
+        "en": "GTK, libadwaita and Chrome's GTK-drawn captions now show the same close, minimise and maximise buttons as your MoOS frame, and follow it when the theme changes. GTK3 caption buttons that used to be invisible are back."
+      }
+    },
+    {
       "id": "window-titles-centred",
       "merged": "2026-11-18T12:00:00Z",
       "glyph": "ui",
