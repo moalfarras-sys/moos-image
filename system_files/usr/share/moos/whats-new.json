@@ -17,6 +17,19 @@
       "route": "moos://settings/appearance"
     },
     {
+      "id": "app-drop-active-removal",
+      "merged": "2026-11-18T14:00:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "إزالة أكثر أماناً للتطبيقات",
+        "en": "Safer removal of applications"
+      },
+      "body": {
+        "ar": "عند رصد استخدام ملفات تطبيق ثبّتّه من ملف، يحتفظ المتجر به ويطلب إغلاقه بصورة عادية قبل الإزالة. إذا تعذّر التحقق، تبقى ملفاته كما هي ويمكنك إعادة المحاولة.",
+        "en": "When an app installed from a file is detected using its files, the Store keeps it and asks you to close it normally before removal. If usage cannot be checked, its files stay in place and you can retry."
+      }
+    },
+    {
       "id": "chatgpt-window-buttons-arabic",
       "merged": "2026-11-18T14:00:00Z",
       "glyph": "ui",
@@ -928,6 +941,20 @@
         "ar": "على جهاز لا يرسم التمويه، أو إذا أطفأتَه بنفسك، كانت أسطح MoOS تبقى شفّافة فيقرأ نصّ النافذة التي خلفها من خلالها. صارت الأسطح تقرأ إعداد جهازك كما يقرأه النظام، وتزداد كثافةً بلا تمويه، فيستقرّ النص فوق سطح.",
         "en": "On a machine that does not paint blur — or when you turn blur off — MoOS surfaces stayed translucent, and the window behind read straight through them. Surfaces now read your machine's setting the way the system reads it, and grow denser without blur, so text sits on a surface."
       }
+    },
+    {
+      "id": "free-brain-measured",
+      "merged": "2026-09-18T15:23:50Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "Mo AI يقيس أسرع عقل مجاني على جهازك",
+        "en": "Mo AI measures the fastest free brain on your machine"
+      },
+      "body": {
+        "ar": "قائمة النماذج في Mo AI صارت تبدأ بما قِيس على جهازك: كل نموذج ومعه ثوانيه — كم أخذ ليردّ وكم أخذ لينفّذ أمراً. وزرّ «قِس الآن» يعيد القياس في دقيقتين. ونموذج رفضه المزوّد أو لم يجب بالعربية يقول ذلك بصراحة.",
+        "en": "Mo AI's model list now starts with what was measured on your machine: each model with its seconds — to answer, and to run an action. \"Measure now\" repeats it in two minutes, and a model the provider refused, or that didn't answer in Arabic, says so."
+      },
+      "route": "moos://settings/assistant"
     }
   ]
 }

@@ -1118,6 +1118,9 @@ def remove(slug: str) -> bool:
     # this app — a launcher the person or another installer owns keeps its file.
     directory = applications_dir() / slug
     if directory.is_dir() and not directory.is_symlink():
+        # Use the same bounded reference check as updates, before any removal.
+        # This refuses observed users; it is not a launch/remove lifetime lease.
+        _assert_app_trees_idle(directory)
         shutil.rmtree(directory)
     for entry in _launcher_candidates(slug, owned_record):
         if _ours(entry, slug):

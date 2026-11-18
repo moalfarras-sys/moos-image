@@ -807,6 +807,22 @@ class ActiveAppTrees(Home):
             self.assertEqual(appdrop.read_record("noteforge")["sha256"], record["sha256"])
             self.assertEqual([path.name for path in self.target.parent.iterdir()], ["noteforge"])
 
+    def test_remove_with_unavailable_process_inventory_preserves_all_owned_files(self):
+        record = self.installed_app()
+        paths = [self.target / "noteforge", Path(record["desktop"]),
+                 appdrop.manifest_dir() / "noteforge.json"]
+        saved = {path: (path.read_bytes(), stat.S_IMODE(path.stat().st_mode)) for path in paths}
+        original = appdrop._assert_app_trees_idle
+        with mock.patch.object(appdrop, "_assert_app_trees_idle",
+                               side_effect=lambda *trees: original(*trees, proc_root=self.proc / "unavailable")), \
+                mock.patch.object(appdrop, "_refresh_menu") as menu, \
+                self.assertRaises(appdrop.DropError) as refused:
+            appdrop.remove("noteforge")
+        self.assertEqual(refused.exception.code, "app_inspection_unavailable")
+        self.assertEqual({path: (path.read_bytes(), stat.S_IMODE(path.stat().st_mode))
+                          for path in paths}, saved)
+        menu.assert_not_called()
+
 
 class NativeActiveApps(Home):
     """Actual private processes and files; never launch or replace an owner's application."""
@@ -877,6 +893,40 @@ for line in sys.stdin:
                     appdrop._assert_app_trees_idle(sibling)
                     self.assertEqual(reply("read"), "old runtime resource")
                 appdrop._assert_app_trees_idle(target)     # a normally exited PID leaves no lease
+
+    def test_native_remove_refuses_active_tree_then_succeeds_after_normal_exit(self):
+        for mode in ("cwd", "exe", "argv", "maps"):
+            with self.subTest(mode=mode):
+                slug = f"native-remove-{mode}"
+                plan = appdrop.plan_for(self.download(slug + ".tar.gz", self.portable_app()),
+                                        "Native Remove", slug)
+                record = appdrop.install(plan)
+                target = Path(record["directory"])
+                desktop = Path(record["desktop"])
+                receipt = appdrop.manifest_dir() / f"{slug}.json"
+                sibling = target.with_name(slug + "-sibling")
+                sibling.mkdir()
+                retained = sibling / "personal-file"
+                retained.write_bytes(b"sibling data")
+                with self.sentinel(target, mode) as (process, reply):
+                    paths = [path for path in target.rglob("*") if path.is_file()] + [desktop, receipt]
+                    saved = {path: (path.read_bytes(), stat.S_IMODE(path.stat().st_mode)) for path in paths}
+                    self.assertEqual(reply("read"), "old runtime resource")
+                    with mock.patch.object(appdrop, "_refresh_menu") as menu, \
+                            self.assertRaises(appdrop.DropError) as refused:
+                        appdrop.remove(slug)
+                    self.assertEqual(refused.exception.code, "app_in_use")
+                    self.assertIsNone(process.poll())
+                    self.assertEqual(reply("read"), "old runtime resource")
+                    self.assertEqual({path: (path.read_bytes(), stat.S_IMODE(path.stat().st_mode))
+                                      for path in paths}, saved)
+                    menu.assert_not_called()
+                self.assertTrue(appdrop.remove(slug))
+                self.assertFalse(target.exists())
+                self.assertFalse(desktop.exists())
+                self.assertFalse(receipt.exists())
+                self.assertFalse(appdrop.remove(slug))
+                self.assertEqual(retained.read_bytes(), b"sibling data")
 
     def test_old_active_update_loses_resource_and_fixed_refuses_without_mutation(self):
         for enabled in (False, True):

@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "integration_owner": "V3 root; Oracle PR311 frozen proofs remain separate",
+  "base_main": "fbb8a46d15739fed90e94be440b32c3276c0020c",
+  "inputs": {
+    "window_batch": "1df0148370554f7ec5afaad25b404bc52a0fd786",
+    "appdrop": "98fed279b839876f9639ec6933f398d59c5acd56",
+    "night_light": "016e518dcc0a9619bac6847314562eff0d9130dd"
+  },
+  "original_qualified_appdrop_source": "913f016babe26fc14b4f12bb6d13109001931819",
+  "test_permission": "requested asynchronously; pending; no new tests or CI dispatched",
+  "existing_pr311": {
+    "repo": 44323788769,
+    "repo_result": "failure: stale TitleHeight32 and ButtonWidth20 versus native44",
+    "arm": 44323788733,
+    "x86": 44323788622,
+    "image_results": "running at readback; no later source qualified by them"
+  },
+  "preserved_remote_archives": {
+    "archive/qualification-main-306-307-20261118": "cdab5775d34da0b8b7e6fd353fd8388686adc5f8",
+    "archive/nightcolor-merge-proof-20261118": "01a8c94ff0527066b99f159481ae8a1a237e40fd"
+  },
+  "host": {
+    "booted": 1162,
+    "rollback": 1152,
+    "pinned_retirement_candidate": 1078,
+    "staged": false,
+    "free_var_gib": 254,
+    "system_failure": "moos-hardware-adapt.service remains failed",
+    "user_failure": "historical qualification159 source hygiene215>200; not reset"
+  },
+  "cleanup": "No deletion/unpin/prune; shared bytes and retained OCI refs do not establish whole-image reclaim. Preserve private/inaccessible evidence and active editor worktrees.",
+  "delivery": "No final aggregate tests/image/PR/merge/release/stage/reboot acceptance yet."
+}
