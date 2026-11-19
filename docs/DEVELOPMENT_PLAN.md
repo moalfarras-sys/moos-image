@@ -28,6 +28,8 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+Nov19: qualify the integrated ARM tray providers, Store runtime and archive icons on the same source as the native frame and V3 changes. Verify all 16 tray components and the offline npm journey on the built images. Oracle boots signed 966 with 964 retained. [Maintenance record](reviews/2026-11-19-oracle-maintenance.json).
+
 Nov18 owner authorizes preserving/pushing all remaining source, correct integration
 and a signed system update, and has explicitly approved the requested automated source/image/CI/boot-fixture
 checks. Physical host reboot/suspend remains coordinated with open editor work.
