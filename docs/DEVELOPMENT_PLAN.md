@@ -97,6 +97,13 @@ transaction on its exact base both refused libavcodec 8.1.3-3 because no enabled
 repository provided liboapv.so.11. Qualify the original transaction when the
 provider is published to the stable repositories. Preserve the first attempt.
 [V3 qualification](reviews/2026-11-18-complete-integration.json).
+The a6a4eff3 image gate 44388295850 retained the same refusal. Bodhi
+FEDORA-2026-a03cf645f0 (ffmpeg 8.1.3-3, openapv 1.1.3.0) reached Fedora 44
+stable at 2026-11-19 01:29 UTC. Mirror propagation was uneven: at 05:40 UTC,
+7 of 8 US and 5 of 16 European HTTPS mirrors served it. One V3 transaction on
+an older mirror still refused. The original unchanged transaction is
+requalified through fresh first-attempt PR gates. No exclusion, pin or testing
+repository was added.
 
 After approved qualification, push one final reviewed tree, let exact-head PR
 image gates complete, integrate once, then freeze the actual merge SHA through
