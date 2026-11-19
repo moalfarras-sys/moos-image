@@ -548,21 +548,28 @@ python3 tests/verify_user_experience.py
 
 The release decision still requires clean-VM and upgraded-real-host visual proof.
 
-## Boot — MoOS Arabic welcome
+## Boot — MoOS Liquid Glass
 
 The owner's Oct25 requirement gives boot its own fixed identity, independent of
-every selected theme, login wallpaper and user account. Use the approved resting
-rendered mark unchanged over a small fixed blue/teal brand canvas. Centre it,
-bound it to44% screen width /40% height, and preserve its reflection and aspect.
-One subordinate shaped Arabic «مرحبًا بك» greeting is rasterized from IBM Plex
-Sans Arabic; it needs no early font/locale discovery and hides during shutdown
-and reboot. No new logo, video, decorative panels or fake percentage.
+every selected theme, login wallpaper and user account. Owner steering Nov19
+rejected the plain rise and a neon-lattice draft: boot is a short, premium
+Liquid Glass scene that keeps the MoOS mark itself and improves its rendering
+and typography. The mark is the Blender glass-coated render of the owner's
+vector master (same silhouette, colours and internal lines; rounded bevels and
+a clear coat replace the trace speckle). It sits centred like a hardware logo
+at 21% of screen height (at most 30% of a portrait width) inside a thin glass
+bezel. Below it the wordmark is Meyar Sans Light, then the shaped Meyar Arabic
+«مرحبًا بك»; shutdown and reboot show «إلى اللقاء». No video, progress
+percentage, decorative panels or full-screen blur.
 
-The mark rises and brightens over 480 ms. The Arabic greeting follows from 160 to 720 ms. Shutdown, password prompt and quit
-immediately settle. No minimum display time, spinner loop or additional session
-splash. Pre-login has no user's Plasma motion settings. Native text stays bounded
-and uses the existing muted/text/primary tokens. Once settled, refresh performs
-no scaling or sprite movement; one hero replaces the 32-frame movie.
+The scene lasts 1.8 s: the mark waits as a faint glass ghost, three liquid
+glass droplets curve into the lens, the mark resolves, a sheen flows over the
+glass with one rim glint, the wordmark gathers letter by letter and the Arabic
+welcome follows. Shutdown, password prompt and quit immediately settle. No
+minimum display time, spinner loop or additional session splash. Pre-login has
+no user's Plasma motion settings, so motion is finite by construction. Native
+text stays bounded and uses the existing muted/text/primary tokens. Once
+settled, refresh performs no scaling or sprite movement.
 Keep dirty-region redraws at 25 Hz while the boot UI can receive input/status;
 reducing script refresh to 1 Hz made password updates temporarily erase the
 composition. Native review must update a visible prompt, preserve the resting

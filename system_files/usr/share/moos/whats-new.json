@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "liquid-glass-boot",
+      "merged": "2026-11-19T22:45:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "شاشة إقلاع من الزجاج السائل",
+        "en": "A Liquid Glass boot screen"
+      },
+      "body": {
+        "ar": "عند التشغيل تنساب قطرات زجاجية إلى عدسة يظهر فيها شعار MoOS بلمعة زجاجية، ثم يكتمل اسم MoOS بخط ميار وتظهر «مرحبًا بك». عند الإيقاف تظهر «إلى اللقاء». المشهد قصير ولا يؤخر الإقلاع.",
+        "en": "At power-on, glass droplets flow into a lens where the MoOS mark resolves in glass, then the Meyar wordmark and an Arabic welcome settle. Shutdown says goodbye in Arabic. The scene is short and never delays startup."
+      }
+    },
+    {
       "id": "window-titles-centred",
       "merged": "2026-11-18T16:00:00Z",
       "glyph": "ui",
