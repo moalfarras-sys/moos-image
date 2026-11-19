@@ -287,7 +287,7 @@ function check(source, mode) {
     Scale:(x,y)=>{scaled++;return picture(x,y);}}; }
   const Image = () => picture(); Image.Text = () => picture(100,20);
   const context = {frames:[], Image, Sprite:()=>({x:0,y:0,opacity:1,
-    SetImage:()=>{},SetX(x){this.x=x;},SetZ:()=>{},
+    SetImage(image){this.image=image;calls.push(['image',image]);},SetX(x){this.x=x;},SetZ:()=>{},
     SetY(y){this.y=y;calls.push(['y',y]);},
     SetOpacity(a){this.opacity=a;calls.push(['alpha',a]);}}),
     Window:{GetWidth:()=>1536,GetHeight:()=>864,SetBackgroundTopColor:()=>{},SetBackgroundBottomColor:()=>{}},
@@ -310,6 +310,8 @@ function check(source, mode) {
       if (!(context.intro_sprite.opacity===1 && context.greeting_sprite.opacity>0 &&
             context.greeting_sprite.opacity<1)) throw Error('missing greeting arrival');
       for(let i=38;i<context.ENTRANCE_TICKS;i++) context.refreshCallback();
+      if(context.letter_sprite.some((letter,k)=>letter.image!==context.letter_image[k]))
+        throw Error('wordmark kept its last blended pixels');
     } else {
       context.refreshCallback(); context.refreshCallback(); context.refreshCallback();
       context.quitCallback();
@@ -337,18 +339,21 @@ function check(source, mode) {
 }
 '''
         source = js_source()
-        for broken in (False, True):
+        for line, refusal in (
+            (None, None),
+            ('    intro_sprite.SetY(stage_y);\n', 'handoff kept the in-flight offset'),
+            ('                letter_sprite[k].SetImage(letter_image[k]);\n', 'wordmark kept its last blended pixels'),
+        ):
             candidate = source
-            if broken:
-                line = '    intro_sprite.SetY(stage_y);\n'
+            if line:
                 self.assertEqual(candidate.count(line), 1)
                 candidate = candidate.replace(line, '', 1)
             program = prelude+'\nconst source='+json.dumps(candidate)+';\n'
             program += "check(source,'boot');check(source,'boot-full');check(source,'shutdown');check(source,'reboot');process.stdout.write('MOOS_BOOT_CALLBACK_PASS');"
             p = subprocess.run([shutil.which('node'), '-e', program], capture_output=True, text=True, timeout=10)
-            if broken:
+            if refusal:
                 self.assertNotEqual(p.returncode, 0)
-                self.assertIn('handoff kept the in-flight offset', p.stderr)
+                self.assertIn(refusal, p.stderr)
             else:
                 self.assertEqual(p.returncode, 0, p.stdout+p.stderr)
                 self.assertIn('MOOS_BOOT_CALLBACK_PASS', p.stdout)

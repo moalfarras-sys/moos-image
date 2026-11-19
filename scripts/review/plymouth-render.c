@@ -67,7 +67,10 @@ int main(int argc, char **argv) {
         password_prompt = argv[4];
         ply_event_loop_watch_for_timeout(loop, 1.35, type_one, NULL);
     }
-    ply_event_loop_watch_for_timeout(loop, prompt_update ? 1.55 : 1.2, capture, NULL);
+    /* The 45-tick entrance lasts 1.8s. Compare password frames with the
+     * resting composition; keep the measured 200ms input deadline above. */
+    double capture_time = argc == 4 ? 2.8 : (prompt_update ? 1.55 : 1.2);
+    ply_event_loop_watch_for_timeout(loop, capture_time, capture, NULL);
     int result = ply_event_loop_run(loop);
     ply_boot_splash_hide(splash);
     ply_boot_splash_free(splash);

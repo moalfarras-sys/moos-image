@@ -135,7 +135,8 @@ word_y = cy + emblem_d * 0.58 + emblem_d * 0.22;
 letter_at = cx - word_w / 2;
 k = 0;
 while (k < 4) {
-    letter_sprite[k] = Sprite(letter_source[k].Scale(letter_w[k], letter_h));
+    letter_image[k] = letter_source[k].Scale(letter_w[k], letter_h);
+    letter_sprite[k] = Sprite(letter_image[k]);
     letter_x[k] = letter_at;
     letter_sprite[k].SetX(letter_at);
     letter_sprite[k].SetY(word_y);
@@ -276,6 +277,11 @@ fun refresh() {
             // Commit the same final raster as quit/password. Native Plymouth
             // otherwise retained the preceding blended edge until that event.
             intro_sprite.SetImage(hero);
+            k = 0;
+            while (k < 4) {
+                letter_sprite[k].SetImage(letter_image[k]);
+                k++;
+            }
             finished = 1;
             // Keep input/status redraws responsive. Everything is now still;
             // sprite refresh draws only damaged regions, not a new movie frame.

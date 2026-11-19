@@ -111,6 +111,11 @@
         }
       },
       "boundary": "X11 review renderer, not DRM/framebuffer boot time"
+    },
+    "fastHandoffReview": {
+      "renderer": "V3 Plymouth 24.004.60-24.1.moos1 on private Xvfb with the signed runtime libraries and script plugin.",
+      "original": "The 1.2 s native baseline was still animating. With a 2.8 s resting reference, the wordmark at 640x360 still differed from its prompt composition by up to two channel levels in x=295..343, y=242..252.",
+      "repair": "Reuse the four prescaled letter images once at the final tick. The full composition above the prompt now matches byte for byte. Arabic, long Latin and 200 ms input-redraw controls passed at 640x360, 800x480 and 640x480. Final renders include portrait, 1080p and 4K."
     }
   },
   "tests": {
