@@ -6,6 +6,7 @@ ConditionArchitecture=arm64
 ConditionPathExists=/run/ostree-booted
 Requires=systemd-udevd.service
 After=systemd-udev-trigger.service
+After=systemd-udevd.service
 Before=local-fs-pre.target boot.mount boot-efi.mount
 
 [Service]
