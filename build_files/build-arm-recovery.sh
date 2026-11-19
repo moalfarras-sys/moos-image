@@ -186,7 +186,7 @@ grep -qE 'plymouth/(script\.so|script)' /tmp/moos-recovery-initrd.txt || {
 }
 
 echo "=== (6) gates ==="
-for cmd in bootc skopeo cosign jq curl lsblk; do
+for cmd in bootc skopeo cosign jq curl lsblk findmnt; do
     command -v "$cmd" >/dev/null || { echo "FATAL: missing $cmd"; exit 1; }
 done
 [ -x /usr/libexec/moos-utm-net-install ] || { echo "FATAL: moos-utm-net-install missing"; exit 1; }

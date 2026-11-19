@@ -27,6 +27,9 @@ PREFIX = "MoOS-UTM-Installer.utm/"
 MEMBERS = {PREFIX + p for p in (
     "config.plist", "README-FIRST.txt", "Data/installer.qcow2",
     "Data/target.qcow2", "Data/seed.iso", "Data/moos-icon.png")}
+# bootc-image-builder produced a 10 GiB virtual recovery disk for the 4 GiB
+# minimum root filesystem. The compressed archive budget is checked separately.
+RECOVERY_DISK_LIMITS = {"installer": 10 * 1024**3, "target": 32 * 1024**3}
 FATAL = re.compile(r"Kernel panic|Entering emergency mode|You are in emergency mode|"
                    r"Reached target[^\n]*emergency|Dependency failed for[^\n]*/boot|"
                    r"Failed to start[^\n]*coldplug", re.I)
@@ -336,7 +339,7 @@ def prove(archive, evidence, revision, run_id):
         code, variables = firmware()
         shutil.copyfile(variables, work / "vars.fd")
         for name in ("installer", "target"):
-            info = qcow_input(data / (name + ".qcow2"), 8*1024**3 if name == "installer" else 32*1024**3)
+            info = qcow_input(data / (name + ".qcow2"), RECOVERY_DISK_LIMITS[name])
             (evidence / (name + "-info.json")).write_text(json.dumps(info, indent=2) + "\n")
             run(["qemu-img", "check", str(data / (name + ".qcow2"))])
             run(["qemu-img", "create", "-q", "-f", "qcow2", "-F", "qcow2", "-b",
