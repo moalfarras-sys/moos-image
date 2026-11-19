@@ -21,6 +21,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "build_files"))
@@ -32,6 +33,8 @@ TEMPLATE = ROOT / "system_files" / parity.LAYOUT
 ARM_PACKAGE = {
     "usr/bin/lspci": "pciutils",
     "usr/bin/lsusb": "usbutils",
+    "usr/bin/node": "nodejs22",
+    "usr/bin/npm": "nodejs22-npm",
     "usr/share/qt6/translations/qtbase_ar.qm": "qt6-qttranslations",
     "usr/bin/pw-dump": "pipewire-utils",
     "usr/share/themes/Breeze/gtk-3.0/gtk.css": "breeze-gtk-gtk3",
@@ -83,6 +86,22 @@ class BothBuildsRunIt(unittest.TestCase):
             self.assertRegex(text, rf"(?<![\w-]){package}(?![\w-])",
                              f"build-arm.sh never installs {package}, so ARM lacks /{path}")
 
+    def test_both_architectures_qualify_the_store_npm_runtime(self):
+        for script in ("build.sh", "build-arm.sh"):
+            text = code((ROOT / "build_files" / script).read_text(encoding="utf-8"))
+            self.assertIn("python3 /ctx/verify_desktop_parity.py --root / --npm-runtime", text)
+            for package in ("nodejs22", "nodejs22-npm"):
+                self.assertRegex(text, rf"(?<![\w-]){package}(?![\w-])")
+
+    def test_store_keeps_its_fixed_system_provider(self):
+        import ast
+        source = ast.parse((ROOT / "system_files/usr/bin/moos-storectl").read_text())
+        providers = [ast.literal_eval(node.value) for node in source.body
+                     if isinstance(node, ast.Assign)
+                     and any(isinstance(target, ast.Name) and target.id == "NPM"
+                             for target in node.targets)]
+        self.assertEqual(providers, [parity.NPM])
+
 
 class TheGateReadsTheRealBar(unittest.TestCase):
     def test_the_parser_finds_the_bar_the_template_draws(self):
@@ -108,7 +127,7 @@ class TheGateRefuses(unittest.TestCase):
                 self.assertEqual(len(found), 1, found)
                 self.assertIn(alternatives[0], found[0])
 
-    def test_hardware_enumerators_must_be_executable_files(self):
+    def test_runtime_and_hardware_providers_must_be_executable_files(self):
         for name in parity.EXECUTABLE_CAPABILITIES:
             with self.subTest(path=name), tempfile.TemporaryDirectory() as raw:
                 root = full_root(Path(raw))
@@ -123,6 +142,22 @@ class TheGateRefuses(unittest.TestCase):
                 self.assertEqual(len(found), 1, found)
                 self.assertIn(name, found[0])
 
+    def test_old_arm_provider_closure_is_refused(self):
+        with tempfile.TemporaryDirectory() as raw:
+            found = parity.problems(full_root(Path(raw), skip={"usr/bin/node", "usr/bin/npm"}))
+            self.assertEqual(len(found), 2, found)
+            self.assertTrue(any("/usr/bin/node" in problem for problem in found))
+            self.assertTrue(any("/usr/bin/npm" in problem for problem in found))
+
+    def test_native_runtime_cannot_execute_providers_from_an_alternate_root(self):
+        with tempfile.TemporaryDirectory() as raw:
+            full_root(Path(raw))
+            with self.assertRaises(SystemExit) as refused, \
+                    mock.patch.object(parity, "npm_runtime") as runtime:
+                parity.main(["--root", raw, "--npm-runtime"])
+            self.assertEqual(refused.exception.code, 2)
+            runtime.assert_not_called()
+
     def test_a_bar_applet_the_edition_lacks_is_named(self):
         with tempfile.TemporaryDirectory() as raw:
             found = parity.problems(full_root(Path(raw), extra_applet_missing="org.kde.plasma.volume"))
@@ -132,6 +167,95 @@ class TheGateRefuses(unittest.TestCase):
     def test_the_command_fails_on_an_empty_root(self):
         with tempfile.TemporaryDirectory() as raw:
             self.assertEqual(parity.main(["--root", raw]), 1)
+
+
+class TheImageNpmRuntimeRefuses(unittest.TestCase):
+    def test_missing_or_nonexecutable_provider_refuses_before_any_process(self):
+        with tempfile.TemporaryDirectory() as raw:
+            provider = Path(raw) / "node"
+            for missing in ("NODE", "NPM"):
+                for exists in (False, True):
+                    if exists:
+                        provider.write_text("unusable")
+                        provider.chmod(0o644)
+                    elif provider.exists():
+                        provider.unlink()
+                    providers = {"NODE": sys.executable, "NPM": sys.executable,
+                                 missing: str(provider)}
+                    with self.subTest(provider=missing, exists=exists), \
+                            mock.patch.multiple(parity, **providers), \
+                            mock.patch.object(parity.subprocess, "run") as process:
+                        with self.assertRaisesRegex(RuntimeError, "missing or unusable"):
+                            parity.npm_runtime()
+                        process.assert_not_called()
+
+    def test_native_command_failures_and_timeout_remain_failures(self):
+        failures = (parity.subprocess.CompletedProcess([], 42, "", ""),
+                    parity.subprocess.TimeoutExpired("node", 30),
+                    FileNotFoundError("missing native loader"))
+        for result in failures:
+            with self.subTest(result=type(result).__name__), \
+                    mock.patch.object(parity, "NODE", sys.executable), \
+                    mock.patch.object(parity, "NPM", sys.executable), \
+                    mock.patch.object(parity.subprocess, "run") as process:
+                if isinstance(result, Exception):
+                    process.side_effect = result
+                else:
+                    process.return_value = result
+                with self.assertRaisesRegex(RuntimeError, "Node execution"):
+                    parity.npm_runtime()
+
+    def test_offline_lifecycle_uses_private_state_and_preserves_other_prefix_data(self):
+        calls = []
+
+        def process(argv, **options):
+            calls.append((argv, options))
+            prefix = Path(options["cwd"]) / "prefix"
+            binary = prefix / "bin/moos-store-runtime-proof"
+            if "--eval" in argv:
+                output = "MOOS_NODE_OK"
+            elif "install" in argv:
+                binary.parent.mkdir()
+                binary.write_text("fixture")
+                binary.chmod(0o755)
+                output = ""
+            elif "uninstall" in argv:
+                binary.unlink()
+                output = ""
+            else:
+                output = "MOOS_NODE_NPM_OK\n"
+            return parity.subprocess.CompletedProcess(argv, 0, output, "")
+
+        with mock.patch.object(parity, "NODE", sys.executable), \
+                mock.patch.object(parity, "NPM", sys.executable), \
+                mock.patch.object(parity.subprocess, "run", side_effect=process), \
+                mock.patch.dict(parity.os.environ, {"NODE_OPTIONS": "invalid injected options",
+                                                     "npm_config_registry": "https://invalid.example"}):
+            parity.npm_runtime()
+        self.assertEqual(len(calls), 4)
+        for argv, options in calls:
+            self.assertEqual(options["env"]["PATH"], "/usr/bin:/bin")
+            self.assertNotIn("NODE_OPTIONS", options["env"])
+            self.assertNotIn("npm_config_registry", options["env"])
+            self.assertEqual(options["timeout"], 30)
+            if "install" in argv or "uninstall" in argv:
+                for flag in ("--offline", "--ignore-scripts", "--global", "--prefix", "--no-audit"):
+                    self.assertIn(flag, argv)
+
+    def test_success_exit_without_node_or_installed_executable_marker_is_refused(self):
+        with mock.patch.object(parity, "NODE", sys.executable), \
+                mock.patch.object(parity, "NPM", sys.executable), \
+                mock.patch.object(parity.subprocess, "run", return_value=
+                                  parity.subprocess.CompletedProcess([], 0, "", "")):
+            with self.assertRaisesRegex(RuntimeError, "unexpected output"):
+                parity.npm_runtime()
+        with mock.patch.object(parity, "NODE", sys.executable), \
+                mock.patch.object(parity, "NPM", sys.executable), \
+                mock.patch.object(parity.subprocess, "run", side_effect=[
+                    parity.subprocess.CompletedProcess([], 0, "MOOS_NODE_OK", ""),
+                    parity.subprocess.CompletedProcess([], 0, "", "")]):
+            with self.assertRaisesRegex(RuntimeError, "did not publish its executable"):
+                parity.npm_runtime()
 
 
 if __name__ == "__main__":

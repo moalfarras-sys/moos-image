@@ -29,21 +29,31 @@ It also reads the bar's own layout template, so an applet the MoOS Bar places, o
 pins, can never be missing from the edition that draws it.
 Hardware enumeration also belongs to this contract: lspci and lsusb must be
 executable files, so a missing ARM dependency cannot silently hide device gaps.
+Store's curated npm recipes likewise require executable system Node/npm. The
+image-only runtime proof installs, runs and removes a dependency-free local
+package offline, in a private prefix; it never updates owner applications.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
+import subprocess
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 LAYOUT = "usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js"
 APPLET_DIRS = ("usr/share/plasma/plasmoids/{id}/metadata.json",
                "usr/lib64/qt6/plugins/plasma/applets/{id}.so",
                "usr/lib/qt6/plugins/plasma/applets/{id}.so")
-EXECUTABLE_CAPABILITIES = frozenset(("usr/bin/lspci", "usr/bin/lsusb"))
+EXECUTABLE_CAPABILITIES = frozenset(("usr/bin/lspci", "usr/bin/lsusb",
+                                     "usr/bin/node", "usr/bin/npm"))
+NODE = "/usr/bin/node"
+NPM = "/usr/bin/npm"
 
 # (what the owner loses, [alternatives — any one satisfies the check])
 CAPABILITIES: list[tuple[str, list[str]]] = [
@@ -51,6 +61,10 @@ CAPABILITIES: list[tuple[str, list[str]]] = [
      ["usr/bin/lspci"]),
     ("the hardware report identifying attached USB devices",
      ["usr/bin/lsusb"]),
+    ("Store installing and updating its curated npm developer tools",
+     ["usr/bin/npm"]),
+    ("the system Node runtime used by Store's curated npm developer tools",
+     ["usr/bin/node"]),
     ("Arabic right-to-left detection for every Qt and KDE surface, including the MoOS Bar's mirroring",
      ["usr/share/qt6/translations/qtbase_ar.qm"]),
     ("the Island's privacy chip: moos-privacy-monitor reads PipeWire through pw-dump",
@@ -109,9 +123,71 @@ def problems(root: Path) -> list[str]:
     return found
 
 
+def npm_runtime() -> None:
+    """Exercise the finished image's fixed providers without a registry or user state."""
+    for provider in (NODE, NPM):
+        if not Path(provider).is_file() or not os.access(provider, os.X_OK):
+            raise RuntimeError(f"Store npm runtime provider is missing or unusable: {provider}")
+    with tempfile.TemporaryDirectory(prefix="moos-store-npm-") as temporary:
+        base = Path(temporary)
+        package = base / "package"
+        package.mkdir()
+        (package / "package.json").write_text(json.dumps({
+            "name": "moos-store-runtime-proof", "version": "1.0.0", "private": True,
+            "bin": {"moos-store-runtime-proof": "proof.js"},
+        }), encoding="utf-8")
+        proof = package / "proof.js"
+        proof.write_text(f"#!{NODE}\nprocess.stdout.write('MOOS_NODE_NPM_OK\\n');\n",
+                         encoding="utf-8")
+        proof.chmod(0o755)
+        archive = base / "package.tgz"
+        with tarfile.open(archive, "w:gz") as stream:
+            stream.add(package, arcname="package")
+        prefix = base / "prefix"
+        prefix.mkdir()
+        sentinel = prefix / "preserve-owner-data"
+        sentinel.write_bytes(b"unchanged\n")
+        for name in ("user.npmrc", "global.npmrc"):
+            (base / name).touch()
+        env = {
+            "PATH": "/usr/bin:/bin", "HOME": str(base), "LANG": "C.UTF-8",
+            "npm_config_cache": str(base / "cache"),
+            "npm_config_userconfig": str(base / "user.npmrc"),
+            "npm_config_globalconfig": str(base / "global.npmrc"),
+            "npm_config_update_notifier": "false",
+        }
+
+        def run(argv: list[str], phase: str) -> str:
+            try:
+                result = subprocess.run(argv, env=env, cwd=base, capture_output=True,
+                                        text=True, timeout=30)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                raise RuntimeError(f"Store npm runtime {phase} failed: {type(exc).__name__}") from exc
+            if result.returncode:
+                raise RuntimeError(f"Store npm runtime {phase} exited {result.returncode}")
+            return result.stdout
+
+        if run([NODE, "--eval", "process.stdout.write('MOOS_NODE_OK')"], "Node execution") != "MOOS_NODE_OK":
+            raise RuntimeError("Store npm runtime Node execution returned unexpected output")
+        flags = ["--global", "--prefix", str(prefix), "--offline", "--ignore-scripts",
+                 "--no-audit", "--no-fund"]
+        run([NPM, "install", *flags, "--", str(archive)], "offline install")
+        binary = prefix / "bin/moos-store-runtime-proof"
+        if not binary.is_file() or not os.access(binary, os.X_OK):
+            raise RuntimeError("Store npm runtime install did not publish its executable")
+        if run([str(binary)], "installed executable") != "MOOS_NODE_NPM_OK\n":
+            raise RuntimeError("Store npm runtime installed executable returned unexpected output")
+        run([NPM, "uninstall", *flags, "--", "moos-store-runtime-proof"], "offline remove")
+        if binary.exists() or binary.is_symlink() or sentinel.read_bytes() != b"unchanged\n":
+            raise RuntimeError("Store npm runtime remove did not preserve the prefix contract")
+    print("MoOS Store npm runtime OK: fixed Node/npm, offline install/run/remove, private prefix")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default="/")
+    ap.add_argument("--npm-runtime", action="store_true",
+                    help="run the finished image's fixed Node/npm offline lifecycle proof")
     args = ap.parse_args(argv)
     root = Path(args.root)
     found = problems(root)
@@ -121,6 +197,14 @@ def main(argv: list[str] | None = None) -> int:
         print("           An edition that lacks these draws a MoOS that does less than the other "
               "one. Install the capability in that edition's build script.", file=sys.stderr)
         return 1
+    if args.npm_runtime:
+        if root.resolve() != Path("/"):
+            ap.error("--npm-runtime requires the running image root /")
+        try:
+            npm_runtime()
+        except RuntimeError as exc:
+            print(f"GATE FAIL: {exc}", file=sys.stderr)
+            return 1
     placed, pinned = bar_applets((root / LAYOUT).read_text(encoding="utf-8"))
     print(f"MoOS desktop parity OK: {len(CAPABILITIES)} capabilities, "
           f"{len(placed)} bar applets, {len(pinned)} pinned status items")
