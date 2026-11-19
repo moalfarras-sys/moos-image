@@ -28,6 +28,8 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+PR313 reached main at 3f114cb0. Keep the V3 recovery follow-up and the ARM account fix with their existing owners. The integrated follow-up also qualifies the actual OpenCode AppImage extractor and the atomic runtime used by Hermes on ARM. [November 19 runtime checks](reviews/2026-11-19-app-runtime-compatibility.json).
+
 Nov19 P0.1/P6.8: the upstream ARM base moved to 44.20261119.0 and renumbered service accounts. Register the exact new account bodies, refuse the old ones (PR CI rebuilt ARM/recovery on the new base), then follow the signed ARM pipeline and read back passim ownership after the Oracle update. [Review](reviews/2026-11-19-arm-base-accounts.json).
 
 Nov19: qualify the integrated ARM tray providers, Store runtime and archive icons on the same source as the native frame and V3 changes. Verify all 16 tray components and the offline npm journey on the built images. Oracle boots signed 966 with 964 retained. [Maintenance record](reviews/2026-11-19-oracle-maintenance.json).

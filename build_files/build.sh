@@ -1726,6 +1726,7 @@ _core_power=(
     gh
     nodejs22
     nodejs22-npm
+    libatomic
     # Hermes Agent needs Python 3.11-3.13 and the system Python is newer; moai-do
     # install-hermes builds the user's Hermes venv on this interpreter.
     python3.12

@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-19",
+  "host": "Oracle ARM 966",
+  "integration": {
+    "main": "3f114cb03ba92f311017d3d77603dbbdc6864323",
+    "qualified_source": "434222538eb1e3fba10d0bcd146fe54d88e3fa04",
+    "tree": "e1ec3aee8a6746c6199ff62b0048917888a90184",
+    "oracle_full_check_seconds": 1861,
+    "oracle_full_check_exit": 0,
+    "v3_local_build_seconds": 5860.217,
+    "v3_local_build_exit": 0,
+    "v3_log_and_image": "https://github.com/moalfarras-sys/moos-image/pull/313#issuecomment-7009644470",
+    "v3_image": "sha256:8ecf4cec0d2912a05c511d8fdf33b6fc81ad14dfbe6ae2ed3a5a5acc27c37d2d",
+    "pr_arm": 44489790163,
+    "pr_x86": 44489790122,
+    "follow_up_aggregate": "565f8e0850e50b229a32aa9afaed7ff74f034dc1",
+    "integration_state": "V3 recovery, Mira fixture and ARM base-account branches are ancestors of the aggregate. Main release is coordinated by the running process pinned to 3f114cb0."
+  },
+  "appimage": {
+    "package": "OpenCode Desktop 1.19.6 ARM64",
+    "installed_original_error": "error while loading shared libraries: libz.so: cannot open shared object file",
+    "fix": "Within the private extractor namespace, expose the installed libz.so.1 under the link name used by the runtime in a separate read-only tmpfs when the unversioned library is absent. Tool extraction and app execution retain their existing library search.",
+    "actual_native_extraction": {
+      "version": "1.19.6",
+      "members": 125,
+      "source": "c28e720ae319eed7086744e1c6295ace9fb86c160d01ebe2669006417398976f",
+      "package_sha256": "2aa72af443f351da092da594bf176f0d44925122c0d00e291085822f7d627234",
+      "actual_runtime_extract": "passed"
+    },
+    "suite": {
+      "tests": 74,
+      "skipped": 1,
+      "exit": 0,
+      "seconds": 127.696,
+      "log_sha256": "5737f9aed57434e84de87625955cbb07aace120ef7fbb87081753774f2881e0f"
+    }
+  },
+  "atomic_runtime": {
+    "failure": "Hermes stable v0.23.2 uses Node 26.12.1. On ARM 966 the ELF loader reported libatomic.so.1 missing. The vendor updater tried the package manager and the immutable system refused the transaction.",
+    "repair": "Declare libatomic in the existing ARM and x86 transactions and verify its installed path through desktop parity.",
+    "native_control": {
+      "rpm": "libatomic-16.2.1-3.fc44.aarch64",
+      "rpm_sha256": "e75d85f53d7d02d732814bf8cd754877b695d9dacf35ed14119494ce7436002d",
+      "rpm_signer": "36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6",
+      "elf_sha256": "a3080d2b6427caa449cffd209dc845f71fc26068e516a2e32c715678d18df5b5",
+      "with_private_verified_library": "v26.12.1",
+      "parity_tests": 18,
+      "parity_result": "Passed after adding the provider to the package map. The initial missing-map failure is retained."
+    }
+  },
+  "owner_applications": {
+    "opencode_desktop": "1.19.6, installed through the archive path. Native visible AT-SPI frame measured 1280 by 720.",
+    "opencode_cli": "1.19.6, executable bytes match official ARM release",
+    "cursor": "3.30.14, native KWin window verified",
+    "cursor_remote_ssh": "1.1.19",
+    "jupyterlab": "4.6.6, canonical entry starts a private server with authenticated /lab and /api/status plus python3 kernel discovery",
+    "hermes": "Native stable CLI v0.23.2 with upstream checkout ae2a81ccc00e. Five conflicting local package changes retained in the native autostash and full pre-update rollback copy. Desktop build has separate native toolchain and library requirements.",
+    "code_and_chatgpt": "The verified Code stage and native signed ChatGPT update are guarded by live file-use checks. A temporary owner service retries on normal editor exit or before Plasma session restore. Activation receipt and new GUI verification are pending."
+  },
+  "signed_delivery": "The November 19 source follow-up still requires complete candidate image and release proofs. Oracle currently runs signed 966 and retains 964."
+}
