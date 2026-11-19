@@ -103,7 +103,12 @@ stable at 2026-11-19 01:29 UTC. Mirror propagation was uneven: at 05:40 UTC,
 7 of 8 US and 5 of 16 European HTTPS mirrors served it. One V3 transaction on
 an older mirror still refused. The original unchanged transaction is
 requalified through fresh first-attempt PR gates. No exclusion, pin or testing
-repository was added.
+repository was added. Gate 44466840542 (7c2ce73a) then refused against
+an older mirror: the rebuilt base 44.20261119 already contained openapv-libs
+1.1.3.0 and libavcodec 8.1.3-3, and the runner's Updates mirror lacked
+openapv-libs 1.1.3.0. The unchanged distro-sync then resolved on V3 against
+the same base (config ce9eadd2) through both metalink and the primary mirror.
+Both refusals are retained.
 
 After approved qualification, push one final reviewed tree, let exact-head PR
 image gates complete, integrate once, then freeze the actual merge SHA through
