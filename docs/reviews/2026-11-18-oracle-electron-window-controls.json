@@ -1,0 +1,102 @@
+{
+  "date": "2026-11-18",
+  "scope": "Oracle ARM live owner report, P2.5/P2.10/P4.1",
+  "owner_report": "Windows and their buttons have problems: ChatGPT's close/minimise/maximise cannot be pressed, the VS Code frame is wrong, all windows have problems. Fix directly on the system and confirm visually and functionally.",
+  "integration_owner": "This chat on moos-arm-oracle; branch fix/arm-oracle-window-controls-20261118 from main fbb8a46d. PR309 (fix/window-controls-unified-20261118, GTK3/libadwaita CSD buttons and the legacy caption-layout migration) is a separate disjoint slice and explicitly leaves the Chromium caption open.",
+  "host": {
+    "booted": "44.20261118.964 (moos-arm@sha256:82591024…, revision a588364b)",
+    "rollback": "44.20261118.961",
+    "session": "KWin 6.8 virtual 1280x720 at scale 0.75 (1706.7x960 logical), Bloom Light, ButtonsOnLeft=XIA/ButtonsOnRight=_, LANG=ar_SA.UTF-8 LANGUAGE=ar; X11 root is logical (KWin scales X11 clients)",
+    "input": "XTest from python3 (XwaylandEisNoPromptApps=python3) reaches KWin through EIS; KWin workspace.cursorPos read back equal to every requested point. Each click was guarded by a fresh KWin read of the target window's active/minimised/maximised state and exact geometry."
+  },
+  "kwin_frame_control": {
+    "window": "private PySide6 Wayland window (Arabic, 600x300) on the owner's desktop",
+    "minimise": "pass",
+    "maximise": "pass",
+    "close": "pass",
+    "note": "MoOS Aurorae buttons (RTL: close/minimise/maximise at the right) work after a7496aaf; the frame itself is not the defect."
+  },
+  "chatgpt": {
+    "package": "chatgpt-26.1111.71025-1.aarch64 (vendor-rpm, ~/Applications/chatgpt), Chromium-based owl/Electron runtime 157.0.8103.78, runs --ozone-platform=x11 by default",
+    "window": "frameless (Motif decorations=0); BrowserWindow titleBarStyle hidden + titleBarOverlay on linux (Electron Window Controls Overlay), overlay colour #00000000",
+    "reproduction_owner_instance": [
+      "Arabic: buttons drawn mirrored at the left (logical offsets 16/48/80, y 18); click on minimise at the glyph: no change",
+      "click at the mirrored right-hand position: no change",
+      "press on minimise + 60 px drag: the window MOVED +50/+50 (restored afterwards) -> the press is a window move"
+    ],
+    "private_controls": {
+      "isolation": "own HOME/XDG/CODEX_HOME/--user-data-dir and private dbus-daemon, bounded systemd-run unit (MemoryMax 2200M); sign-in window has minimise+close",
+      "en_x11": "minimise pass",
+      "ar_x11": "minimise fails at the drawn and at the mirrored position",
+      "ar_wayland (--ozone-platform=wayland)": "minimise fails (KWin cursor read back at the glyph)",
+      "ar_x11 --force-ui-direction=ltr": "buttons at the right, page stays Arabic RTL; minimise pass, close pass (window closes, private app exits)"
+    },
+    "measured_cause": {
+      "cdp_private": "navigator.windowControlsOverlay.getTitlebarAreaRect(): Arabic x=64 width=1026 (overlay drawn left), Arabic+LTR x=0 width=1026 (overlay drawn right); env(titlebar-area-x/width) equal; document dir=rtl lang=ar in both",
+      "inference": "Electron reports the overlay consistently. The page reserves the titlebar area on the inline side (right in RTL) from the physical env x value, so in an RTL document its reserved gap is always opposite the drawn buttons. Without the switch the buttons sit over its drag region (drag wins: press = move); with it they sit over its own sidebar/back/forward icons. The VS Code control below shows a caption button over non-drag content still works.",
+      "upstream": "app defect in the vendor page; MoOS cannot patch the signed vendor bytes. No exact upstream report found."
+    },
+    "fix": {
+      "source": "moos_vendor_rpm.LAUNCH_SWITCHES={--force-ui-direction=ltr} (reviewed allowlist, Entry.switches, launcher Exec), catalogue chatgpt install.switches, moos-store-index passes only the same list, refresh_launcher() rewrites an intact install's own marked launcher (switches + in-folder catalogue icon) with no download; moos-storectl runs it for a current build on Install/Update and for every vendor app in Update all",
+      "tests": "test_moos_vendor_rpm 87 pass (switch allowlist, launcher text, refresh/no-op/foreign/not-intact/odd-shape/retirement), test_mo_store_index_catalogue 20 pass (index==module list), test_mo_store_backend2_vendor 26+1 pass; mutation control: removing both storectl hooks fails the new end-to-end test, restored bytes verified",
+      "owner_instance_after": [
+        "launcher refreshed from this source: Exec gains --force-ui-direction=ltr, Icon becomes the package's resources/icon-chatgpt.png; second pass is a no-op; vendor.intact stays true",
+        "ChatGPT quit by SIGTERM while its Codex app-server was idle (0 CPU ticks over 5 s) and reopened with `moos-storectl run chatgpt` (canonical moai-open --app scope); argv carries the switch; panel shows the ChatGPT icon",
+        "primary window: minimise pass (glyph centre and both cell edges), maximise pass, close pass (window closes, app keeps its background process as designed; reopened with moos-storectl run chatgpt)"
+      ],
+      "cost": "the page's own sidebar/back/forward icons now lie under the window buttons; the View menu (collapse/expand sidebar, back, forward) and Ctrl+Shift+S still reach them: the menu item collapsed the sidebar and Ctrl+Shift+S restored it on the owner window; Ctrl+B (an unlisted binding) changed nothing"
+    },
+    "retire_when": "the vendor runtime passes the Arabic minimise/maximise/close journey without the switch and its titlebar content leaves room on the drawn side"
+  },
+  "vscode": {
+    "app": "Code 1.145.2 native arm64 (~/Applications/code, user-local launcher with --disable-features=WaylandFractionalScaleV1)",
+    "before": "window.titleBarStyle native (since 164899a6, when mirrored overlay controls covered File/Edit): KWin MoOS frame + a light Electron native menu bar laid out RTL (Help ... File) + VS Code's custom command-centre row = three bars",
+    "private_variants": {
+      "isolation": "own HOME/--user-data-dir/--extensions-dir, private bus, copied window/editor settings, Arabic locale",
+      "v0 native (control)": "reproduces the owner's three bars and reversed light menu",
+      "v1 native + --force-ui-direction=ltr + systemColorTheme auto": "menu order fixed, band stays light",
+      "m native + menuBarVisibility compact": "ignored with a native title bar; band stays",
+      "v3 custom + controlsStyle native (overlay), Arabic": "overlay mirrored to the left over the VS Code logo while VS Code reserves the right; the left close works because the logo is not a drag region",
+      "v2 custom + controlsStyle custom": "one dark bar: logo, File..Help in order, command centre, layout, HTML window controls at the right; minimise/maximise/close pass, empty-bar drag moves, maximised frame fully painted at 75%; identical with and without the LTR switch"
+    },
+    "decision": "titleBarStyle custom + controlsStyle custom; no launcher change. Applied last to the owner's user settings because it needs a VS Code restart and this engineering session runs inside VS Code; the restart is the owner's."
+  },
+  "antigravity": {
+    "app": "Antigravity (Electron 44.5.1, App Drop), owner profile opened with moai-open --app",
+    "result": "overlay buttons at the right even with --lang=ar; minimise/maximise/close pass; no change made. Window was closed again (it was not running before)."
+  },
+  "not_changed": [
+    "KWin/Aurorae frames, kwinrc, GTK CSD (PR309 owns it), OpenCode (normal frame), Mo PC Remote, KWin, plasmashell, portals"
+  ],
+  "evidence_local": "~/.cache/moos-window-frames-20261118b (private captures, not committed)",
+  "open": [
+    "signed delivery: the booted image still has the old moos_vendor_rpm/catalogue; the live launcher is a MoOS-owned user-local file written by this source and is reproduced byte-for-byte by the next Store update after the signed image carries it",
+    "V3 x86 Arabic ChatGPT journey and physical touch on the buttons",
+    "upstream report to the vendor about RTL titlebar reservation",
+    "owner acceptance of the VS Code unified bar after their restart"
+  ],
+  "local_changes": [
+    {
+      "path": "/var/home/moos/.local/share/applications/org.moos.vendor.chatgpt.desktop",
+      "before_sha256": "cdd02a8aa4d367a3b6e4633c63c11dadec8710d82e1bfb341e17b340a353209e",
+      "after_sha256": "28dcbb9345f3336a97c0fe9c92684dd84247ee8bf933575459e8cabaa8f07694",
+      "scope": "MoOS-owned marked vendor launcher, written by refresh_launcher from this source",
+      "recovery": "~/.cache/moos-window-frames-20261118b/recovery/org.moos.vendor.chatgpt.desktop.before"
+    },
+    {
+      "path": "/var/home/moos/.local/share/moos/vendor/chatgpt.json",
+      "before_sha256": "b8f23474c2a93b7e2de74a77685b84bbc50f3dd4ab891a6bad68eef515dcc99a",
+      "after_sha256": "1cf79136d72cf70f12302bbfd941a54b9ede0dd0cfe7e43325d825a685e9fce2",
+      "scope": "vendor record: icon '' -> resources/icon-chatgpt.png",
+      "recovery": "~/.cache/moos-window-frames-20261118b/recovery/chatgpt.json.before"
+    },
+    {
+      "path": "/var/home/moos/.config/Code/User/settings.json",
+      "before_sha256": "7b11668aa288779fbebb6df22c59324031bf1c68db6f00538884f2c7f7ae79f0",
+      "after_sha256": "dcc035fd9dfd7498359b4e7018817317f5f35bf7a4eeaf476689c061d9bed2c9",
+      "scope": "owner editor settings: window.titleBarStyle native -> custom, + window.controlsStyle custom; before equals the 2026-11-10 recorded after-hash",
+      "recovery": "~/.cache/moos-window-frames-20261118b/recovery/vscode-settings.json.before",
+      "takes_effect": "after the owner restarts VS Code (not done here: this session runs inside it)"
+    }
+  ]
+}

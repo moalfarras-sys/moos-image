@@ -79,6 +79,48 @@ def controller_pages():
 
 
 class QmlTest(unittest.TestCase):
+    def test_pc_night_light_selection_uses_measured_native_policy_and_hides_stale_state(self):
+        from PySide6.QtCore import QObject
+        messages = Messages()
+        previous = qInstallMessageHandler(messages)
+        try:
+            controller = Controller(bridge_class=FakeBridge)
+            engine = QQmlEngine()
+            engine.addImportPath(str(ROOT / 'qml'))
+            engine.rootContext().setContextProperty('mira', controller)
+            component = QQmlComponent(engine, QUrl.fromLocalFile(str(ROOT / 'qml/Mira/PcPage.qml')))
+            page = component.create()
+            self.assertIsNotNone(page, '\n'.join(error.toString() for error in component.errors()))
+            row = page.findChild(QObject, 'nightLightMode')
+            self.assertIsNotNone(row)
+            measured = {'night_light': False, 'night_light_enabled': True,
+                        'night_light_available': True, 'night_light_mode': 1}
+            for state, expected in ((measured, 'auto'),
+                                    ({**measured, 'night_light_mode': 0}, 'on'),
+                                    ({**measured, 'night_light_enabled': False}, 'off'),
+                                    ({'night_light': False}, ''),
+                                    ({**measured, 'night_light_available': False}, ''),
+                                    ({**measured, 'night_light_mode': True}, ''),
+                                    ({**measured, 'night_light_mode': 2}, '')):
+                controller.pcPage.update(status=state, statusState='ok')
+                QCoreApplication.processEvents()
+                self.assertEqual(row.property('current'), expected, state)
+                self.assertEqual(row.property('available'), bool(expected), state)
+            controller.pcPage.update(status=measured, statusState='error')
+            QCoreApplication.processEvents()
+            self.assertEqual(row.property('current'), '')
+            self.assertFalse(row.property('available'))
+            controller.pcPage.update(status={**measured, 'night_light': True}, statusState='ok')
+            QCoreApplication.processEvents()
+            self.assertEqual(row.property('extra'), controller.s['pcp_night_running'])
+            self.assertNotIn('Warm', row.property('extra'))
+            page.deleteLater()
+            engine.deleteLater()
+            QCoreApplication.processEvents()
+        finally:
+            qInstallMessageHandler(previous)
+        self.assertEqual(messages.fatal(), [])
+
     def test_voice_meter_exposes_clipping_without_opening_a_microphone(self):
         from PySide6.QtQuick import QQuickItem
         from unittest.mock import patch

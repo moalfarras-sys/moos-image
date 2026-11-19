@@ -656,6 +656,9 @@
         "icon": "resources/icon-chatgpt.png",
         "desktop": "/usr/share/applications/chatgpt.desktop",
         "wm_class": "ChatGPT",
+        "switches": [
+          "--force-ui-direction=ltr"
+        ],
         "risk": "downloaded-executable",
         "requires_review": true,
         "external": true

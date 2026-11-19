@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-18",
+  "source_parent": "b6779cfa13b9c3a1f7256a1a93708d12b41c2ed7",
+  "owner": "Oracle root; one combined source and final release coordinator",
+  "scope": "Private native KWin/Plasma AppletPopup and Qt input; production launcher and image runtime inputs unchanged. Synthetic touch does not establish physical V3 input.",
+  "original_refusals": [
+    "Frozen86a complete just check exits1 at Justfile476: Qt touch favorite reorder.",
+    "Native instrumentation observes fullRepresentation reparented from AppletPopup to PlasmaWindowedView after close/reopen.",
+    "Touch centroid moves can remain queued until release; native render delivery produces the expected activation/translation.",
+    "A published restored favorite snapshot can precede GridView delegate index/identity layout; the actual cancellation target assertion refuses."
+  ],
+  "correction": [
+    "Only the private native-popup host restores its full representation to the same AppletPopup on expanded changes; bounded assertions require the actual visible owner.",
+    "After native model restoration, force native GridView layout/polish and render, then require current row indexes and canonical favorite identities before acquiring input references.",
+    "Synthetic touch uses the original stable native contentItem, verifies window ownership, awaits actual render delivery and requires Drag.active/DropArea.containsDrag before release.",
+    "Held-touch cleanup closes then releases on the original input item; cleanup cannot replace a primary failure."
+  ],
+  "preserved_controls": [
+    "pointer accepted drop",
+    "hover never persists order",
+    "closed/cancelled drop refusal",
+    "native KAStats row snapshot",
+    "folder navigation",
+    "Milou default/personal provider priority",
+    "NoDisplay application refusal",
+    "backtab",
+    "RTL ink",
+    "Home focus",
+    "native palette owner",
+    "physical-input boundary"
+  ],
+  "executed": {
+    "tests": 9,
+    "exit": 0,
+    "seconds": 138.472,
+    "log_sha256": "c7c5c32da07adff69236df2d16771a0fcb6a0366fdb994485cd58e09993a0e08",
+    "families": [
+      "graphite",
+      "aurora"
+    ],
+    "native_cases": 8,
+    "viewports": [
+      [
+        360,
+        640,
+        "ar"
+      ],
+      [
+        600,
+        960,
+        "en"
+      ],
+      [
+        960,
+        540,
+        "ar"
+      ],
+      [
+        1536,
+        864,
+        "en"
+      ]
+    ],
+    "source_and_owner_portal_unchanged": true,
+    "old_popup_reopen_negative": "fails the exact actual-window-owner assertion, emits INPUT_FAIL and no INPUT_PASS"
+  },
+  "bounded_limits": "Existing25s input observation,1500ms native layout/render waits, strict model/order and drop assertions retained; no arbitrary sleep extension or product DragHandler change.",
+  "resource_observations": {
+    "concurrent_build": "First source probes hit input/capture deadlines under concurrent compilation; no causal claim from quiet pass alone. One diagnostic60s private observation reached input PASS but spectacle still timed out15s; not an accepted source run.",
+    "local_image": "Final b677 build stopped at44% after this coordinator froze its build cgroup to isolate input testing: Buildah refused status paused. Operator-induced exit1 is preserved, not image qualification. Do not freeze a running build; schedule full source and image sequentially or on separate existing hosts.",
+    "local_image_log_sha256": "7af17c331ad6a7d0533ee217c16bbdefaa948a92467f87af63733157e87d9701",
+    "earlier_image": "d5 compile cgroup OOM under3GiB/no-swap remains distinct."
+  },
+  "qualification": {
+    "full_source": "Required on the final committed successor",
+    "full_image": "Final local image and exact-head CI/recovery required; historical V3d8 is not new control-runtime qualification.",
+    "delivery": "No merge/release/stage/reboot claimed; Oracle964/rollback961 retained"
+  },
+  "files": {
+    "tests/launcher_adaptive_native.py": "d76f3c1d741cbcf064e07d486128817e9b1a19e739d3b3b7ff90c08b0434a5f7",
+    "tests/qml/LauncherAdaptiveDriver.qml": "b49c588b14734b12b24ad03a0d1a0afb293f47a5f809b568633d39573e4b5770",
+    "tests/test_launcher_adaptive.py": "be753b2ff1a45b8254b6444eb861875437bba279f87ea701cb95909958469fd9"
+  }
+}

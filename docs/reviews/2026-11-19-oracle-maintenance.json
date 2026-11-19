@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-19",
+  "host": "Oracle aarch64",
+  "source_merge": "209aea36dd3b80719246d6298c55ce750a25f262",
+  "ancestry": {
+    "branch_refs": 275,
+    "distinct_tip_count": 200,
+    "worktrees": 9,
+    "outside_integrated_tip": 0,
+    "historical_archives": "All four stashes and seven archive tags retained."
+  },
+  "system": {
+    "previous_boot_id": "3cc0a11f-c7d8-4e92-91de-a7b0abc5fd61",
+    "boot_id": "0730a5cc-0ccf-4e03-8fca-0aad3eababab",
+    "booted": "44.20261118.966",
+    "origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-arm@sha256:e0a8dac972af364a238fef968afde80c4a0b476bdd0e3d885978b2899b420b9e",
+    "rollback": "44.20261118.964",
+    "source": "fbb8a46d15739fed90e94be440b32c3276c0020c",
+    "promoted_arm_run": 44289879261,
+    "update_command": "already on the latest signed image",
+    "failed_units": {
+      "system": 0,
+      "user": 0
+    },
+    "selfcheck": {
+      "passed": 50,
+      "failed": 1,
+      "notes": 4
+    },
+    "postcheck": {
+      "passed": 55,
+      "failed": 1
+    },
+    "shared_failure": "Three absent tray providers. See 2026-11-19-tray-provider-parity.json."
+  },
+  "app_updates": {
+    "flathub_index": "Refreshed through Mo Store",
+    "chrome": "158.0.8127.36-1",
+    "system_flatpak": "Native updater exit 0. Five advertised OCI ref digests equal their installed Alt-id.",
+    "claude_desktop": "5.11492.5 activated from verified arm64 package, canonical launch produced an accessible native frame",
+    "claude_code": "2.1.327, authenticated one-turn CLI response verified",
+    "codex_cli": "0.170.0 both owner launch paths, authenticated one-turn CLI response verified",
+    "code": "1.145.2 active. 1.147.0 verified and staged for idle activation.",
+    "code_extensions": "55 inspected. Updated ChatGPT, Claude Code and Google Antigravity extensions.",
+    "chatgpt": "26.1111.71025 active. On Nov 19 the native Store reports 26.1111.71704-1. Its app_in_use guard identified an active Code helper inside the ChatGPT installation.",
+    "antigravity_app": "2.33.0",
+    "antigravity_ide": "2.7.0, 17 extensions inspected",
+    "antigravity_cli": "1.5.11",
+    "opencode_cli": "1.19.6. The npm updater left a postinstall placeholder. Running the package postinstall recovered the executable. Its bytes match the SHA256-verified release archive.",
+    "cursor": "3.30.14 with Remote SSH extension 1.1.19",
+    "opencode_desktop": "1.19.6 artifact verified. Its AppImage runtime refused unversioned libz.so under the native installer.",
+    "scope": "Application packages and per-account updates have separate ownership from the immutable image."
+  },
+  "source_repairs": [
+    "2026-11-18-arm-store-npm.json",
+    "2026-11-18-appdrop-product-icons.json",
+    "2026-11-19-tray-provider-parity.json"
+  ],
+  "v3": "Physical session last reported signed 1162 with rollback 1152 and pinned 1078. At a6a4eff3 its full source gate and full local image passed.",
+  "qualification": "PR 313 requires full source and image qualification for the combined tree, signed delivery and installed readback."
+}

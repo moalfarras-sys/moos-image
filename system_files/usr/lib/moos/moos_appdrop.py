@@ -48,6 +48,7 @@ import re
 import shutil
 import signal
 import stat
+import struct
 import subprocess
 import tarfile
 import tempfile
@@ -62,6 +63,10 @@ MAX_TREE_FILES = 250_000
 MAX_LINK_BYTES = 4095                  # a Linux symlink target, bounded before decompression
 MAX_RATIO = 200                          # uncompressed / compressed: a bomb, not an app
 EXTRACT_TIMEOUT = 600
+# Cosmetic product metadata is read without loading the Electron runtime or an ASAR extractor.
+MAX_ICON_BYTES = 4 * 1024 ** 2
+MAX_ASAR_HEADER_BYTES = 4 * 1024 ** 2
+MAX_ASAR_HEADER_ENTRIES = 50_000
 
 SUPPORTED = ("appimage", "archive", "flatpakref")
 HANDOFF = {"rpm": "rpm", "windows": "foreign", "android": "foreign"}
@@ -633,11 +638,163 @@ def _pinned_path(root: Path, relative: object) -> Path | None:
     return _safe_member_path(root, relative)
 
 
+@contextlib.contextmanager
+def _product_file(root: Path, relative: str, maximum: int):
+    """Read a known product asset through real directories and a single regular file.
+
+    HOME may itself use the Atomic /home alias. Below the resolved application root, no
+    symbolic or hard link, FIFO or device is a product metadata source.
+    """
+    parts = _member_rel(relative).parts
+    with contextlib.ExitStack() as stack:
+        directory = os.open(root.resolve(), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        stack.callback(os.close, directory)
+        for part in parts[:-1]:
+            directory = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                                dir_fd=directory)
+            stack.callback(os.close, directory)
+        descriptor = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                             dir_fd=directory)
+        handle = stack.enter_context(os.fdopen(descriptor, "rb"))
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= maximum:
+            raise ValueError("not a bounded plain product file")
+        yield handle, info.st_size
+
+
+def _unique_json(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate product metadata key")
+        result[key] = value
+    return result
+
+
+def _png_icon(data: bytes) -> bool:
+    # The native image loader still decodes the PNG. This check bounds its advertised canvas
+    # and keeps arbitrary JSON/JS bytes out of the icon publication path.
+    return (33 <= len(data) <= MAX_ICON_BYTES and data[:8] == b"\x89PNG\r\n\x1a\n"
+            and data[8:16] == b"\0\0\0\rIHDR"
+            and all(0 < side <= 4096 for side in struct.unpack(">II", data[16:24])))
+
+
+def _electron_product_icon(root: Path, executable: Path) -> Path | None:
+    """VS Code-family native product layout, ahead of unrelated extension demo artwork."""
+    try:
+        with _product_file(root, "resources/app/product.json", 1024 ** 2) as (handle, _size):
+            encoded = handle.read(1024 ** 2 + 1)
+            if len(encoded) > 1024 ** 2:
+                return None
+            product = json.loads(encoded, object_pairs_hook=_unique_json)
+        if (not isinstance(product, dict)
+                or product.get("applicationName") != executable.name
+                or not isinstance(product.get("linuxIconName"), str)
+                or not product["linuxIconName"]):
+            return None
+        relative = "resources/app/resources/linux/code.png"
+        with _product_file(root, relative, MAX_ICON_BYTES) as (handle, _size):
+            if _png_icon(handle.read(MAX_ICON_BYTES + 1)):
+                return root.resolve() / relative
+    except (OSError, ValueError, RecursionError, DropError):
+        pass
+    return None
+
+
+def _electron_packed_icon(root: Path, executable: Path) -> bytes | None:
+    """Read only the exact packed root icon.png; never execute or extract an ASAR tree.
+
+    Unknown/malformed metadata is a cosmetic refusal, leaving the existing icon fallbacks.
+    The full header has finite size, depth and entry counts, unique keys and plain names.
+    Links/unpacked icon entries, noncanonical offsets and out-of-file reads are refused.
+    """
+    if executable.parent != root.resolve():
+        return None
+    try:
+        with _product_file(root, "resources/app.asar", MAX_TREE_BYTES) as (handle, file_size):
+            prefix = handle.read(16)
+            if len(prefix) != 16:
+                return None
+            field_size, header_size, payload_size, json_size = struct.unpack("<4I", prefix)
+            if (field_size != 4 or not 2 <= json_size <= MAX_ASAR_HEADER_BYTES
+                    or header_size != 8 + ((json_size + 3) // 4) * 4
+                    or payload_size != header_size - 4 or 8 + header_size > file_size):
+                return None
+            encoded = handle.read(json_size)
+            padding_size = header_size - 8 - json_size
+            padding = handle.read(padding_size)
+            if len(encoded) != json_size or len(padding) != padding_size or any(padding):
+                return None
+            header = json.loads(encoded, object_pairs_hook=_unique_json)
+            if not isinstance(header, dict) or set(header) != {"files"}:
+                return None
+            pending = [(header, 0)]
+            count = 0
+            while pending:
+                node, depth = pending.pop()
+                files = node.get("files")
+                if depth > 32 or not isinstance(files, dict):
+                    return None
+                for name, child in files.items():
+                    count += 1
+                    if (count > MAX_ASAR_HEADER_ENTRIES or not isinstance(name, str)
+                            or name in ("", ".", "..") or "/" in name or "\\" in name
+                            or _CONTROL.search(name) or not isinstance(child, dict)
+                            or "link" in child):
+                        return None
+                    if "files" in child:
+                        pending.append((child, depth + 1))
+                        continue
+                    size, offset = child.get("size"), child.get("offset")
+                    if (type(size) is not int or not 0 <= size <= MAX_TREE_BYTES
+                            or type(child.get("unpacked", False)) is not bool
+                            or type(child.get("executable", False)) is not bool):
+                        return None
+                    if not child.get("unpacked", False) and (
+                            not isinstance(offset, str)
+                            or not re.fullmatch(r"0|[1-9][0-9]{0,15}", offset)
+                            or 8 + header_size + int(offset) + size > file_size):
+                        return None
+            icon = header["files"].get("icon.png")
+            if not isinstance(icon, dict) or "files" in icon or icon.get("unpacked", False) is not False:
+                return None
+            size, offset = icon.get("size"), icon.get("offset")
+            if (type(size) is not int or not 0 < size <= MAX_ICON_BYTES
+                    or not isinstance(offset, str) or not re.fullmatch(r"0|[1-9][0-9]{0,15}", offset)):
+                return None
+            start = 8 + header_size + int(offset)
+            if start + size > file_size:
+                return None
+            handle.seek(start)
+            data = handle.read(size)
+            if len(data) != size or not _png_icon(data):
+                return None
+            integrity = icon.get("integrity")
+            if integrity is not None:
+                if (not isinstance(integrity, dict) or integrity.get("algorithm") != "SHA256"
+                        or integrity.get("hash") != hashlib.sha256(data).hexdigest()):
+                    return None
+                block_size, blocks = integrity.get("blockSize"), integrity.get("blocks")
+                if (type(block_size) is not int or not 0 < block_size <= 2 ** 32
+                        or not isinstance(blocks, list)
+                        or len(blocks) != (size + block_size - 1) // block_size
+                        or blocks != [hashlib.sha256(data[start:start + block_size]).hexdigest()
+                                      for start in range(0, size, block_size)]):
+                    return None
+            return data
+    except (OSError, ValueError, TypeError, RecursionError, struct.error, DropError):
+        return None
+
+
 def find_launcher(root: Path, name: str, slug: str,
-                  pinned: dict[str, Any] | None = None) -> dict[str, str]:
+                  pinned: dict[str, Any] | None = None, *, prepare_icon: bool = False,
+                  prepared_icon: Path | None = None) -> dict[str, str]:
     """{exec, name, name_ar, comment, icon, categories, wm_class, terminal, desktop_id}.
 
-    Everything here is read, nothing trusted. `pinned` carries what a reviewed catalogue recipe
+    Nothing is executed or trusted. `prepare_icon` is used only in the private install staging
+    tree: it may materialize one bounded packed PNG with an exclusive random name. Inspection
+    otherwise remains read-only; `prepared_icon` carries that exact file through the tree swap.
+    `pinned` carries what a reviewed catalogue recipe
     says (exec, icon, wm_class, categories, desktop_id, name, name_ar); it outranks the guesses,
     and its paths must still lie inside the tree.
     """
@@ -696,6 +853,20 @@ def find_launcher(root: Path, name: str, slug: str,
         icon = next((inside(p) for p in matches if inside(p)), None)
     if icon is None and (root / ".DirIcon").exists():
         icon = inside(root / ".DirIcon")
+    if icon is None:
+        icon = _electron_product_icon(root, executable)
+    if icon is None and prepared_icon is not None:
+        icon = inside(prepared_icon)
+    if icon is None and prepare_icon:
+        data = _electron_packed_icon(root, executable)
+        if data is not None:
+            # The staging root already exists and is private to this install. Never reuse a
+            # package-provided destination or write through a name chosen in ASAR metadata.
+            descriptor, path = tempfile.mkstemp(prefix=".moos-appdrop-icon-", suffix=".png", dir=root)
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(data)
+                os.fchmod(handle.fileno(), 0o644)
+            icon = Path(path).resolve()
     if icon is None and icons:
         icons.sort(key=lambda p: -p.stat().st_size if p.is_file() else 0)
         icon = next((inside(p) for p in icons[:20] if inside(p)), None)
@@ -997,7 +1168,8 @@ def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda 
         if cancelled():
             raise DropError("cancelled")
         progress("integrating_app", None)
-        launcher = find_launcher(staging, plan.name, plan.slug, pinned)
+        launcher = find_launcher(staging, plan.name, plan.slug, pinned, prepare_icon=True)
+        icon_relative = Path(launcher["icon"]).relative_to(staging.resolve()) if launcher["icon"] else None
         # Swap in: keep the working version until the new one is in place.
         _assert_app_trees_idle(plan.target, previous)
         shutil.rmtree(previous, ignore_errors=True)
@@ -1006,7 +1178,8 @@ def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda 
             moved_previous = True
         staging.rename(plan.target)
         swapped = True
-        launcher = find_launcher(plan.target, plan.name, plan.slug, pinned)      # paths now final
+        launcher = find_launcher(plan.target, plan.name, plan.slug, pinned,
+                                 prepared_icon=plan.target / icon_relative if icon_relative else None)
         desktop_dir().mkdir(parents=True, exist_ok=True)
         entry_name = launcher_file_name(plan.slug, launcher["desktop_id"])
         entry = desktop_dir() / entry_name
@@ -1118,6 +1291,9 @@ def remove(slug: str) -> bool:
     # this app — a launcher the person or another installer owns keeps its file.
     directory = applications_dir() / slug
     if directory.is_dir() and not directory.is_symlink():
+        # Use the same bounded reference check as updates, before any removal.
+        # This refuses observed users; it is not a launch/remove lifetime lease.
+        _assert_app_trees_idle(directory)
         shutil.rmtree(directory)
     for entry in _launcher_candidates(slug, owned_record):
         if _ours(entry, slug):

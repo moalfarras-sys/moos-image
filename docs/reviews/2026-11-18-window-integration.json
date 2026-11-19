@@ -1,0 +1,209 @@
+{
+  "date": "2026-11-18",
+  "plan_rows": [
+    "P2.5",
+    "P2.10",
+    "P0.6",
+    "P5.7",
+    "P1.7"
+  ],
+  "branch": "fix/moos-window-integration-20261118",
+  "integration_owner": "Codex root",
+  "branch_audit": {
+    "refs": 261,
+    "local_worktrees": 4,
+    "divergent_tips": 6,
+    "integrated_heads": {
+      "electron": "2b0588a405b5f05f8c9081a236dfa04565bfaf4b",
+      "gtk": "7b7d5ed1b7249050244071afb12f8882d95b35a8",
+      "stock_kernel": "51a0a9258d162b62274d85d63fe2bf4359731482"
+    },
+    "preserved": "all archives and worktrees; maintenance docs and original Qt proof remain, production patches already integrated or patch-equivalent"
+  },
+  "host": {
+    "name": "moos-arm-oracle",
+    "architecture": "aarch64 QEMU/KVM",
+    "booted": "44.20261118.964",
+    "digest": "sha256:82591024a1f52233fd93974dbfe166c599d2e44c14499bddae31331fcfc5d224",
+    "rollback": "signed 44.20261118.961",
+    "session": "Wayland, Virtual-0 1280x720, scale0.75, 1706.7x960 logical",
+    "desktop": "KWin/Plasma6.8.3, Qt6.11.2, Bloom Light",
+    "failed_units_before": {
+      "system": 0,
+      "user": 0
+    }
+  },
+  "repair": {
+    "native_owner": "existing Aurorae/KDecoration/KWin; existing moos-theme GTK bridge",
+    "design": "shared 24px Tidal Cut tiles, original action glyphs, neutral material at rest and semantic interaction; all 18 palettes retain their identity/licences",
+    "native_geometry": "44x44 native targets and title bar in restored/maximized; spacing2, caption borders6, balancing spacer136, RTL through KDecoration",
+    "gtk": "GTK3/GTK4 min44; hide image only for supported close/minimize/maximize; preserve app/menu image; same source artwork and maximized restore",
+    "publication": "bounded subordinate transaction; Linux atomic NOREPLACE/EXCHANGE retains actual displaced files, stages both GTK generations and bridge, artwork before stylesheet before import (reverse retirement), readback and independent rollback; preserves0600 css, refuses links/hardlinks/mounts and unknown sources; observed late editor saves survive and conflicts retain recovery copies with paths",
+    "launch": "moai-open refuses absent executable before the setsid fork can claim success"
+  },
+  "executed": {
+    "native_frames": [
+      {
+        "locale": "ar",
+        "scale": 0.75,
+        "themes": 18,
+        "windows": 90,
+        "all_captions_complete": true,
+        "max_abs_caption_offset_logical_px": 1.3,
+        "native_title_height": 44,
+        "source_asset_hashes_match_current": true,
+        "final_palette_generation": 170,
+        "caption_ink_rows_logical": [
+          13.3,
+          30.7
+        ]
+      },
+      {
+        "locale": "en",
+        "scale": 1.25,
+        "themes": 18,
+        "windows": 90,
+        "all_captions_complete": true,
+        "max_abs_caption_offset_logical_px": 0.8,
+        "native_title_height": 44,
+        "source_asset_hashes_match_current": true,
+        "final_palette_generation": 170,
+        "caption_ink_rows_logical": [
+          16.8,
+          28.8
+        ]
+      }
+    ],
+    "targeted_tests": {
+      "window_controls": 28,
+      "captions": 5,
+      "theme_safety": 25,
+      "bloom_native_and_source": 10,
+      "managed_launch": 12,
+      "sensor_package": 5,
+      "whats_new": 30,
+      "visual_contract": 16,
+      "native_component_choice": 9
+    },
+    "native_bind_refusal": "actual rootless container, same-filesystem bind under GTK4; helper refused before writing and private sentinel survived",
+    "live_kate": "canonical detached launch, actual KWin geometry44; XTest/EIS cursor readback and fresh foreground guards; minimize at cell offsets-20/0/+20, maximize/restore, drag50x40, close and new-process reopen pass; Arabic document remains visible",
+    "gtk3": "private native Wayland allocations46x44 with module; supported artwork visible; personal appmenu image opacity1",
+    "gtk4": "private native Wayland allocations46x46; real maximized root class and1600x1040 frame, normal appmenu visible; earlier missing-window probes retained",
+    "kernel_input": {
+      "rpm_kernel_sha256": "95b80a8cdecb42a0d94ae012bec5f8eeeb054ae97bd655ba1c5f9a41cdb0383d",
+      "final_base_kernel_sha256": "6647362468eb74206db196e89207bd98b50634b8b8ecaf094d1905be094e836a",
+      "non_certificate_bytes_identical": true,
+      "original_signature_bytes_retained": true,
+      "certificates_before": 1,
+      "certificates_after": 2,
+      "exact_oci_manifest_and_layer": true,
+      "machine_trust": "not tested",
+      "boot": "not tested"
+    },
+    "full_source": "pending final frozen-source run",
+    "image_and_ci": "pending new combined source",
+    "native_font_readback": "actual Kate maps immutable Meyar Sans/Arabic/Mono/MonoArabic files; no default/personal font edit",
+    "stacked_titles": "five distinct native KWin windows, Arabic stacked marks and mixed Latin/numbers; AR75% BloomLight, native44px bar, complete caption ink rows13.3..30.7; first duplicate-caption experiment retained as invalid and short-word ink-width heuristic refusal"
+  },
+  "retained_refusals": [
+    "relative HOME/XDG paths loaded installed42/32 geometry; source harness now resolves absolute paths and checks actual bar",
+    "GTK4 allocations preceded native window publication; fixed-sleep probes missed windows; bounded native publication wait now qualifies the maximized CSD",
+    "stroke edge rejected unchanged fill-only SVG gate; replaced with a filled path",
+    "merged state201 lines refused unchanged200-line hygiene gate; current summary reconciled",
+    "current batch entries exceeded per-architecture64 limit; consolidated unshipped frame/GTK notes without changing reader limits",
+    "original PR308 vendor-kernel hash refuses the final base signature append; exact final OCI and unchanged executable/original signature proven before pinning complete final bytes",
+    "generic CMS probe rejects Authenticode encoding; no cryptographic validation success inferred",
+    "private ChatGPT Wayland + disable-feature/force-frame control still uses its own undecorated overlay; not shipped",
+    "first combined CI repository run refused obsolete TitleHeight32/ButtonWidth20 source expectations; aggregate contract now requires all44 geometry, spacing2 and136 spacer; native old/clipped negative controls retained",
+    "old source93b22f69 actually overwrites a personal save made at its publishing syscall and reports success; final helper retains the actual displaced bytes through atomic exchange and refuses late appearance through NOREPLACE",
+    "first complete source run failed at native appearance fixture because reconcile now calls native_selected; fixture now loads the real subordinate function and retains the actual old-order overwrite negative",
+    "advisory Claude job reported is_error:true despite green status; it is not completed code review; independent algorithm review received and its late-write/rollback finding repaired"
+  ],
+  "kernel": {
+    "base_manifest": "sha256:66f507a9b4d01e165c6b88ff6af0662ef1a6b4d669f872e439d53296438f99d0",
+    "layer": "sha256:c89fdd63ab158a34ea97ee24d4f8faf33a11462feb6ffb0f8010c8451eb879a5",
+    "vendor_modules_match": true,
+    "admission": "unchanged full-file SHA comparison, one exact final kernel; original signed RPM digest retained separately",
+    "trust_or_hardware_change": false
+  },
+  "live_copy": {
+    "scope": "user-local development frame, not signed OS delivery",
+    "target": "/var/home/moos/.local/share/aurorae/themes/MoOSUI2BloomLight",
+    "before": "absent",
+    "theme": "__aurorae__svg__MoOSUI2BloomLight",
+    "files": {
+      "COPYING": {
+        "sha256": "605e9047a563c5c8396ffb18232aa4304ec56586aee537c45064c6fb425e44ad",
+        "bytes": 35129
+      },
+      "UPSTREAM.json": {
+        "sha256": "dbeb316a6e65e84ea47e9cb2d1ed0020eb911d53610b6be6b6560503e04d2b05",
+        "bytes": 13030
+      },
+      "alldesktops.svg": {
+        "sha256": "fb7548adcd6022b7c2f4a22165615064832921276b421f8d4ae8395368082f81",
+        "bytes": 4850
+      },
+      "appmenu.svg": {
+        "sha256": "a3d3aa0758cb1e4853b7ad97a9cc44b1fedc725cefd565a8d6eaea8512e77cd3",
+        "bytes": 4798
+      },
+      "close.svg": {
+        "sha256": "901793092257e695b4e80872d26a41673698260b7286f193ae1ef0af616a33c2",
+        "bytes": 4724
+      },
+      "decoration.svg": {
+        "sha256": "1c6e0083b65f6826515e19f212a73b3c52592d835a20096952d59bcb96cf7205",
+        "bytes": 22740
+      },
+      "help.svg": {
+        "sha256": "0775061b0921ddd7f5fca386c4a03c4703a5e55e731ca536be44192ae3eac25b",
+        "bytes": 5539
+      },
+      "keepabove.svg": {
+        "sha256": "4822b9e4d17e5dea6a3c6d883909a36ba1f7f366083156c8acfa7887218c7ab3",
+        "bytes": 4216
+      },
+      "keepbelow.svg": {
+        "sha256": "5b4eebdc33424777cbe1a8639ec4d0acdd58b43b226698b8e8e9b1dbb66d44e3",
+        "bytes": 4224
+      },
+      "maximize.svg": {
+        "sha256": "a2321938596981dc02957c2ed442ed5edf273437bd7813c2a2dfc4b3f9895635",
+        "bytes": 3823
+      },
+      "metadata.desktop": {
+        "sha256": "307f19c0f2284f83da816efdd981579134929339f1dd577ceb7978ecac195af0",
+        "bytes": 275
+      },
+      "minimize.svg": {
+        "sha256": "42ce468618224fd72e7220f073ad1c1725a129cb892a4f21f3f9e42bbd79366f",
+        "bytes": 3679
+      },
+      "restore.svg": {
+        "sha256": "d134cd24cd1b6086ee5435b755f82aa3a2d781ddfd57a961e731422c1e229a1e",
+        "bytes": 4358
+      },
+      "shade.svg": {
+        "sha256": "b691a391a9ca68529f2c6a819cd1b572cbb48b2f0d2a70f07bf60a802011fefc",
+        "bytes": 4748
+      },
+      "MoOSUI2BloomLightrc": {
+        "sha256": "81399e653697c0536ae7c17be81853458d656e8c961a43c32646eb51e9e040f3",
+        "bytes": 979
+      }
+    },
+    "retire_when": "matching signed immutable decoration is booted and read back; retire only exact recorded files",
+    "prior_generation_recovery": "/var/home/moos/moos-image/test-results/window-integration-20261118/live-frame-second-generation"
+  },
+  "private_evidence": "/var/home/moos/moos-image/test-results/window-integration-20261118",
+  "open": [
+    "new combined full source/local image/x86+ARM PR gates",
+    "signed candidate, boot proofs, promotion and installed successor update",
+    "ChatGPT vendor RTL overlay still covers toolbar icons with current LTR mitigation; native frame/feature experiment did not fix it",
+    "VS Code custom HTML controls require owner editor restart; its own bar is app-owned",
+    "V3/physical touch, portrait, AT and GPU frame-time acceptance",
+    "personal button pairs remain native and may choose asymmetric titles; canonical XIA/_ is the qualified centered layout",
+    "LTR Overview hot-corner overlap remains a separate native preference/journey"
+  ]
+}

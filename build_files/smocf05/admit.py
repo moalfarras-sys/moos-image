@@ -12,16 +12,17 @@ import stat
 import subprocess
 import tempfile
 
-from module import (CERTIFICATE, KERNEL, RELATIVE, VENDOR, metadata, regular,
+from module import (CERTIFICATE, KERNEL, KERNEL_EVR, KERNEL_VERSION, PACKAGE_RELEASE,
+                    RELATIVE, VENDOR, metadata, regular,
                     require, run, sha, unpack, verify_signature)
 
 HERE = Path(__file__).resolve().parent
 NAME = 'kmod-moos-smocf05'
-NVR = NAME + '-7.3.3-200.1.moos1.fc44'
+NVR = f'{NAME}-{KERNEL_VERSION}-{PACKAGE_RELEASE}'
 MANIFEST = json.loads((HERE / 'manifest.json').read_text())
 FILES = {RELATIVE, CERTIFICATE, f'usr/share/licenses/{NAME}/COPYING',
          f'usr/share/licenses/{NAME}/GPL-2.0', f'usr/share/doc/{NAME}/PROVENANCE.json'}
-REQUIRES = {f'kernel-uname-r = {KERNEL}', 'kernel-modules-core = 7.3.3-200.fc44'}
+REQUIRES = {f'kernel-uname-r = {KERNEL}', f'kernel-modules-core = {KERNEL_EVR}'}
 
 
 def certificate():

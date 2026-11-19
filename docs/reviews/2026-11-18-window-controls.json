@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-18",
+  "plan_rows": [
+    "P2.5",
+    "P2.10"
+  ],
+  "owner_report": "Window frames and buttons are inconsistent across apps, KDE, Wayland and Wine; some apps look wrong. Test ChatGPT, VS Code and others and unify the experience.",
+  "live_inventory": {
+    "host": "V3 signed 1162, Plasma/KWin 6.8.3, scale 2.5, Bloom (__aurorae__svg__MoOSUI2Bloom, ButtonsOnLeft=XIA, ButtonsOnRight=_)",
+    "windows": [
+      "VS Code 1.143.1 native: titleBarStyle native -> KWin MoOS frame (44 px title)",
+      "Mira, System Settings: KWin MoOS frame",
+      "ChatGPT (Chromium owl shell): self-drawn caption with Windows-style glyphs, app_id 'Chatgpt', KWin desktopFileName empty",
+      "Wine apps (moos-run-foreign): XWayland, KWin MoOS frame, DPI matched"
+    ]
+  },
+  "defects": [
+    {
+      "surface": "GTK3 client-side decorations (and Chromium GTK3 captions)",
+      "measured": "titlebuttons mapped 30x46 but drew 0 opaque pixels under Breeze; Adwaita control drew 52/16/46",
+      "cause": "gtk-modules=colorreload-gtk-module:window-decorations-gtk-module loads gtk-3.0/window_decorations.css at the user priority after gtk.css; gtkconfig's 24 Aurorae-rendered assets are empty 50x50 SVGs. A provider at priority 800 drew 0 px, 801 drew 300 px."
+    },
+    {
+      "surface": "libadwaita/GTK4",
+      "measured": "grey Adwaita discs beside coloured MoOS Bloom buttons",
+      "cause": "no MoOS window-control styling for CSD"
+    }
+  ],
+  "repair": {
+    "generator": "artwork/generate_moos_window_controls.py: 18 MoOS frames x (close, minimize, maximize, restore) x 8 Aurorae states + one stylesheet each (594 files) under /usr/share/moos/window-controls",
+    "owner": "moos-theme apply_window_controls: copies the live frame's set into ~/.config/gtk-{3,4}.0 (Flatpak-readable), imports it first in gtk.css, fills exactly the 24 gtkconfig bridge names; removes only its own import/stylesheet for other frames and keeps copied assets",
+    "triggers": [
+      "moos-theme guard (every login)",
+      "apply_supplements/automatic and full completeness",
+      "reconcile (sync path/drift timer)",
+      "moos-theme-sync.path watches gtk-3.0/window_decorations.css"
+    ],
+    "codex": "includes Codex's fix/window-layout-migration-20261118 (525e5600): exact legacy XIA/'' -> XIA/_ caption spacer migration with readback"
+  },
+  "executed": {
+    "tests": "tests/test_window_controls.py 14/14 (generator equality, parse/selectors, install both GTK generations first, idempotence, frame switch, other decorations, traversal refusal, completeness drift, bridge fill/keep, old-owner negative); test_moos_theme_safety, test_theme_drift_repair, test_session_appearance, test_gate_coverage, test_whats_new, test_repository_hygiene, verify_user_experience pass",
+    "native_render": {
+      "gtk3_owner_config": "close/minimize/maximize 0/0/0 opaque px",
+      "gtk3_private_config_with_bridge": "300/300/300 opaque px, Bloom buttons right-aligned in RTL",
+      "libadwaita_private_config": "Bloom maximize/minimize/close at the KWin positions",
+      "priority_control": "same stylesheet 800 -> 0 px, 801 -> 300 px"
+    }
+  },
+  "not_claimed": [
+    "ChatGPT's self-drawn Chromium caption and its app_id/launcher identity",
+    "Installed/signed delivery and owner journeys across GTK, Flatpak, Chrome and Wine apps",
+    "Unresponsive-app reports: no KWin not-responding or app core in the last two days' user journal"
+  ]
+}

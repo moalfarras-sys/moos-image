@@ -19,6 +19,13 @@ ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = json.loads(Path(__file__).with_suffix('.json').read_text())
 PACKET = ROOT / 'docs/hardware/patches/smocf05'
 BACKPORT = json.loads((PACKET / 'manifest.json').read_text())
+# One reviewed kernel per manifest: every source/RPM name derives from it, so a
+# new stock kernel is a reviewed manifest change, never an edited constant.
+UPSTREAM, RELEASE = MANIFEST['kernel'].rsplit('.', 1)[0].split('-', 1)
+SERIES = '.'.join(UPSTREAM.split('.')[:2])
+SRPM = f'kernel-{UPSTREAM}-{RELEASE}.src.rpm'
+TARBALL = f'linux-{UPSTREAM}.tar.xz'
+VENDOR_PATCH = f'patch-{SERIES}-redhat.patch'
 MAGIC = b'~Module signature appended~\n'
 LIMIT = 2 * 1024 * 1024
 
@@ -103,7 +110,7 @@ def extract_source(inputs, output):
     require(not run(['rpm', '-V', 'kernel-devel-' + version]), 'modified kernel-devel')
     source_dir = output / 'source-rpm'
     source_dir.mkdir()
-    srpm = inputs / 'kernel-7.3.3-200.fc44.src.rpm'
+    srpm = inputs / SRPM
     # Bound memory by streaming the trusted RPM payload to disk. Check both
     # producer and consumer; cpio can return zero when no requested member exists.
     with (output / 'source.cpio').open('xb') as stream:
@@ -116,12 +123,12 @@ def extract_source(inputs, output):
         source = source_dir / name
         require(source.is_file() and not source.is_symlink() and digest(source) == expected,
                 'missing/changed source RPM member: ' + name)
-    for name in ('patch-7.3-redhat.patch', 'linux-kernel-test.patch'):
+    for name in (VENDOR_PATCH, 'linux-kernel-test.patch'):
         require(b'st_lsm6dsx' not in (source_dir / name).read_bytes(),
                 'vendor patch changes the reviewed driver')
     found = {}
-    prefix = 'linux-7.3.3/drivers/iio/imu/st_lsm6dsx/'
-    with tarfile.open(source_dir / 'linux-7.3.3.tar.xz', 'r|xz') as archive:
+    prefix = f'linux-{UPSTREAM}/drivers/iio/imu/st_lsm6dsx/'
+    with tarfile.open(source_dir / TARBALL, 'r|xz') as archive:
         for member in archive:
             if member.name in (prefix + 'st_lsm6dsx_i2c.c', prefix + 'st_lsm6dsx.h'):
                 require(member.isfile() and 0 < member.size < 100000 and

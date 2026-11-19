@@ -530,6 +530,28 @@ class Updates(Vendor):
         code, document = self.controller().update(APP)
         self.assertEqual(self.item(document)["message_key"], "app_up_to_date")
 
+    def test_a_launcher_only_catalogue_change_reaches_a_current_install_without_a_download(self):
+        """ChatGPT's reviewed --force-ui-direction=ltr (Electron's RTL window controls, 2026-11-18)
+        arrived after people installed it. Update and Update all bring MoOS's launcher to today's
+        catalogue with no download; removing the switch from the catalogue retires it the same way."""
+        self.install("2.0")
+        self.assertIn('/App" %U\n', self.launcher().read_text())
+        switched = recipe(switches=["--force-ui-direction=ltr"])
+        self.opener.requests.clear()
+        code, document = self.controller([switched]).update(APP)
+        self.assertEqual(self.item(document)["message_key"], "app_up_to_date", document)
+        self.assertIn('/App" --force-ui-direction=ltr %U\n', self.launcher().read_text())
+        self.assertTrue(vendor.intact(APP))
+        code, document = self.controller().update()
+        self.assertEqual(document["state"], "success", document)
+        self.assertIn('/App" %U\n', self.launcher().read_text())
+        code, document = self.controller([switched]).update()
+        self.assertEqual(document["state"], "success", document)
+        self.assertIn('/App" --force-ui-direction=ltr %U\n', self.launcher().read_text())
+        self.assertFalse([url for url in self.opener.requests if url.endswith(".rpm")],
+                         "a launcher change downloaded the app again")
+        self.assertTrue((self.app_dir() / "App").read_bytes().endswith(b"2.0"))
+
     def test_update_all_includes_a_newer_build(self):
         self.install("2.0")
         self.serve("2.1")

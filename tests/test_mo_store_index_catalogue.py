@@ -195,6 +195,22 @@ class CatalogueV2Kinds(unittest.TestCase):
             with self.subTest(icon=icon), self.assertRaises(index.CatalogError):
                 index.sanitize_vendor_install({**app["install"], "icon": icon}, app["id"])
 
+    def test_vendor_launch_switches_survive_indexing_only_when_reviewed(self):
+        """The index and moos_vendor_rpm agree on the reviewed launcher switches, so the Store
+        window and the backend see the same ChatGPT recipe; any other switch hides the app."""
+        sys.path.insert(0, str(ROOT / "system_files/usr/lib/moos"))
+        import moos_vendor_rpm as vendor
+        self.assertEqual(index.VENDOR_LAUNCH_SWITCHES, vendor.LAUNCH_SWITCHES)
+        app = next(app for app in json.loads(CATALOG.read_text())["apps"] if app["id"] == "chatgpt")
+        recipe = index.sanitize_vendor_install(app["install"], app["id"])
+        self.assertEqual(recipe["switches"], ["--force-ui-direction=ltr"])
+        self.assertNotIn("switches", index.sanitize_vendor_install(
+            {k: v for k, v in app["install"].items() if k != "switches"}, app["id"]))
+        for switches in (["--no-sandbox"], ["--force-ui-direction=rtl"], "--force-ui-direction=ltr",
+                         [None], ["--force-ui-direction=ltr"] * 5):
+            with self.subTest(switches=switches), self.assertRaises(index.CatalogError):
+                index.sanitize_vendor_install({**app["install"], "switches": switches}, app["id"])
+
     """docs/MO_STORE.md "catalog.json (v2)": every new field survives, with type checks."""
 
     def test_a_web_app_keeps_its_address_hosts_identity_permissions_and_accent(self):

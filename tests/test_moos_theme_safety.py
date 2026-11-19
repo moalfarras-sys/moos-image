@@ -1371,5 +1371,195 @@ fi
                              f"{foreign!r} must fall back to the Graphite pair")
 
 
+@unittest.skipUnless(_HAS_KWRITECONFIG6 and shutil.which('kreadconfig6'), _KWRITE_REASON)
+class NativeWindowLayoutMigration(unittest.TestCase):
+    """Run the real shell owner and KConfig tools, never the owner's bus/files."""
+
+    def run_layout(self, *, left='XIA', right='', operation='guard', look='org.moos.ui2.bloom',
+                   frame=None, library='org.kde.kwin.aurorae.v2', font='Meyar Sans,10,-1,5,400,0,0,0,0,0',
+                   style=None, profile='normal', writer='normal', components=True,
+                   reload_ok=True, source_change=None, missing_button=None):
+        with _tempfile.TemporaryDirectory(dir=_ISOLATED) as temporary:
+            base=Path(temporary)
+            for name in ('home','config','state','cache','data','run','bin','defaults'):
+                (base/name).mkdir(mode=0o700)
+            database=(ROOT/'system_files/usr/share/moos/theme-profiles.tsv').read_text()
+            original=next(line for line in database.splitlines() if line.startswith('org.moos.ui2.bloom\t'))
+            row=original.split('\t')
+            if profile=='duplicate': database+='\n'+original+'\n'
+            elif profile=='malformed': database=database.replace(original,original+'\textra-column')
+            elif profile=='missing': database=database.replace(original,'')
+            db=base/'profiles.tsv';db.write_text(database)
+            frame=frame or '__aurorae__svg__'+row[7]
+            config=base/'config'
+            (config/'kdeglobals').write_text('[KDE]\nLookAndFeelPackage='+look
+                +'\nDefaultDarkLookAndFeel=org.moos.ui2.bloom\nDefaultLightLookAndFeel=org.moos.ui2.bloom.light\n'
+                +'[General]\nColorScheme='+row[1]+'\nfont='+font+'\nfixed=Meyar Mono,10,-1,5,400,0,0,0,0,0\n'
+                +'[Icons]\nTheme='+row[4]+'\n[Sounds]\nTheme=moos\n[Colors:Selection]\nBackgroundNormal=91,37,177\n')
+            (config/'plasmarc').write_text('[Theme]\nname='+(style or row[2])+'\n')
+            (config/'kcminputrc').write_text('[Mouse]\ncursorTheme='+row[6]+'\n')
+            (config/'kwinrc').write_text('[org.kde.kdecoration2]\nlibrary='+library+'\ntheme='+frame
+                +'\nButtonsOnLeft='+left+'\nButtonsOnRight='+right
+                +'\n[Effect-blur]\nBlurStrength=7\n[Windows]\nBorderlessMaximizedWindows=false\n')
+            if missing_button:
+                path=config/'kwinrc';path.write_text('\n'.join(line for line in path.read_text().splitlines()
+                    if not line.startswith(missing_button+'='))+'\n')
+            (config/'unrelated.conf').write_bytes(b'[Personal]\nopaque=keep exact bytes\n')
+            (base/'state/theme-state.json').write_text('{"owner":"unchanged"}\n')
+            before={str(p.relative_to(base)):p.read_bytes() for p in (config/'kdeglobals',config/'plasmarc',
+                config/'kcminputrc',config/'unrelated.conf',base/'state/theme-state.json',config/'kwinrc')}
+            trace=base/'calls.jsonl'
+            bridge=base/'bin/appearance-owner'
+            bridge.write_text('#!/usr/bin/python3\nimport os,sys,json,runpy\nfrom pathlib import Path\n'
+                +'mode=sys.argv[1]\n'
+                +'with open(os.environ["LAYOUT_TRACE"],"a") as out:out.write(json.dumps(["appearance",mode])+"\\n")\n'
+                +'if mode=="sync-native":sys.exit(0)\n'
+                +'if os.environ.get("LAYOUT_COMPONENTS")!="yes":sys.exit(1)\n'
+                +'api=runpy.run_path('+repr(str(ROOT/'system_files/usr/libexec/moos-session-appearance'))+')\n'
+                +'ok=api["native_customized"](Path.home(),Path(os.environ["MOOS_THEME_PROFILE_DB"]),require_customization=mode=="check-native")\n'
+                +'sys.exit(0 if ok else 1)\n')
+            bridge.chmod(0o700)
+            native_writer=shutil.which('kwriteconfig6')
+            write=base/'bin/kwriteconfig6'
+            write.write_text('#!/usr/bin/python3\nimport os,sys,json,subprocess\n'
+                +'args=sys.argv[1:]\n'
+                +'with open(os.environ["LAYOUT_TRACE"],"a") as out:out.write(json.dumps(["write",*args])+"\\n")\n'
+                +'if "ButtonsOnRight" in args:\n'
+                +' mode=os.environ.get("LAYOUT_WRITER")\n'
+                +' if mode=="refuse":sys.exit(7)\n'
+                +' if mode=="ignore":sys.exit(0)\n'
+                +' if mode=="race":subprocess.run(['+repr(native_writer)+',"--file","kwinrc","--group","org.kde.kdecoration2","--key","ButtonsOnLeft","MIAX"],check=True)\n'
+                +'os.execv('+repr(native_writer)+',['+repr(native_writer)+',*args])\n')
+            write.chmod(0o700)
+            reload=base/'bin/gdbus'
+            reload.write_text('#!/usr/bin/python3\nimport os,sys,json\n'
+                +'with open(os.environ["LAYOUT_TRACE"],"a") as out:out.write(json.dumps(["reload",*sys.argv[1:]])+"\\n")\n'
+                +'sys.exit(0 if os.environ.get("LAYOUT_RELOAD")=="yes" else 1)\n')
+            reload.chmod(0o700)
+            source=SWITCH.read_text().replace('/usr/libexec/moos-session-appearance',str(bridge))
+            source=source.replace('/usr/share/konsole',str(ROOT/'system_files/usr/share/konsole'))
+            source=source.replace('/usr/share/plasma/look-and-feel',str(ROOT/'system_files/usr/share/plasma/look-and-feel'))
+            if source_change:source=source_change(source)
+            script=base/'moos-theme';script.write_text(source);script.chmod(0o700)
+            env=dict(os.environ,HOME=str(base/'home'),XDG_CONFIG_HOME=str(config),
+                XDG_CONFIG_DIRS=str(base/'defaults'),XDG_DATA_HOME=str(base/'data'),
+                XDG_DATA_DIRS=str(ROOT/'system_files/usr/share')+':/usr/share',
+                XDG_STATE_HOME=str(base/'state'),XDG_CACHE_HOME=str(base/'cache'),XDG_RUNTIME_DIR=str(base/'run'),
+                DBUS_SESSION_BUS_ADDRESS='unix:path='+str(base/'run/absent-bus'),
+                PATH=str(base/'bin')+os.pathsep+os.environ.get('PATH','/usr/bin:/bin'),
+                MOOS_THEME_PROFILE_DB=str(db),
+                MOOS_WINDOW_CONTROLS_DIR=str(ROOT/'system_files/usr/share/moos/window-controls'),
+                MOOS_WINDOW_CONTROLS_HELPER=str(ROOT/'system_files/usr/libexec/moos-window-controls'),
+                LAYOUT_TRACE=str(trace),LAYOUT_WRITER=writer,
+                LAYOUT_COMPONENTS='yes' if components else 'no',LAYOUT_RELOAD='yes' if reload_ok else 'no')
+            result=subprocess.run([BASH,str(script),operation],env=env,capture_output=True,text=True,timeout=15)
+            calls=[json.loads(line) for line in trace.read_text().splitlines()] if trace.exists() else []
+            after={key:(base/key).read_bytes() for key in before}
+            actual={key:subprocess.check_output(['kreadconfig6','--file','kwinrc','--group','org.kde.kdecoration2','--key',key],
+                env=env,text=True).strip() for key in ('ButtonsOnLeft','ButtonsOnRight')}
+            return result,calls,before,after,actual
+
+    def test_exact_legacy_pair_migrates_once_without_reapplying_the_look(self):
+        result,calls,before,after,actual=self.run_layout()
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(actual,{'ButtonsOnLeft':'XIA','ButtonsOnRight':'_'})
+        self.assertEqual([c[4:] for c in calls if c[0]=='write' and c[2]=='kwinrc'],
+                         [['org.kde.kdecoration2','--key','ButtonsOnRight','_']])
+        self.assertEqual(sum(c[0]=='reload' for c in calls),1)
+        for path in before:
+            if path!='config/kwinrc':self.assertEqual(after[path],before[path],path)
+        # This is the earlier guard's actual missing call, not a replacement
+        # fake migration. The old source still succeeds but leaves the defect.
+        old,calls,before,after,actual=self.run_layout(source_change=lambda s:s.replace('    guard_caption_layout || return 1\n','',1))
+        self.assertEqual(old.returncode,0,old.stderr)
+        self.assertEqual(actual['ButtonsOnRight'],'')
+        self.assertFalse(any(c[0]=='reload' for c in calls))
+
+    def test_canonical_and_custom_button_pairs_are_not_written(self):
+        for left,right in (('XIA','_'),('','XIA'),('M','IAX'),('XIA','M'),('E_','XIA'),('','')):
+            with self.subTest(left=left,right=right):
+                result,calls,before,after,actual=self.run_layout(left=left,right=right)
+                self.assertEqual(result.returncode,0,result.stderr)
+                self.assertEqual(after['config/kwinrc'],before['config/kwinrc'])
+                self.assertFalse(any(c[0]=='reload' or c[:3]==['write','--file','kwinrc'] for c in calls))
+
+    def test_native_personal_button_pair_keeps_the_existing_resume_owner(self):
+        for left,right in (('M','IAX'),('E_','XIA'),('','')):
+            result,calls,before,after,actual=self.run_layout(left=left,right=right,operation='resume-native')
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertIn(['appearance','check-components'],calls)
+            self.assertIn(['appearance','sync-native'],calls)
+            self.assertEqual(after,before)
+        def old_resume(source):
+            owner=re.search(r'^    (.+) check-native ',function(source,'native_selected'),re.M).group(1)
+            tail=chr(92)+chr(10)+'            && '
+            return source.replace('        native_selected '+tail, '        '+owner+' check-native '+tail,1)
+        old,_,_,_,_=self.run_layout(left='M',right='IAX',operation='resume-native',source_change=old_resume)
+        # Only the old admission is restored. Even that refusal remains on the
+        # private source owner; no installed publisher or owner bus is used.
+        self.assertNotEqual(old.returncode,0)
+
+    def test_personal_font_and_style_survive_legacy_guard_and_native_resume(self):
+        for settings in ({'font':'Meyar Sans,11,-1,5,400,0,0,0,0,0'}, {'style':'MoOSUI2Aurora'}):
+            result,calls,before,after,actual=self.run_layout(**settings)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(actual['ButtonsOnRight'],'_')
+            for path in before:
+                if path!='config/kwinrc':self.assertEqual(after[path],before[path],path)
+            result,calls,before,after,actual=self.run_layout(right='_',operation='resume-native',**settings)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertIn(['appearance','sync-native'],calls)
+            self.assertEqual(after,before)
+
+    def test_unknown_or_incomplete_frame_layout_never_writes(self):
+        for settings in ({'profile':'duplicate'},{'profile':'malformed'},{'profile':'missing'},
+                         {'components':False},{'left':'XX'},{'right':'?'},{'right':'_'*65},
+                         {'missing_button':'ButtonsOnLeft'},{'missing_button':'ButtonsOnRight'}):
+            with self.subTest(settings=settings):
+                result,calls,before,after,actual=self.run_layout(**settings)
+                self.assertNotEqual(result.returncode,0)
+                self.assertFalse(any(c[0] in ('write','reload') for c in calls))
+                self.assertEqual(after,before)
+        for settings in ({'look':'org.moos.ui2.unknown'}, {'left':'M','right':'IAX','components':False},
+                         {'right':'?','font':'Meyar Sans,11,-1,5,400,0,0,0,0,0'},
+                         {'profile':'malformed','font':'Meyar Sans,11,-1,5,400,0,0,0,0,0'}):
+            result,calls,before,after,actual=self.run_layout(operation='native-selected',**settings)
+            self.assertNotEqual(result.returncode,0)
+            self.assertFalse(any(c[0] in ('write','reload','sync-native') for c in calls))
+            self.assertEqual(after,before)
+
+    def test_other_installed_decoration_is_preserved(self):
+        for settings in ({'frame':'__aurorae__svg__MoOSUI2Aurora'}, {'library':'org.kde.breeze'}):
+            result,calls,before,after,actual=self.run_layout(**settings)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(after['config/kwinrc'],before['config/kwinrc'])
+            self.assertFalse(any(c[0]=='reload' or c[:3]==['write','--file','kwinrc'] for c in calls))
+        result,calls,before,after,actual=self.run_layout(frame='__aurorae__svg__MoOSUI2Aurora',operation='resume-native')
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn(['appearance','sync-native'],calls)
+        self.assertEqual(after,before)
+
+    def test_write_readback_and_reload_failures_stay_failed(self):
+        for writer in ('refuse','ignore','race'):
+            result,calls,before,after,actual=self.run_layout(writer=writer)
+            self.assertNotEqual(result.returncode,0)
+            self.assertFalse(any(c[0]=='reload' for c in calls))
+            if writer=='race':self.assertEqual(actual['ButtonsOnLeft'],'MIAX')
+            else:self.assertEqual(after['config/kwinrc'],before['config/kwinrc'])
+        result,calls,before,after,actual=self.run_layout(reload_ok=False)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('saved; KWin reload was unavailable',result.stderr)
+        self.assertEqual(actual['ButtonsOnRight'],'_')
+
+    def test_explicit_canonical_apply_and_verifier_remain_strict(self):
+        source=SWITCH.read_text()
+        full=function(source,'full_theme_complete');apply=function(source,'apply')
+        self.assertIn('--key ButtonsOnLeft 2>/dev/null)" = XIA',full)
+        self.assertIn('--key ButtonsOnRight 2>/dev/null)" = _',full)
+        self.assertIn('--key ButtonsOnLeft XIA',apply)
+        self.assertIn('--key ButtonsOnRight _',apply)
+        self.assertNotIn('native_selected',full)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

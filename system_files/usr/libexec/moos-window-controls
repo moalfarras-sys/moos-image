@@ -1,0 +1,266 @@
+#!/usr/bin/python3
+"""Finite file transaction for moos-theme's native GTK caption bridge.
+
+moos-theme chooses the decoration and holds the appearance lock. This helper
+only publishes that exact set: no service, settings writer or desktop input.
+All files are staged before publication. Atomic exchange retains the actual
+displaced files; recovery restores unchanged writes and retains conflicting
+versions with their paths. The appearance lock coordinates participating writers.
+"""
+from __future__ import annotations
+
+import argparse
+import ctypes
+import os
+from pathlib import Path
+import re
+import stat
+import sys
+import tempfile
+
+BUTTONS = ("close", "minimize", "maximize", "restore")
+STATES = ("active", "inactive", "hover", "hover-inactive", "pressed",
+          "pressed-inactive", "deactivated", "deactivated-inactive")
+IMAGES = {f"{button}-{state}.svg" for button in BUTTONS for state in STATES}
+IMPORT = "@import 'moos-window-controls.css';"
+MARKER = b"/* MoOS window controls"
+BRIDGE = {"normal": "active", "hover": "hover", "active": "pressed",
+          "backdrop-normal": "inactive", "backdrop-hover": "hover-inactive",
+          "backdrop-active": "pressed-inactive"}
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def snapshot(path):
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return None
+    require(stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and info.st_nlink == 1,
+            f"refuse non-owned, linked or non-regular file: {path}")
+    require(info.st_size <= 1024 * 1024, f"refuse oversized file: {path}")
+    return path.read_bytes(), stat.S_IMODE(info.st_mode)
+
+
+def safe_paths(config, paths):
+    require(config.is_absolute() and ".." not in config.parts, "config path must be absolute")
+    roots = [config / gtk for gtk in ("gtk-3.0", "gtk-4.0")]
+    # Mounts must be refused before traversal, including same-filesystem binds.
+    for line in Path("/proc/self/mountinfo").read_text().splitlines():
+        mount = Path(re.sub(r"\\([0-7]{3})", lambda m: chr(int(m[1], 8)), line.split()[4]))
+        require(not any(mount == root or root in mount.parents for root in roots),
+                f"refuse mounted GTK destination: {mount}")
+    directories = {config, *config.parents}
+    for path in paths:
+        require(any(root in path.parents for root in roots), "destination outside GTK config")
+        directories.update(path.parents)
+    for directory in sorted(directories, key=lambda p: len(p.parts)):
+        try:
+            info = directory.lstat()
+        except FileNotFoundError:
+            continue
+        require(stat.S_ISDIR(info.st_mode), f"refuse linked/non-directory parent: {directory}")
+        if directory == config or config in directory.parents:
+            require(info.st_uid == os.getuid(), f"refuse foreign config directory: {directory}")
+    return {path: snapshot(path) for path in paths}
+
+
+def source_files(source):
+    require(re.fullmatch(r"MoOSUI2[A-Za-z0-9]*", source.name), "invalid frame name")
+    require(source.is_dir() and not source.is_symlink(), "invalid source directory")
+    require({p.name for p in source.iterdir()} == IMAGES | {"window-controls.css"},
+            "incomplete window-control source")
+    result = {}
+    for name in sorted(IMAGES | {"window-controls.css"}):
+        path = source / name
+        info = path.lstat()
+        # Immutable source files may have legitimate base-image hardlinks.
+        require(stat.S_ISREG(info.st_mode) and info.st_size <= 100000, "invalid source asset")
+        result[name] = path.read_bytes()
+    require(result["window-controls.css"].startswith(MARKER), "unrecognized source stylesheet")
+    return result
+
+
+def plan(operation, config, source=None):
+    changes = {}
+    for gtk in ("gtk-3.0", "gtk-4.0"):
+        directory = config / gtk
+        changes[directory / "gtk.css"] = None
+        changes[directory / "moos-window-controls.css"] = None
+    files = source_files(source) if source else None
+    if files:
+        for gtk in ("gtk-3.0", "gtk-4.0"):
+            directory = config / gtk
+            changes[directory / "moos-window-controls.css"] = files["window-controls.css"]
+            for name in sorted(IMAGES):
+                changes[directory / "moos-window-controls" / source.name / name] = files[name]
+        for button in ("close", "minimize", "maximize", "maximized"):
+            for native, state in BRIDGE.items():
+                action = "restore" if button == "maximized" else button
+                changes[config / "gtk-3.0/assets" / f"{button}-{native}.svg"] = files[f"{action}-{state}.svg"]
+    before = safe_paths(config, changes)
+    for gtk in ("gtk-3.0", "gtk-4.0"):
+        directory = config / gtk
+        css = directory / "moos-window-controls.css"
+        require(before[css] is None or before[css][0].startswith(MARKER),
+                f"refuse personal stylesheet collision: {css}")
+        path = directory / "gtk.css"
+        text = before[path][0] if before[path] else b""
+        if files:
+            changes[path] = text if IMPORT.encode() in text else IMPORT.encode() + b"\n" + text
+        elif before[path]:
+            changes[path] = re.sub(rb"(?m)^@import 'moos-window-controls\.css';\n?", b"", text)
+            changes[path] = changes[path].replace(IMPORT.encode(), b"")
+        else:
+            del changes[path]
+    return changes, before
+
+
+def staged_file(path, data, mode):
+    descriptor, name = tempfile.mkstemp(prefix=".moos-caption-", dir=path.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+            os.fchmod(stream.fileno(), mode)
+        return temporary
+    except BaseException:
+        temporary.unlink()
+        raise
+
+
+def rename_file(source, target, flags):
+    """Linux atomic no-replace/exchange; no clobbering fallback is safe here."""
+    libc = ctypes.CDLL(None, use_errno=True)
+    rename = libc.renameat2
+    rename.argtypes = (ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint)
+    rename.restype = ctypes.c_int
+    if rename(-100, os.fsencode(source), -100, os.fsencode(target), flags):
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), str(target))
+
+
+def vacant_sibling(path):
+    descriptor, name = tempfile.mkstemp(prefix=".moos-caption-", dir=path.parent)
+    os.close(descriptor)
+    sibling = Path(name)
+    sibling.unlink()
+    return sibling
+
+
+def publish(changes, before):
+    staged, backups, applied = {}, {}, []
+    expected = {p: (data, before[p][1] if before[p] else 0o644) if data is not None else None
+                for p, data in changes.items()}
+    recovery_errors = []
+    try:
+        # Referenced artwork reaches its destination before a live stylesheet.
+        def publication_order(path):
+            if path.name == "gtk.css":
+                # Retire the import before removing its stylesheet.
+                return -1 if changes[path.parent / "moos-window-controls.css"] is None else 2
+            return 1 if path.name == "moos-window-controls.css" else 0
+        ordered = sorted(changes, key=publication_order)
+        for path in ordered:
+            data = changes[path]
+            if data is not None and (before[path] is None or before[path][0] != data):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                staged[path] = staged_file(path, data, before[path][1] if before[path] else 0o644)
+        # No destination changed during staging. Unknown newer state is never overwritten.
+        for path in changes:
+            require(snapshot(path) == before[path], f"destination changed during staging: {path}")
+        for path in ordered:
+            data = changes[path]
+            if path in staged:
+                temporary = staged[path]
+                # Keep the actual displaced file, including a late editor save.
+                # NOREPLACE also refuses a file created after our preflight.
+                rename_file(temporary, path, 2 if before[path] else 1)
+                del staged[path]
+                applied.append(path)
+                if before[path]:
+                    backups[path] = temporary
+                    require(snapshot(temporary) == before[path],
+                            f"destination changed at publication: {path}")
+            elif data is None and before[path] is not None:
+                temporary = vacant_sibling(path)
+                rename_file(path, temporary, 1)
+                backups[path] = temporary
+                applied.append(path)
+                require(snapshot(temporary) == before[path],
+                        f"destination changed at retirement: {path}")
+            else:
+                require(snapshot(path) == before[path], f"destination changed at publication: {path}")
+        for path, data in changes.items():
+            actual = snapshot(path)
+            require((actual[0] if actual else None) == data, f"caption readback failed: {path}")
+    except BaseException:
+        for path in reversed(applied):
+            try:
+                require(snapshot(path) == expected[path], f"concurrent change preserved: {path}")
+                if path in backups:
+                    temporary = backups[path]
+                    rename_file(temporary, path, 2 if expected[path] else 1)
+                    if expected[path]:
+                        require(snapshot(temporary) == expected[path],
+                                f"concurrent displaced data retained: {temporary}")
+                        temporary.unlink()
+                    del backups[path]
+                else:
+                    temporary = vacant_sibling(path)
+                    rename_file(path, temporary, 1)
+                    # A save racing this rollback remains in the private sibling.
+                    backups[path] = temporary
+                    require(snapshot(temporary) == expected[path],
+                            f"concurrent displaced data retained: {temporary}")
+                    temporary.unlink()
+                    del backups[path]
+            except (OSError, ValueError) as error:
+                # One conflicting file must not strand every other GTK write.
+                recovery_errors.append(str(error))
+        for path, temporary in backups.items():
+            recovery_errors.append(f"recovery copy retained for {path}: {temporary}")
+        raise
+    finally:
+        for path, temporary in staged.items():
+            try:
+                actual = snapshot(temporary)
+                require(actual is None or actual == expected[path],
+                        f"displaced data retained: {temporary}")
+                temporary.unlink(missing_ok=True)
+            except (OSError, ValueError) as error:
+                recovery_errors.append(str(error))
+        for error in recovery_errors:
+            print(f"moos-window-controls: {error}", file=sys.stderr)
+    # Only a completely verified commit may retire its old versions.
+    for path, temporary in backups.items():
+        require(snapshot(temporary) == before[path], f"changed recovery copy retained: {temporary}")
+        temporary.unlink()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("operation", choices=("apply", "check", "remove"))
+    parser.add_argument("config", type=Path)
+    parser.add_argument("source", type=Path, nargs="?")
+    args = parser.parse_args()
+    require(args.source is not None or args.operation == "remove", "missing frame source")
+    changes, before = plan(args.operation, args.config, args.source)
+    if args.operation == "check":
+        require(all((before[p][0] if before[p] else None) == data for p, data in changes.items()),
+                "window controls are incomplete")
+    else:
+        publish(changes, before)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError) as error:
+        print(f"moos-window-controls: {error}", file=sys.stderr)
+        sys.exit(1)

@@ -209,11 +209,13 @@ class NativePersonalAppearance(unittest.TestCase):
     def test_native_component_choice_survives_automatic_mode_without_replacing_its_owner(self):
         source=(ROOT/'system_files/usr/bin/moos-theme').read_text()
         start=source.index('reconcile() {');body=source[start:source.index('\n}\n',start)+3]
+        start=source.index('native_selected() {')
+        body=source[start:source.index('\n}\n',start)+3]+'\n'+body
         helper=self.home/'native-owner'
         helper.write_text('#!/bin/sh\ncase "$1" in\ncheck-native) exit "$MOOS_NATIVE_RESULT" ;;\nsync-native) echo native ;;\n*) exit 9 ;;\nesac\n')
         helper.chmod(0o700)
         body=body.replace('/usr/libexec/moos-session-appearance',shlex.quote(str(helper)))
-        setup='current() { echo org.moos.ui2.bloom; }\nload_profile() { return 0; }\nkreadconfig6() { echo true; }\nsync_auto() { echo automatic; }\npublish_session_appearance() { echo published; }\n'
+        setup='apply_window_controls() { return 0; }\nvalidated_frame_layout() { return 2; }\ncurrent() { echo org.moos.ui2.bloom; }\nload_profile() { return 0; }\nkreadconfig6() { echo true; }\nsync_auto() { echo automatic; }\npublish_session_appearance() { echo published; }\n'
         env={k:v for k,v in os.environ.items() if k not in ('DISPLAY','WAYLAND_DISPLAY','DBUS_SESSION_BUS_ADDRESS')}
         for code,expected in (('0','native'),('1','automatic\npublished')):
             result=subprocess.run(['bash','-c',setup+body+'\nreconcile\n'],env=env|{'MOOS_NATIVE_RESULT':code},capture_output=True,text=True)
@@ -225,7 +227,7 @@ class NativePersonalAppearance(unittest.TestCase):
         automatic_end=body.index('\n    fi\n',automatic_start)+8
         automatic=body[automatic_start:automatic_end]
         old=body[:automatic_start]+body[automatic_end:]
-        native_start=old.index('    if '+shlex.quote(str(helper))+' check-native',old.index('if ! load_profile'))
+        native_start=old.index('    if native_selected',old.index('if ! load_profile'))
         old=old[:native_start]+automatic+'\n'+old[native_start:]
         result=subprocess.run(['bash','-c',setup+old+'\nreconcile\n'],env=env|{'MOOS_NATIVE_RESULT':'0'},capture_output=True,text=True)
         self.assertEqual(result.stdout.strip(),'automatic\npublished')

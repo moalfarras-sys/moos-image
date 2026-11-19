@@ -322,6 +322,27 @@ class DroppedIds(Backend):
         code, result = self.controller(self.apps).remove("appdrop-figma", delete_data=True)
         self.assertEqual(result["items"][0]["message_key"], "removed_data_untracked", result)
 
+    def test_active_or_uninspectable_drop_removal_keeps_translatable_failed_jobs(self):
+        controller = self.controller([*self.apps, self.appdrop_recipe()])
+        self.assertEqual(controller.install(["noteforge"])[1]["state"], "success")
+        for failure in ("app_in_use", "app_inspection_unavailable"):
+            for route, app_id, slug in (("catalogue", "noteforge", "noteforge"),
+                                       ("indexed", "appdrop-figma", "figma"),
+                                       ("file", "figma", "figma")):
+                with self.subTest(failure=failure, route=route):
+                    with mock.patch.object(appdrop, "remove", side_effect=appdrop.DropError(failure)) as remove:
+                        code, result = (controller.remove_file(app_id) if route == "file"
+                                        else controller.remove(app_id))
+                    remove.assert_called_once_with(slug)
+                    self.assertNotEqual(code, 0, result)
+                    self.assertEqual(result["state"], "failed", result)
+                    self.assertEqual(result["message_key"], "vendor_" + failure, result)
+                    self.assertEqual([(item["id"], item["state"], item["message_key"])
+                                      for item in result["items"]],
+                                     [(app_id, "failed", "vendor_" + failure)])
+                    self.assertEqual(self.job_document(), result,
+                                     "the persisted job lost the removal refusal")
+
     def test_appdrop_id_is_updated_by_a_newer_file(self):
         code, document = self.cli(self.apps, "update", "appdrop-figma")
         self.assertEqual(code, 2)

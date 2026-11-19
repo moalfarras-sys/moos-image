@@ -20,6 +20,7 @@ exited 2 with the volume unchanged, and `brightness 95` set the Philips monitor
 to 9500/10000 over Plasma's ScreenBrightness service.
 """
 import json
+import importlib.util
 import os
 import re
 import runpy
@@ -62,6 +63,13 @@ esac
   *get-property*Brightness*) value=5000
                             if [ -f "$STUB_ROOT/brightness" ]; then read -r value < "$STUB_ROOT/brightness"; fi
                             echo "{\\"type\\":\\"i\\",\\"data\\":$value}";;
+  *GetAll*NightLight*)
+    if [ -n "${STUB_NIGHT_REPLY:-}" ]; then printf '%s\\n' "$STUB_NIGHT_REPLY"; exit 0; fi
+    on=1; mode=1; read -r on < "$STUB_ROOT/nightlight" 2>/dev/null
+    read -r mode < "$STUB_ROOT/nightlight-mode" 2>/dev/null
+    if [ "$on" = 1 ]; then enabled=true; else enabled=false; fi
+    running="$enabled"; [ "${STUB_NIGHT_INHIBITED:-0}" = 1 ] && running=false
+    printf '{"type":"a{sv}","data":[{"enabled":{"type":"b","data":%s},"running":{"type":"b","data":%s},"available":{"type":"b","data":true},"mode":{"type":"u","data":%s}}]}\\n' "$enabled" "$running" "$mode";;
   *NightLight*running*) echo '{"type":"b","data":true}';;
   *NightLight*enabled*) on=0; read -r on < "$STUB_ROOT/nightlight" 2>/dev/null
                         if [ "$on" = 1 ]; then echo '{"type":"b","data":true}'; else echo '{"type":"b","data":false}'; fi;;
@@ -83,6 +91,9 @@ esac
     # KWin's NightColor file and what KWin itself applied are separate states. KWin applies
     # only a notified change; STUB_KWIN_IGNORES keeps it off whatever the file says.
     "kwriteconfig6": '''case "$*" in
+  *NightColor*Mode*) if [ "${STUB_KWIN_MODE_IGNORES:-0}" != 1 ]; then
+                       for last in "$@"; do :; done
+                       if [ "$last" = Constant ]; then echo 0; else echo 1; fi > "$STUB_ROOT/nightlight-mode"; fi;;
   *NightColor*Active*) for last in "$@"; do :; done; printf '%s\\n' "$last" > "$STUB_ROOT/nightlight-file"
                        case "$*" in *--notify*) if [ "${STUB_KWIN_IGNORES:-0}" != 1 ]; then
                          if [ "$last" = true ]; then echo 1; else echo 0; fi > "$STUB_ROOT/nightlight"; fi;; esac;;
@@ -179,6 +190,254 @@ class StubMachine:
 
     def close(self):
         self.dir.cleanup()
+
+
+class NightLightWriteFailure(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("kwriteconfig6") and shutil.which("kreadconfig6"),
+                         "Native KConfig tools unavailable")
+    def test_native_failed_write_or_notification_never_persists_an_opposite_pulse(self):
+        source = CONTROL.read_text()
+        seam = ('    run([*write, "--key", "Active", "--type", "bool", "--notify", "true" if wanted else "false"])\n'
+                '    night_light_notify()\n')
+        self.assertEqual(source.count(seam), 1)
+        old = ('    stored = run(["kreadconfig6", "--file", "kwinrc", "--group", "NightColor",\n'
+               '                  "--key", "Active", "--default", "false"]).strip() == "true"\n'
+               '    if stored == wanted:\n'
+               '        run([*write, "--key", "Active", "--type", "bool", "--notify",\n'
+               '             "false" if wanted else "true"])\n'
+               '    run([*write, "--key", "Active", "--type", "bool", "--notify", "true" if wanted else "false"])\n')
+        with tempfile.TemporaryDirectory(prefix="moos-night-write-failure-") as temporary:
+            root = Path(temporary)
+            config = root / "config"
+            config.mkdir()
+            env = {**os.environ, "HOME": str(root), "XDG_CONFIG_HOME": str(config),
+                   "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(root / "absent-private-bus")}
+            fixed = runpy.run_path(str(CONTROL), run_name="night_write_failure")
+            old_path = root / "old-pulse-control.py"
+            old_path.write_text(source.replace(seam, old, 1))
+            previous = runpy.run_path(str(old_path), run_name="old_pulse_control")
+            for requested in ("on", "off"):
+                wanted = requested == "on"
+                for version, module, fault in (("old", previous, "write"),
+                                               ("fixed", fixed, "write"),
+                                               ("fixed", fixed, "emit")):
+                    with self.subTest(requested=requested, version=version, fault=fault):
+                        personal = ('[NightColor]\nActive=' + str(wanted).lower()
+                                    + '\nMode=Constant\nNightTemperature=3900\nDayTemperature=6300\n')
+                        (config / "kwinrc").write_text(personal)
+                        calls = []
+
+                        def native(argv, **kwargs):
+                            calls.append(argv)
+                            if argv[0] == "busctl":
+                                if fault == "emit" and "emit" in argv:
+                                    raise module["Unavailable"]("injected notification failure")
+                                return ""
+                            if (fault == "write" and argv[0] == "kwriteconfig6"
+                                    and "Active" in argv and argv[-1] == str(wanted).lower()):
+                                raise module["Unavailable"]("injected desired policy write failure")
+                            result = subprocess.run(argv, env=env, text=True, capture_output=True,
+                                                    check=True, timeout=5)
+                            return result.stdout
+
+                        change = module["night_light"]
+                        snapshot = {"available": True, "enabled": not wanted, "running": False, "mode": 0}
+                        with mock.patch.dict(change.__globals__, run=native,
+                                             night_light_state=lambda **kw: snapshot):
+                            with self.assertRaisesRegex(module["Unavailable"], "injected"):
+                                change(requested)
+                        active = subprocess.check_output(["kreadconfig6", "--file", "kwinrc",
+                            "--group", "NightColor", "--key", "Active"], env=env, text=True,
+                            timeout=5).strip()
+                        self.assertEqual(active, str(not wanted if version == "old" else wanted).lower())
+                        if version == "fixed":
+                            self.assertEqual((config / "kwinrc").read_text(), personal)
+                            self.assertFalse(any(call[0] == "kwriteconfig6" and "Active" in call
+                                and call[-1] != str(wanted).lower() for call in calls))
+
+
+class NightLightReadback(unittest.TestCase):
+    def test_native_reply_shapes_remain_unknown_instead_of_becoming_true(self):
+        module = runpy.run_path(str(CONTROL), run_name="night_light_readback_test")
+        read = module["night_light_state"]
+        valid = {"type": "a{sv}", "data": [{
+            "enabled": {"type": "b", "data": True}, "running": {"type": "b", "data": False},
+            "available": {"type": "b", "data": True}, "mode": {"type": "u", "data": 1}}]}
+        with mock.patch.dict(read.__globals__, run=lambda *a, **k: json.dumps(valid)):
+            self.assertEqual(read(), {"enabled": True, "running": False, "available": True, "mode": 1})
+        invalid = ["not json", [], {}, {"type": "a{sv}", "data": []},
+                   {"type": "s", "data": valid["data"]}]
+        for key, wrong in (("enabled", {"type": "b", "data": 1}),
+                           ("running", {"type": "s", "data": "false"}),
+                           ("available", {"type": "b", "data": None}),
+                           ("mode", {"type": "u", "data": True}),
+                           ("mode", {"type": "u", "data": 2}),
+                           ("mode", {"type": "i", "data": 1})):
+            doc = json.loads(json.dumps(valid))
+            doc["data"][0][key] = wrong
+            invalid.append(doc)
+        missing = json.loads(json.dumps(valid))
+        missing["data"][0].pop("mode")
+        invalid.append(missing)
+        for document in invalid:
+            with self.subTest(document=document), mock.patch.dict(read.__globals__,
+                    run=lambda *a, **k: json.dumps(document) if document != "not json" else document):
+                with self.assertRaises(module["Unavailable"]):
+                    read()
+
+    @unittest.skipUnless(importlib.util.find_spec("gi") and shutil.which("dbus-run-session")
+                         and shutil.which("busctl") and shutil.which("kwriteconfig6")
+                         and shutil.which("kreadconfig6"), "Native DBus/KConfig tools unavailable")
+    def test_private_native_bus_and_config_old_fixed_mode_acknowledgement(self):
+        with tempfile.TemporaryDirectory(prefix="moos-night-light-native-") as temporary:
+            root = Path(temporary)
+            for folder in ("config", "data", "cache", "runtime"):
+                (root / folder).mkdir(mode=0o700)
+            config = root / "bus.conf"
+            config.write_text('<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen>'
+                '<auth>EXTERNAL</auth><policy context="default"><allow send_destination="*"/>'
+                '<allow receive_sender="*"/><allow own="*"/></policy></busconfig>')
+            env = {**os.environ, "HOME": str(root), "XDG_CONFIG_HOME": str(root / "config"),
+                   "XDG_DATA_HOME": str(root / "data"), "XDG_DATA_DIRS": str(root / "data"),
+                   "XDG_CACHE_HOME": str(root / "cache"), "XDG_RUNTIME_DIR": str(root / "runtime")}
+            result = subprocess.run(["dbus-run-session", "--config-file", str(config), "--",
+                sys.executable, __file__, "--native-night-light"], env=env,
+                capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("PASS native Night Light old/fixed mode", result.stdout)
+
+
+def native_night_light():
+    """A typed native peer and real KConfig tools on a private bus, never KWin's owner bus.
+
+    This proves the client transaction/API contract, not physical colour output.
+    No bus activation directories are configured by the caller.
+    """
+    import configparser
+    import threading
+    from gi.repository import Gio, GLib
+
+    config = Path(os.environ["XDG_CONFIG_HOME"])
+    kwinrc = config / "kwinrc"
+    kdeglobals = config / "kdeglobals"
+    kdeglobals.write_text('[KDE]\nLookAndFeelPackage=org.moos.ui2.bloom\n')
+    personal_theme = kdeglobals.read_bytes()
+    personal = '[NightColor]\nActive=true\nMode=DarkLight\nNightTemperature=3900\nDayTemperature=6300\n'
+    kwinrc.write_text(personal)
+    peer = {"enabled": True, "running": False, "available": True, "mode": 1,
+            "ignore_mode": False, "ignore_active": False}
+    connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    loop = GLib.MainLoop()
+    xml = '<node><interface name="org.kde.KWin.NightLight">' + ''.join(
+        '<property name="' + key + '" type="' + ('u' if key == 'mode' else 'b') + '" access="read"/>'
+        for key in ('enabled', 'running', 'available', 'mode')) + '</interface></node>'
+
+    def get_property(c, sender, path, interface, name):
+        parser = configparser.ConfigParser()
+        parser.read(kwinrc)
+        if not peer['ignore_active']:
+            peer['enabled'] = parser.getboolean('NightColor', 'Active')
+        if not peer['ignore_mode']:
+            peer['mode'] = {'Constant': 0, 'DarkLight': 1}[parser.get('NightColor', 'Mode')]
+        return GLib.Variant('u' if name == 'mode' else 'b', peer[name])
+
+    registration = connection.register_object('/org/kde/KWin/NightLight',
+        Gio.DBusNodeInfo.new_for_xml(xml).interfaces[0], None, get_property, None)
+    reconfigure_xml = '<node><interface name="org.kde.KWin"><method name="reconfigure"/></interface></node>'
+    registration2 = connection.register_object('/KWin',
+        Gio.DBusNodeInfo.new_for_xml(reconfigure_xml).interfaces[0],
+        lambda c, s, p, i, m, a, invocation: invocation.return_value(GLib.Variant('()', ())), None, None)
+    owned = threading.Event()
+    owner = Gio.bus_own_name_on_connection(connection, 'org.kde.KWin', Gio.BusNameOwnerFlags.NONE,
+                                         lambda *a: owned.set(), None)
+    worker = threading.Thread(target=loop.run, daemon=True)
+    worker.start()
+    assert owned.wait(3), 'private native peer did not own its name'
+    module = runpy.run_path(str(CONTROL), run_name='night_native_control')
+    change = module['night_light']
+    change.__globals__['NIGHT_LIGHT_BUDGET'] = 0.35
+    proof = {'scope': 'private native bus and KConfig client contract; not owner KWin or physical colour',
+             'old_enabled_only': [], 'fixed_mode_refusals': []}
+    try:
+        # Real busctl serializes the typed a{sv} response, including a legitimate
+        # enabled policy with a currently inhibited filter.
+        measured = module['night_light_state']()
+        assert measured == {'enabled': True, 'running': False, 'available': True, 'mode': 1}, measured
+        proof['native_inhibited_policy'] = measured
+        assert 'automatic' in change('auto')
+        assert 'on' in change('on')
+        assert module['night_light_state']()['mode'] == 0
+        assert 'off' in change('off')
+        parser = configparser.ConfigParser()
+        parser.read(kwinrc)
+        assert parser.get('NightColor', 'Mode') == 'Constant', 'off erased personal mode'
+        assert parser.get('NightColor', 'NightTemperature') == '3900'
+        assert parser.get('NightColor', 'DayTemperature') == '6300'
+        assert kdeglobals.read_bytes() == personal_theme
+
+        # Preserve the old enabled-only success against exactly the same peer:
+        # Active applies while the native compositor refuses Mode.
+        old_source = CONTROL.read_text()
+        seam = 'if measured["enabled"] == wanted and (not wanted or measured["mode"] == wanted_mode):'
+        assert old_source.count(seam) == 1
+        old_source = old_source.replace(seam, 'if measured["enabled"] == wanted:', 1)
+        old_path = config.parent / 'old-enabled-only-control.py'
+        old_path.write_text(old_source)
+        old = runpy.run_path(str(old_path), run_name='old_enabled_only')
+        old['night_light'].__globals__['NIGHT_LIGHT_BUDGET'] = 0.35
+        for wanted, retained in (('on', 1), ('auto', 0)):
+            peer.update(ignore_mode=True, mode=retained)
+            old_result = old['night_light'](wanted)
+            assert wanted in old_result.lower().replace('automatic', 'auto')
+            proof['old_enabled_only'].append({'request': wanted, 'retained_mode': retained, 'result': old_result})
+            try:
+                change(wanted)
+            except module['Unavailable'] as error:
+                assert 'did not apply' in str(error)
+                proof['fixed_mode_refusals'].append({'request': wanted, 'retained_mode': retained, 'error': str(error)})
+            else:
+                raise AssertionError('wrong mode was accepted from enabled alone')
+        peer['available'] = False
+        before = kwinrc.read_bytes()
+        try:
+            change('on')
+        except module['Unavailable']:
+            pass
+        else:
+            raise AssertionError('unavailable preflight was accepted')
+        assert kwinrc.read_bytes() == before, 'unavailable preflight mutated personal config'
+        peer.update(available=True, mode=2, ignore_mode=True)
+        try:
+            module['night_light_state']()
+        except module['Unavailable']:
+            pass
+        else:
+            raise AssertionError('unknown native enum was accepted')
+        # An older peer exporting only the running flag is not an off policy
+        # and cannot authorize even a configuration write.
+        connection.unregister_object(registration)
+        old_xml = '<node><interface name="org.kde.KWin.NightLight"><property name="running" type="b" access="read"/></interface></node>'
+        registration = connection.register_object('/org/kde/KWin/NightLight',
+            Gio.DBusNodeInfo.new_for_xml(old_xml).interfaces[0], None, get_property, None)
+        before = kwinrc.read_bytes()
+        try:
+            change('off')
+        except module['Unavailable']:
+            pass
+        else:
+            raise AssertionError('older running-only peer was accepted as measured policy')
+        assert kwinrc.read_bytes() == before, 'older backend preflight changed personal mode'
+        proof.update(unavailable_zero_writes=True, older_backend_zero_writes=True,
+                     unknown_enum_refused=True, off_preserves_mode=True,
+                     personal_temperatures_and_theme_unchanged=True)
+    finally:
+        Gio.bus_unown_name(owner)
+        connection.unregister_object(registration)
+        connection.unregister_object(registration2)
+        loop.quit()
+        worker.join(timeout=3)
+    print(json.dumps(proof, ensure_ascii=False))
+    print('PASS native Night Light old/fixed mode, inhibited policy, unknown enum, older backend, zero-write refusal and personal policy')
 
 
 class BrightnessReadback(unittest.TestCase):
@@ -332,17 +591,17 @@ class MoosControlTests(unittest.TestCase):
 
     def test_night_light_modes_notify_kwin_and_read_it_back(self):
         write = ["kwriteconfig6", "--file", "kwinrc", "--group", "NightColor"]
-        read = ["kreadconfig6", "--file", "kwinrc", "--group", "NightColor", "--key", "Active",
-                "--default", "false"]
         reconfigure = ["busctl", "--user", "--expect-reply=no", "call", "org.kde.KWin",
                        "/KWin", "org.kde.KWin", "reconfigure"]
+        notify = ["busctl", "--user", "emit", "/kwinrc", "org.kde.kconfig.notify",
+                  "ConfigChanged", "a{saay}", "1", "NightColor", "2", "6", "65", "99", "116",
+                  "105", "118", "101", "4", "77", "111", "100", "101"]
         active = lambda value: [*write, "--key", "Active", "--type", "bool", "--notify", value]
         expected = {
-            "on": [[*write, "--key", "Mode", "--notify", "Constant"], read, active("true"), reconfigure],
-            "off": [read, active("false"), reconfigure],
+            "on": [[*write, "--key", "Mode", "--notify", "Constant"], active("true"), notify, reconfigure],
+            "off": [active("false"), notify, reconfigure],
             # The file already says on while KWin is off: force a real change notification.
-            "auto": [[*write, "--key", "Mode", "--notify", "DarkLight"], read, active("false"),
-                     active("true"), reconfigure],
+            "auto": [[*write, "--key", "Mode", "--notify", "DarkLight"], active("true"), notify, reconfigure],
         }
         root = self.machine.root
         for mode, calls in expected.items():
@@ -353,17 +612,46 @@ class MoosControlTests(unittest.TestCase):
                 self.machine.log.write_text("")
                 result = self.control("night-light", mode)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                acting = [call[:9] if call[0] == "busctl" else call
+                acting = [call[:9] if call[0] == "busctl" and "emit" not in call else call
                           for call in self.machine.calls() if call[0] != "logger"]
-                acting = [call for call in acting if "enabled" not in call]
+                acting = [call for call in acting if "GetAll" not in call]
                 self.assertEqual(acting, calls)
                 self.assertEqual((root / "nightlight").read_text().strip(), "0" if mode == "off" else "1")
 
     def test_night_light_refuses_success_when_kwin_does_not_apply(self):
+        (self.machine.root / "nightlight").write_text("0\n")
         result = self.control("night-light", "on", STUB_KWIN_IGNORES="1")
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn("Night light on", result.stdout)
         self.assertIn("KWin did not apply", result.stdout + result.stderr)
+
+    def test_night_light_refuses_enabled_with_the_wrong_native_mode(self):
+        for requested, measured in (("on", 1), ("auto", 0)):
+            with self.subTest(requested=requested):
+                (self.machine.root / "nightlight").write_text("1\n")
+                (self.machine.root / "nightlight-mode").write_text(str(measured) + "\n")
+                result = self.control("night-light", requested, STUB_KWIN_MODE_IGNORES="1")
+                self.assertEqual(result.returncode, 69, result.stdout + result.stderr)
+                self.assertIn("KWin did not apply", result.stderr)
+
+    def test_night_light_inhibition_does_not_change_the_requested_policy(self):
+        result = self.control("night-light", "auto", STUB_NIGHT_INHIBITED="1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(any("uninhibit" in call for call in self.machine.calls()))
+
+    def test_night_light_off_preserves_mode_and_unknown_preflight_never_writes(self):
+        root = self.machine.root
+        (root / "nightlight-mode").write_text("0\n")
+        result = self.control("night-light", "off")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((root / "nightlight-mode").read_text(), "0\n")
+        self.assertFalse(any("Mode" in call for call in self.machine.calls()))
+        reply = {"type": "a{sv}", "data": [{"enabled": {"type": "b", "data": True}}]}
+        self.machine.log.write_text("")
+        result = self.control("night-light", "on", STUB_NIGHT_REPLY=json.dumps(reply))
+        self.assertEqual(result.returncode, 69, result.stderr)
+        self.assertFalse(any(call[0] in ("kwriteconfig6", "kreadconfig6", "logger")
+                             for call in self.machine.calls()))
 
     def test_radios_and_screenshot_use_fixed_commands(self):
         self.assertEqual(self.control("wifi", "off").returncode, 0)
@@ -528,7 +816,8 @@ class MoosControlTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), {
             "volume": 40, "muted": False, "brightness": 50,
-            "night_light": True, "wifi": True, "bluetooth": True,
+            "night_light": True, "night_light_enabled": True, "night_light_available": True,
+            "night_light_mode": 1, "wifi": True, "bluetooth": True,
             "theme": "nova-light", "dnd": False, "mic_muted": True,
             "power_profile": "balanced",
             # W9.10: the media and desktop probes have no stub bus answer here, so they report
@@ -996,4 +1285,7 @@ class MoaiControlButtonTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    if sys.argv[1:] == ["--native-night-light"]:
+        native_night_light()
+    else:
+        unittest.main(verbosity=2)

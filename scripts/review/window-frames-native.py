@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import configparser
 import json
+import hashlib
 import os
 import pathlib
 import shutil
@@ -180,7 +181,9 @@ def run_one(args, theme: str, root: pathlib.Path) -> dict:
                LANG=lang, LC_ALL=lang, LANGUAGE=args.lang)
     procs = []
     result = {"theme": theme, "scale": args.scale, "lang": args.lang, "compose": args.compose,
-              "buttons": {"left": args.left, "right": args.right}, "layout": lay, "windows": {}}
+              "buttons": {"left": args.left, "right": args.right}, "layout": lay, "windows": {},
+              "source_files": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                               for p in sorted((r / "data/aurorae/themes" / theme).iterdir()) if p.is_file()}}
     try:
         bus = subprocess.Popen(["dbus-daemon", "--nofork", "--config-file=" + str(bus_conf)],
                                env=env, stdout=(r / "bus.log").open("w"), stderr=subprocess.STDOUT)
@@ -239,6 +242,20 @@ def run_one(args, theme: str, root: pathlib.Path) -> dict:
                 raise RuntimeError(out.stderr)
             time.sleep(0.8)
 
+        # Gtk/Qt can publish allocations before their first Wayland buffer is
+        # managed by KWin. A fixed sleep can then measure no windows at all.
+        # Wait for the actual native publication, never infer it from the PID.
+        expected = {caption for _key, _w, _h, caption in spec}
+        for attempt in range(20):
+            marker = f"MOOS_FRAMES_READY_{attempt} "
+            script(f"ready-{attempt}", "console.warn(" + json.dumps(marker) +
+                   "+JSON.stringify(workspace.windowList().map(w=>w.caption)));")
+            lines = [ln for ln in (r / "kwin.log").read_text(errors="replace").splitlines() if marker in ln]
+            if lines and expected.issubset(set(json.loads(lines[-1].split(marker, 1)[1]))):
+                break
+        else:
+            raise RuntimeError("native window publication did not become ready")
+
         places = {c: PLACES.get(k) for k, _w, _h, c in spec}
         maxed = [c for k, _w, _h, c in spec if k == "maximized"]
         script("place", "const places=" + json.dumps(places, ensure_ascii=False) + ";const maxed=" +
@@ -285,6 +302,8 @@ def run_one(args, theme: str, root: pathlib.Path) -> dict:
             img = capture("CaptureWindow", g["id"])
             img.save(str(r / f"{key}.png"))
             result["windows"][key] = analyse(img, g, lay, key == "maximized", widths.get(caption, 0.0))
+            expected_bar = lay["TitleHeight"] + lay["TitleEdgeTopMaximized" if key == "maximized" else "TitleEdgeTop"] + lay["TitleEdgeBottomMaximized" if key == "maximized" else "TitleEdgeBottom"]
+            result["windows"][key]["declared_bar_matches"] = abs(result["windows"][key]["title_bar_logical"] - expected_bar) < 1.5
             result["windows"][key]["geometry"] = g
         result["result"] = "MEASURED"
     except Exception as exc:  # retained as evidence; the caller decides the verdict
@@ -370,7 +389,11 @@ def frame_failures(results: list[dict]) -> list[tuple[str, str, dict]]:
         start = "right" if r["lang"] == "ar" else "left"
         for key, w in r.get("windows", {}).items():
             offset = w.get("caption_centre_offset")
+            rows = w.get("caption_rows_logical", [])
+            room = len(rows) == 2 and rows[0] >= 2 and rows[1] <= w.get("title_bar_logical", 0) - 2
             if (not w.get("caption_present") or not w.get("caption_complete")
+                    or not w.get("declared_bar_matches")
+                    or not room
                     or offset is None or abs(offset) > 2 or w.get("button_side") != start):
                 bad.append((r["theme"], key, w))
     return bad
@@ -393,6 +416,11 @@ def main() -> int:
                     help="exit 1 unless every caption is present, complete and within 2 logical px "
                          "of its window centre, and the actions sit on the locale's start side")
     args = ap.parse_args()
+    # Qt ignores relative HOME/XDG paths and then silently loads installed
+    # decoration bytes. Resolve before creating any private session inputs.
+    args.theme_root = args.theme_root.resolve()
+    if args.out is not None:
+        args.out = args.out.resolve()
     args.logical = (1600, 1040)
     repo = pathlib.Path(__file__).resolve().parents[2]
     if args.kwinrc is None:

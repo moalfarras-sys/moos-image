@@ -192,7 +192,7 @@ bind negatives. A private prefix replay is not a complete image qualification.
 
 **A raw hwdb query is not the native udev lookup.** Signed1162 returns the reviewed V3 matrix for raw DMI, while native systemd259 sanitizes manufacturer parentheses to underscores inside 60-sensor.rules and publishes no ACCEL_MOUNT_MATRIX. Preserve this real isolated old refusal and fixed publication. The immutable alias matches only observed SMOCF05/normalized manufacturer/exact V3, keeps positive Z and leaves the vendor entry intact; the final compiler must query the actual normalized key. A private rule simulation is not loaded SensorProxy calibration or four-orientation/touch acceptance. Never fix this by changing KWin transforms or adding another rotation owner.
 
-**An internal backlight is not an external DDC monitor.** Native signed1162 retains a root DDC exit1 on the V3's only internal eDP panel, while the account probe returns0/Invalid display. Preserve both results; the root-specific cause is not established. Skip DDC only when the exact connected eDP connector owns a valid native kernel backlight, never from its name or absent I2C alone. Keep external/mixed/unknown failures, personal PowerDevil policy, final topology recheck and native old/fixed controls. A source classification does not repair the installed unit or qualify physical luminance.
+**An internal backlight is not an external DDC monitor.** Native signed1162 retains a root DDC exit1 on the V3's only internal eDP panel, while the account probe returns0/Invalid display. Preserve both historical results. On Nov18 the mixed DP/eDP service recorded a dynamic-sleep cache lookup failure. Its native retry succeeds with a private systemd runtime cache. Keep that cache scoped to the oneshot and retain all failure and topology checks. Skip DDC only when the exact connected eDP connector owns a valid native kernel backlight, never from its name or absent I2C alone. Keep external/mixed/unknown failures, personal PowerDevil policy, final topology recheck and native old/fixed controls. A source classification does not repair the installed unit or qualify physical luminance.
 
 **A missing probe is not healthy hardware, and a rollback is not the booted edition.**
 Device diagnostics must distinguish unavailable PCI evidence from a ready machine, validate firmware JSON shapes, and select only the booted deployment when identifying an edition. Respect administrator masks on optional thermald/fwupd units; a refused enable must never print success or write the adaptation stamp. Arrange shortcuts and stale menu actions must validate their active anchor too. Preserve executable old/fixed controls and private native geometry evidence; never run a review compositor on the owner's bus.
@@ -616,6 +616,16 @@ changes with `scripts/review/window-frames-native.py` (private KWin, never the
 owner's), whose detector must also refuse the old captures. Virtual KWin6.8
 refuses QPainter composition and crashed on screenshot; use O2 with no core.
 
+**A mirrored overlay is not a mirrored page.** In Arabic, Electron's Window Controls
+Overlay draws ChatGPT's buttons at the left and reports that side correctly, but its
+RTL page reserves the opposite side: its drag region turned every press into a window
+move (owner and private X11/Wayland controls; English passes). Keep those controls.
+Carry `--force-ui-direction=ltr` only through the vendor launcher allowlist and its
+no-download refresh; never admit sandbox/platform switches, patch vendor bytes or move
+KWin's buttons. A KWin-framed window does not qualify a client-drawn caption: read back
+the target's active state and geometry before every click, and keep its covered page
+controls reachable. VS Code's HTML `controlsStyle: custom` avoids the overlay entirely.
+
 **A light colour scheme is not a complete light Plasma theme.** The native
 launcher fixture selected Light colours while inheriting Aurora's dark Plasma
 Style and icons. Its white labels/icons were real pixels of a mixed fixture,
@@ -625,6 +635,15 @@ private config together; retain their identity/hash in each native receipt.
 Keep original mixed frames and input/geometry controls. Never change the owner
 theme or product palette to repair a private fixture, or infer physical input
 or whole-shell acceptance from its native virtual output.
+
+**A stopped Store job does not make its target application idle.** Native private
+cwd/mmap children remained alive while App Drop remove returned true and deleted
+their resource/receipt. Reuse the existing bounded process-reference guard before
+any removal mutation, preserving tree/launcher/receipt/menu when use is observed
+or inventory is unavailable. Keep native cwd/exe/argv/maps old-failing/fixed
+controls, normal-exit recovery and localized failed jobs for catalogue/indexed/
+file routes. This snapshot is not a lifetime lease or a new guarantee to retain
+arbitrary personal files inside a normally removed installation directory.
 
 **An isolated extractor does not sandbox an installed app.** App Drop's native
 generated launcher reads a private synthetic Documents file while its old engine
@@ -650,6 +669,8 @@ paint or changing geometry; resizing that root may change the global display.
 **A Java dialog can paint while its main frame is blank.** Native Ghidra with Java25 showed tips over an empty main frame on Wayland. Preserve the old/fixed/restored GUI captures and inspect current OpenJDK XWM: its non-reparenting switch tests presence, not a truth value. Scope that setting to the GUI launcher, carry the host session decision across Toolbx and preserve caller values/X11 behavior. Require actual canonical project/program/decompiler/normal-close and environment/argument controls; a version string, headless decompile or first dialog is not GUI acceptance. Never change global Java/WM state, install another JDK or infer a cold new-OS result from1078.
 
 **An unpatched advisory in a build-only package still blocks release.** GHSA-fc5q-39xc-vjpf covers every picomatch release; Vite8 and the vite-plugin-pwa/Workbox build chain require it, so the unchanged high audit refused every signed x86 build although the shipped bundle contains only React. Do not narrow the audit to production dependencies, vendor an unreviewed fork or rerun the refused build. The controller now uses the same engines Vite8 drove (locked rolldown/oxc and lightningcss) plus the Workbox runtime modules bundled into one sw.js; the lock carries no glob matcher. Keep CSS/manifest/precache revisions equal to the old output, the pre-login asset-name refusal, the identical repeat build, browser journeys and a real old-Workbox-to-new upgrade with its no-skipWaiting negative. A browser fixture is not owner phone acceptance.
+
+**A KDE GTK bridge can paint empty buttons over every GTK3 app.** On the V3, Plasma's window-decorations-gtk-module loaded gtkconfig's window_decorations.css after the user gtk.css, and gtkconfig cannot paint QML Aurorae frames: all 24 caption images were empty SVGs, so GTK3 buttons drew zero pixels while their widgets existed and responded. A gtk.css rule at the user priority cannot win; measure drawn pixels, not widget presence. Fill only those 24 bridge names with generated MoOS frame states, leave other frames to gtkconfig, keep personal gtk.css lines, and retain the empty-image and priority-800/801 controls.
 
 **A dependency-only update can change shipped JavaScript.** The Oct21 signed cycle correctly refused Vite8.2.0 at the high-audit gate before image composition. Preserve that refusal, audit the exact old/new locks and retain the existing Dependabot ancestry. Rebuild and commit the generated controller asset/index/service-worker together, then require an identical second build, the unchanged freshness gate and isolated browser input journeys. Run the unchanged suite with its supported existing Node22; Node26 removed its experimental transform flag. Never remove tests, waive the audit or count an uncommitted derived bundle as qualified source.
 
@@ -1921,3 +1942,21 @@ Arabic journey. A scoped source PATH is development evidence, never signed insta
 Display-connection journal failures remain fatal, but a message alone does not identify
 startup or prove a restart: the native30 Chromium-owned failures occurred at+1563..1571s.
 Preserve those failures and refuse unavailable/partial journal queries.
+
+**A relative XDG path can load the installed frame instead of the reviewed source.** Resolve private HOME/data/config paths before starting KWin, retain copied asset hashes and require the actual native title extent to match the declared bar. Gtk allocations can precede its first managed Wayland buffer: wait boundedly for the actual caption set before placing/maximizing, and preserve the empty-window refusal. A pixel-sized icon is not its input extent; qualify both on real native owners.
+
+**An upstream signature append changes a whole-file kernel digest.** The stock7.3.4 RPM kernel and final base retain identical executable/non-certificate bytes and the original signature, while the base appends one Universal Blue PE certificate. Keep exact source-manifest/layer/blob and original-RPM readback, every certificate extent and the complete final hash. Production admission still compares one exact full-file digest; never generalize PE normalization into acceptance or infer machine trust from certificate subjects.
+
+**A preflight is not an atomic file publication.** A real late-editor control overwrites GTK4 personal CSS after the shared snapshot check while the old helper reports success. Retain actual displaced bytes with native no-replace/exchange, publish assets before importing stylesheets, and remove imports before retiring stylesheets. Preserve late-create, late-save, unsupported-primitive and per-file rollback conflicts; one conflict must not strand other owned writes. Keep recovery copies and report their paths when current bytes differ. The existing appearance lock coordinates its participants, not every external editor.
+
+**A catalogue-relative icon is not an absolute RPM payload member.** The unchanged catalogue gate refused an absolute icon while the native index/helper refused its relative form. Keep those original refusals; carry the bounded relative icon through the index and resolve it only under the already-admitted app root, retaining canonical/traversal/control-character refusals and historical absolute direct-helper callers. Source controls and a restored user launcher do not make the fix part of the booted signed image.
+
+**A pinned extension is not excluded from the official bulk CLI updater.** Native Code1.145.2 updated pinned Codex26.1007 to26.1021 despite pinned=true; retain that actual selection/refusal and the Flutter update. Compare actual selected versions after bulk work, and recover the qualified official version through the native extension manager. Never patch its database, replace credentials or terminate an active engineering session to manufacture compatibility.
+
+**An accepted TCP connection is not a started TLS handshake.** The native private greeter reset fixture sometimes returns curl7 instead of35 even with four accepted connections, no fixture errors and a live listener. Observe the first TLS handshake record within the existing bound before sending RST; retain strict35, four connections/four records, zero errors and no source admission. Keep the plain-connection negative and original refusals. Never widen the accepted production status, retry budget, digest or signer to hide a fixture-phase race.
+
+**An opposite preference pulse is not a failure-safe notification.** Native KConfig fault controls leave Active reversed when the desired write fails. Replay only the existing fixed NightColor ConfigChanged byte-array notification after requested writes; retain typed KWin enabled/mode/available readback and explicit write/emit refusals. A private host6.32 watcher reload is separate from installed on/auto or physical colour acceptance. Preserve the malformed-signal replay timeouts from both source and native producers; a valid-channel proof does not diagnose or qualify their recovery.
+
+**A reopened fixture is not the same native popup.** Native PlasmaWindowed reparents fullRepresentation after expanded changes; retain the original AppletPopup owner through the private host lifecycle and refuse another actual window. A restored KAStats snapshot can precede GridView row layout: require native polish/render plus current canonical delegate identities before acquiring input references. Synthetic touch must reach native frames before release, retain hover/cancel/order guards and clean up through the original window. Preserve the old touch/window/layout refusals; do not alter product DragHandler or infer physical acceptance. Freezing a running Buildah cgroup caused its runtime to refuse paused status: retain that operator-induced build failure and schedule heavy qualification sequentially instead.
+
+The system tray loads plugins through `extraItems`. Verify every declared provider in each finished image, including plugins whose visibility is automatic or hidden. An archive can also ship extension demo images larger than its product icon. Preserve declared icons first and keep fallback icon extraction inside the existing App Drop installation transaction.

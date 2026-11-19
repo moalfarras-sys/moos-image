@@ -29,21 +29,31 @@ It also reads the bar's own layout template, so an applet the MoOS Bar places, o
 pins, can never be missing from the edition that draws it.
 Hardware enumeration also belongs to this contract: lspci and lsusb must be
 executable files, so a missing ARM dependency cannot silently hide device gaps.
+Store's curated npm recipes likewise require executable system Node/npm. The
+image-only runtime proof installs, runs and removes a dependency-free local
+package offline, in a private prefix; it never updates owner applications.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
+import subprocess
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 LAYOUT = "usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js"
 APPLET_DIRS = ("usr/share/plasma/plasmoids/{id}/metadata.json",
                "usr/lib64/qt6/plugins/plasma/applets/{id}.so",
                "usr/lib/qt6/plugins/plasma/applets/{id}.so")
-EXECUTABLE_CAPABILITIES = frozenset(("usr/bin/lspci", "usr/bin/lsusb"))
+EXECUTABLE_CAPABILITIES = frozenset(("usr/bin/lspci", "usr/bin/lsusb",
+                                     "usr/bin/node", "usr/bin/npm"))
+NODE = "/usr/bin/node"
+NPM = "/usr/bin/npm"
 
 # (what the owner loses, [alternatives — any one satisfies the check])
 CAPABILITIES: list[tuple[str, list[str]]] = [
@@ -51,6 +61,10 @@ CAPABILITIES: list[tuple[str, list[str]]] = [
      ["usr/bin/lspci"]),
     ("the hardware report identifying attached USB devices",
      ["usr/bin/lsusb"]),
+    ("Store installing and updating its curated npm developer tools",
+     ["usr/bin/npm"]),
+    ("the system Node runtime used by Store's curated npm developer tools",
+     ["usr/bin/node"]),
     ("Arabic right-to-left detection for every Qt and KDE surface, including the MoOS Bar's mirroring",
      ["usr/share/qt6/translations/qtbase_ar.qm"]),
     ("the Island's privacy chip: moos-privacy-monitor reads PipeWire through pw-dump",
@@ -73,17 +87,22 @@ CAPABILITIES: list[tuple[str, list[str]]] = [
 
 
 def applet_exists(root: Path, plugin: str) -> bool:
-    return any((root / pattern.format(id=plugin)).exists() for pattern in APPLET_DIRS)
+    return any((root / pattern.format(id=plugin)).is_file() for pattern in APPLET_DIRS)
 
 
-def bar_applets(layout_js: str) -> tuple[list[str], list[str]]:
-    """Plugins the MoOS Bar template places, and the status items it pins as always shown."""
+def bar_applets(layout_js: str) -> tuple[list[str], list[str], list[str]]:
+    """Read panel widgets, visible pins and the native system tray load list."""
     code = re.sub(r"/\*.*?\*/", "", layout_js, flags=re.S)
     code = "\n".join(line.split("//", 1)[0] for line in code.splitlines())
     placed = re.findall(r'panel\.addWidget\("([^"]+)"\)', code)
-    shown = re.search(r'writeConfig\("shownItems",\s*"([^"]*)"\)', code)
-    pinned = [item for item in (shown.group(1).split(",") if shown else []) if item]
-    return placed, pinned
+
+    def tray_items(key: str) -> list[str]:
+        match = re.search(r'systray\.writeConfig\("' + key + r'",\s*"([^"]*)"\)', code)
+        if not match:
+            return []
+        return [item for item in match.group(1).split(",") if item]
+
+    return placed, tray_items("shownItems"), tray_items("extraItems")
 
 
 def problems(root: Path) -> list[str]:
@@ -97,7 +116,7 @@ def problems(root: Path) -> list[str]:
     if not layout.is_file():
         found.append(f"the MoOS Bar template is missing: /{LAYOUT}")
         return found
-    placed, pinned = bar_applets(layout.read_text(encoding="utf-8"))
+    placed, pinned, loaded = bar_applets(layout.read_text(encoding="utf-8"))
     if not placed:
         found.append("the MoOS Bar template places no applet: the parser no longer matches it")
     for plugin in placed:
@@ -106,12 +125,79 @@ def problems(root: Path) -> list[str]:
     for plugin in pinned:
         if not applet_exists(root, plugin):
             found.append(f"the MoOS Bar pins status item {plugin}, which this edition does not ship")
+    if not loaded:
+        found.append("the MoOS Bar template has no readable tray extraItems load list")
+    for plugin in loaded:
+        if plugin not in pinned and not applet_exists(root, plugin):
+            found.append(f"the MoOS Bar loads tray applet {plugin}, which this edition does not ship")
     return found
+
+
+def npm_runtime() -> None:
+    """Exercise the finished image's fixed providers without a registry or user state."""
+    for provider in (NODE, NPM):
+        if not Path(provider).is_file() or not os.access(provider, os.X_OK):
+            raise RuntimeError(f"Store npm runtime provider is missing or unusable: {provider}")
+    with tempfile.TemporaryDirectory(prefix="moos-store-npm-") as temporary:
+        base = Path(temporary)
+        package = base / "package"
+        package.mkdir()
+        (package / "package.json").write_text(json.dumps({
+            "name": "moos-store-runtime-proof", "version": "1.0.0", "private": True,
+            "bin": {"moos-store-runtime-proof": "proof.js"},
+        }), encoding="utf-8")
+        proof = package / "proof.js"
+        proof.write_text(f"#!{NODE}\nprocess.stdout.write('MOOS_NODE_NPM_OK\\n');\n",
+                         encoding="utf-8")
+        proof.chmod(0o755)
+        archive = base / "package.tgz"
+        with tarfile.open(archive, "w:gz") as stream:
+            stream.add(package, arcname="package")
+        prefix = base / "prefix"
+        prefix.mkdir()
+        sentinel = prefix / "preserve-owner-data"
+        sentinel.write_bytes(b"unchanged\n")
+        for name in ("user.npmrc", "global.npmrc"):
+            (base / name).touch()
+        env = {
+            "PATH": "/usr/bin:/bin", "HOME": str(base), "LANG": "C.UTF-8",
+            "npm_config_cache": str(base / "cache"),
+            "npm_config_userconfig": str(base / "user.npmrc"),
+            "npm_config_globalconfig": str(base / "global.npmrc"),
+            "npm_config_update_notifier": "false",
+        }
+
+        def run(argv: list[str], phase: str) -> str:
+            try:
+                result = subprocess.run(argv, env=env, cwd=base, capture_output=True,
+                                        text=True, timeout=30)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                raise RuntimeError(f"Store npm runtime {phase} failed: {type(exc).__name__}") from exc
+            if result.returncode:
+                raise RuntimeError(f"Store npm runtime {phase} exited {result.returncode}")
+            return result.stdout
+
+        if run([NODE, "--eval", "process.stdout.write('MOOS_NODE_OK')"], "Node execution") != "MOOS_NODE_OK":
+            raise RuntimeError("Store npm runtime Node execution returned unexpected output")
+        flags = ["--global", "--prefix", str(prefix), "--offline", "--ignore-scripts",
+                 "--no-audit", "--no-fund"]
+        run([NPM, "install", *flags, "--", str(archive)], "offline install")
+        binary = prefix / "bin/moos-store-runtime-proof"
+        if not binary.is_file() or not os.access(binary, os.X_OK):
+            raise RuntimeError("Store npm runtime install did not publish its executable")
+        if run([str(binary)], "installed executable") != "MOOS_NODE_NPM_OK\n":
+            raise RuntimeError("Store npm runtime installed executable returned unexpected output")
+        run([NPM, "uninstall", *flags, "--", "moos-store-runtime-proof"], "offline remove")
+        if binary.exists() or binary.is_symlink() or sentinel.read_bytes() != b"unchanged\n":
+            raise RuntimeError("Store npm runtime remove did not preserve the prefix contract")
+    print("MoOS Store npm runtime OK: fixed Node/npm, offline install/run/remove, private prefix")
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default="/")
+    ap.add_argument("--npm-runtime", action="store_true",
+                    help="run the finished image's fixed Node/npm offline lifecycle proof")
     args = ap.parse_args(argv)
     root = Path(args.root)
     found = problems(root)
@@ -121,9 +207,17 @@ def main(argv: list[str] | None = None) -> int:
         print("           An edition that lacks these draws a MoOS that does less than the other "
               "one. Install the capability in that edition's build script.", file=sys.stderr)
         return 1
-    placed, pinned = bar_applets((root / LAYOUT).read_text(encoding="utf-8"))
+    if args.npm_runtime:
+        if root.resolve() != Path("/"):
+            ap.error("--npm-runtime requires the running image root /")
+        try:
+            npm_runtime()
+        except RuntimeError as exc:
+            print(f"GATE FAIL: {exc}", file=sys.stderr)
+            return 1
+    placed, pinned, loaded = bar_applets((root / LAYOUT).read_text(encoding="utf-8"))
     print(f"MoOS desktop parity OK: {len(CAPABILITIES)} capabilities, "
-          f"{len(placed)} bar applets, {len(pinned)} pinned status items")
+          f"{len(placed)} bar applets, {len(pinned)} pinned status items, {len(loaded)} tray applets")
     return 0
 
 

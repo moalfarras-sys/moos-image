@@ -28,6 +28,7 @@ evidence, not physical-display or touch acceptance.
 from __future__ import annotations
 
 import configparser
+import importlib.util
 import re
 import unittest
 from pathlib import Path
@@ -102,6 +103,30 @@ def violations(lay: dict[str, float], left: str, right: str) -> list[str]:
 
 
 class CaptionsAreCentredAndPresent(unittest.TestCase):
+    def test_rendered_predicate_refuses_wrong_loaded_geometry_and_clipped_ink(self) -> None:
+        spec = importlib.util.spec_from_file_location("native_frames_review", REPO / "scripts/review/window-frames-native.py")
+        native = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(native)
+        valid = dict(caption_present=True, caption_complete=True, caption_centre_offset=0,
+                     declared_bar_matches=True, caption_rows_logical=[13, 31],
+                     title_bar_logical=44, button_side="right")
+        def failures(window):
+            return native.frame_failures([dict(theme="fixture", lang="ar", windows={"dialog": window})])
+        self.assertFalse(failures(valid))
+        self.assertTrue(failures(dict(valid, declared_bar_matches=False, title_bar_logical=32)))
+        self.assertTrue(failures(dict(valid, caption_rows_logical=[0, 43])))
+
+    def test_native_targets_and_bar_reserve_the_same_44px_extent(self) -> None:
+        def fit(lay):
+            return all(lay.get(key) == 44 for key in ("ButtonWidth", "ButtonHeight", "TitleHeight")) and all(
+                lay.get(key) == 0 for key in ("ButtonMarginTop", "ButtonMarginTopMaximized",
+                                              "TitleEdgeTop", "TitleEdgeBottom",
+                                              "TitleEdgeTopMaximized", "TitleEdgeBottomMaximized"))
+        for theme in themes():
+            current = layout(theme / f"{theme.name}rc")
+            self.assertTrue(fit(current), theme.name)
+            self.assertFalse(fit(dict(current, ButtonWidth=20, ButtonHeight=20, TitleHeight=32)))
+
     def test_every_shipped_frame_with_the_shipped_buttons(self) -> None:
         left, right = kwin_buttons()
         found = themes()
@@ -120,7 +145,9 @@ class CaptionsAreCentredAndPresent(unittest.TestCase):
         ui2 = layout(THEMES / "MoOSUI2/MoOSUI2rc")
         old_bloom = dict(bloom, TitleBorderLeft=140.0, TitleBorderRight=140.0, TitleEdgeLeft=16.0,
                          TitleEdgeRight=16.0, ExplicitButtonSpacer=0.0)
-        old_ui2 = dict(ui2, ExplicitButtonSpacer=8.0)
+        old_ui2 = dict(ui2, ExplicitButtonSpacer=8.0, ButtonWidth=20, ButtonHeight=20,
+                       ButtonSpacing=6, TitleHeight=32, TitleEdgeTop=5, TitleEdgeBottom=5,
+                       TitleEdgeLeft=10, TitleEdgeRight=10, TitleBorderLeft=10, TitleBorderRight=10)
         # Old buttons (nothing on the right) with each old frame, as measured.
         self.assertAlmostEqual(caption(1048, old_bloom, "XIA", "", True, False)[0], -68.0)
         self.assertAlmostEqual(caption(728, old_ui2, "XIA", "", False, False)[0], 36.0)

@@ -27,6 +27,7 @@ class PrivateTLS:
     """A trusted loopback fixture that resets before TLS or serves one body."""
     def __init__(self, root, outcomes, payload):
         self.payload, self.outcomes, self.connections = payload, outcomes, 0
+        self.reset_tls_records = 0
         self.closed = threading.Event()
         self.errors = []
         self.cert, key = root / 'tls.crt', root / 'tls.key'
@@ -61,6 +62,14 @@ class PrivateTLS:
                 self.connections += 1
                 connection.settimeout(2)
                 if outcome == 'reset':
+                    # RST immediately after accept can race TCP connect and
+                    # legitimately become curl7 instead of the TLS35 this
+                    # fixture promises. Observe a TLS handshake record first;
+                    # this is phase admission, not a completed ClientHello.
+                    if connection.recv(1, socket.MSG_PEEK) != b'\x16':
+                        self.errors.append('reset without a TLS handshake record')
+                        continue
+                    self.reset_tls_records += 1
                     connection.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
                     connection.close()
                     continue
@@ -114,6 +123,21 @@ class ReviewedSourceDownload(unittest.TestCase):
         self.assertLess(signature, signer)
         self.assertLess(signer, archive)
 
+    @unittest.skipUnless(os.name == 'posix' and shutil.which('openssl'),
+                         'private TLS phase proof requires OpenSSL/POSIX sockets')
+    def test_reset_fixture_does_not_call_a_plain_connection_a_tls_failure(self):
+        with tempfile.TemporaryDirectory(prefix='moos-login-fetch-phase-') as folder:
+            with PrivateTLS(Path(folder), ['reset'], b'never admitted') as server:
+                with socket.create_connection(server.listener.getsockname(), timeout=2) as client:
+                    client.sendall(b'G')
+                    try:
+                        self.assertEqual(client.recv(1), b'')
+                    except ConnectionResetError:
+                        pass
+            self.assertEqual(server.connections, 1)
+            self.assertEqual(server.reset_tls_records, 0)
+            self.assertEqual(server.errors, ['reset without a TLS handshake record'])
+
     def fetch(self, root, server, *, old=False, wrong_digest=False, wrong_signer=False):
         """Execute the real curl/hash/signature shell block in private storage."""
         text = self.text
@@ -154,6 +178,7 @@ class ReviewedSourceDownload(unittest.TestCase):
                     self.assertEqual(archive.read_bytes(), payload)
                     self.assertIn('SOURCE_ADMITTED', result.stdout)
                 self.assertEqual(server.errors, [])
+                self.assertEqual(server.reset_tls_records, 1)
 
     @unittest.skipUnless(os.name == 'posix' and shutil.which('curl') and shutil.which('openssl'),
                          'native permanent fetch proof requires curl/OpenSSL/POSIX sockets')
@@ -165,6 +190,8 @@ class ReviewedSourceDownload(unittest.TestCase):
                     result, _archive = self.fetch(root, server)
                 self.assertEqual(result.returncode, code, result.stderr)
                 self.assertEqual(server.connections, 4)
+                self.assertEqual(server.reset_tls_records, 4 if outcome == 'reset' else 0)
+                self.assertEqual(server.errors, [])
                 self.assertNotIn('SOURCE_ADMITTED', result.stdout)
 
     @unittest.skipUnless(os.name == 'posix' and shutil.which('curl') and shutil.which('openssl'),

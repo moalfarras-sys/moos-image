@@ -59,7 +59,7 @@ def executable(path, body):
 
 
 class CanonicalHelper(unittest.TestCase):
-    def invoke(self, *, mode=True, refused=False, compositor=True, wait=False):
+    def invoke(self, *, mode=True, refused=False, compositor=True, wait=False, command='/usr/bin/gtk-launch'):
         with tempfile.TemporaryDirectory(prefix='moos-launch-contract-') as raw:
             directory = Path(raw)
             binary = directory / 'bin'
@@ -87,10 +87,18 @@ if os.environ['LAUNCH_REFUSED']=='1':
                 'LAUNCH_REFUSED': '1' if refused else '0',
             }
             args = ['bash', str(helper), *(['--app'] if mode else []),
-                    *(['--wait'] if wait else []), '/usr/bin/gtk-launch', 'org.example.App.desktop']
+                    *(['--wait'] if wait else []), command, 'org.example.App.desktop']
             result = subprocess.run(args, env=environment, capture_output=True, text=True, timeout=5)
-            call = json.loads((directory / 'call.json').read_text())
+            call = json.loads((directory / 'call.json').read_text()) if (directory / 'call.json').exists() else []
             return result, call, (directory / 'fallback').exists()
+
+    def test_missing_executable_never_announces_a_successful_fork(self):
+        for mode in (False, True):
+            result, calls, fallback = self.invoke(mode=mode, command='/nonexistent/moos-native-editor')
+            self.assertEqual(result.returncode, 127)
+            self.assertNotIn('opened', result.stdout)
+            self.assertEqual(calls, [])
+            self.assertFalse(fallback)
 
     def test_forking_launchers_keep_their_children_in_a_graphical_app_group(self):
         result, call, fallback = self.invoke()

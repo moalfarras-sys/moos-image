@@ -3266,6 +3266,11 @@ class Controller:
             progress("resolving", None)
             info = self._vendor_resolve(vendor, entry, arch, job=job)
             if vendor.intact(app_id) and not vendor.update_available(app_id, info):
+                # Current build, but the catalogue may have changed MoOS's launcher since it was
+                # written (a reviewed launch switch, the in-folder icon): no download for that.
+                # A launcher it cannot reproduce stays as it was; the app is still up to date.
+                with contextlib.suppress(vendor.VendorError, OSError):
+                    vendor.refresh_launcher(app_id, entry)
                 return False
             vendor.install(app_id, entry, arch=arch, info=info,
                            display_name=display_text(recipe.get("en"), 80) or app_id,
@@ -3282,6 +3287,26 @@ class Controller:
         else:
             job.update_item(app_id, state="skipped", progress=100,
                             message="Already installed for this user", message_key="already_installed_user")
+
+    def _refresh_vendor_launchers(self) -> None:
+        """Every intact catalogue vendor app's launcher, brought to today's catalogue without a
+        download (moos_vendor_rpm.refresh_launcher). Update-all runs it under the Store lock; one
+        refusal leaves that launcher as it was and never costs another app its update."""
+        try:
+            catalogue = self._catalog()
+        except StoreError:
+            return
+        vendor = None
+        for app_id, recipe in catalogue.items():
+            install = recipe.get("install")
+            if (recipe.get("source") != "moos" or not isinstance(install, dict)
+                    or install.get("kind") != "vendor-rpm" or not self._vendor_record(app_id)):
+                continue
+            vendor = vendor or self._vendor()
+            try:
+                vendor.refresh_launcher(app_id, install)
+            except (vendor.VendorError, OSError):
+                continue
 
     def _vendor_record(self, app_id: str) -> dict[str, Any]:
         """What a vendor app's record says, or {} when there is none (or the id cannot be one)."""
@@ -3766,6 +3791,8 @@ class Controller:
         try:
             removed = appdrop.remove(slug or app_id)
         except appdrop.DropError as failure:
+            if failure.code in ("app_in_use", "app_inspection_unavailable"):
+                raise self._vendor_failure(failure) from failure
             raise StoreError(f"{failure.code}: {failure.detail or failure.code}") from failure
         if not removed:
             job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
@@ -4120,7 +4147,10 @@ class Controller:
                                     message="App is not installed", message_key="not_installed")
                 job.finish_from_items("App removed", "app_removed")
             except appdrop.DropError as failure:
-                job.fail(f"{failure.code}: {failure.detail or failure.code}", [slug])
+                if failure.code in ("app_in_use", "app_inspection_unavailable"):
+                    job.fail(self._vendor_failure(failure), [slug])
+                else:
+                    job.fail(f"{failure.code}: {failure.detail or failure.code}", [slug])
             except Exception as error:                   # noqa: BLE001
                 job.fail(error, [slug])
             return exit_code(job.document["state"]), job.snapshot()
@@ -4621,6 +4651,7 @@ class Controller:
             return self._refuse_busy("update", [])
         with lock:
             try:
+                self._refresh_vendor_launchers()
                 refs = self.adapter.update_refs()
                 pins = self._pin_update_rows()
                 if not refs and not pins:

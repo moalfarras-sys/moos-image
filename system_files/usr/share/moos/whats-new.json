@@ -4,15 +4,55 @@
   "entries": [
     {
       "id": "window-titles-centred",
-      "merged": "2026-11-18T12:00:00Z",
+      "merged": "2026-11-18T16:00:00Z",
       "glyph": "ui",
       "title": {
-        "ar": "عناوين نوافذ في المنتصف وكاملة",
-        "en": "Centred, complete window titles"
+        "ar": "أزرار موحّدة وإطار أوضح للنوافذ",
+        "en": "Clearer frames and shared window actions"
       },
       "body": {
-        "ar": "عنوان كل نافذة صار في منتصفها تماماً بالعربية والإنجليزية، مع أزرار الإغلاق والتصغير والتكبير في مكانها. نوافذ الحوار الصغيرة في إطار Bloom تعرض عنوانها كاملاً بدل أن يختفي أو يُقص، وزر النافذة المكبّرة يصل إلى زاوية الشاشة.",
-        "en": "Every window title now sits exactly in the middle of its window in Arabic and English, with close, minimise and maximise where they were. Small dialogs in the Bloom frame show their whole title instead of losing or cutting it, and a maximised window's outer button reaches the screen corner."
+        "ar": "أزرار إطار MoOS تحمل قصّة Tidal Cut مع مساحة ضغط أكبر. العنوان يبقى في وسط الإطار بالعربية والإنجليزية، وأزرار GTK تتبع الإطار المختار. التطبيقات التي ترسم شريطها بنفسها تحتفظ بمالكها الأصلي.",
+        "en": "MoOS frame buttons share a Tidal Cut shape and larger input targets. Captions stay centered in Arabic and English, and GTK buttons follow the selected frame. Apps that draw their own bars retain their native owner."
+      },
+      "route": "moos://settings/appearance"
+    },
+    {
+      "id": "night-light-measured-policy",
+      "merged": "2026-11-18T15:00:00Z",
+      "glyph": "settings",
+      "title": {
+        "ar": "حالة الإضاءة الليلية الفعلية",
+        "en": "Measured Night Light state"
+      },
+      "body": {
+        "ar": "ميرا تقرأ إعداد الإضاءة الليلية المطبّق، وتتحقق من الوضع المطلوب بعد تغييره. عند تعذّر القراءة يظهر الرفض وتبقى اختياراتك محفوظة.",
+        "en": "Mira reads the applied Night Light policy and confirms the requested mode after a change. An unavailable read stays visible and preserves your choices."
+      }
+    },
+    {
+      "id": "app-drop-active-removal",
+      "merged": "2026-11-18T14:00:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "إزالة أكثر أماناً للتطبيقات",
+        "en": "Safer removal of applications"
+      },
+      "body": {
+        "ar": "عند رصد استخدام ملفات تطبيق ثبّتّه من ملف، يحتفظ المتجر به ويطلب إغلاقه بصورة عادية قبل الإزالة. إذا تعذّر التحقق، تبقى ملفاته كما هي ويمكنك إعادة المحاولة.",
+        "en": "When an app installed from a file is detected using its files, the Store keeps it and asks you to close it normally before removal. If usage cannot be checked, its files stay in place and you can retry."
+      }
+    },
+    {
+      "id": "chatgpt-window-buttons-arabic",
+      "merged": "2026-11-18T14:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "أزرار نافذة ChatGPT تعمل بالعربية",
+        "en": "ChatGPT's window buttons work in Arabic"
+      },
+      "body": {
+        "ar": "في الواجهة العربية كانت أزرار الإغلاق والتصغير والتكبير في ChatGPT تحرّك النافذة بدل أن تعمل. صارت على اليمين وتعمل، والتطبيق ما زال بالعربية. للشريط الجانبي والرجوع والتقدّم استخدم قائمة عرض أو Ctrl+Shift+S وCtrl+[. يصل التغيير مع تحديث التطبيق من المتجر.",
+        "en": "With an Arabic interface, ChatGPT's close, minimise and maximise buttons moved the window instead of working. They now sit on the right and work, and the app stays Arabic. For its sidebar, back and forward use the View menu, Ctrl+Shift+S or Ctrl+[. It arrives when you update the app in the Store."
       }
     },
     {

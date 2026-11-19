@@ -12,6 +12,9 @@ PathChanged=%h/.config/kdeglobals
 # The existing shell filters actual image changes into this inert event hash.
 # Applet moves/geometry writes must never wake the reconciliation service.
 PathChanged=%h/.config/moos-wallpaper-intent.conf
+# gtkconfig rewrites this when the KWin frame changes and empties its GTK3
+# caption images; moos-theme reconcile restores the MoOS buttons.
+PathChanged=%h/.config/gtk-3.0/window_decorations.css
 Unit=moos-theme-sync.service
 
 [Install]

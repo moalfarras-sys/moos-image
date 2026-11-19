@@ -75,6 +75,8 @@ _PLASMA=(
     kwin kwin-wayland kwin-libs
     systemsettings kscreen kscreenlocker
     plasma-nm plasma-pa plasma-systemmonitor
+    # Providers of the keyboard indicator, phone link and vault in the native tray.
+    kdeplasma-addons kde-connect plasma-vault
     # MoOS routes to these backends from Store and Command Center. Shipping the
     # QML cards without their executables/KCMs creates polished dead buttons.
     plasma-discover plasma-discover-flatpak plasma-discover-kns
@@ -129,6 +131,9 @@ _PLASMA=(
     # Architecture-independent MoOS desktop assets are generated after the
     # final RPM transaction by finalize_moos_desktop.sh.
     git-core curl tar xz gtk-update-icon-cache
+    # Store's curated npm recipes use /usr/bin/npm with a user-owned prefix.
+    # Bare bootc does not supply either provider; match the x86 core packages.
+    nodejs22 nodejs22-npm
     # The local-brain engine is GONE here too (stage C5). Mo AI is cloud-only;
     # ensure_local() refuses, so this package had no reachable caller left.
     # Day-2 updates resolve a mutable release tag to an exact signed digest.
@@ -1698,7 +1703,7 @@ python3 /ctx/verify_no_foreign_identity.py
 # apps, so a type this image claims but cannot open is a defect only the finished
 # image can prove; okular reached production this way.
 python3 /ctx/verify_mime_handlers.py --root /
-python3 /ctx/verify_desktop_parity.py --root /
+python3 /ctx/verify_desktop_parity.py --root / --npm-runtime
 python3 /ctx/verify_memory_policy.py --root /
 # The optional wallet must work against final /usr bytes, not only draw a switch.
 bash /ctx/verify_wallet_preference.sh

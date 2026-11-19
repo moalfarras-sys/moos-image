@@ -215,6 +215,20 @@ def swipe(point, dx=0, dy=-140):
     QTest.qWait(250)
 
 
+def wait_for_wheel_animation():
+    # An accepted native wheel can start its first animation frame at the end
+    # of this initial wait. Observe the same event until both native scroll
+    # owners settle; a fixed sleep can otherwise inspect a still-zero delta.
+    deadline = time.monotonic() + 2
+    QTest.qWait(180)
+    while any(item.property("moving") for item in (flick, shelf)) and time.monotonic() < deadline:
+        win.requestUpdate()
+        QTest.qWait(10)
+    if any(item.property("moving") for item in (flick, shelf)):
+        failure_diagnostics("native wheel animation did not settle")
+        raise AssertionError("native wheel animation did not settle: " + repr(scroll_state()))
+
+
 def wheel(point, angle=QPoint(0, -120), pixel=QPoint(), modifiers=Qt.NoModifier):
     global last_wheel
     last_wheel = {"before": scroll_state(), "events": []}
@@ -250,7 +264,7 @@ def wheel(point, angle=QPoint(0, -120), pixel=QPoint(), modifiers=Qt.NoModifier)
                             Qt.MouseEventNotSynthesized, QPointingDevice.primaryPointingDevice())
         event.setTimestamp(int((time.monotonic()-input_clock_start)*1000))
         send_wheel(event)
-    QTest.qWait(180)
+    wait_for_wheel_animation()
     last_wheel["after_wait"] = scroll_state()
 
 

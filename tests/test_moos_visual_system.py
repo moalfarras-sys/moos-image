@@ -375,8 +375,16 @@ class MoOSVisualSystemTests(unittest.TestCase):
                 self.assertEqual(len(rc_files), 1, style)
                 rc = rc_files[0].read_text(encoding="utf-8")
                 self.assertIn("Animation=140", rc)
-                self.assertIn("TitleHeight=32", rc)
-                self.assertIn("ButtonWidth=20", rc)
+                # The native target and full caption line share the reviewed
+                # 44px bar. Keep this aggregate gate aligned with the native
+                # geometry/old-clipped controls in test_window_caption_centring.
+                self.assertIn("TitleHeight=44", rc)
+                self.assertIn("ButtonWidth=44", rc)
+                self.assertIn("ButtonHeight=44", rc)
+                self.assertIn("ButtonSpacing=2", rc)
+                self.assertIn("ButtonMarginTop=0", rc)
+                self.assertIn("ButtonMarginTopMaximized=0", rc)
+                self.assertIn("ExplicitButtonSpacer=136", rc)
                 self.assertIn("RightButtons=HIAX", rc)
                 self.assertNotIn("macOS", rc)
 

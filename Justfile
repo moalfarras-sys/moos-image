@@ -490,6 +490,7 @@ check:
     python3 tests/test_tidal_horizon.py
     python3 tests/test_tidal_portals.py
     python3 tests/test_moos_theme_safety.py
+    python3 tests/test_window_controls.py
     python3 tests/test_theme_shadow_cleanup.py
     python3 tests/test_settings_launcher_shadow.py
     # The bar check never passes without checking; selfcheck/post-update scans see KWin shadows.

@@ -59,6 +59,7 @@ Item {
         repeat: false
         onTriggered: {
             try {
+                console.info("MOOS_ADAPTIVE_STAGE begin");
                 const v = driver.surface;
                 const l = v.launcher;
                 const nativeTheme=v.nativeThemeProbe;
@@ -100,6 +101,7 @@ Item {
                 function commandResult(row) { return row.id === "exec:///usr/bin/true"; }
                 driver.waitVerified(() => !v.searchModel.querying && searchRows().some(fixtureResult)
                     && searchRows().some(commandResult), 5000, "native search providers produce competing results");
+                console.info("MOOS_ADAPTIVE_STAGE search-ready");
                 const nativeSearchRows = searchRows();
                 driver.verify(nativeSearchRows.some(fixtureResult),
                     "native services provider finds the private application");
@@ -342,6 +344,22 @@ Item {
                 driver.verify(check.waitForPolish(driver.homeGrid), "favorite layout polished");
                 check.tryCompare(driver.pages,"pageAnimating",false,1500,"Home settles before review");
                 driver.captureSurface("home");
+                console.info("MOOS_ADAPTIVE_STAGE before-native-drag");
+                function settledFavoriteRows() {
+                    driver.homeGrid.forceLayout();
+                    driver.verify(check.waitForPolish(driver.homeGrid), "moved favorite layout polished");
+                    const owner = v.Window.window;
+                    driver.verify(owner && owner.visible, "favorite layout has a visible native window");
+                    owner.update();
+                    driver.verify(check.waitForRendering(driver.homeGrid,1500), "favorite rows reach a native frame");
+                    driver.waitVerified(() => [0,1].every(row => {
+                        const tile = driver.homeGrid.itemAtIndex(row);
+                        return tile && tile.index === row
+                            && tile.favoriteId === l.favoriteSearchIds[row]
+                            && tile.Window.window === owner;
+                    }),1500,"favorite delegates match the current native row identities");
+                }
+                settledFavoriteRows();
                 const pinOrder = JSON.stringify(l.favoriteSearchIds);
                 const firstPin = l.favoriteSearchIds[0];
                 const secondPin = l.favoriteSearchIds[1];
@@ -376,7 +394,9 @@ Item {
                 l.moveFavorite(1, 0);
                 driver.waitVerified(() => JSON.stringify(l.favoriteSearchIds) === pinOrder, 1500,
                     "private drag test restores native order");
+                settledFavoriteRows();
                 // Closing during a held drag is cancellation, never accepted drop.
+                const favoriteWindowOwner = v.Window.window;
                 const cancelledSource = driver.homeGrid.itemAtIndex(0);
                 const cancelledTarget = driver.homeGrid.itemAtIndex(1);
                 check.mouseMove(cancelledSource,cancelledSource.width/2,cancelledSource.height/2,30);
@@ -391,19 +411,59 @@ Item {
                 driver.compare(JSON.stringify(l.favoriteSearchIds), pinOrder,
                     "closed launcher refuses a held drop without changing native order");
                 l.expanded = true; l.activePage = 0; l.editMode = true;
-                check.wait(80);
+                driver.waitVerified(() => v.Window.window === favoriteWindowOwner
+                    && favoriteWindowOwner.visible,1500,
+                    "reopened content retains the actual native window owner");
+                settledFavoriteRows();
                 const touchSource = driver.homeGrid.itemAtIndex(0);
                 const touchTarget = driver.homeGrid.itemAtIndex(1);
-                const reorderTouch = check.touchEvent(touchSource);
-                reorderTouch.press(0,touchSource,touchSource.width/2,touchSource.height/2).commit(); check.wait(40);
-                reorderTouch.move(0,touchSource,touchSource.width/2+24,touchSource.height/2).commit(); check.wait(40);
-                reorderTouch.move(0,touchTarget,touchTarget.width/2,touchTarget.height/2).commit();
-                check.wait(60);
-                driver.compare(JSON.stringify(l.favoriteSearchIds), pinOrder,"touch drag hover preserves order");
-                reorderTouch.release(0,touchTarget,touchTarget.width/2,touchTarget.height/2).commit();
-                check.wait(80);
-                driver.waitVerified(() => l.favoriteSearchIds[0] === secondPin && l.favoriteSearchIds[1] === firstPin,
-                    1500,"Qt touch drop reorders native favorites in edit mode");
+                const touchInput = favoriteWindowOwner.contentItem;
+                const reorderTouch = check.touchEvent(touchInput);
+                let touchHeld = false;
+                let touchPosition = touchSource.mapToItem(touchInput,touchSource.width/2,touchSource.height/2);
+                function verifyTouchOwner() {
+                    driver.verify(v.Window.window === favoriteWindowOwner
+                        && touchSource.Window.window === favoriteWindowOwner
+                        && touchTarget.Window.window === favoriteWindowOwner
+                        && favoriteWindowOwner.visible,"touch stays on the qualified native window");
+                }
+                function touchFrame() {
+                    verifyTouchOwner();
+                    favoriteWindowOwner.update();
+                    driver.verify(check.waitForRendering(touchSource,1500),
+                        "touch motion reaches a native rendered frame");
+                    verifyTouchOwner();
+                }
+                try {
+                    verifyTouchOwner();
+                    touchHeld = true;
+                    reorderTouch.press(0,touchInput,touchPosition.x,touchPosition.y).commit();
+                    touchFrame();
+                    touchPosition = touchSource.mapToItem(touchInput,touchSource.width/2+24,touchSource.height/2);
+                    reorderTouch.move(0,touchInput,touchPosition.x,touchPosition.y).commit();
+                    touchFrame();
+                    driver.waitVerified(() => named(touchSource,"movaFavoriteDragProxy").Drag.active,
+                        1500,"touch move activates the native favorite drag");
+                    touchPosition = touchTarget.mapToItem(touchInput,touchTarget.width/2,touchTarget.height/2);
+                    reorderTouch.move(0,touchInput,touchPosition.x,touchPosition.y).commit();
+                    touchFrame();
+                    driver.waitVerified(() => named(touchTarget,"movaFavoriteDrop").containsDrag,
+                        1500,"touch move reaches the native favorite drop target");
+                    driver.compare(JSON.stringify(l.favoriteSearchIds), pinOrder,"touch drag hover preserves order");
+                    verifyTouchOwner();
+                    reorderTouch.release(0,touchInput,touchPosition.x,touchPosition.y).commit();
+                    touchHeld = false;
+                    driver.waitVerified(() => l.favoriteSearchIds[0] === secondPin && l.favoriteSearchIds[1] === firstPin,
+                        1500,"Qt touch drop reorders native favorites in edit mode");
+                } finally {
+                    if (touchHeld) {
+                        // Cancel before release, using the original window's stable
+                        // input item even if the surface has been reparented.
+                        l.expanded = false;
+                        try { reorderTouch.release(0,touchInput,touchPosition.x,touchPosition.y).commit(); }
+                        catch (cleanupError) { console.error("MOOS_TOUCH_CLEANUP " + String(cleanupError)); }
+                    }
+                }
                 l.moveFavorite(1,0);
                 driver.waitVerified(() => JSON.stringify(l.favoriteSearchIds) === pinOrder,1500,"touch test restores native order");
                 l.editMode = false;
@@ -443,6 +503,7 @@ Item {
                     nativeCategories: l.appRootModel.count - 1, categoryBrowsing: true,
                     pageMotionSettled: true, nativeMenu: true, nativeFavoriteAction: true,
                     nativeFavoriteDrop: true, nativeTouchDrop: true, cancelledDropRefused: true,
+                    nativeWindowReopen: true, touchFrameDelivery: true,
                     nativeFolderNavigation: true, applicationInkFits: true, requestedFont: v.uiFontFamily,
                     nativeProviderPreference: true, runnerFavorites: v.searchModel.favoriteIds,
                     nativeSearchRows: nativeSearchRows,

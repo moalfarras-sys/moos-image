@@ -420,7 +420,10 @@ set -uo pipefail
 # 165: native Mova adaptive launcher, activity-aware actions and drop-only favorites.
 # 166: Mova glass tiles, aligned names, soft scroll edge, visible off switch, rimless horizon.
 # 167: retain native Milou provider preferences independently of application pins.
-THEME_REV=167
+# 168: native 44px window targets, shared Tidal Cut actions and safe GTK publication.
+# 169: keep the same native action extents with fill-only edge artwork.
+# 170: distinguish native unavailable actions while retaining enabled-action contrast.
+THEME_REV=170
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

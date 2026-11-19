@@ -1,0 +1,254 @@
+{
+  "schema": 1,
+  "date": "2026-11-18",
+  "integration_owner": "V3 created the initial aggregate. Oracle now coordinates final merge and release. V3 owns physical acceptance.",
+  "base_main": "fbb8a46d15739fed90e94be440b32c3276c0020c",
+  "inputs": {
+    "window_batch": "1df0148370554f7ec5afaad25b404bc52a0fd786",
+    "appdrop": "98fed279b839876f9639ec6933f398d59c5acd56",
+    "night_light": "016e518dcc0a9619bac6847314562eff0d9130dd"
+  },
+  "original_qualified_appdrop_source": "913f016babe26fc14b4f12bb6d13109001931819",
+  "test_permission": "Owner explicitly approved automated source/image/CI/boot-fixture/post-update checks in chat; physical host reboot/suspend still coordinated separately.",
+  "existing_pr311": {
+    "repo": 44323788769,
+    "repo_result": "failure: stale TitleHeight32 and ButtonWidth20 versus native44",
+    "arm": 44323788733,
+    "x86": 44323788622,
+    "image_results": "running at readback; no later source qualified by them"
+  },
+  "preserved_remote_archives": {
+    "archive/qualification-main-306-307-20261118": "cdab5775d34da0b8b7e6fd353fd8388686adc5f8",
+    "archive/nightcolor-merge-proof-20261118": "01a8c94ff0527066b99f159481ae8a1a237e40fd"
+  },
+  "cleanup": "No deletion/unpin/prune; shared bytes and retained OCI refs do not establish whole-image reclaim. Preserve private/inaccessible evidence and active editor worktrees.",
+  "preservation_merge": {
+    "revision": "1f4eaeddd6761b0b5000fc241c27d42c8d6672f6",
+    "tree_before": "187acf2290a97929e8068a4fea36e0fb4cdd34ca",
+    "tree_after": "187acf2290a97929e8068a4fea36e0fb4cdd34ca",
+    "purpose": "Record old Qt/private and patch-equivalent Center/Plasma plus detached proof ancestry; preserve current runtime tree, do not restore obsolete producers."
+  },
+  "source_geometry_reconciliation": {
+    "original_repo_failure": 44323788769,
+    "old_assertions": [
+      "TitleHeight=32",
+      "ButtonWidth=20"
+    ],
+    "prepared_assertions": [
+      "TitleHeight=44",
+      "ButtonWidth=44"
+    ],
+    "evidence": "PR311 measured 180 native windows over 18 themes. The successor retains 44px input/bar and all SVG/state/identity assertions. V3 subsequently exercised these at d8b58fa9."
+  },
+  "system_update": {
+    "command": "/usr/bin/moai-do update",
+    "exit_code": 0,
+    "result": "already on the latest signed image",
+    "booted_version": "44.20261116.1162",
+    "new_source_delivery": "not yet promoted"
+  },
+  "news": {
+    "entries": 70,
+    "bytes": 63869,
+    "byte_limit": 65536,
+    "all_history_retained": true
+  },
+  "window_successor": "d5d4897a344790e18c4c3d7d8753ffbeff6fa82b",
+  "first_combined_check": {
+    "revision": "aab4fc7c4278fcbfbef0adddc12c092e81130096",
+    "exit_code": 1,
+    "seconds": 685.795,
+    "failure": "test_kde_appearance_library native owner fixture still extracted old reconcile dependencies; d5d4897a updates native_selected extraction and retains the old-order negative."
+  },
+  "first_local_image": {
+    "revision": "aab4fc7c4278fcbfbef0adddc12c092e81130096",
+    "exit_code": 1,
+    "seconds": 625.022,
+    "result": "Stopped only the owned build process group while downloading packages because its source was superseded by the late-CSS-write data-preservation correction. No image success/qualification claimed."
+  },
+  "new_source_requirements": "Re-run targeted late-publication/native-owner/visual checks, full just check and actual image on the new frozen successor; previous results remain separate.",
+  "initial_host_snapshot": {
+    "booted": 1162,
+    "rollback": 1152,
+    "pinned_retirement_candidate": 1078,
+    "staged": false,
+    "free_var_gib": 254,
+    "system_failure": "moos-hardware-adapt.service remains failed",
+    "user_failure": "historical qualification159 source hygiene215>200; not reset"
+  },
+  "initial_delivery_snapshot": "No final aggregate tests/image/PR/merge/release/stage/reboot acceptance yet.",
+  "v3_qualification_6315": {
+    "source": "6315e9972c98073cba101bf5a439a2a1b01a929a",
+    "tree": "5aed23e5e00ea249ce851cc4c6f6a014a1d8de3c",
+    "component_pr_heads": {
+      "308": "c6379a663fb829303bd5867f80ee28570f4242fb",
+      "309": "7b7d5ed1b7249050244071afb12f8882d95b35a8",
+      "310": "2b0588a405b5f05f8c9081a236dfa04565bfaf4b",
+      "311": "d5d4897a344790e18c4c3d7d8753ffbeff6fa82b",
+      "312": "b1c51198ee97684cb46b1f5c48ae9d328b85552f"
+    },
+    "branches": {
+      "local": 70,
+      "github": 216,
+      "worktrees": 36,
+      "outside_aggregate": [],
+      "historical_untracked_qt_files_matching_archive": 7
+    },
+    "source_history": {
+      "d8b58fa9": "just check passed in 1365.045 seconds",
+      "86a06b56": "just check failed on AR20 / 2.5x vertical wheel in the native Store probe after 1520.953 seconds",
+      "6315e997_hygiene": "PROJECT_STATE.md had 201 lines against the existing limit of 200"
+    },
+    "image": {
+      "exit": 0,
+      "seconds": 900.04,
+      "log_sha256": "25547ef44ebc9179982cde169ccd8ccf240bf6fcfb3732b08a3aec9a68b7b273",
+      "id": "2ab603ca4bc60365569bd36d302d844668f798ca31ac5ebacd85951edcdda97b",
+      "local_manifest_digest": "sha256:ffb50022ce24c25e0e33a8e8d634688de240bd245e686279b2b8735e58eadf68",
+      "verified_files": 11,
+      "moos_control_sha256": "d4a377f69de991a165e3de3ae7fc9569bb1439f77b91b686cba994af0f7bbb89",
+      "packages": [
+        "kernel-core-7.3.4-200.fc44.x86_64",
+        "kwin-6.8.3-1.fc44.x86_64",
+        "qt6-qtdeclarative-6.11.2-3.1.moos1.fc44.x86_64",
+        "kmod-moos-smocf05-7.3.4-200.1.moos1.fc44.x86_64"
+      ],
+      "cached_stable_compose_layer": "76ab9d1ffa16a761229683075f087803086023b428d31adb18c27a48e07a0396"
+    },
+    "ci": {
+      "repo_pass": 44347819111,
+      "arm_image_pass": 44347822061,
+      "x86_failed": 44347819021,
+      "x86_attempt": 1,
+      "fresh_exact_base": "sha256:66f507a9b4d01e165c6b88ff6af0662ef1a6b4d669f872e439d53296438f99d0",
+      "fresh_transaction_exit": 1,
+      "missing_provider": "liboapv.so.11()(64bit)",
+      "provider_count": 0,
+      "publisher_update": "https://bodhi.fedoraproject.org/updates/FEDORA-2026-a03cf645f0",
+      "status_at_native_check": "testing with stable publication requested"
+    },
+    "system": {
+      "current_signed_x86": 1162,
+      "rollback": 1152,
+      "pinned": 1078,
+      "staged": false,
+      "offline_1139": {
+        "sha256": "35ae2044f6f5e7f6888a492201855df5fba8d8c2a0cf9b5fea690af2da3b941b",
+        "sizeBytes": 5825691648,
+        "signatureVerified": true,
+        "version": "44.20261110.1139",
+        "verified_utc": "2026-11-18T19:22:25.901753+00:00",
+        "purpose": "local offline recovery copy",
+        "iso_run": 42809213163
+      },
+      "pre_service_selfcheck": "51 passed, 3 failed, 1 note",
+      "pre_service_postcheck": "54 passed, 2 failed",
+      "local_package_shadows": [
+        "org.moos.brand",
+        "MoOSUI2Bloom"
+      ],
+      "retired_user_qualification": "159 historical hygiene failure retained, inactive failed marker cleared after the d8 source pass",
+      "pinned_config": "At least four readable regular files in its /etc differ from both surviving deployments. Protected configuration needs a private recovery copy before removal."
+    }
+  },
+  "store_wheel_fixture": {
+    "original_failed_source": "86a06b560a22bf0e123c3c724d035667603e0815",
+    "old_full_check_log_sha256": "29b3b98b8afc0ae11361452c3daa3ac6e2986e3ef3bbd539c0c3bad46eb29e9f",
+    "original_vertical_parent_delta": 0,
+    "original_vertical_shelf_delta": 0,
+    "native_single_diagonal_event": [
+      {
+        "ms": 180,
+        "shelf_x": -898.0,
+        "parent_y": 1707.2
+      },
+      {
+        "ms": 221,
+        "shelf_x": -959.481488912291,
+        "parent_y": 1707.2
+      }
+    ],
+    "assertions_in_observed_walk": 50,
+    "long_native_animation_refused": true,
+    "contract": "One input per gesture. Observe both native scroll owners until they settle within two seconds. Keep original displacement, orthogonal-axis, focus and navigation assertions."
+  },
+  "v3_mixed_display_ddc": {
+    "installed_edition": "44.20261116.1162",
+    "ddcutil": "3.0.2-1.fc44",
+    "topology": "external DP enabled, connected internal eDP disabled; adapter runs physical DDC probe",
+    "original_service": {
+      "exec_main_status": 1,
+      "native_journal": "Unable to determine dynamic sleep cache file name",
+      "separate_service_completions_local_time": [
+        "21:05:15",
+        "21:06:00"
+      ],
+      "physical_brightness_unmeasured": true
+    },
+    "native_cases": [
+      {
+        "case": "unset",
+        "exit": 1,
+        "invalid_displays": 0,
+        "stdout_bytes": 142,
+        "stderr_bytes": 50,
+        "stderr_sha256": "678213bcf9b8a0394b0fa4120970071863f609df472c234e4a3070a53623042f",
+        "stderr_known": [
+          "cache",
+          "sleep",
+          "file name"
+        ]
+      },
+      {
+        "case": "cache",
+        "exit": 0,
+        "invalid_displays": 2,
+        "stdout_bytes": 278,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_known": []
+      },
+      {
+        "case": "home",
+        "exit": 0,
+        "invalid_displays": 2,
+        "stdout_bytes": 278,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_known": []
+      }
+    ],
+    "fixed_systemd_unit_file_test": {
+      "service_exit": 0,
+      "result": {
+        "exit": 0,
+        "invalid_displays": 2,
+        "stderr_bytes": 0,
+        "mode": "0700"
+      },
+      "diagnostic": "",
+      "runtime_cleaned": true
+    },
+    "live_compatibility": {
+      "path": "/run/systemd/system/moos-hardware-adapt.service.d/80-moos-v3-ddc-cache.conf",
+      "sha256": "7fc6e573d4e5a03726b3aaa35439167b1dbda38cf7687291fe99873a14d606e0",
+      "retirement": "expires on reboot. Verify replacement booted unit data, current topology, service exit receipt, policy and stamp.",
+      "active_state": "inactive",
+      "sub_state": "dead",
+      "result": "success",
+      "condition_result": true,
+      "exit_status": 0,
+      "exit_timestamp_monotonic": 130163553533,
+      "stamp_scope": "probe",
+      "system_or_user_failed_units": 0,
+      "powerdevil_policy": "POWERDEVIL_NO_DDCUTIL=1",
+      "powerdevil_policy_sha256": "87dc214b08ffd9961850cf992cd68de1d87349f5e3477dac08ee7b1f6561a460",
+      "zram_bytes": 8589934592,
+      "user_manager_reload": "best-effort reload reported a connection error; active PowerDevil environment and drop-in directly verified"
+    },
+    "selfcheck": "51 passed, 2 failed, 3 notes; known local brand and Bloom packages",
+    "postcheck": "55 passed, 1 failed; known local brand package",
+    "display_probe_tests": 22,
+    "unit_verification": "systemd-analyze verify and hardware lifecycle gate passed"
+  }
+}

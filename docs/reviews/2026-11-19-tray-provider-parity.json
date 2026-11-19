@@ -1,0 +1,55 @@
+{
+  "date_utc": "2026-11-19T08:38:53.621910+00:00",
+  "plan": "P0.9 and P2 native tray provider parity",
+  "parent": "db20219a047e96d519d10d16d50d659bf7841e74",
+  "host": "Oracle ARM 44.20261118.966, signed digest e0a8dac972af364a238fef968afde80c4a0b476bdd0e3d885978b2899b420b9e",
+  "installed_tray_check": {
+    "exit": 1,
+    "diagnostics": [
+      "bar: tray inner applet 'org.kde.plasma.keyboardindicator' is not loaded via extraItems",
+      "bar: tray inner applet 'org.kde.kdeconnect' is not loaded via extraItems",
+      "bar: tray inner applet 'org.kde.plasma.vault' is not loaded via extraItems"
+    ],
+    "requested_items": 16,
+    "preexisting_image_gate_checked_pins": 4,
+    "missing_providers": [
+      "org.kde.plasma.keyboardindicator",
+      "org.kde.kdeconnect",
+      "org.kde.plasma.vault"
+    ]
+  },
+  "packages": [
+    {
+      "rpm": "kdeplasma-addons-6.8.3-1.fc44.aarch64.rpm",
+      "rpm_sha256": "6f96de4335c80d11d5be486d404a85cf46ca5787b4685281e4e38973849d89e2",
+      "bytes": 4117306,
+      "provider": "org.kde.plasma.keyboardindicator",
+      "files": {
+        "usr/lib64/qt6/plugins/plasma/applets/org.kde.plasma.keyboardindicator.so": "583ec0a3759337d457cfc3da255e15df66555a8713c43cb5f8656a01c66e22a9"
+      }
+    },
+    {
+      "rpm": "kde-connect-26.08.3-1.fc44.aarch64.rpm",
+      "rpm_sha256": "70a15e47391ad617e5b0291dfaf7cdb877b7b60850452fbdc22d2f71a16d00cf",
+      "bytes": 1192136,
+      "provider": "org.kde.kdeconnect",
+      "files": {
+        "usr/share/plasma/plasmoids/org.kde.kdeconnect/metadata.json": "950414d3f4c3a390cea502c89a0ed1a7c0809f2e82e36412f7875358ee24e162"
+      }
+    },
+    {
+      "rpm": "plasma-vault-6.8.3-1.fc44.aarch64.rpm",
+      "rpm_sha256": "6012b0380b303a88cde3257daad14fba7296aef3a4f48d3770aa4e69ff12e0b7",
+      "bytes": 396330,
+      "provider": "org.kde.plasma.vault",
+      "files": {
+        "usr/share/plasma/plasmoids/org.kde.plasma.vault/metadata.json": "d5c8fa2f2f9655f2789e93da99fca4ed710590321f2c227eacae981bbdd27d1d",
+        "usr/lib64/qt6/plugins/plasma/applets/org.kde.plasma.vault.so": "bf5356d36cba9a22f9af9c081d6ccc4fd6574904b2abbb7f9216ee084586620f"
+      }
+    }
+  ],
+  "stable_source": "https://dl.fedoraproject.org/pub/fedora/linux/updates/44/Everything/aarch64/Packages/",
+  "rpmkeys_readback": "Signature fingerprint 36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6, header and payload SHA256 verified on all three actual RPMs.",
+  "scope": "From the running installation, 13 of the 16 native tray load-list providers resolve. Extracting the exact matching files into private storage accounts for all three missing providers. Both image producers now check the full declared load list. The ARM transaction includes the three native packages.",
+  "pending": "Fresh image/package transactions, image identity checks, signed delivery and actual upgraded tray discovery, activation and user preference readback."
+}
