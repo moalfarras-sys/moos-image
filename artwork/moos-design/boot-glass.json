@@ -1,0 +1,166 @@
+{
+  "schema": 1,
+  "concept": "MoOS Liquid Glass: droplets gather into a glass lens and the mark resolves",
+  "renderer": "Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:18)",
+  "scene": "artwork/blender/moos_boot_glass.py",
+  "sceneSHA256": "cf8b504d2a16979cc75890301ac4675307d2f58ba6bfe4f7e77e5752f9d4cecb",
+  "samples": 160,
+  "logo": {
+    "svgSHA256": "d453c85d1b94da858b50800f561bd94b246275fd6b395562fc3e7be7e808bd72",
+    "magick": "Version: ImageMagick 7.1.2-35 Q16-HDRI x86_64 24992 https://imagemagick.org"
+  },
+  "wordmarkFont": "Meyar Sans Light",
+  "wordmarkFontSHA256": "8430158955f03ad1621a52cdb675326737b7e1f6a452dcdf1a55f1233b2a7339",
+  "assets": {
+    "boot-backdrop.png": {
+      "size": [
+        1920,
+        1080
+      ],
+      "mode": "RGB",
+      "bytes": 84835,
+      "decodedBytes": 8294400,
+      "sha256": "82e704884696c842f85b3eea4c6f1b29a18a3643d482b75cc7a95ed1f1447e42"
+    },
+    "farewell-ar.png": {
+      "size": [
+        399,
+        140
+      ],
+      "mode": "RGBA",
+      "bytes": 5353,
+      "decodedBytes": 223440,
+      "sha256": "efec8706057c3f62b6390c864d656806066e4fec3b01371307f092af7ea98627"
+    },
+    "glass-bezel.png": {
+      "size": [
+        640,
+        640
+      ],
+      "mode": "RGBA",
+      "bytes": 85173,
+      "decodedBytes": 1638400,
+      "sha256": "f8cd5dea690ee8388d13a2a4272e56da8c66777f26194269605be80b384d92de"
+    },
+    "glass-drop-1.png": {
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "bytes": 11517,
+      "decodedBytes": 65536,
+      "sha256": "19178324ae8dc92830b9990d80c97a25adb9b5e190b5ea8d1891e6c5ad8e86cd"
+    },
+    "glass-drop-2.png": {
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "bytes": 11759,
+      "decodedBytes": 65536,
+      "sha256": "4df84e9fa50aa227dcf2ebd4b7bc65249e0381483d4c916f221f2d7cd6f2440d"
+    },
+    "glass-drop-3.png": {
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "bytes": 11450,
+      "decodedBytes": 65536,
+      "sha256": "9d6a6608cc008ec8c568218266d44b67688d304a169d07db089bad7f0f9b4910"
+    },
+    "glass-glint.png": {
+      "size": [
+        96,
+        96
+      ],
+      "mode": "RGBA",
+      "bytes": 1695,
+      "decodedBytes": 36864,
+      "sha256": "e2377251c9f48522196950c4272a287db6c6d11e049e48581195ae83487fc219"
+    },
+    "glass-sheen.png": {
+      "size": [
+        640,
+        640
+      ],
+      "mode": "RGBA",
+      "bytes": 28922,
+      "decodedBytes": 1638400,
+      "sha256": "1e43d2d293d58803849533b11463fb568c023cda226fec7f6e23bcdf18c21a6b"
+    },
+    "intro1.png": {
+      "size": [
+        640,
+        640
+      ],
+      "mode": "RGBA",
+      "bytes": 312879,
+      "decodedBytes": 1638400,
+      "sha256": "118cd53abdd8cbb741952b1fdc8afcdd7c3ecbf127cfad4c915d680277c325a5"
+    },
+    "logo.png": {
+      "size": [
+        1024,
+        1024
+      ],
+      "mode": "RGBA",
+      "bytes": 380530,
+      "decodedBytes": 4194304,
+      "sha256": "32386d26374307963b1578baee31512ef5f59ed5880c8298c74613d3c69f6886"
+    },
+    "mark-letter-1.png": {
+      "size": [
+        133,
+        116
+      ],
+      "mode": "RGBA",
+      "bytes": 2040,
+      "decodedBytes": 61712,
+      "sha256": "97053b12d706f2add1a319b8edf7c1e5da20dccd777019d7a4309c7c5f78b31f"
+    },
+    "mark-letter-2.png": {
+      "size": [
+        96,
+        116
+      ],
+      "mode": "RGBA",
+      "bytes": 1980,
+      "decodedBytes": 44544,
+      "sha256": "4cafb813d0c4903568902cb356c7b1e0a7025dd17f4843f4a0065a95e97d273a"
+    },
+    "mark-letter-3.png": {
+      "size": [
+        119,
+        116
+      ],
+      "mode": "RGBA",
+      "bytes": 2561,
+      "decodedBytes": 55216,
+      "sha256": "c9842680031e25e6f1efab2da5309add5c4f77be005fbdde25f282cd38e71675"
+    },
+    "mark-letter-4.png": {
+      "size": [
+        90,
+        116
+      ],
+      "mode": "RGBA",
+      "bytes": 2007,
+      "decodedBytes": 41760,
+      "sha256": "8331c67bb15f9705e2cb2862c0f8392407b55134e287c38a7c4d183924f3681b"
+    },
+    "welcome-ar.png": {
+      "size": [
+        402,
+        131
+      ],
+      "mode": "RGBA",
+      "bytes": 5796,
+      "decodedBytes": 210648,
+      "sha256": "fb6055803ea4aadf15068334916b41926fc620872566962c5027e5cccdf39b2b"
+    }
+  }
+}

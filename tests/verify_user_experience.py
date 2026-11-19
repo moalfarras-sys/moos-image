@@ -5005,8 +5005,10 @@ require("stage_x = cx - stage_w / 2" in moos_script_src
         and "intro_sprite.SetX(stage_x)" in moos_script_src
         and "intro_sprite.SetY(stage_y)" in moos_script_src,
         "the rendered boot stage must be centred as the hero")
-require("tick >= 9" in moos_script_src and "finished = 1" in moos_script_src,
-        "boot entrance must finish without an endless orbit")
+_entrance = _re.search(r"^ENTRANCE_TICKS = (\d+);", moos_script_src, _re.MULTILINE)
+require(_entrance is not None and int(_entrance.group(1)) <= 50
+        and "tick >= ENTRANCE_TICKS" in moos_script_src and "finished = 1" in moos_script_src,
+        "boot entrance must be a short finite scene (at most 2 s at 25 Hz), never an endless orbit")
 # Scale to screen height, so it is crisp at 1080p and 4K without stretching.
 require("Window.GetHeight(0)" in moos_script_src,
         "the boot splash must size itself from the screen height (crisp at 1080p and 4K)")

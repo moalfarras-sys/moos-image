@@ -88,15 +88,18 @@ def verify_wallpapers() -> None:
 # ── the boot-splash assets (Plymouth Script theme) ──────────────────────────
 def verify_boot_sprites() -> None:
     theme = SHARE / "plymouth" / "themes" / "moos"
-    # Preserve the approved resting render exactly; retire the movie/orbit.
+    # Owner steering 2026-11-19: keep the MoOS mark itself, improve its
+    # rendering. The hero is the glass-coated Blender render of the owner's
+    # vector master (artwork/generate_boot_glass.py, provenance in
+    # artwork/moos-design/boot-glass.json); pin those exact bytes.
     check_image(theme / "logo.png", size=(1024, 1024), modes=("RGBA",),
                 alpha=True, max_bytes=600 * 1024)
     hero = theme / "intro1.png"
-    check_image(hero, size=(856, 556), modes=("RGBA",), alpha=True,
+    check_image(hero, size=(640, 640), modes=("RGBA",), alpha=True,
                 max_bytes=600 * 1024)
     require(hashlib.sha256(hero.read_bytes()).hexdigest() ==
-            "7479f8caa1ae189ce87a7592dc73accd9ef26c5e8c9aa9977de1ca113e570b25",
-            "boot hero differs from the approved resting render")
+            "118cd53abdd8cbb741952b1fdc8afcdd7c3ecbf127cfad4c915d680277c325a5",
+            "boot hero differs from the approved Liquid Glass render")
     require(sorted(p.name for p in theme.glob("intro*.png")) == ["intro1.png"],
             "boot must decode one approved hero, not a movie")
     total = sum(f.stat().st_size for f in theme.glob("*.png"))

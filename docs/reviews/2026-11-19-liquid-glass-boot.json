@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "date": "2026-11-19",
+  "row": "P2.9",
+  "scope": "Owner-steered Liquid Glass Plymouth boot scene: source artwork, Blender renders and native private-renderer pixels. Not a DRM boot, final initramfs, signed artifact or installed acceptance.",
+  "ownerSteering": [
+    "Asked to continue the boot screen in Blender with a beautiful Arabic animated design.",
+    "Rejected the first neon khatam-lattice draft as very bad; asked for a short Liquid Glass scene with fluid motion, the same logo but improved, better typography and a premium feel. That draft was reverted and never committed."
+  ],
+  "base": {
+    "branch": "feat/liquid-glass-boot-20261119",
+    "parent": "a0261263 (origin/main)",
+    "supersedes": "4990055d boot arrival on feat/v3-boot-arrival-20261119 (unmerged); its rise/greeting choreography is replaced, its prompt/handoff behaviour is kept",
+    "designedOn": "feat/blender-boot-dawn-20261119"
+  },
+  "design": {
+    "entranceTicks": 45,
+    "refreshHz": 25,
+    "durationSeconds": 1.8,
+    "sequence": "mark as 22% glass ghost from frame 0; three liquid glass droplets curve into the lens (0-20); bezel forms (8-20); mark resolves (10-24); sheen flows and rests at 80% (18-40); rim glint (22-34); Meyar Sans wordmark gathers letter by letter (24-40); Meyar Arabic welcome (32-45); shutdown/reboot show the farewell",
+    "mark": "owner vector master rendered at 2048 px, guided-filter cleaned (keeps internal design lines), Blender clear coat over rounded bevel/groove height; same silhouette and colours",
+    "fonts": {
+      "wordmark": "Meyar Sans Light",
+      "captions": "Meyar Arabic Regular via libraqm"
+    }
+  },
+  "provenance": "artwork/moos-design/boot-glass.json",
+  "hero": {
+    "file": "intro1.png",
+    "size": [
+      640,
+      640
+    ],
+    "sha256": "118cd53abdd8cbb741952b1fdc8afcdd7c3ecbf127cfad4c915d680277c325a5",
+    "previousSha256": "7479f8caa1ae189ce87a7592dc73accd9ef26c5e8c9aa9977de1ca113e570b25",
+    "pin": "artwork/verify_visuals.py moved to the new render under owner steering"
+  },
+  "renderer": "Blender 5.3.0 (Flatpak, --unshare=network), Cycles CPU 160 samples on the V3 Ryzen 7 8840U",
+  "native": {
+    "harness": "private Xvfb in a --network none podman container from localhost/moos:latest 44.20261119 (its plymouth 24.004.60-24.1.moos1 libraries/script.so) with the vendor x11 review renderer; theme mounted read-only",
+    "boot": "56 frames at 40 ms for 640x480, 360x640, 800x1280, 1920x1080, 2560x1600 and 3840x2160; all exit 0",
+    "states": "shutdown (1920x1080, 2560x1600) and reboot (800x1280) show the farewell at rest; quit at frame 4 shows the full resting composition; Arabic passphrase with 4 bullets at 640x480 and 1920x1080",
+    "promptInk": {
+      "640x480": {
+        "promptRows": [
+          394,
+          442
+        ],
+        "captionImageBottom": 371.0
+      },
+      "1920x1080": {
+        "promptRows": [
+          874,
+          931
+        ],
+        "captionImageBottom": 834.8
+      }
+    },
+    "costVsPrevious": {
+      "method": "two captures 2.4 s apart (includes one PPM write each), three trials, same harness and image",
+      "cpuSeconds": {
+        "1920x1080": {
+          "new": [
+            0.235,
+            0.221,
+            0.241
+          ],
+          "old": [
+            0.211,
+            0.188,
+            0.189
+          ]
+        },
+        "2560x1600": {
+          "new": [
+            0.294,
+            0.317,
+            0.31
+          ],
+          "old": [
+            0.235,
+            0.253,
+            0.269
+          ]
+        },
+        "3840x2160": {
+          "new": [
+            0.407,
+            0.399,
+            0.397
+          ],
+          "old": [
+            0.324,
+            0.337,
+            0.362
+          ]
+        }
+      },
+      "peakRssKiB": {
+        "1920x1080": {
+          "new": 95952,
+          "old": 94824
+        },
+        "2560x1600": {
+          "new": 122996,
+          "old": 122284
+        },
+        "3840x2160": {
+          "new": 172244,
+          "old": 171220
+        }
+      },
+      "boundary": "X11 review renderer, not DRM/framebuffer boot time"
+    }
+  },
+  "tests": {
+    "tests/test_boot_splash_polish.py": "21 pass; executed callbacks, seven-size resting layout, glass decode/initramfs budget, asset provenance",
+    "negativeControls": [
+      "removing the quit SetY keeps the in-flight offset (existing)",
+      "removing droplet retirement leaves a droplet on the resting frame",
+      "dropping the letters' margin compensation de-centres the wordmark",
+      "ENTRANCE_TICKS=90 refused by both the splash test and verify_user_experience.py"
+    ],
+    "artwork/verify_visuals.py": "pass",
+    "tests/verify_user_experience.py": "pass",
+    "tests/test_whats_new.py": "pass"
+  },
+  "unchanged": [
+    "boot-backdrop.png",
+    "logo.png",
+    "build scripts: every edition derives assets from moos.script and verify_plymouth_initramfs.py proves each byte-exact in the final initramfs",
+    "identity gates"
+  ],
+  "remaining": [
+    "owner visual acceptance of the preview",
+    "full local or PR image build with the final-initramfs asset proof",
+    "signed artifact boot/reboot/poweroff and offline ISO proofs",
+    "encrypted-volume keyboard input on hardware"
+  ]
+}
