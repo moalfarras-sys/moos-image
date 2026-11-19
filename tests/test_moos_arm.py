@@ -1099,14 +1099,42 @@ class MiraStartupDiagnostics(unittest.TestCase):
             bad = subprocess.run([sys.executable, str(probe), '-s', str(app)],
                                  capture_output=True, text=True, timeout=10)
             self.assertEqual(bad.returncode, 7, bad.stdout + bad.stderr)
-            app.write_text('import time\ntime.sleep(0.15)\nraise SystemExit(9)\n')
-            driver = ('import runpy,sys\nm=runpy.run_path(sys.argv[1])\n'
-                      "m['probe'](['-s',sys.argv[2]],trace_after=0.03)\n")
-            blocked = subprocess.run([sys.executable, '-c', driver, str(probe), str(app)],
-                                    capture_output=True, text=True, timeout=10)
-            self.assertEqual(blocked.returncode, 9, blocked.stdout + blocked.stderr)
-            self.assertIn('Timeout (', blocked.stderr)
-            self.assertIn(str(app), blocked.stderr)
+            # The production watchdog includes imports in its deadline. Start the
+            # fixture's short clock at app entry so it measures an application stall.
+            (root / 'fixture_clock.py').write_text(
+                "from faulthandler import dump_traceback_later as native_arm\n"
+                "from functools import partial\n"
+                "def defer(*args, **kwargs):\n"
+                "    global arm_at_entry\n"
+                "    arm_at_entry = partial(native_arm, *args, **kwargs)\n"
+            )
+            app.write_text(
+                "from pathlib import Path\n"
+                "from time import sleep\n"
+                "from fixture_clock import arm_at_entry\n"
+                "trace = Path(__file__).with_name('trace.log')\n"
+                "arm_at_entry()\n"
+                "while __file__ not in trace.read_text():\n"
+                "    sleep(0.01)\n"
+                "raise SystemExit(9)\n"
+            )
+            driver = (
+                "import runpy, sys\n"
+                "from unittest.mock import patch\n"
+                "from fixture_clock import defer\n"
+                "probe = runpy.run_path(sys.argv[1])['probe']\n"
+                "with patch('faulthandler.dump_traceback_later', defer):\n"
+                "    probe(['-s', sys.argv[2]], trace_after=0.03)\n"
+            )
+            trace = root / 'trace.log'
+            with trace.open('w') as stderr:
+                blocked = subprocess.run([sys.executable, '-c', driver, str(probe), str(app)],
+                                         cwd=root, stdout=subprocess.PIPE, stderr=stderr,
+                                         text=True, timeout=10)
+            stack = trace.read_text()
+            self.assertEqual(blocked.returncode, 9, blocked.stdout + stack)
+            self.assertIn('Timeout (', stack)
+            self.assertIn(str(app), stack)
 
 
 if __name__ == "__main__":
