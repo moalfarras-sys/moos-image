@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-18. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-19. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -36,7 +36,14 @@ Nov18 owner authorizes preserving/pushing all remaining source, correct integrat
 and a signed system update, and has explicitly approved the requested automated source/image/CI/boot-fixture
 checks. Physical host reboot/suspend remains coordinated with open editor work.
 
-The owner selects Oracle root as the final integration/release coordinator alongside V3.
+Oracle merged PR313 at 3f114cb0 and started the signed x86 cycle (44511467942).
+V3 Codex coordinates the recovery follow-up with PR314 and retains both 1152 and
+1078. Use the existing release run through completion before advancing main.
+The 966 recovery guest recorded a coldplug probe before udev readiness in one
+boot and a cloud-final/menu ordering cycle. Its native dialog also refused an
+occupied target and misreported the second empty-target row. Require a real
+menu, confirmed cancellation, clean shutdown and unchanged target on the
+packaged successor. [V3 evidence](reviews/2026-11-19-v3-integration-and-recovery.json).
 A late native KConfig failure control reproduces the Night Light opposite-pulse persistence defect.
 The successor sends only the requested value and the existing fixed KConfig notification;
 native watcher and unchanged already-off KWin readback pass. Final combined qualification
@@ -395,7 +402,7 @@ M0 evidence as measured performance or require another local VM image.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | PR313 preserves the reviewed window, sensor, Store/App Drop and Night Light work. All 70 local and 216 GitHub branch tips were ancestors of 6315e997 on V3. Oracle coordinates the final merge and release after successor qualification. | Exact candidate source, all integrated fixes and no local override counted as release. |
+| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | PR313 preserves the reviewed window, sensor, Store/App Drop and Night Light work. All 70 local and 216 GitHub branch tips were ancestors of 6315e997 on V3. PR313 merged at 3f114cb0. Qualify the combined recovery and ARM base-account changes before the next signed cycle. | Exact candidate source, all integrated fixes and no local override counted as release. |
 | P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Signed x86 1162 and ARM 966 have independent promotion receipts. PR313 at 6315e997 passed ARM image CI. Its x86 package solver refused the missing stable liboapv.so.11 provider before image construction. The separately packaged ARM recovery disk still needs its own UEFI boot evidence. | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
