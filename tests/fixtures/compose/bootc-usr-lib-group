@@ -15,6 +15,7 @@ dialout:x:18:
 floppy:x:19:
 games:x:20:
 rpcuser:x:29:
+rpc:x:32:
 tape:x:33:
 video:x:39:
 dip:x:40:
@@ -22,6 +23,8 @@ ftp:x:50:
 lock:x:54:
 audio:x:63:
 tcpdump:x:72:
+sshd:x:74:
+dbus:x:81:
 nobody:x:99:
 users:x:100:
 input:x:104:
@@ -51,10 +54,7 @@ render:x:105:
 sgx:x:106:
 avahi:x:70:
 clevis:x:983:
-dbus:x:982:
-sshd:x:981:
-passim:x:980:
-rpc:x:979:
-systemd-coredump:x:978:
-systemd-oom:x:977:
+passim:x:982:
+systemd-coredump:x:981:
+systemd-oom:x:980:
 tss:x:59:clevis

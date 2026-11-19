@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-19",
+  "host": "moos-arm-oracle (aarch64, signed ARM 966, rollback 964)",
+  "plan_rows": ["P0.1", "P6.8"],
+  "journey": "Signed ARM release from merged main 3f114cb03ba92f311017d3d77603dbbdc6864323",
+  "first_refusal": {
+    "run": "https://github.com/moalfarras-sys/moos-image/actions/runs/44511422376",
+    "attempt": 1,
+    "step": "Build and verify the native recovery image",
+    "error": "RuntimeError: unreviewed writable ARM account input (prepare_arm_compose_base.py account_permission_plan)",
+    "note": "The PR run 44489790163 on the same source passed at 08:44 UTC with the previous base. Upstream published a new base at 10:07 UTC. The gate is unchanged and the refusal is retained."
+  },
+  "upstream_inputs": {
+    "previous": {
+      "image": "quay.io/fedora/fedora-bootc@sha256:5fdfeee1cb12af2a05d1fd2e4e654c7f605003eb06fa4ca0b4e27079f31c7b6f",
+      "usr/lib/passwd": {"size": 2161, "mode": "0664", "sha256": "5cc5d8b1c2b1b992396f9086a449373070664fc155b93a7855b9747b189ad2ae"},
+      "usr/lib/group": {"size": 828, "mode": "0664", "sha256": "dd95420d94abe0a69e9ace9df1acc368256e4323e9266aa6e4af73ae5dfbb6dc"}
+    },
+    "current": {
+      "image": "quay.io/fedora/fedora-bootc@sha256:21be546e96dd831f5c92ecd0c84ea54205b2659a1724d1efa0b24ba465bc1556",
+      "version": "44.20261119.0",
+      "created": "2026-11-19T10:07:44Z",
+      "usr/lib/passwd": {"size": 2161, "mode": "0664", "sha256": "ceea7f1cfca1f01c0b76463660f6b5f56ee73ae9dbc1a76ec2ac94976889e04d"},
+      "usr/lib/group": {"size": 825, "mode": "0664", "sha256": "9a0c5d5311059f460761fb626bf1ed5ced96962213779c2d6cedc1e9710419b5"}
+    }
+  },
+  "reviewed_difference": {
+    "passwd": {
+      "passim": "980:980 -> 982:982",
+      "systemd-coredump": "978:978 -> 981:981",
+      "systemd-oom": "977:977 -> 980:980",
+      "unchanged": "every other line, including rpc 32:32, sshd 74:74, dbus 81:81"
+    },
+    "group": {
+      "added_static": ["rpc:x:32:", "sshd:x:74:", "dbus:x:81:"],
+      "removed_dynamic": ["dbus:x:982:", "sshd:x:981:", "rpc:x:979:"],
+      "renumbered": {"passim": "980 -> 982", "systemd-coredump": "978 -> 981", "systemd-oom": "977 -> 980"},
+      "assessment": "The previous base gave users rpc/sshd/dbus primary GIDs 32/74/81 that had no group entry. The new base adds the matching static groups and renumbers the dynamic service groups."
+    }
+  },
+  "installed_impact_oracle_966": {
+    "nss": "passwd: files altfiles systemd; group: files [SUCCESS=merge] altfiles [SUCCESS=merge] systemd. /etc/passwd and /etc/group contain none of the six accounts, so after an update /usr/lib from the new image is authoritative.",
+    "files_owned_by_shifting_ids": "sudo find /etc /var -xdev (excluding home and container storage) for uid/gid 977-982 found only passim state: /var/lib/passim, /var/lib/passim/data (+1 firmware xml), secret.key, cert.pem, /var/log/passim, audit.log, all 980:980",
+    "expected_repair": "passim.service declares User=passim, StateDirectory=passim passim/data and LogsDirectory=passim. systemd recursively re-owns those trees when their owner differs from the configured user, so the new UID 982 takes the state back on its next start. This is expected from systemd.exec and still needs readback after the next Oracle boot.",
+    "no_other_owner": "No file was owned by the old dbus/sshd/rpc dynamic groups or by systemd-coredump/systemd-oom."
+  },
+  "native_controls": {
+    "command": "podman build --pull=never --from <exact base digest> --target base -f Containerfile.arm-recovery",
+    "old_code_new_base": "exit 1, RuntimeError unreviewed writable ARM account input (same as CI)",
+    "old_code_old_base": "exit 0",
+    "fixed_code_new_base": "exit 0; /usr/lib/passwd and /usr/lib/group root:root 0644 with the exact reviewed bytes; getent group dbus 81, sshd 74, rpc 32, passim 982",
+    "fixed_code_old_base": "exit 1, RuntimeError unreviewed writable ARM account input"
+  },
+  "source_tests": "python3 tests/test_arm_pristine_base.py: 34 tests OK, including the new refusal of both retained 20261118 bodies",
+  "not_established": [
+    "Complete ARM desktop/recovery image build on the new base (PR CI is the next proof)",
+    "Signed ARM boot proof and promotion",
+    "passim ownership readback after an installed Oracle update and reboot",
+    "Packaged recovery-disk boot (the pipeline does not boot it)"
+  ]
+}

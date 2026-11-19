@@ -25,9 +25,14 @@ REVIEWED_RPMSTATE_SHA256='2dd8ea0e27ce15f7182dc9d358dbeead11880dec0fd7aefc9511ed
 # These generated native NSS inputs arrive root:root0664 in the published
 # pristine base. Make only these exact known bodies root-writable before the
 # shared account reader consumes them. Names/IDs/content remain unchanged.
+# Reviewed 2026-11-19 for fedora-bootc 44.20261119.0 (arm64 sha256:21be546e…):
+# groups rpc/sshd/dbus now carry the static IDs 32/74/81 their users already
+# named, and passim/systemd-coredump/systemd-oom move to 982/981/980. The
+# previous 44.20261118 bodies are refused; see
+# docs/reviews/2026-11-19-arm-base-accounts.json for the installed-system impact.
 GENERATED_ACCOUNTS={
-    'usr/lib/passwd':(2161,'5cc5d8b1c2b1b992396f9086a449373070664fc155b93a7855b9747b189ad2ae'),
-    'usr/lib/group':(828,'dd95420d94abe0a69e9ace9df1acc368256e4323e9266aa6e4af73ae5dfbb6dc'),
+    'usr/lib/passwd':(2161,'ceea7f1cfca1f01c0b76463660f6b5f56ee73ae9dbc1a76ec2ac94976889e04d'),
+    'usr/lib/group':(825,'9a0c5d5311059f460761fb626bf1ed5ced96962213779c2d6cedc1e9710419b5'),
 }
 
 
