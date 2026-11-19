@@ -57,6 +57,22 @@ def fixture(root, *, change=None, duplicate=False, link=False):
 
 
 class RecoveryArchive(unittest.TestCase):
+    def test_installer_capacity_matches_the_packaged_ten_gib_image(self):
+        gib = 1024**3
+        with tempfile.TemporaryDirectory() as directory:
+            disk = Path(directory) / "installer.qcow2"
+            disk.write_bytes(b"QFI\xfb" + (3).to_bytes(4, "big") + bytes(96))
+            for size in (10 * gib, 10 * gib + 512):
+                metadata = json.dumps({"format": "qcow2", "virtual-size": size}).encode()
+                with patch.object(gate, "run", return_value=subprocess.CompletedProcess([], 0, metadata)):
+                    if size == 10 * gib:
+                        with self.assertRaisesRegex(RuntimeError, "disk format or size"):
+                            gate.qcow_input(disk, 8 * gib)
+                        self.assertEqual(gate.qcow_input(disk, gate.RECOVERY_DISK_LIMITS["installer"])["virtual-size"], size)
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "disk format or size"):
+                            gate.qcow_input(disk, gate.RECOVERY_DISK_LIMITS["installer"])
+
     def test_all_three_packaged_devices_and_seed_are_preserved(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
