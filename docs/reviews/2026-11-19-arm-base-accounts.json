@@ -52,8 +52,12 @@
     "fixed_code_old_base": "exit 1, RuntimeError unreviewed writable ARM account input"
   },
   "source_tests": "python3 tests/test_arm_pristine_base.py: 34 tests OK, including the new refusal of both retained 20261118 bodies",
+  "pr_ci_fd1778b9": {
+    "arm": "https://github.com/moalfarras-sys/moos-image/actions/runs/44513801575 attempt 1: 'Build and verify the native recovery image', 'Build the image' and 'Verify the built image' succeeded on the new base; push, sign, disk and promote are skipped for a pull request",
+    "x86": "https://github.com/moalfarras-sys/moos-image/actions/runs/44513801678 generic image build and in-image gates passed (nothing pushed)",
+    "repo_gates": "https://github.com/moalfarras-sys/moos-image/actions/runs/44513801836 passed"
+  },
   "not_established": [
-    "Complete ARM desktop/recovery image build on the new base (PR CI is the next proof)",
     "Signed ARM boot proof and promotion",
     "passim ownership readback after an installed Oracle update and reboot",
     "Packaged recovery-disk boot (the pipeline does not boot it)"

@@ -479,8 +479,15 @@ def _sandbox_tail(out: Path) -> list[str]:
 
 def sandbox_argv(appimage: Path, out: Path) -> list[str]:
     """Run an AppImage's own extractor with no network, no home and no way to reach the session."""
-    return (_sandbox_base() + ["--ro-bind", str(appimage), "/in/app.AppImage"] + _sandbox_tail(out)
-            + ["/in/app.AppImage", "--appimage-extract"])
+    argv = _sandbox_base() + ["--ro-bind", str(appimage), "/in/app.AppImage"] + _sandbox_tail(out)
+    # Some Type 2 runtimes link to the development name of the zlib ABI.
+    # Supply that name only to the extractor when the image has the runtime alone.
+    zlib = Path("/usr/lib64/libz.so.1")
+    if zlib.is_file() and not zlib.with_name("libz.so").exists():
+        library_dir = "/run/moos-appimage-libs"
+        argv += ["--tmpfs", library_dir, "--symlink", str(zlib), library_dir + "/libz.so",
+                 "--remount-ro", library_dir, "--setenv", "LD_LIBRARY_PATH", library_dir]
+    return argv + ["/in/app.AppImage", "--appimage-extract"]
 
 
 def tool_sandbox_argv(inputs: dict[str, Path], out: Path, command: list[str]) -> list[str]:

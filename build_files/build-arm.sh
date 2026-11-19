@@ -134,6 +134,8 @@ _PLASMA=(
     # Store's curated npm recipes use /usr/bin/npm with a user-owned prefix.
     # Bare bootc does not supply either provider; match the x86 core packages.
     nodejs22 nodejs22-npm
+    # Upstream ARM64 Node runtimes used by desktop tools link to libatomic.so.1.
+    libatomic
     # The local-brain engine is GONE here too (stage C5). Mo AI is cloud-only;
     # ensure_local() refuses, so this package had no reachable caller left.
     # Day-2 updates resolve a mutable release tag to an exact signed digest.

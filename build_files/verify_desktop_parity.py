@@ -61,6 +61,8 @@ CAPABILITIES: list[tuple[str, list[str]]] = [
      ["usr/bin/lspci"]),
     ("the hardware report identifying attached USB devices",
      ["usr/bin/lsusb"]),
+    ("native desktop tools loading the GCC atomic runtime",
+     ["usr/lib64/libatomic.so.1"]),
     ("Store installing and updating its curated npm developer tools",
      ["usr/bin/npm"]),
     ("the system Node runtime used by Store's curated npm developer tools",
