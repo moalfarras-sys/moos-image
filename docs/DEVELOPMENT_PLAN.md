@@ -90,8 +90,7 @@ prune or worktree removal is authorized by an inventory.
 On Nov19 V3 booted signed 1173 in 22.202 s. The only other deployment is 1162 for rollback.
 The owner authorized retiring 1152 and 1078 after their local settings and origin metadata
 were archived privately and checked against the originals. The locally retained 1139 offline ISO
-previously passed full-byte checksum and detached-signature checks. The 720 ms Plymouth logo
-and Arabic welcome passed native render and passphrase checks. Qualify this new source
+previously passed full-byte checksum and detached-signature checks. The successor 1.8 s Liquid Glass scene passed native render, early handoff, and Arabic passphrase checks. Qualify the scene
 in the signed successor and verify its appearance on the physical screen. The historical user qualification
 159 failure has a preserved log and was cleared after the d8 source pass.
 The V3 service reproduced exit 1 while ddcutil could not locate its dynamic
