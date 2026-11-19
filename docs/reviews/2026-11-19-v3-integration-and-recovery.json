@@ -47,15 +47,6 @@
     "all_tips_in_qualified_head": true,
     "old_untracked_qt_files_equal_to_archive": 7
   },
-  "v3": {
-    "booted": "44.20261116.1162",
-    "pinned_versions": [
-      "44.20261114.1152",
-      "44.20261019.1078"
-    ],
-    "stage": null,
-    "upgrade_acceptance": "requires boot of the signed successor"
-  },
   "installer_menu": {
     "source_parent": "434222538eb1e3fba10d0bcd146fe54d88e3fa04",
     "repair": "f7cae2c9ce47121b4c7fbfb849f0b6f5efc6ee85",
@@ -94,7 +85,12 @@
     "current_x86_cycle_build": 44511467942,
     "arm_main_refusal": 44511422376,
     "account_repair_pr": 314,
-    "local_followup": "Integrate the corrected boot order, menu and packaged recovery acceptance, then qualify the combined source."
+    "local_followup": "Integrate the corrected boot order, menu and packaged recovery acceptance, then qualify the combined source.",
+    "main_arm_994": {
+      "revision": "a02612638c0e557b7fe289a469adc05baa961d47",
+      "run": 44573209173,
+      "result": "The native image, desktop QCOW2 UEFI boot and promotion passed. Separate packaged recovery interaction requires a successor."
+    }
   },
   "packaged_arm_966": {
     "main": "fbb8a46d15739fed90e94be440b32c3276c0020c",
@@ -134,5 +130,55 @@
     "original_refusal": "At 92e8921d the 30 ms diagnostic fired in the Python module loader before the fixture entered app.py.",
     "repair": "c9258e4ff9a6264c0085c076438a4d86e6ee4c8e",
     "controls": "A private 120 ms loader delay reproduces the old refusal three times. The fixture repair passes five times and refuses missing watchdog registration. All 69 ARM tests and the journal isolation gate passed on the component."
+  },
+  "v3_before_update": {
+    "booted": "44.20261116.1162",
+    "pinned_versions": [
+      "44.20261114.1152",
+      "44.20261019.1078"
+    ],
+    "stage": null,
+    "upgrade_acceptance": "requires boot of the signed successor"
+  },
+  "v3": {
+    "booted": "44.20261119.1173",
+    "image_digest": "sha256:d3ce53eb368d286ce8ae5b235c2d36ebf176150274f79ef4fcfe1bf7bd7e2113",
+    "ostree_checksum": "7cdfe5e26851c8e50d73ae0a82e475ae4f3c986cb1b3be157cd66d663834822d",
+    "boot_id": "dad2d244-091c-4e5d-8bba-d56263da437c",
+    "efi_boot_current": "0001",
+    "efi_boot_order": [
+      "0001"
+    ],
+    "grub": "One-second hidden menu on the normal path, with manual recovery available.",
+    "systemd_analyze_seconds": {
+      "firmware": 6.742,
+      "loader": 3.247,
+      "kernel": 0.819,
+      "initrd": 2.145,
+      "userspace": 9.247,
+      "total": 22.202,
+      "graphical_target_in_userspace": 8.706
+    },
+    "settled_selfcheck_passed": 54,
+    "settled_post_update": {
+      "passed": 55,
+      "failed": 1,
+      "journal": "The temporary moos-v3-check-1173.service ran kiconfinder6 before the display was available."
+    },
+    "hardware_adapter": "Exited 0 at 21:07:38 CET. The internal panel had a connector-owned kernel backlight and no external monitor bus.",
+    "retained_rollback": "44.20261116.1162",
+    "retired_after_configuration_archive": [
+      "44.20261114.1152",
+      "44.20261019.1078"
+    ],
+    "settings_archive": "Both /etc trees and deployment origin metadata were compared with private local archives before removal. A fresh deployment listing contained only 1173 and 1162."
+  },
+  "plymouth_arrival_review": {
+    "commit": "4990055d",
+    "duration_ms": 720,
+    "frame_count": 32,
+    "distinct_frames": 17,
+    "renderer": "Native Plymouth in the development SDK rendered the boot theme. At 640x360, 640x480 and 800x480, the Arabic greeting and password ink stayed separate and the password bullets redrew within 200 ms. Additional renders covered 800x1280, 1920x1080 and 3840x2160.",
+    "delivery": "V3 ran the existing signed 1173 theme. The new animation requires a signed successor and physical boot observation."
   }
 }

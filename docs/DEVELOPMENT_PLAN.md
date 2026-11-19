@@ -28,7 +28,7 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-The x86 editions reached production as 1173. ARM candidate 994 passed image verification on main at a0261263 and awaits its live disk proof and promotion. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
+The x86 editions reached production as 1173. ARM 994 from main a0261263 passed the desktop QCOW2 UEFI boot and production promotion in run 44573209173. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
 
 Nov19 P0.1/P6.8: the upstream ARM base moved to 44.20261119.0 and renumbered service accounts. Register the exact new account bodies, refuse the old ones (PR CI rebuilt ARM/recovery on the new base), then follow the signed ARM pipeline and read back passim ownership after the Oracle update. [Review](reviews/2026-11-19-arm-base-accounts.json).
 
@@ -39,8 +39,8 @@ and a signed system update, and has explicitly approved the requested automated 
 checks. Physical host reboot/suspend remains coordinated with open editor work.
 
 Oracle merged PR313 at 3f114cb0 and started the signed x86 cycle (44511467942).
-V3 Codex coordinates the recovery follow-up with PR314 and retains both 1152 and
-1078. Use the existing release run through completion before advancing main.
+V3 coordinates the packaged ARM recovery follow-up. On signed 1173 its normal firmware
+order contains only MoOS entry 0001, and GRUB hides the normal menu for one second.
 The 966 recovery guest recorded a coldplug probe before udev readiness in one
 boot and a cloud-final/menu ordering cycle. Its native dialog also refused an
 occupied target and misreported the second empty-target row. Require a real
@@ -87,19 +87,17 @@ production bytes. Private captures/build trees, credentials and inaccessible
 native evidence directories are not publication candidates. No blanket add,
 prune or worktree removal is authorized by an inventory.
 
-The signed-update helper on V3 reports 1162 current, 1152 available for rollback
-and no staged deployment. ARM966 has a separate promotion. Only 1078 is pinned.
-At least four readable files in its local configuration differ from both surviving
-deployments. Preserve its private configuration and metadata before retiring it
-after replacement boot and validation. The locally retained 1139 offline ISO
-passed a fresh full-byte checksum and detached-signature check. Most 1078 files
-share storage with retained OSTree objects. The historical user qualification
+On Nov19 V3 booted signed 1173 in 22.202 s. The only other deployment is 1162 for rollback.
+The owner authorized retiring 1152 and 1078 after their local settings and origin metadata
+were archived privately and checked against the originals. The locally retained 1139 offline ISO
+previously passed full-byte checksum and detached-signature checks. The 720 ms Plymouth logo
+and Arabic welcome passed native render and passphrase checks. Qualify this new source
+in the signed successor and verify its appearance on the physical screen. The historical user qualification
 159 failure has a preserved log and was cleared after the d8 source pass.
 The V3 service reproduced exit 1 while ddcutil could not locate its dynamic
 sleep cache. A private systemd runtime cache restored a completed, inactive
-oneshot and a new stamp with the same mixed display topology. The temporary
-override under /run expires at boot. The signed successor must carry the unit
-setting and pass its own postboot readback. The existing PowerDevil policy and
+oneshot and a new stamp with the same mixed display topology. After reboot, the signed 1173 unit completed on the internal backlight.
+Repeat on the mixed-display topology to verify that separate path. The existing PowerDevil policy and
 zram size were preserved.
 
 The V3 audit at 6315e997 includes all 70 local branch tips, 216 live GitHub
@@ -392,8 +390,8 @@ M0 evidence as measured performance or require another local VM image.
    القديم إلى عقد44 الأصلي المقاس دون إسقاط تغطية الرسوم/الحالات/الهوية.
 4. احفظ كلcommit أصلي والأرشيف والعمل الخاص. لا تدفع أسرارًا أو صورًا خاصة
    أوbuild trees. تحقق من الأسلاف والمالك والملفات المفتوحة قبل تقاعد شجرة عمل.
-5. اقرأ الجهاز الحالي:1162 مع1152 و1078 مثبت. لا تحذف1152؛1078 مرشح فقط بعد
-   القبول وقراءةtuple فورية ومسارإزالةdeployment أصلي، لاprune ولاحذف يدوي.
+5. أقلع V3 إلى 1173 الموقّع وبقي 1162 للرجوع. أُزيلت 1152 و1078 بعد التحقق من
+   أرشيفَي الإعدادات المحليين. يلزم فحص الحركة الجديدة على الجهاز بعد إصدارها.
 6. بعد البوابات المعتمدة، ادمج مرة واحدة وجمّدSHA الفعلي عبر`--expected-revision`.
    كلتوقيع/digest/tree/attempt وإثباتx86/ISO/ARM وrecovery المنفصل لازم. التحديث
    والإقلاع الفعلي وقراءة الجهاز مرحلة أخرى؛ نسّق حفظ المحررات قبل إعادة التشغيل.
@@ -409,7 +407,7 @@ M0 evidence as measured performance or require another local VM image.
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Nov16 V3 boots signed1162/fc6dc666 at62156a3b, rollback1152 and pinned1078. Three x86 QCOW2/offline ISO/promotion43909184122 and native ARM43903637017 pass. Postcheck55/1 retains actual DDC failure; source successor is not installed. Physical journeys remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | Nov19 V3 booted signed 1173/d3ce53eb, retaining 1162. The native hardware unit and all 54 settled self-checks passed. Post-update returned 55/1 after the early check service logged a display error. All three x86 editions and ARM 994 reached production. The separate recovery disk and a signed physical boot of the new animation remain open. | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Reviewed Plymouth producer/native library and exact final initramfs gates are integrated for desktop and separate ARM recovery. Main ARM44289879261 passes recovery image/archive construction and desktop disk boot/promotion. The packaged recovery disk has no separate UEFI boot proof; keep that acceptance open and preserve old stock-package/source-log refusals | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | PR311 Repo44323788769 refuses old TitleHeight32/ButtonWidth20 assertions against reviewed native44px geometry; exact remaining SVG/state/identity controls stay intact. Its ARM44323788733/x8644323788622 jobs retain their original1df inputs. New combined-head Repo/image CI is approved and remains mandatory before normal main merge | PR generic image gates block real image failures; no signing/publishing from PR. |
