@@ -54,6 +54,10 @@ on:
       - "tests/test_arm_unit_enablement.py"
       - "tests/test_arm_initramfs_size.py"
       - "tests/test_arm_recovery_plymouth.py"
+      - "tests/boot_utm_net_installer.sh"
+      - "tests/arm_recovery_boot.py"
+      - "tests/test_arm_recovery_boot.py"
+      - "tests/test_arm_recovery_startup.py"
       - "tests/test_icon_theme_inheritance.py"
       - "tests/test_webengine_dictionaries.py"
       - "tests/test_utm_bundle.py"
@@ -81,6 +85,10 @@ on:
       - "tests/test_arm_unit_enablement.py"
       - "tests/test_arm_initramfs_size.py"
       - "tests/test_arm_recovery_plymouth.py"
+      - "tests/boot_utm_net_installer.sh"
+      - "tests/arm_recovery_boot.py"
+      - "tests/test_arm_recovery_boot.py"
+      - "tests/test_arm_recovery_startup.py"
       - "tests/test_icon_theme_inheritance.py"
       - "tests/test_webengine_dictionaries.py"
       - "tests/test_utm_bundle.py"
@@ -160,6 +168,8 @@ jobs:
           python3 tests/test_moai_hermes.py
           python3 tests/test_arm_initramfs_size.py
           python3 tests/test_arm_recovery_plymouth.py
+          python3 tests/test_arm_recovery_boot.py
+          python3 tests/test_arm_recovery_startup.py
           python3 tests/test_icon_theme_inheritance.py
           python3 tests/test_webengine_dictionaries.py
           python3 tests/test_boot_splash_polish.py
@@ -442,7 +452,7 @@ jobs:
           sudo apt-get install -y -qq \
             podman zstd qemu-utils btrfs-progs \
             qemu-system-arm qemu-efi-aarch64 cloud-image-utils \
-            openssh-client socat imagemagick xvfb x11-utils
+            openssh-client socat imagemagick xvfb x11-utils tesseract-ocr
 
       - name: Install cosign
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
@@ -554,6 +564,28 @@ jobs:
           # below is the zip alone. Copying the deleted file failed every ARM disk job on main.
           sha256sum release/utm/MoOS-UTM-Installer.utm.zip | tee release/utm/MoOS-UTM-Installer.utm.zip.sha256
           du -h release/utm/MoOS-UTM-Installer.utm.zip
+
+      # The recovery disk is a different image, with its own seed, target and
+      # menu. Its exact packaged bytes must pass before disk can admit promote.
+      - name: Boot and accept the packaged three-drive recovery installer
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          archive=release/utm/MoOS-UTM-Installer.utm.zip
+          before="$(sha256sum "$archive" | awk '{print $1}')"
+          tests/boot_utm_net_installer.sh "$archive" arm-recovery-boot-proof \
+            --expected-sha256 "$before" --revision "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
+          [ "$(sha256sum "$archive" | awk '{print $1}')" = "$before" ]
+          echo "MOOS_ARM_RECOVERY_PROVEN_SHA256=$before" >> "$GITHUB_ENV"
+
+      - name: Upload ARM recovery acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: moos-arm-recovery-boot-proof
+          path: arm-recovery-boot-proof/
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Upload UTM Net Installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -670,11 +702,11 @@ jobs:
             --output "$work/MoOS-ARM-iPhone-Full.utm" \
             | tee "$work/utm-iphone-generation.log"
 
-          python3 artwork/generate_utm_installer.py \
-            --installer-qcow2 "$MOOS_ARM_RECOVERY_QCOW" \
-            --iphone \
-            --output "$work/MoOS-UTM-Installer.utm" \
-            --zip "$work/MoOS-UTM-Installer.utm.zip"
+          # Never regenerate UUIDs/seed/config after acceptance. Keep the exact
+          # archive whose native recovery journey passed earlier in this job.
+          recovery_archive=release/utm/MoOS-UTM-Installer.utm.zip
+          [ "$(sha256sum "$recovery_archive" | awk '{print $1}')" = "$MOOS_ARM_RECOVERY_PROVEN_SHA256" ]
+          cp "$recovery_archive" "$work/MoOS-UTM-Installer.utm.zip"
 
           python3 - "$work/MoOS-ARM.utm.zip" "$MOOS_ARM_PROVEN_SHA256" "$SOURCE_IMAGE" <<'PY'
           import json
