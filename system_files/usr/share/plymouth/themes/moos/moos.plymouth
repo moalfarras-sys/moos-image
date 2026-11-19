@@ -1,8 +1,9 @@
-# MoOS Plymouth theme. The mark rises first, followed by the shaped Arabic welcome.
-# Password entry and desktop handoff settle immediately.
+# MoOS Plymouth theme — Liquid Glass. Glass droplets flow into a lens, the mark
+# resolves, then the Meyar wordmark and Arabic welcome settle (1.8 s, then still).
+# Password entry, shutdown and desktop handoff settle immediately.
 [Plymouth Theme]
 Name=MoOS
-Description=MoOS rendered logo sting with a composed, flicker-free handoff to the desktop.
+Description=MoOS Liquid Glass boot scene with a composed, flicker-free handoff to the desktop.
 ModuleName=script
 
 [script]

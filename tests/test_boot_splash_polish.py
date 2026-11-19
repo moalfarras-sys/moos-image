@@ -69,6 +69,18 @@ def scalar(name: str) -> float:
     return float(m.group(1))
 
 
+def js_source() -> str:
+    """moos.script as JavaScript for the callback harnesses.
+
+    Plymouth creates an indexed array on first assignment; JavaScript needs a
+    declaration. The arithmetic and control flow are otherwise identical.
+    """
+    text = script_text()
+    arrays = sorted(set(re.findall(r"^\s*(\w+)\[[^\]]+\]\s*=", text, re.MULTILINE)))
+    declarations = "".join(f"var {name} = [];\n" for name in arrays)
+    return declarations + re.sub(r"\bfun\s+", "function ", text)
+
+
 def intro_frames() -> list[Path]:
     fs = list(THEME.glob("intro*.png"))
     return sorted(fs, key=lambda p: int("".join(c for c in p.stem if c.isdigit())))
@@ -153,18 +165,21 @@ class BootSplashTests(unittest.TestCase):
     def test_arabic_greeting_is_shaped_and_preserves_prompt_space(self) -> None:
         provenance = json.loads((ROOT / "artwork/moos-design/boot-caption.json").read_text())
         self.assertEqual(provenance["caption"], "مرحبًا بك")
-        with Image.open(THEME / "welcome-ar.png") as caption:
-            self.assertEqual(list(caption.size), provenance["size"])
-            self.assertEqual(hashlib.sha256(caption.tobytes()).hexdigest(), provenance["pixelSHA256"])
-            self.assertIsNotNone(caption.getbbox())
-            self.assertEqual(caption.mode, "RGBA")
-            self.assertLess((THEME / "welcome-ar.png").stat().st_size, 65536)
-            for w, h in ((640, 480), (1920, 1080), (3840, 2160), (360, 640)):
-                stage_w = min(w * .44, h * .40 * 1.5396)
-                stage_h = stage_w / 1.5396
-                width = min(w * .50, max(stage_w * .30, 100))
-                bottom = h / 2 + stage_h / 2 + min(28, h * .025) + width * caption.height / caption.width
-                self.assertLess(bottom, h * .80, (w, h, "greeting overlaps native passphrase"))
+        self.assertEqual(provenance["captions"]["farewell"]["caption"], "إلى اللقاء")
+        font = ROOT / provenance["fontSource"]
+        self.assertEqual(hashlib.sha256(font.read_bytes()).hexdigest(), provenance["fontSHA256"])
+        for key, name in (("welcome", "welcome-ar.png"), ("farewell", "farewell-ar.png")):
+            record = provenance["captions"][key]
+            with Image.open(THEME / name) as caption:
+                self.assertEqual(list(caption.size), record["size"])
+                self.assertEqual(hashlib.sha256(caption.tobytes()).hexdigest(), record["pixelSHA256"])
+                self.assertEqual(caption.mode, "RGBA")
+                box = caption.getbbox()
+                self.assertIsNotNone(box)
+                # Stacked marks (tanween, hamza below alef) keep a clear margin.
+                self.assertGreater(box[1], 0)
+                self.assertLess(box[3], caption.height)
+                self.assertLess((THEME / name).stat().st_size, 65536)
         self.assertIn('greeting_sprite.SetOpacity(0)', script_text())
 
     def test_backdrop_is_scaled_once_outside_the_refresh_loop(self) -> None:
@@ -253,7 +268,9 @@ class BootSplashTests(unittest.TestCase):
         text = script_text()
         refresh = text.split("fun refresh()", 1)[1].split("Plymouth.SetRefreshFunction", 1)[0]
         self.assertNotIn(".Scale(", refresh)
-        self.assertIn("tick >= 18", refresh)
+        # A short scene, never a loop: at 25 Hz this is at most two seconds.
+        self.assertLessEqual(scalar("ENTRANCE_TICKS"), 50)
+        self.assertIn("tick >= ENTRANCE_TICKS", refresh)
         self.assertIn("finished = 1", refresh)
         self.assertEqual(len(intro_frames()), 1)
 
@@ -269,11 +286,12 @@ function check(source, mode) {
   function picture(w=853,h=554) { return {GetWidth:()=>w,GetHeight:()=>h,
     Scale:(x,y)=>{scaled++;return picture(x,y);}}; }
   const Image = () => picture(); Image.Text = () => picture(100,20);
-  const context = {frames:[], Image, Sprite:()=>({y:0,opacity:1,
-    SetImage:()=>{},SetX:()=>{},SetZ:()=>{},
+  const context = {frames:[], Image, Sprite:()=>({x:0,y:0,opacity:1,
+    SetImage:()=>{},SetX(x){this.x=x;},SetZ:()=>{},
     SetY(y){this.y=y;calls.push(['y',y]);},
     SetOpacity(a){this.opacity=a;calls.push(['alpha',a]);}}),
     Window:{GetWidth:()=>1536,GetHeight:()=>864,SetBackgroundTopColor:()=>{},SetBackgroundBottomColor:()=>{}},
+    Math:{Cos:Math.cos,Sin:Math.sin},
     Plymouth:{GetMode:()=>mode,SetRefreshRate:()=>{},
       SetRefreshFunction:f=>context.refreshCallback=f,SetQuitFunction:f=>context.quitCallback=f,
       SetMessageFunction:()=>{},SetDisplayPasswordFunction:()=>{},SetDisplayNormalFunction:()=>{}}};
@@ -282,13 +300,16 @@ function check(source, mode) {
   if (mode==='boot' || mode==='boot-full') {
     if (!(context.intro_sprite.y>context.stage_y)) throw Error('missing finite arrival');
     if (mode==='boot-full') {
-      for(let i=0;i<4;i++) context.refreshCallback();
-      if (!(context.intro_sprite.opacity>0.4 && context.greeting_sprite.opacity===0))
-        throw Error('the greeting appeared before the mark');
-      for(let i=4;i<12;i++) context.refreshCallback();
+      if (!(context.intro_sprite.opacity>=context.MARK_GHOST && context.MARK_GHOST>0))
+        throw Error('the mark is absent from the first frame');
+      for(let i=0;i<8;i++) context.refreshCallback();
+      if (!(context.greeting_sprite.opacity===0 &&
+            context.drop_sprite.some(d=>d.opacity>0)))
+        throw Error('the droplets did not flow before the greeting');
+      for(let i=8;i<38;i++) context.refreshCallback();
       if (!(context.intro_sprite.opacity===1 && context.greeting_sprite.opacity>0 &&
             context.greeting_sprite.opacity<1)) throw Error('missing greeting arrival');
-      for(let i=12;i<18;i++) context.refreshCallback();
+      for(let i=38;i<context.ENTRANCE_TICKS;i++) context.refreshCallback();
     } else {
       context.refreshCallback(); context.refreshCallback(); context.refreshCallback();
       context.quitCallback();
@@ -301,13 +322,21 @@ function check(source, mode) {
   const greetingOpacity=(mode==='shutdown'||mode==='reboot')?0:1;
   if(context.greeting_sprite.opacity!==greetingOpacity || context.greeting_sprite.y!==context.greeting_y)
     throw Error('greeting did not settle at handoff');
+  if(context.farewell_sprite.opacity!==1-greetingOpacity)
+    throw Error('farewell does not match the mode');
+  if(context.drop_sprite.some(d=>d.opacity!==0) || context.glint_sprite.opacity!==0)
+    throw Error('a droplet or glint stayed on the resting frame');
+  if(context.bezel_sprite.opacity!==1 || context.sheen_sprite.opacity!==context.SHEEN_REST ||
+     context.sheen_sprite.y!==context.sheen_y || context.letter_sprite.some((l,k)=>
+       l.opacity!==1 || l.y!==context.word_y))
+    throw Error('glass or wordmark did not settle');
   const settled=calls.length;
   for(let i=0;i<200;i++) context.refreshCallback();
   if (calls.length!==settled || scaled!==initialScaleCount) throw Error('rest keeps doing work');
   return true;
 }
 '''
-        source = re.sub(r'\bfun\s+', 'function ', script_text())
+        source = js_source()
         for broken in (False, True):
             candidate = source
             if broken:
@@ -366,7 +395,7 @@ function check(source) {
   }
 }
 '''
-        source = re.sub(r'\bfun\s+', 'function ', script_text())
+        source = js_source()
         for old in (False, True):
             candidate = source
             if old:
@@ -383,6 +412,95 @@ function check(source) {
             else:
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertIn('MOOS_PASSWORD_ROWS_PASS', result.stdout)
+
+    # ── the Liquid Glass composition ───────────────────────────────────────
+    def test_glass_layers_fit_their_decode_and_initramfs_budget(self) -> None:
+        # Every image the script loads except the fixed 1080p backdrop: the
+        # improved mark, two lens layers, droplets, glint, letters, captions.
+        names = [n for n in loaded_assets() if n != "boot-backdrop.png"]
+        decoded = on_disk = 0
+        for name in names:
+            w, h = png_size(THEME / name)
+            decoded += w * h * 4
+            on_disk += (THEME / name).stat().st_size
+        self.assertLess(decoded / 1048576, 6,
+                        f"the glass layers decode to {decoded / 1048576:.1f} MiB in the initramfs")
+        self.assertLess(on_disk / 1048576, 1.5,
+                        f"the glass layers add {on_disk / 1048576:.2f} MiB to every initramfs")
+
+    def test_glass_assets_come_from_the_recorded_blender_build(self) -> None:
+        record = json.loads((ROOT / "artwork/moos-design/boot-glass.json").read_text())
+        svg = ROOT / "artwork/logo/MoOS_Logo_Vector_High_Detail.svg"
+        self.assertEqual(hashlib.sha256(svg.read_bytes()).hexdigest(), record["logo"]["svgSHA256"],
+                         "the boot mark is no longer derived from the owner's vector master")
+        scene = ROOT / record["scene"]
+        self.assertEqual(hashlib.sha256(scene.read_bytes()).hexdigest(), record["sceneSHA256"])
+        self.assertTrue(record["renderer"].startswith("Blender "))
+        for name in loaded_assets():
+            with self.subTest(asset=name):
+                self.assertEqual(hashlib.sha256((THEME / name).read_bytes()).hexdigest(),
+                                 record["assets"][name]["sha256"],
+                                 f"{name} differs from artwork/generate_boot_glass.py output")
+
+    @unittest.skipUnless(shutil.which('node'), 'layout evaluation needs Node')
+    def test_resting_composition_fits_every_screen_and_leaves_prompt_room(self) -> None:
+        # Execute the actual setup arithmetic with the shipped image sizes.
+        sizes = {name: list(png_size(THEME / name)) for name in loaded_assets()}
+        prelude = r'''const vm = require('node:vm');
+function layout(source, sizes, w, h, mode) {
+  const sprites = [];
+  function picture(width,height) { return {GetWidth:()=>width,GetHeight:()=>height,
+    Scale:(x,y)=>picture(x,y)}; }
+  const Image = name => picture(...sizes[name]);
+  Image.Text = () => picture(100,20);
+  const context = {Image, Sprite:(image)=>{const s={x:0,y:0,opacity:1,image,
+      SetImage(i){this.image=i;},SetX(x){this.x=x;},SetY(y){this.y=y;},SetZ(){},
+      SetOpacity(a){this.opacity=a;}}; sprites.push(s); return s;},
+    Math:{Cos:Math.cos,Sin:Math.sin},
+    Window:{GetWidth:()=>w,GetHeight:()=>h,SetBackgroundTopColor:()=>{},SetBackgroundBottomColor:()=>{}},
+    Plymouth:{GetMode:()=>mode,SetRefreshRate:()=>{},SetRefreshFunction:f=>context.refresh=f,
+      SetQuitFunction:f=>context.quit=f,SetMessageFunction:()=>{},SetDisplayPasswordFunction:()=>{},
+      SetDisplayNormalFunction:()=>{}}};
+  vm.runInNewContext(source, context, {timeout:1000});
+  context.quit();
+  const box = s => [s.x, s.y, s.x + s.image.GetWidth(), s.y + s.image.GetHeight()];
+  const c = context, fail = m => { throw Error(`${w}x${h} ${mode}: ${m}`); };
+  const shown = sprites.filter(s => s.image && s.opacity > 0 && s !== c.backdrop_sprite);
+  for (const s of shown) { const [x0,y0,x1,y1] = box(s);
+    if (x0 < 0 || y0 < 0 || x1 > w || y1 > h) fail('a resting layer leaves the screen'); }
+  const lens = box(c.bezel_sprite), letters = c.letter_sprite.map(box);
+  if (letters[0][1] < lens[1] + (lens[3]-lens[1]) * 0.89) fail('the wordmark overlaps the glass ring');
+  for (let k = 1; k < 4; k++) if (letters[k][0] < letters[k-1][0]) fail('letters out of order');
+  const ink = (k) => [letters[k][0] + c.letter_pad, letters[k][2] - c.letter_pad];
+  for (let k = 1; k < 4; k++) if (ink(k)[0] < ink(k-1)[1] - 0.01) fail('letters overlap');
+  const caption = mode === 'boot' ? c.greeting_sprite : c.farewell_sprite;
+  const cap = box(caption);
+  if (cap[1] < letters[0][3]) fail('the Arabic caption overlaps the wordmark');
+  if (cap[3] > h * 0.80) fail('the Arabic caption enters the passphrase rows');
+  if (Math.abs((letters[0][0] + letters[3][2]) / 2 - w / 2) > 1) fail('wordmark not centred');
+}
+'''
+        source = js_source()
+        for broken in (False, True):
+            candidate = source
+            if broken:
+                # Original control: drop the tracking compensation for the
+                # letters' transparent margins and the word drifts off centre.
+                line = "word_w = word_w + 3 * (tracking - 2 * letter_pad);"
+                self.assertEqual(candidate.count(line), 1)
+                candidate = candidate.replace(line, "word_w = word_w + 3 * tracking;")
+            program = prelude + "const sizes=" + json.dumps(sizes) + ";const source=" + json.dumps(candidate) + ";"
+            program += ("for (const [w,h] of [[640,480],[360,640],[800,1280],[1920,1080],[2560,1600],"
+                        "[3840,2160],[3440,1440]]) for (const m of ['boot','shutdown']) layout(source,sizes,w,h,m);"
+                        "process.stdout.write('MOOS_GLASS_LAYOUT_PASS');")
+            result = subprocess.run([shutil.which('node'), '-e', program], capture_output=True,
+                                    text=True, timeout=20)
+            if broken:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('wordmark not centred', result.stderr)
+            else:
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn('MOOS_GLASS_LAYOUT_PASS', result.stdout)
 
     def test_the_fallback_ground_is_the_fixed_boot_canvas(self) -> None:
         # Boot belongs to the OS identity, independently of a user's theme.
