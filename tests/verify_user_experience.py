@@ -5005,7 +5005,7 @@ require("stage_x = cx - stage_w / 2" in moos_script_src
         and "intro_sprite.SetX(stage_x)" in moos_script_src
         and "intro_sprite.SetY(stage_y)" in moos_script_src,
         "the rendered boot stage must be centred as the hero")
-require("tick >= 9" in moos_script_src and "finished = 1" in moos_script_src,
+require("tick >= 18" in moos_script_src and "finished = 1" in moos_script_src,
         "boot entrance must finish without an endless orbit")
 # Scale to screen height, so it is crisp at 1080p and 4K without stretching.
 require("Window.GetHeight(0)" in moos_script_src,

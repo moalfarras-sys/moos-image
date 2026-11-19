@@ -253,7 +253,7 @@ class BootSplashTests(unittest.TestCase):
         text = script_text()
         refresh = text.split("fun refresh()", 1)[1].split("Plymouth.SetRefreshFunction", 1)[0]
         self.assertNotIn(".Scale(", refresh)
-        self.assertIn("tick >= 9", refresh)
+        self.assertIn("tick >= 18", refresh)
         self.assertIn("finished = 1", refresh)
         self.assertEqual(len(intro_frames()), 1)
 
@@ -282,7 +282,13 @@ function check(source, mode) {
   if (mode==='boot' || mode==='boot-full') {
     if (!(context.intro_sprite.y>context.stage_y)) throw Error('missing finite arrival');
     if (mode==='boot-full') {
-      for(let i=0;i<9;i++) context.refreshCallback();
+      for(let i=0;i<4;i++) context.refreshCallback();
+      if (!(context.intro_sprite.opacity>0.4 && context.greeting_sprite.opacity===0))
+        throw Error('the greeting appeared before the mark');
+      for(let i=4;i<12;i++) context.refreshCallback();
+      if (!(context.intro_sprite.opacity===1 && context.greeting_sprite.opacity>0 &&
+            context.greeting_sprite.opacity<1)) throw Error('missing greeting arrival');
+      for(let i=12;i<18;i++) context.refreshCallback();
     } else {
       context.refreshCallback(); context.refreshCallback(); context.refreshCallback();
       context.quitCallback();
@@ -292,6 +298,9 @@ function check(source, mode) {
   } else if (context.intro_sprite.y!==context.stage_y || context.intro_sprite.opacity!==1) {
     throw Error('shutdown did not start at rest');
   }
+  const greetingOpacity=(mode==='shutdown'||mode==='reboot')?0:1;
+  if(context.greeting_sprite.opacity!==greetingOpacity || context.greeting_sprite.y!==context.greeting_y)
+    throw Error('greeting did not settle at handoff');
   const settled=calls.length;
   for(let i=0;i<200;i++) context.refreshCallback();
   if (calls.length!==settled || scaled!==initialScaleCount) throw Error('rest keeps doing work');

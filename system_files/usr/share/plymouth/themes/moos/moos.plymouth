@@ -1,16 +1,5 @@
-# MoOS premium boot splash — native Plymouth SCRIPT theme.
-#
-# Plays the owner's 32-frame rendered MoOS sting on the UI2 graphite canvas
-# (#14191C — the same colour the desktop opens on, so the handoff has no hue
-# break), then holds the final composed frame until KWin paints. On a genuinely
-# slow boot, a lightweight generated ring/head cue fades in after the title
-# sequence so the settled image never reads as a hang.
-#
-# The theme keeps the ID `moos` on purpose — it is named in build.sh, in
-# /etc/plymouth/plymouthd.conf, in the initramfs, and in the gates; the boot
-# splash is a single system-wide surface that cannot follow a per-user Global
-# Theme anyway. If a frame fails to load, Plymouth falls back to its text splash
-# and the machine still boots.
+# MoOS Plymouth theme. The mark rises first, followed by the shaped Arabic welcome.
+# Password entry and desktop handoff settle immediately.
 [Plymouth Theme]
 Name=MoOS
 Description=MoOS rendered logo sting with a composed, flicker-free handoff to the desktop.

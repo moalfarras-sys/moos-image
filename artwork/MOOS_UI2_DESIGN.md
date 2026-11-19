@@ -558,7 +558,7 @@ One subordinate shaped Arabic «مرحبًا بك» greeting is rasterized from 
 Sans Arabic; it needs no early font/locale discovery and hides during shutdown
 and reboot. No new logo, video, decorative panels or fake percentage.
 
-Motion is finite: 0.70→1 opacity over 360 ms; shutdown, password prompt and quit
+The mark rises and brightens over 480 ms. The Arabic greeting follows from 160 to 720 ms. Shutdown, password prompt and quit
 immediately settle. No minimum display time, spinner loop or additional session
 splash. Pre-login has no user's Plasma motion settings. Native text stays bounded
 and uses the existing muted/text/primary tokens. Once settled, refresh performs

@@ -1,6 +1,6 @@
 // MoOS boot identity. Independent of the selected desktop/login theme.
 // No minimum display time, fake percentage, perpetual orbit or full-screen blur.
-// Decode one hero; scale it once. The short opacity entrance finishes in 360 ms;
+// Decode one hero; scale it once. The logo and greeting arrive in 720 ms;
 // shutdown and quit immediately present the resting composition.
 Window.SetBackgroundTopColor(0.039, 0.063, 0.106);      // fixed #0A101B brand ground
 Window.SetBackgroundBottomColor(0.039, 0.063, 0.106);   // flat fallback, no seam
@@ -55,29 +55,40 @@ greeting_w = fmin(sw * 0.50, fmax(stage_w * 0.30, 100));
 greeting_h = greeting_w * greeting.GetHeight() / greeting.GetWidth();
 greeting_sprite = Sprite(greeting.Scale(greeting_w, greeting_h));
 greeting_sprite.SetX(cx - greeting_w / 2);
-greeting_sprite.SetY(stage_y + stage_h + fmin(28, sh * 0.025));
+greeting_y = stage_y + stage_h + fmin(28, sh * 0.025);
+greeting_sprite.SetY(greeting_y);
 greeting_sprite.SetZ(5);
 
 // Only a finite entrance. Pre-login has no desktop Reduced Motion preference;
-// use a still composition after nine ticks and during password entry/quit.
+// keep the resting composition during password entry and handoff.
 tick = 0;
 finished = 0;
 mode = Plymouth.GetMode();
-if (mode == "shutdown" || mode == "reboot") { greeting_sprite.SetOpacity(0); }
-if (mode == "shutdown" || mode == "reboot") { finished = 1; }
+greeting_at_rest = 1;
+if (mode == "shutdown" || mode == "reboot") {
+    greeting_at_rest = 0;
+    greeting_sprite.SetOpacity(0);
+    finished = 1;
+}
 if (finished == 0) {
-    intro_sprite.SetOpacity(0.70);
+    greeting_sprite.SetOpacity(0);
+    greeting_sprite.SetY(greeting_y + entrance_rise / 2);
+    intro_sprite.SetOpacity(0.40);
     intro_sprite.SetY(stage_y + entrance_rise);
 }
 Plymouth.SetRefreshRate(25);
 fun refresh() {
     if (finished == 0) {
         tick++;
-        remaining = 1 - clamp01(tick / 9.0);
+        remaining = 1 - clamp01(tick / 12.0);
         arrival = 1 - remaining * remaining * remaining;
-        intro_sprite.SetOpacity(0.70 + 0.30 * arrival);
+        intro_sprite.SetOpacity(0.40 + 0.60 * arrival);
         intro_sprite.SetY(stage_y + entrance_rise * (1 - arrival));
-        if (tick >= 9) {
+        greeting_progress = clamp01((tick - 4) / 14.0);
+        greeting_arrival = greeting_progress * greeting_progress * (3 - 2 * greeting_progress);
+        greeting_sprite.SetOpacity(greeting_arrival);
+        greeting_sprite.SetY(greeting_y + entrance_rise / 2 * (1 - greeting_arrival));
+        if (tick >= 18) {
             // Commit the same final raster as quit/password. Native Plymouth
             // otherwise retained the preceding blended edge until that event.
             intro_sprite.SetImage(hero);
@@ -93,6 +104,8 @@ fun quit_callback() {
     intro_sprite.SetImage(hero);
     intro_sprite.SetY(stage_y);
     intro_sprite.SetOpacity(1);
+    greeting_sprite.SetY(greeting_y);
+    greeting_sprite.SetOpacity(greeting_at_rest);
     Plymouth.SetRefreshRate(1);
 }
 Plymouth.SetQuitFunction(quit_callback);

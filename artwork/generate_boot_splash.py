@@ -133,7 +133,7 @@ def render():
     print(f"theme -> {THEME}")
     fw, fh = Image.open(frames[0]).size
     print(f"  intro   : {len(frames)} frames, {fw}x{fh} each, {seq/1024:.0f} KiB")
-    print("  motion  : finite 360 ms opacity entrance; then still")
+    print("  motion  : 720 ms logo and Arabic greeting entrance, then still")
     print(f"  logo    : kept for the spinner-watermark gate in build.sh")
     if gone:
         print(f"  removed : {gone} retired sprite(s) from the previous synthesised reveal")
