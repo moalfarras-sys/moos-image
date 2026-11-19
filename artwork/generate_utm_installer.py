@@ -6,8 +6,9 @@ The bundle ships:
   - target.qcow2     empty persistent 32 GiB VirtIO disk
   - seed.iso         cloud-init that offers install / boot / recovery
 
-On first boot the installer fetches ONLY the signed ghcr.io/moalfarras-sys/moos-arm
-digest recorded in release/arm-latest.json (never GitHub source trees).
+After an explicit Install choice, the installer resolves the promoted MoOS ARM
+registry tag once to a signed digest. A bundled release snapshot is the fallback
+when the registry is unavailable; GitHub source trees are never installed.
 """
 
 from __future__ import annotations
@@ -151,7 +152,9 @@ def seed_user_data() -> str:
             "#cloud-config",
             "runcmd:",
             "  - [systemctl, enable, --now, NetworkManager]",
-            "  - [systemctl, enable, --now, moos-utm-installer.service]",
+            # Recovery already enables the menu under cloud-init.target. A
+            # synchronous start here waits for a service ordered after this
+            # cloud-final stage and prevents either operation from completing.
             "final_message: MoOS UTM installer ready — choose Install from the menu",
         ]
     ) + "\n"
@@ -250,8 +253,9 @@ def main() -> int:
                 "First boot:",
                 "  1. Connect network (Shared is fine on Mac/iPhone).",
                 "  2. Open UTM Terminal — install logs appear on ttyAMA0.",
-                "  3. Installer fetches the signed ghcr.io/moalfarras-sys/moos-arm digest",
-                "     from release/arm-latest.json and verifies cosign.",
+                "  3. Choose Install. The installer resolves promoted MoOS ARM once",
+                "     to a digest and verifies cosign. If registry access fails,",
+                "     it uses the bundled signed release snapshot (possibly older).",
                 "  4. Reboot; UEFI should prefer the target disk when MoOS is installed.",
                 "",
                 "Recovery:",

@@ -17,4 +17,4 @@ TTYVHangup=yes
 RemainAfterExit=no
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=cloud-init.target
