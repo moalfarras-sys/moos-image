@@ -35,6 +35,7 @@ ARM_PACKAGE = {
     "usr/bin/lsusb": "usbutils",
     "usr/bin/node": "nodejs22",
     "usr/bin/npm": "nodejs22-npm",
+    "usr/lib64/libatomic.so.1": "libatomic",
     "usr/share/qt6/translations/qtbase_ar.qm": "qt6-qttranslations",
     "usr/bin/pw-dump": "pipewire-utils",
     "usr/share/themes/Breeze/gtk-3.0/gtk.css": "breeze-gtk-gtk3",

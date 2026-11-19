@@ -1,0 +1,186 @@
+{
+  "date": "2026-11-19",
+  "host": "Oracle ARM 966",
+  "integration": {
+    "main": "3f114cb03ba92f311017d3d77603dbbdc6864323",
+    "qualified_source": "434222538eb1e3fba10d0bcd146fe54d88e3fa04",
+    "tree": "e1ec3aee8a6746c6199ff62b0048917888a90184",
+    "oracle_full_check_seconds": 1861,
+    "oracle_full_check_exit": 0,
+    "v3_local_build_seconds": 5860.217,
+    "v3_local_build_exit": 0,
+    "v3_log_and_image": "https://github.com/moalfarras-sys/moos-image/pull/313#issuecomment-7009644470",
+    "v3_image": "sha256:8ecf4cec0d2912a05c511d8fdf33b6fc81ad14dfbe6ae2ed3a5a5acc27c37d2d",
+    "pr_arm": 44489790163,
+    "pr_x86": 44489790122,
+    "follow_up_aggregate": "dced3a500c527d5289315156a2fa1a6f83f73724",
+    "integration_state": "PR315 merged into the V3 qualification branch. The Oracle aggregate includes all 57 Oracle local and 221 GitHub branch tips and all 10 Oracle worktree heads. The aggregate merge with main has the identical qualified tree. V3 owns the remaining independent installer boot and physical tablet journeys.",
+    "main_after_pr314": "a02612638c0e557b7fe289a469adc05baa961d47",
+    "v3_pr315_merge": "240b00a02171bf1bb370b896ea28c28b339e2ca8"
+  },
+  "appimage": {
+    "package": "OpenCode Desktop 1.19.6 ARM64",
+    "installed_original_error": "error while loading shared libraries: libz.so: cannot open shared object file",
+    "fix": "Within the private extractor namespace, expose the installed libz.so.1 under the link name used by the runtime in a separate read-only tmpfs when the unversioned library is absent. Tool extraction and app execution retain their existing library search.",
+    "actual_native_extraction": {
+      "version": "1.19.6",
+      "members": 125,
+      "source": "c28e720ae319eed7086744e1c6295ace9fb86c160d01ebe2669006417398976f",
+      "package_sha256": "2aa72af443f351da092da594bf176f0d44925122c0d00e291085822f7d627234",
+      "actual_runtime_extract": "passed"
+    },
+    "suite": {
+      "tests": 74,
+      "skipped": 1,
+      "exit": 0,
+      "seconds": 127.696,
+      "log_sha256": "5737f9aed57434e84de87625955cbb07aace120ef7fbb87081753774f2881e0f"
+    }
+  },
+  "atomic_runtime": {
+    "failure": "Hermes stable v0.23.2 uses Node 26.12.1. On ARM 966 the ELF loader reported libatomic.so.1 missing. The vendor updater tried the package manager and the immutable system refused the transaction.",
+    "repair": "Declare libatomic in the existing ARM and x86 transactions and verify its installed path through desktop parity.",
+    "native_control": {
+      "rpm": "libatomic-16.2.1-3.fc44.aarch64",
+      "rpm_sha256": "e75d85f53d7d02d732814bf8cd754877b695d9dacf35ed14119494ce7436002d",
+      "rpm_signer": "36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6",
+      "elf_sha256": "a3080d2b6427caa449cffd209dc845f71fc26068e516a2e32c715678d18df5b5",
+      "with_private_verified_library": "v26.12.1",
+      "parity_tests": 18,
+      "parity_result": "Passed after adding the provider to the package map. The initial missing-map failure is retained."
+    }
+  },
+  "owner_applications": {
+    "opencode_desktop": "1.19.6, installed through the archive path. Native visible AT-SPI frame measured 1280 by 720.",
+    "opencode_cli": "1.19.6, executable bytes match official ARM release",
+    "cursor": "3.30.14, native KWin window verified",
+    "cursor_remote_ssh": "1.1.19",
+    "jupyterlab": "4.6.6, canonical entry starts a private server with authenticated /lab and /api/status plus python3 kernel discovery",
+    "hermes": {
+      "cli": "0.23.2",
+      "desktop": "Canonical installed desktop entry opened the new packaged ARM64 binary. AT-SPI reported a showing, visible 1707x907 frame.",
+      "local_gateway": "Desktop initially started 0.22.5 from its separate installed root. Its native stable updater preserved a backup and restarted the gateway on 0.23.2, ae2a81ccc00e9b7c06301523e5bb09608397149c. Local remains primary and last used.",
+      "plugins": "Spotify and Home Assistant updated from 4d492b1d to e7a218f2 through the native plugin manager. Home Assistant required a separate dependency review for its Windows-only tzdata marker. The gateway defers tool activation until the next session.",
+      "build": "The existing toolbox built the native package. Restored 98102 new build objects to the user and preserved two shared inodes. The earlier conflicting CLI changes stay in the existing stash and full rollback copy."
+    },
+    "code_and_chatgpt": {
+      "running": {
+        "code": "1.145.2",
+        "chatgpt": "26.1111.71025-1"
+      },
+      "targets": {
+        "code": "1.147.0",
+        "chatgpt": "26.1111.71704-1"
+      },
+      "chatgpt_private": {
+        "publisher_fingerprint": "3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4",
+        "rpm_sha256": "85b855b3a9d36bc042ea38b6d7104a1e5bbf68d0910244d85a9d7bcd2a0f9104",
+        "result": "Native Store verification and private installation passed. The Arabic signed-out overlay returned a 1026x36 titlebar area in a 1090px window and zero page toolbar controls to measure. Signed-in overlap and the live user update remain open."
+      },
+      "idle_update": "Both installed trees reported app_in_use. The service submits the signed Store update and staged Code update when idle. The older Store can drop the reviewed launcher switch. A private signed-package test restored the launcher to its exact bytes and repeated as a no-op.",
+      "local_bridge": {
+        "unit": "~/.config/systemd/user/moos-app-updates-20261119.service",
+        "enabled_at": "plasma-workspace.target.wants",
+        "retire": "After successful activation and canonical launcher readback, disable the unit and retire only its matching unit file and enable link. The temporary reviewed vendor source/catalogue are needed only while signed 966 owns the launcher.",
+        "path_relative_to_private_task_results": "apps-update/idle-update",
+        "files": {
+          "moos-app-updates-20261119.service": {
+            "bytes": 792,
+            "sha256": "e4b36a56ecb87c7141d627c22a7525d2b62a7d3d3c519f3e8213fc57a62da190"
+          },
+          "run.py": {
+            "bytes": 2192,
+            "sha256": "d0c36c8517926877748a67c523cba6b3ed60f6b8ab28921e9a52b7ffa5f8d36f"
+          },
+          "after-editor.py": {
+            "bytes": 906,
+            "sha256": "62a16fac9b8ae356ef435dcb26fa579a52afa17d98a5b4a5c9a605ef6dd12148"
+          },
+          "chatgpt-launcher.py": {
+            "bytes": 1901,
+            "sha256": "d44027b887ef551a51c0433441abfcf95607da7a4d0b0777cf6aa21b2876c248"
+          },
+          "reviewed_vendor.py": {
+            "bytes": 110816,
+            "sha256": "39227aff43304aafebfc3dd10c2437ca46b72d09916ce808eb1142b73b8cf906"
+          },
+          "reviewed_catalog.json": {
+            "bytes": 245038,
+            "sha256": "893f6ca89554d7f2eee19dfb3ef7a65e15eda089ac6958b8817908c99dfa8df6"
+          }
+        }
+      }
+    }
+  },
+  "signed_delivery": {
+    "x86": {
+      "source": "3f114cb03ba92f311017d3d77603dbbdc6864323",
+      "signed_build": 44511467942,
+      "promotion": 44572159167,
+      "qcow2": [
+        44564265537,
+        44564281015,
+        44564297157
+      ],
+      "iso": 44564305647,
+      "registry_latest": {
+        "moos": {
+          "Digest": "sha256:d3ce53eb368d286ce8ae5b235c2d36ebf176150274f79ef4fcfe1bf7bd7e2113",
+          "Architecture": "amd64",
+          "version": "44.20261119.1173",
+          "revision": "3f114cb03ba92f311017d3d77603dbbdc6864323"
+        },
+        "moos-nvidia": {
+          "Digest": "sha256:206e4e21a11ed044852ccabdbd7c118a7359cdf9409ccf553a27c818f4102256",
+          "Architecture": "amd64",
+          "version": "44.20261119.1173",
+          "revision": "3f114cb03ba92f311017d3d77603dbbdc6864323"
+        },
+        "moos-cloud": {
+          "Digest": "sha256:fbee485b8a33efced938eada4f025e0deab8b51da74c8b16fa0ab6c5fa8e8c0f",
+          "Architecture": "amd64",
+          "version": "44.20261119.1173",
+          "revision": "3f114cb03ba92f311017d3d77603dbbdc6864323"
+        }
+      },
+      "verification": "Read the promotion workflow build ID, matched all three candidate artifacts to registry latest, and verified each digest with the MoOS public key."
+    },
+    "arm": {
+      "pipeline": 44573209173,
+      "attempt": 1,
+      "candidate": {
+        "digest": "sha256:e4ed91eeab1019b6e673642c587a109b4a21d1e2dc9a5708221aeb02203b41ca",
+        "revision": "a02612638c0e557b7fe289a469adc05baa961d47",
+        "version": "44.20261119.994"
+      },
+      "signature": "verified",
+      "channel_at_snapshot": {
+        "Digest": "sha256:e0a8dac972af364a238fef968afde80c4a0b476bdd0e3d885978b2899b420b9e",
+        "Architecture": "arm64",
+        "version": "44.20261118.966",
+        "revision": "fbb8a46d15739fed90e94be440b32c3276c0020c"
+      },
+      "booted": "44.20261118.966",
+      "rollback": "44.20261118.964",
+      "state": "Candidate and recovery container passed image verification. Main QCOW2 build, UEFI boot and promotion were in progress. The separately packaged recovery disk still requires its own boot evidence."
+    }
+  },
+  "as_of_utc": "2026-11-19T19:12Z",
+  "follow_up_qualification": {
+    "source": "2f8b715d50678a4a4b44f1f988bdec103183d432",
+    "tree": "e0c8032aa66c77e3523a1539ceeacec1920796ef",
+    "oracle_full_check": {
+      "exit": 0,
+      "seconds": 2182,
+      "log_sha256": "8db1acbcac22a11577658873ad1fb29de0ddb8170c7e1baf62adb6dd99c62544",
+      "initial_run": "Private umask 077 caused the fixture var directory to fail its required 0755 mode. Restoring the ordinary test environment passed the unchanged gate."
+    },
+    "github": {
+      "repo": 44537312373,
+      "x86": 44537312376,
+      "native_arm": 44537312455,
+      "attempt": 1
+    },
+    "v3_physical": "Last reported boot 1162, pinned 1152 and 1078. Independent post-promotion physical boot and touch readback are outstanding."
+  }
+}
