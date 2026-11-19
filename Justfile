@@ -324,6 +324,8 @@ check:
     python3 tests/test_boot_splash_polish.py
     python3 tests/test_plymouth_packages.py
     python3 tests/test_arm_recovery_plymouth.py
+    python3 tests/test_arm_recovery_boot.py
+    python3 tests/test_arm_recovery_startup.py
     python3 tests/test_plymouth_srpm_extraction.py
     python3 tests/test_language_pack_transaction.py
     # Phone alerts are explicit, generic and event-driven: never mirror desktop content or poll idle.

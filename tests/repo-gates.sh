@@ -128,6 +128,8 @@ python3 tests/test_ci_proof_channel.py
 python3 tests/test_iso_install_gate.py
 python3 tests/test_release_candidate_script.py
 python3 tests/test_arm_recovery_plymouth.py
+python3 tests/test_arm_recovery_boot.py
+python3 tests/test_arm_recovery_startup.py
 python3 tests/test_pr_image_gates_workflow.py
 python3 tests/test_firewall_migration.py
 python3 tests/test_hardware_adapt_lifecycle.py
