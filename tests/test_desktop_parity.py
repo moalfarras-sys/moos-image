@@ -62,8 +62,8 @@ def full_root(tmp: Path, skip: set[str] = frozenset(), extra_applet_missing: str
     layout = tmp / parity.LAYOUT
     layout.parent.mkdir(parents=True, exist_ok=True)
     layout.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
-    placed, pinned = parity.bar_applets(layout.read_text(encoding="utf-8"))
-    for plugin in placed + pinned:
+    placed, pinned, loaded = parity.bar_applets(layout.read_text(encoding="utf-8"))
+    for plugin in placed + pinned + loaded:
         if plugin == extra_applet_missing:
             continue
         so = tmp / f"usr/lib64/qt6/plugins/plasma/applets/{plugin}.so"
@@ -105,7 +105,7 @@ class BothBuildsRunIt(unittest.TestCase):
 
 class TheGateReadsTheRealBar(unittest.TestCase):
     def test_the_parser_finds_the_bar_the_template_draws(self):
-        placed, pinned = parity.bar_applets(TEMPLATE.read_text(encoding="utf-8"))
+        placed, pinned, loaded = parity.bar_applets(TEMPLATE.read_text(encoding="utf-8"))
         self.assertEqual(placed[0], "org.moos.brand")
         self.assertIn("org.kde.plasma.systemtray", placed)
         self.assertIn("org.moos.nova.clock", placed)
@@ -113,6 +113,8 @@ class TheGateReadsTheRealBar(unittest.TestCase):
         self.assertIn("org.kde.plasma.volume", pinned)
         self.assertEqual(len(placed), 6)
         self.assertEqual(len(pinned), 4)
+        self.assertTrue(set(pinned) <= set(loaded))
+        self.assertIn("org.kde.plasma.keyboardindicator", loaded)
 
 
 class TheGateRefuses(unittest.TestCase):
@@ -163,6 +165,19 @@ class TheGateRefuses(unittest.TestCase):
             found = parity.problems(full_root(Path(raw), extra_applet_missing="org.kde.plasma.volume"))
             self.assertEqual(found, ["the MoOS Bar pins status item org.kde.plasma.volume, "
                                      "which this edition does not ship"])
+
+    def test_unpinned_native_tray_providers_are_required(self):
+        for plugin in ("org.kde.plasma.keyboardindicator", "org.kde.kdeconnect", "org.kde.plasma.vault"):
+            with self.subTest(plugin=plugin), tempfile.TemporaryDirectory() as raw:
+                found = parity.problems(full_root(Path(raw), extra_applet_missing=plugin))
+                self.assertEqual(found, [f"the MoOS Bar loads tray applet {plugin}, which this edition does not ship"])
+
+    def test_an_unreadable_load_list_refuses_even_with_visible_pins(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = full_root(Path(raw))
+            layout = root / parity.LAYOUT
+            layout.write_text(layout.read_text().replace('writeConfig("extraItems",', 'writeConfig("missing",'))
+            self.assertEqual(parity.problems(root), ["the MoOS Bar template has no readable tray extraItems load list"])
 
     def test_the_command_fails_on_an_empty_root(self):
         with tempfile.TemporaryDirectory() as raw:

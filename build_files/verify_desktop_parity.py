@@ -87,17 +87,22 @@ CAPABILITIES: list[tuple[str, list[str]]] = [
 
 
 def applet_exists(root: Path, plugin: str) -> bool:
-    return any((root / pattern.format(id=plugin)).exists() for pattern in APPLET_DIRS)
+    return any((root / pattern.format(id=plugin)).is_file() for pattern in APPLET_DIRS)
 
 
-def bar_applets(layout_js: str) -> tuple[list[str], list[str]]:
-    """Plugins the MoOS Bar template places, and the status items it pins as always shown."""
+def bar_applets(layout_js: str) -> tuple[list[str], list[str], list[str]]:
+    """Read panel widgets, visible pins and the native system tray load list."""
     code = re.sub(r"/\*.*?\*/", "", layout_js, flags=re.S)
     code = "\n".join(line.split("//", 1)[0] for line in code.splitlines())
     placed = re.findall(r'panel\.addWidget\("([^"]+)"\)', code)
-    shown = re.search(r'writeConfig\("shownItems",\s*"([^"]*)"\)', code)
-    pinned = [item for item in (shown.group(1).split(",") if shown else []) if item]
-    return placed, pinned
+
+    def tray_items(key: str) -> list[str]:
+        match = re.search(r'systray\.writeConfig\("' + key + r'",\s*"([^"]*)"\)', code)
+        if not match:
+            return []
+        return [item for item in match.group(1).split(",") if item]
+
+    return placed, tray_items("shownItems"), tray_items("extraItems")
 
 
 def problems(root: Path) -> list[str]:
@@ -111,7 +116,7 @@ def problems(root: Path) -> list[str]:
     if not layout.is_file():
         found.append(f"the MoOS Bar template is missing: /{LAYOUT}")
         return found
-    placed, pinned = bar_applets(layout.read_text(encoding="utf-8"))
+    placed, pinned, loaded = bar_applets(layout.read_text(encoding="utf-8"))
     if not placed:
         found.append("the MoOS Bar template places no applet: the parser no longer matches it")
     for plugin in placed:
@@ -120,6 +125,11 @@ def problems(root: Path) -> list[str]:
     for plugin in pinned:
         if not applet_exists(root, plugin):
             found.append(f"the MoOS Bar pins status item {plugin}, which this edition does not ship")
+    if not loaded:
+        found.append("the MoOS Bar template has no readable tray extraItems load list")
+    for plugin in loaded:
+        if plugin not in pinned and not applet_exists(root, plugin):
+            found.append(f"the MoOS Bar loads tray applet {plugin}, which this edition does not ship")
     return found
 
 
@@ -205,9 +215,9 @@ def main(argv: list[str] | None = None) -> int:
         except RuntimeError as exc:
             print(f"GATE FAIL: {exc}", file=sys.stderr)
             return 1
-    placed, pinned = bar_applets((root / LAYOUT).read_text(encoding="utf-8"))
+    placed, pinned, loaded = bar_applets((root / LAYOUT).read_text(encoding="utf-8"))
     print(f"MoOS desktop parity OK: {len(CAPABILITIES)} capabilities, "
-          f"{len(placed)} bar applets, {len(pinned)} pinned status items")
+          f"{len(placed)} bar applets, {len(pinned)} pinned status items, {len(loaded)} tray applets")
     return 0
 
 

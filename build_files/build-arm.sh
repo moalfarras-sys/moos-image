@@ -75,6 +75,8 @@ _PLASMA=(
     kwin kwin-wayland kwin-libs
     systemsettings kscreen kscreenlocker
     plasma-nm plasma-pa plasma-systemmonitor
+    # Providers of the keyboard indicator, phone link and vault in the native tray.
+    kdeplasma-addons kde-connect plasma-vault
     # MoOS routes to these backends from Store and Command Center. Shipping the
     # QML cards without their executables/KCMs creates polished dead buttons.
     plasma-discover plasma-discover-flatpak plasma-discover-kns
