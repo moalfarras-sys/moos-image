@@ -8,8 +8,10 @@
     "Rejected the first neon khatam-lattice draft as very bad; asked for a short Liquid Glass scene with fluid motion, the same logo but improved, better typography and a premium feel. That draft was reverted and never committed."
   ],
   "base": {
-    "branch": "feat/blender-boot-dawn-20261119",
-    "parent": "4990055d (feat/v3-boot-arrival-20261119)"
+    "branch": "feat/liquid-glass-boot-20261119",
+    "parent": "a0261263 (origin/main)",
+    "supersedes": "4990055d boot arrival on feat/v3-boot-arrival-20261119 (unmerged); its rise/greeting choreography is replaced, its prompt/handoff behaviour is kept",
+    "designedOn": "feat/blender-boot-dawn-20261119"
   },
   "design": {
     "entranceTicks": 45,
