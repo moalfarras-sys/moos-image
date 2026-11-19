@@ -31,7 +31,7 @@ polkitd:x:999:998:User for polkitd:/:/usr/sbin/nologin
 nfsnobody:x:65534:65534:Anonymous NFS User:/var/lib/nfs:/usr/sbin/nologin
 avahi:x:70:70:Avahi mDNS/DNS-SD Stack:/var/run/avahi-daemon:/usr/sbin/nologin
 clevis:x:983:983:Clevis Decryption Framework unprivileged user:/var/cache/clevis:/usr/sbin/nologin
-passim:x:980:980:Local Caching Server:/usr/share/empty:/usr/sbin/nologin
-systemd-coredump:x:978:978:systemd Core Dumper:/:/usr/sbin/nologin
-systemd-oom:x:977:977:systemd Userspace OOM Killer:/:/usr/sbin/nologin
+passim:x:982:982:Local Caching Server:/usr/share/empty:/usr/sbin/nologin
+systemd-coredump:x:981:981:systemd Core Dumper:/:/usr/sbin/nologin
+systemd-oom:x:980:980:systemd Userspace OOM Killer:/:/usr/sbin/nologin
 tss:x:59:59:Account used for TPM access:/:/usr/sbin/nologin

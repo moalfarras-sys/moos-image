@@ -220,6 +220,18 @@ class ArmPristineBase(unittest.TestCase):
         for path,data in files.items():
             self.assertEqual(path.read_bytes(),data);self.assertEqual(path.stat().st_mode&0o777,0o644)
 
+    def test_previous_reviewed_base_bodies_are_refused_after_the_transition(self):
+        # fedora-bootc 44.20261118 bodies were reviewed once; the 20261119 base
+        # renumbers service IDs, so the old bytes are no longer an accepted input.
+        for name in ('passwd','group'):
+            files=self.generated_accounts()
+            path=self.root/'usr/lib'/name
+            old=(ROOT/'tests/fixtures/compose'/('bootc-usr-lib-'+name+'.20261118')).read_bytes()
+            self.assertNotEqual(old,files[path])
+            path.write_bytes(old);path.chmod(0o664)
+            self.refused('unreviewed writable ARM account input')
+            self.assertEqual(path.read_bytes(),old);self.assertEqual(path.stat().st_mode&0o777,0o664)
+
     def test_changed_group_writable_account_is_refused_before_scaffold_deletion(self):
         files=self.generated_accounts();path=next(iter(files));path.write_bytes(files[path]+b'changed')
         self.refused('unreviewed writable ARM account input')
