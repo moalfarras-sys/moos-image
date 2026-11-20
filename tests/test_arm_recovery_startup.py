@@ -16,7 +16,7 @@ COLDPLUG = ROOT / "system_files/usr/lib/systemd/system/moos-arm-block-coldplug.s
 
 class RecoveryStartup(unittest.TestCase):
     @unittest.skipUnless(shutil.which("systemd-analyze"), "native systemd analyzer unavailable")
-    def test_native_solver_keeps_menu_after_cloud_final_without_discarding_jobs(self):
+    def test_native_solver_starts_menu_without_waiting_for_cloud_final(self):
         # These inherited edges were read from the actual 966 guest. Target
         # default ordering matters: multi-user.target implicitly waits for its
         # wanted menu, while cloud-final explicitly waits for multi-user.
@@ -24,6 +24,7 @@ class RecoveryStartup(unittest.TestCase):
             "basic.target": "[Unit]\nDefaultDependencies=no\n",
             "sysinit.target": "[Unit]\nDefaultDependencies=no\n",
             "shutdown.target": "[Unit]\nDefaultDependencies=no\n",
+            "plymouth-quit.service": "[Unit]\nDefaultDependencies=no\n[Service]\nExecStart=/usr/bin/true\n",
             "NetworkManager.service": "[Unit]\nDefaultDependencies=no\n[Service]\nExecStart=/usr/bin/true\n",
             # The native datasource generator requests cloud-init.target from
             # multi-user.target.wants when the packaged seed is present.
@@ -32,10 +33,19 @@ class RecoveryStartup(unittest.TestCase):
             "cloud-final.service": "[Unit]\nDefaultDependencies=no\nAfter=multi-user.target\n[Service]\nExecStart=/usr/bin/true\n",
         }
         current = MENU.read_text()
-        self.assertIn("After=NetworkManager.service cloud-final.service", current)
+        admitted = configparser.ConfigParser(interpolation=None)
+        admitted.read_string(current)
+        self.assertEqual(admitted["Install"]["WantedBy"], "multi-user.target")
+        self.assertEqual(admitted["Unit"]["RequiresMountsFor"], "/boot")
+        self.assertIn("plymouth-quit.service", admitted["Unit"]["After"].split())
+        self.assertNotIn("cloud-final.service", admitted["Unit"]["After"].split())
+        late = current.replace("After=" + admitted["Unit"]["After"],
+                               "After=NetworkManager.service cloud-final.service")
         for name, source, cycle in (
-            ("old", current.replace("WantedBy=cloud-init.target", "WantedBy=multi-user.target"), True),
-            ("fixed", current, False),
+            ("966-discarded-job", late, True),
+            ("1005-late-menu", late.replace("WantedBy=multi-user.target",
+                                            "WantedBy=cloud-init.target"), False),
+            ("local-menu", current, False),
         ):
             with self.subTest(source=name), tempfile.TemporaryDirectory(prefix="moos-recovery-graph-") as temporary:
                 private = Path(temporary)
@@ -62,6 +72,46 @@ class RecoveryStartup(unittest.TestCase):
                 # The old solver also exits zero after deleting a real job.
                 self.assertEqual("Found ordering cycle" in diagnostic, cycle, diagnostic)
                 self.assertEqual("deleted to break ordering cycle" in diagnostic, cycle, diagnostic)
+
+    @unittest.skipUnless(shutil.which("systemd-analyze"), "native systemd analyzer unavailable")
+    def test_only_the_owner_of_recovery_tty1_can_start(self):
+        dropin = ROOT / "build_files/arm-recovery-getty-tty1.conf"
+        marker = "/etc/moos-utm-install-complete"
+        self.assertIn("ConditionPathExists=" + marker, dropin.read_text().splitlines())
+        self.assertIn("ConditionPathExists=!" + marker, MENU.read_text().splitlines())
+        with tempfile.TemporaryDirectory(prefix="moos-recovery-tty-") as temporary:
+            private = Path(temporary)
+            complete = private / "complete"
+            unit = "[Unit]\nDefaultDependencies=no\n[Service]\nExecStart=/usr/bin/true\n"
+            (private / "getty@.service").write_text(unit)
+            (private / "autovt@.service").symlink_to("getty@.service")
+            (private / "serial-getty@.service").write_text(unit)
+            (private / MENU.name).write_text(MENU.read_text().replace(marker, str(complete)))
+            env = dict(os.environ, SYSTEMD_UNIT_PATH=temporary,
+                       DBUS_SESSION_BUS_ADDRESS="unix:path=" + str(private / "no-bus"))
+
+            def conditions(name, status):
+                result = subprocess.run(["systemd-analyze", "--user", "--generators=no",
+                                         "condition", "--unit=" + name], env=env,
+                                        capture_output=True, text=True, timeout=15)
+                self.assertEqual(result.returncode, status, (name, result.stderr))
+                if status:
+                    self.assertIn(str(complete), result.stderr)
+
+            # The previous recovery image admitted both the menu and the login.
+            conditions(MENU.name, 0)
+            conditions("getty@tty1.service", 0)
+            override = private / "getty@tty1.service.d/50-moos-recovery-menu.conf"
+            override.parent.mkdir()
+            override.write_text(dropin.read_text().replace(marker, str(complete)))
+            for installed in (False, True):
+                if installed:
+                    complete.touch()
+                conditions(MENU.name, int(installed))
+                for name in ("getty@tty1.service", "autovt@tty1.service"):
+                    conditions(name, int(not installed))
+                for name in ("getty@tty2.service", "serial-getty@ttyAMA0.service"):
+                    conditions(name, 0)
 
     def test_coldplug_waits_for_the_required_native_daemon(self):
         config = configparser.ConfigParser(interpolation=None, strict=False)

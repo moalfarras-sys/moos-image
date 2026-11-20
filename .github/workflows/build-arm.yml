@@ -242,6 +242,13 @@ jobs:
               for archive in "${archives[@]}"; do
                 python3 /tmp/verify-plymouth.py "$archive"
               done
+              unitdir=/usr/lib/systemd/system
+              test "$unitdir/autovt@.service" -ef "$unitdir/getty@.service"
+              grep -Fxq "ConditionPathExists=/etc/moos-utm-install-complete" \
+                "$unitdir/getty@tty1.service.d/50-moos-recovery-menu.conf"
+              test /etc/systemd/system/multi-user.target.wants/moos-utm-installer.service \
+                -ef "$unitdir/moos-utm-installer.service"
+              systemctl is-enabled --quiet serial-getty@ttyAMA0.service
               echo MOOS_ARM_RECOVERY_IMAGE_BYTES_PASS
             '
 

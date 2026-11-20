@@ -152,9 +152,8 @@ def seed_user_data() -> str:
             "#cloud-config",
             "runcmd:",
             "  - [systemctl, enable, --now, NetworkManager]",
-            # Recovery already enables the menu under cloud-init.target. A
-            # synchronous start here waits for a service ordered after this
-            # cloud-final stage and prevents either operation from completing.
+            # The recovery image starts its local menu and networking. NoCloud
+            # does not own the virtual terminal or start the installer.
             "final_message: MoOS UTM installer ready — choose Install from the menu",
         ]
     ) + "\n"

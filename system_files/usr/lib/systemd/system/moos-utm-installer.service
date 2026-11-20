@@ -1,6 +1,7 @@
 [Unit]
 Description=MoOS UTM installer menu
-After=NetworkManager.service cloud-final.service
+RequiresMountsFor=/boot
+After=NetworkManager.service plymouth-quit.service
 Wants=NetworkManager.service
 ConditionPathExists=!/etc/moos-utm-install-complete
 
@@ -17,4 +18,4 @@ TTYVHangup=yes
 RemainAfterExit=no
 
 [Install]
-WantedBy=cloud-init.target
+WantedBy=multi-user.target

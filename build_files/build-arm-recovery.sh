@@ -119,6 +119,8 @@ CLOUDCFG
 systemctl enable cloud-init-local.service cloud-init-network.service \
     cloud-config.service cloud-final.service
 systemctl enable NetworkManager.service
+install -Dm0644 /ctx/arm-recovery-getty-tty1.conf \
+    /usr/lib/systemd/system/getty@tty1.service.d/50-moos-recovery-menu.conf
 systemctl enable moos-utm-installer.service
 systemctl enable serial-getty@ttyAMA0.service
 
@@ -186,7 +188,7 @@ grep -qE 'plymouth/(script\.so|script)' /tmp/moos-recovery-initrd.txt || {
 }
 
 echo "=== (6) gates ==="
-for cmd in bootc skopeo cosign jq curl lsblk findmnt; do
+for cmd in bootc skopeo cosign jq curl lsblk findmnt whiptail; do
     command -v "$cmd" >/dev/null || { echo "FATAL: missing $cmd"; exit 1; }
 done
 [ -x /usr/libexec/moos-utm-net-install ] || { echo "FATAL: moos-utm-net-install missing"; exit 1; }

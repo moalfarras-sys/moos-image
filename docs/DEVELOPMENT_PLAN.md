@@ -41,7 +41,11 @@ check refused a 206-line state summary. The packaged ARM recovery proof timed
 out reading an early boot screen before it saw the menu. Preserve that run and
 exercise the bounded observer on the next packaged disk. The x86 release now
 shares the verified 44.20261120.1 digest across its three editions while the
-nightly still discovers the upstream base.
+nightly still discovers the upstream base. At dacd5245 the complete local checks
+and both PR image builds passed. Run 44696732832 reached a real tty1 login on
+the packaged recovery disk and timed out waiting for the installer menu. Its
+target stayed intact. Give the recovery menu exclusive tty1 ownership while
+preserving serial login, then repeat the same packaged interaction before release.
 
 The x86 editions reached production as 1173. ARM 994 from main a0261263 passed the desktop QCOW2 UEFI boot and production promotion in run 44573209173. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
 

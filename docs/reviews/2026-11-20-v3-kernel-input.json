@@ -93,5 +93,21 @@
     "live_controls": "85 single native tests and 250 complete ARM source-test suites passed on the old fixture in a subsequent ASCII-path replay. An Arabic temporary path reliably timed out because faulthandler escapes non-ASCII paths.",
     "repair": "The parent reads the real diagnostic pipe and releases the blocked app only when its stack frame is present. It checks exit 9 and final output. A missing watchdog fails the native fixture.",
     "scope": "Source diagnostic fixture only. Production watchdog, guest boot and release gates are unchanged."
+  },
+  "packaged_recovery_console": {
+    "revision": "dacd5245b87701d8a2d53ed8fade2fc7a323f58d",
+    "workflow_run_id": 44696732832,
+    "local_source": "just check passed; the generic image and native PR builds for x86 and ARM passed.",
+    "signed_arm_candidate": "44.20261120.1005",
+    "archive_sha256": "5f213801b66efb01afdfd1b3516a8c75b60d213792ed4bb15e66d51fde823366",
+    "evidence_artifact": 14618508618,
+    "evidence_zip_sha256": "3cab97542853bb2694e6441b54083c65ad75c1ed90339e51c4ea9801021cb939",
+    "failure": "native recovery screen deadline: menu",
+    "frame_sha256": "d189084bd8d6c4479fd6590298744bdb979a828cefa19fccfda055ddef40cc3b",
+    "observation": "The final 1280x800 frame showed moos-installer login on tty1. The serial console also reached login. The packaged inputs and target content compare unchanged.",
+    "scope": "The captured serial log does not establish the menu unit exit status or why cloud-final did not unblock the menu.",
+    "source_change": "Recovery reserves tty1 for its menu while the install-complete marker is absent. The local menu starts with multi-user after Plymouth releases the display and /boot is mounted. Network and signature checks still run on explicit installation.",
+    "source_controls": "Native systemd rejects the old 966 cycle and admits the previous late graph. Both owners were eligible for tty1 before the repair. The current native predicates switch tty1 between menu and getty while VT2 and serial login stay eligible.",
+    "acceptance": "Require a fresh package, native down/up, verified Cancel, guest poweroff and unchanged target. No timeout or menu predicate changed."
   }
 }
