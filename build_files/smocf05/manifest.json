@@ -23,6 +23,6 @@
     "vendor_rpm_kernel_sha256": "95b80a8cdecb42a0d94ae012bec5f8eeeb054ae97bd655ba1c5f9a41cdb0383d",
     "vendor_kernel_pe_body_sha256": "5e31a68d99838ab2ecf6691de2c810c58e0e9cc4230ae4893665e62df8bd913b",
     "vendor_kernel_signatures": "original signed vendor PE table retained byte-for-byte; upstream base adds its Universal Blue signature; no executable-byte change",
-    "vendor_base_manifest_sha256": "c708122c6eb8d14b85168ac54a7347b825621588c85c9a78093324bde02c0e2f",
-    "vendor_base_kernel_layer": "sha256:9f42245074f04d7ca2b5ba908449b5751d12af8745fe241ea93568dcfa83949a"
+    "vendor_base_manifest_sha256": "7c6683256540fae793676da33bb7a417016381a45c0fdddbe40dc4c1d238c359",
+    "vendor_base_kernel_layer": "sha256:549b1faea17a48b3e4cbc8956119da308e358756fe462434a133367db64590aa"
 }

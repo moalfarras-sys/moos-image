@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -134,13 +134,55 @@ class NativeObservation(unittest.TestCase):
             process = type("Process", (), {"poll": lambda self: None})()
             with patch.object(gate, "screenshot", return_value=(b"pixels", "MoOS Installer", [])), \
                     patch.object(gate.time, "sleep"), \
-                    patch.object(gate.time, "monotonic", side_effect=[0, 0, 2]):
+                    patch.object(gate.time, "monotonic", side_effect=[0, 0, 2, 2]):
                 with self.assertRaisesRegex(RuntimeError, "deadline"):
                     gate.wait_screen(None, process, serial, root, "menu",
                                      lambda s: gate.menu_text(s[1]), 1)
             process = type("Process", (), {"poll": lambda self: 0})()
             with self.assertRaisesRegex(RuntimeError, "QEMU exited"):
                 gate.wait_screen(None, process, serial, root, "menu", lambda s: True, 1)
+
+    def test_slow_boot_console_ocr_never_authorizes_input(self):
+        timeout = subprocess.TimeoutExpired(["tesseract"], 12)
+        observed = (b"pixels", MENU, [])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            serial = root / "serial.log"
+            serial.write_text("Starting initrd-switch-root.service")
+            process = Mock()
+            process.poll.return_value = None
+            predicate = Mock(side_effect=lambda frame: gate.menu_text(frame[1]))
+            for observations, times, passes in [
+                ([timeout, observed], [0, 0, 12, 24, 25], True),
+                ([timeout], [0, 0, 30, 30], False),
+            ]:
+                predicate.reset_mock()
+                with patch.object(gate, "screenshot", side_effect=observations), \
+                        patch.object(gate.time, "monotonic", side_effect=times), \
+                        patch.object(gate.time, "sleep"):
+                    if passes:
+                        self.assertEqual(gate.wait_screen(None, process, serial, root, "menu", predicate, 30), observed)
+                        predicate.assert_called_once_with(observed)
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "deadline"):
+                            gate.wait_screen(None, process, serial, root, "menu", predicate, 30)
+                        predicate.assert_not_called()
+            self.assertEqual(len((root / "ocr-timeouts.log").read_text().splitlines()), 2)
+
+    def test_timed_out_frame_preserves_pixels_without_stale_ocr(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ppm = b"P6\n4 4\n255\n" + bytes(48)
+            (root / "menu.tsv").write_text(MENU)
+            qmp = Mock()
+            qmp.command.side_effect = lambda _, args: Path(args["filename"]).write_bytes(ppm)
+            with patch.object(gate.subprocess, "run", side_effect=subprocess.TimeoutExpired(["tesseract"], 3)) as ocr:
+                with self.assertRaises(subprocess.TimeoutExpired):
+                    gate.screenshot(qmp, root, "menu", 3)
+            self.assertEqual((root / "menu.ppm").read_bytes(), ppm)
+            self.assertFalse((root / "menu.tsv").exists())
+            self.assertEqual(ocr.call_args.kwargs["timeout"], 3)
+            self.assertEqual(ocr.call_args.kwargs["env"]["OMP_THREAD_LIMIT"], "1")
 
     def test_qmp_is_private_and_rejects_enter_before_sending(self):
         with tempfile.TemporaryDirectory() as directory:

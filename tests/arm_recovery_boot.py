@@ -280,27 +280,46 @@ class QMP:
                                   "hold-time": 80})
 
 
-def screenshot(qmp, evidence, label):
+def screenshot(qmp, evidence, label, timeout):
     path = evidence / (label + ".ppm")
+    table = path.with_suffix(".tsv")
+    # Keep the pixels and their OCR from the same observation, including on timeout.
+    table.unlink(missing_ok=True)
+    path.unlink(missing_ok=True)
     qmp.command("screendump", {"filename": str(path)})
     require(path.is_file() and path.stat().st_size > 32, "native screen capture missing")
-    tsv = run(["tesseract", str(path), "stdout", "--psm", "6", "-l", "eng", "tsv"]).stdout.decode()
+    frame = read_ppm(path.read_bytes())
+    # Two emulated CPUs share this runner with OCR during guest startup.
+    tsv = subprocess.run(["tesseract", str(path), "stdout", "--psm", "6", "-l", "eng", "tsv"],
+                         env=dict(os.environ, OMP_THREAD_LIMIT="1"), timeout=timeout,
+                         check=True, capture_output=True).stdout.decode()
     rows = list(csv.DictReader(io.StringIO(tsv), delimiter="\t"))
     text = " ".join(row["text"] for row in rows if row.get("text"))
-    (evidence / (label + ".tsv")).write_text(tsv)
-    return read_ppm(path.read_bytes()), text, rows
+    table.write_text(tsv)
+    return frame, text, rows
 
 
 def wait_screen(qmp, process, serial, evidence, label, predicate, timeout):
     deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
+    while (remaining := deadline - time.monotonic()) > 0:
         require(process.poll() is None, "QEMU exited before native menu acceptance")
-        require(not fatal_serial(serial.read_text(errors="replace")),
+        boot_log = serial.read_text(errors="replace")
+        require(not fatal_serial(boot_log),
                 "native recovery boot entered a failed/emergency state")
-        screen = screenshot(qmp, evidence, label)
-        if predicate(screen):
-            return screen
-        time.sleep(2)
+        try:
+            screen = screenshot(qmp, evidence, label, min(12, remaining))
+        except subprocess.TimeoutExpired as error:
+            if error.cmd[0] != "tesseract":
+                raise
+            with (evidence / "ocr-timeouts.log").open("a") as log:
+                log.write(f"{label}: OCR exceeded {error.timeout:.2f}s\n")
+        else:
+            if predicate(screen) and time.monotonic() < deadline:
+                return screen
+        # Sample early console output less often. The menu can still be proved
+        # from its pixels when firmware or the guest keeps its serial port quiet.
+        delay = 12 if label == "menu" and "moos-utm-installer.service" not in boot_log else 2
+        time.sleep(min(delay, max(0, deadline - time.monotonic())))
     raise RuntimeError("native recovery screen deadline: " + label)
 
 

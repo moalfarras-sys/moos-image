@@ -36,6 +36,13 @@ The successor admits the verified complete kernel from that upstream image.
 Qualify it through the four edition pipelines, packaged recovery disk and V3
 boot. [Kernel input review](reviews/2026-11-20-v3-kernel-input.json).
 
+Nov20 follow-up. The local and PR images passed on 7753b182. The full local
+check refused a 206-line state summary. The packaged ARM recovery proof timed
+out reading an early boot screen before it saw the menu. Preserve that run and
+exercise the bounded observer on the next packaged disk. The x86 release now
+shares the verified 44.20261120.1 digest across its three editions while the
+nightly still discovers the upstream base.
+
 The x86 editions reached production as 1173. ARM 994 from main a0261263 passed the desktop QCOW2 UEFI boot and production promotion in run 44573209173. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
 
 Nov19 P0.1/P6.8: the upstream ARM base moved to 44.20261119.0 and renumbered service accounts. Register the exact new account bodies, refuse the old ones (PR CI rebuilt ARM/recovery on the new base), then follow the signed ARM pipeline and read back passim ownership after the Oracle update. [Review](reviews/2026-11-19-arm-base-accounts.json).
@@ -500,7 +507,7 @@ M0 evidence as measured performance or require another local VM image.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P6.1 | Resolve immutable base inputs once per release | Open / acceptance not complete | Immutable base inputs recorded once and consumed consistently by all same-architecture editions. |
+| P6.1 | Resolve immutable base inputs once per release | x86 source pins the reviewed manifest for all three editions and records it in each candidate receipt. Signed matrix readback and ARM remain open. | Immutable base inputs recorded once and consumed consistently by all same-architecture editions. |
 | P6.2 | Produce SBOM and provenance for each image | Open / acceptance not complete | Exact digest-linked SBOM/provenance on a separately budgeted workflow, not release-critical disk exhaustion. |
 | P6.3 | Security-release cadence for all editions | Open / acceptance not complete | The cadence of release cycles is the security cadence of MoOS: schedules only build candidates. Triage upstream advisories daily; target a qualified cycle weekly and start urgent affected-input qualification within24h. Publish affected editions, mitigation and delivery status; an unproven candidate never bypasses gates to meet a deadline. |
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |

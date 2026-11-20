@@ -9,7 +9,6 @@
 # =============================================================================
 
 image_name := "moos"
-base_main := "ghcr.io/ublue-os/kinoite-main:44"
 
 # The physical development station also runs the desktop/editor. Keep every
 # local image stage in the reviewed envelope; callers can choose explicit
@@ -707,8 +706,7 @@ check:
 # Build the main MoOS image. The base is pinned in the Containerfile on purpose — both
 # editions must share it (see the comment there); it is not a build-arg any more.
 build: check
-    # The base is rebuilt daily. Never validate a stale local tag, and never pull
-    # the large NVIDIA stage for the generic image that cannot consume it.
+    # Pull the reviewed base digest. The generic build uses no NVIDIA stage.
     podman build \
         --cpu-period=100000 --cpu-quota={{ quote(build_cpu_quota) }} \
         --memory={{ quote(build_memory) }} --memory-swap={{ quote(build_memory) }} \
@@ -727,7 +725,8 @@ build: check
 build-nvidia: check
     #!/usr/bin/env bash
     set -euo pipefail
-    kernel="$(skopeo inspect docker://{{ base_main }} | jq -er '.Labels["ostree.linux"]')"
+    base="$(python3 scripts/ci/x86-base-ref.py)"
+    kernel="$(skopeo inspect "docker://$base" | jq -er '.Labels["ostree.linux"]')"
     echo "base kernel: ${kernel}"
     # `--pull=always` makes the Containerfile's base match the remote label used
     # above; otherwise a stale local base can pair kernel N with akmods N+1.

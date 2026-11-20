@@ -60,5 +60,31 @@
       "signed edition promotions",
       "new V3 boot and physical visual feedback"
     ]
+  },
+  "next_x86_input": {
+    "version": "44.20261120.1",
+    "signed_base_manifest_sha256": "7c6683256540fae793676da33bb7a417016381a45c0fdddbe40dc4c1d238c359",
+    "kernel_layer": "sha256:549b1faea17a48b3e4cbc8956119da308e358756fe462434a133367db64590aa",
+    "complete_kernel_sha256": "b5a7224a96a504a9d9e8ba716cc775c2fb83db202bf7e6ddccac5c850e301d66",
+    "complete_kernel_identical_to_44_20261119_1": true,
+    "vendor_and_ublue_sbverify": "both verified",
+    "base_signature": "verified with installed ublue-os.pub",
+    "original_rpm_and_executable_body_verified": true,
+    "base_resolution": "release, local and Plasma canary use the reviewed digest; the nightly resolves its upstream tag once across the matrix"
+  },
+  "successor_qualification": {
+    "source": "7753b182b89fd1ee8c16cca984359cbf1e18647c",
+    "local_generic_image": "ea6d49c0be450419c7cb5183458e80a65864167fb606b8c02f8d6ee1ed79e30b",
+    "pr_native_arm_image": 44650513658,
+    "pr_x86_image": 44650513628,
+    "full_source_refusal": "PROJECT_STATE.md had 206 lines, with a limit of 200",
+    "recovery_run": 44650639838,
+    "archive_sha256": "99450e927bb4f0c3663c97bff702591f960387b6b29f09ccd7b7e6bd73a88ef1",
+    "target_content_unchanged": true,
+    "archive_unchanged": true,
+    "guest_menu_observed": false,
+    "refusal": "Tesseract exceeded 60 seconds on the boot screen before the native menu appeared. The previous observation TSV and newer PPM could differ.",
+    "failed_frame_sha256": "501ffcd8607fa68df37cce7722f2b2d8d6b7574ba7d107385ceff9910c726c9f",
+    "observer_replay": "Original runner frame refused as a menu. Five native newt frames exercised down, up, OK and Cancel focus; unchanged focus could not authorize Enter. A timed-out OCR frame is recorded and retried within the original interaction deadline."
   }
 }
