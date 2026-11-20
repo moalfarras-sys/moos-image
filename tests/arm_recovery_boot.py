@@ -339,7 +339,25 @@ def preserve_error(record, message):
     record.setdefault("refusals", []).append(message)
 
 
-def prove(archive, evidence, revision, run_id):
+def record_failure_journal(overlay, evidence, record):
+    if record["result"] != "failed" or not overlay.is_file():
+        return
+    helper = Path(__file__).with_name("arm_recovery_failure_journal.sh")
+    try:
+        result = subprocess.run(["sudo", "-n", "--preserve-env=GITHUB_ACTIONS", "unshare",
+                                 "--mount", "--propagation", "private", "bash", str(helper), str(overlay)], capture_output=True,
+                                text=True, timeout=90)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        record["failure_journal"] = "unavailable: " + type(error).__name__
+        return
+    if result.returncode or not result.stdout.strip():
+        record["failure_journal"] = f"unavailable: exit {result.returncode}, {len(result.stdout)} bytes"
+        return
+    (evidence / "guest-unit-events.log").write_text(result.stdout)
+    record["failure_journal"] = "recorded"
+
+
+def prove(archive, evidence, revision, run_id, failure_journal=False):
     record = {"schema": 1, "result": "failed", "revision": revision,
               "workflow_run_id": run_id, "archive_sha256": sha(archive),
               "scope": "packaged recovery menu/input and clean guest shutdown; no installation",
@@ -474,6 +492,8 @@ def prove(archive, evidence, revision, run_id):
         if qmp is not None:
             (evidence / "qmp-events.json").write_text(json.dumps(qmp.events, indent=2) + "\n")
             qmp.sock.close()
+        if failure_journal:
+            record_failure_journal(work / "installer.qcow2", evidence, record)
         (evidence / "result.json").write_text(json.dumps(record, indent=2) + "\n")
         scratch.cleanup()
     return record
@@ -486,7 +506,11 @@ def main():
     parser.add_argument("--expected-sha256", required=True)
     parser.add_argument("--revision", required=True)
     parser.add_argument("--run-id", required=True, type=int)
+    parser.add_argument("--failure-journal", action="store_true",
+                        help="read unit events offline on the disposable Actions runner after a refusal")
     args = parser.parse_args()
+    require(not args.failure_journal or os.getenv("GITHUB_ACTIONS") == "true",
+            "the offline failure journal is restricted to Actions")
     require(re.fullmatch("[0-9a-f]{64}", args.expected_sha256) and
             re.fullmatch("[0-9a-f]{40}", args.revision) and args.run_id > 0, "invalid proof identity")
     for tool in ("qemu-system-aarch64", "qemu-img", "tesseract"):
@@ -494,7 +518,7 @@ def main():
     require(args.archive.is_file() and sha(args.archive) == args.expected_sha256,
             "recovery archive identity differs before boot")
     args.evidence.mkdir(mode=0o700)
-    result = prove(args.archive.resolve(), args.evidence.resolve(), args.revision, args.run_id)
+    result = prove(args.archive.resolve(), args.evidence.resolve(), args.revision, args.run_id, args.failure_journal)
     print(json.dumps(result, sort_keys=True))
     return 0 if result["result"] == "passed" else 1
 

@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import tomllib
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,6 +62,7 @@ class RecoveryStartup(unittest.TestCase):
                 # Only the executable is replaced: verify never starts it, and
                 # this keeps availability independent of the installed image.
                 (private / MENU.name).write_text(source.replace(
+                    "ExecStartPre=/usr/bin/chvt --console=/dev/tty1 1", "ExecStartPre=/usr/bin/true").replace(
                     "ExecStart=/usr/libexec/moos-utm-installer-menu", "ExecStart=/usr/bin/true"))
                 env = dict(os.environ, SYSTEMD_UNIT_PATH=temporary,
                            DBUS_SESSION_BUS_ADDRESS="unix:path=" + str(private / "no-bus"))
@@ -112,6 +114,18 @@ class RecoveryStartup(unittest.TestCase):
                     conditions(name, int(not installed))
                 for name in ("getty@tty2.service", "serial-getty@ttyAMA0.service"):
                     conditions(name, 0)
+
+    def test_recovery_console_and_visible_menu_have_distinct_devices(self):
+        build = (ROOT / "build_files/build-arm-recovery.sh").read_text()
+        kargs = tomllib.loads(build.split("<<'KARGS'\n", 1)[1].split("\nKARGS", 1)[0])["kargs"]
+        self.assertEqual([k for k in kargs if k.startswith("console=")], ["console=ttyAMA0,115200n8"])
+        self.assertTrue({"quiet", "splash", "plymouth.ignore-serial-consoles"} <= set(kargs))
+        quit_config = build.split("<<'QUIT'\n", 1)[1].split("\nQUIT", 1)[0].splitlines()
+        self.assertEqual(quit_config, ["[Service]", "ExecStart=", "ExecStart=-/usr/bin/plymouth quit"])
+        menu = configparser.ConfigParser(interpolation=None)
+        menu.read(MENU)
+        self.assertEqual(menu["Service"]["ExecStartPre"], "/usr/bin/chvt --console=/dev/tty1 1")
+        self.assertEqual(menu["Service"]["TTYPath"], "/dev/tty1")
 
     def test_coldplug_waits_for_the_required_native_daemon(self):
         config = configparser.ConfigParser(interpolation=None, strict=False)

@@ -56,6 +56,7 @@ on:
       - "tests/test_arm_recovery_plymouth.py"
       - "tests/boot_utm_net_installer.sh"
       - "tests/arm_recovery_boot.py"
+      - "tests/arm_recovery_failure_journal.sh"
       - "tests/test_arm_recovery_boot.py"
       - "tests/test_arm_recovery_startup.py"
       - "tests/test_icon_theme_inheritance.py"
@@ -87,6 +88,7 @@ on:
       - "tests/test_arm_recovery_plymouth.py"
       - "tests/boot_utm_net_installer.sh"
       - "tests/arm_recovery_boot.py"
+      - "tests/arm_recovery_failure_journal.sh"
       - "tests/test_arm_recovery_boot.py"
       - "tests/test_arm_recovery_startup.py"
       - "tests/test_icon_theme_inheritance.py"
@@ -580,7 +582,7 @@ jobs:
           set -euo pipefail
           archive=release/utm/MoOS-UTM-Installer.utm.zip
           before="$(sha256sum "$archive" | awk '{print $1}')"
-          tests/boot_utm_net_installer.sh "$archive" arm-recovery-boot-proof \
+          tests/boot_utm_net_installer.sh "$archive" arm-recovery-boot-proof --failure-journal \
             --expected-sha256 "$before" --revision "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
           [ "$(sha256sum "$archive" | awk '{print $1}')" = "$before" ]
           echo "MOOS_ARM_RECOVERY_PROVEN_SHA256=$before" >> "$GITHUB_ENV"

@@ -21,7 +21,7 @@ echo "=== (1) installer tooling ==="
 _RECOVERY=(
     NetworkManager-wifi
     cloud-init
-    newt efibootmgr btrfs-progs
+    newt kbd efibootmgr btrfs-progs
     systemd-resolved
     openssl sudo which findutils
     mesa-dri-drivers
@@ -146,9 +146,11 @@ MOUNT
 done
 
 install -D -m0644 /dev/stdin /usr/lib/bootc/kargs.d/50-moos-arm-console.toml <<'KARGS'
+# Keep cloud-init and /dev/console on the UTM serial port. Plymouth draws
+# on the graphics device, then the interactive installer takes virtual tty1.
 kargs = [
     "console=ttyAMA0,115200n8",
-    "console=tty0",
+    "plymouth.ignore-serial-consoles",
     "rhgb",
     "quiet",
     "splash",
@@ -162,6 +164,15 @@ hostonly_cmdline="no"
 sysloglvl="0"
 add_drivers+=" virtio_blk virtio_net virtio_pci virtio_scsi virtio_gpu virtio_console "
 DRACUT
+
+# The desktop retains the last frame for KWin. Recovery hands the screen
+# to newt, which needs a text VT after Plymouth releases the graphics device.
+install -Dm0644 /dev/stdin \
+    /usr/lib/systemd/system/plymouth-quit.service.d/20-moos-recovery-text.conf <<'QUIT'
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/plymouth quit
+QUIT
 
 echo "=== (5) initramfs with MoOS plymouth ==="
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
@@ -188,7 +199,7 @@ grep -qE 'plymouth/(script\.so|script)' /tmp/moos-recovery-initrd.txt || {
 }
 
 echo "=== (6) gates ==="
-for cmd in bootc skopeo cosign jq curl lsblk findmnt whiptail; do
+for cmd in bootc skopeo cosign jq curl lsblk findmnt whiptail chvt; do
     command -v "$cmd" >/dev/null || { echo "FATAL: missing $cmd"; exit 1; }
 done
 [ -x /usr/libexec/moos-utm-net-install ] || { echo "FATAL: moos-utm-net-install missing"; exit 1; }

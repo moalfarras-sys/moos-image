@@ -212,6 +212,26 @@ class NativeObservation(unittest.TestCase):
             self.assertEqual(received[1]["arguments"]["keys"][0]["data"], "tab")
 
 
+class FailureJournal(unittest.TestCase):
+    def test_offline_diagnostics_preserve_the_first_failure_and_skip_success(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = Path(directory)
+            overlay = evidence / "installer.qcow2"
+            overlay.touch()
+            for status, result in [("passed", None), ("failed", 1), ("failed", 0)]:
+                record = {"result": status, "failure": "native recovery screen deadline: menu"}
+                with patch.object(gate.subprocess, "run") as read:
+                    read.return_value = subprocess.CompletedProcess([], result, "menu unit exited", "")
+                    gate.record_failure_journal(overlay, evidence, record)
+                self.assertEqual(record["result"], status)
+                self.assertEqual(record["failure"], "native recovery screen deadline: menu")
+                if result is None:
+                    read.assert_not_called()
+                elif result:
+                    self.assertIn("unavailable", record["failure_journal"])
+                else:
+                    self.assertEqual((evidence / "guest-unit-events.log").read_text(), "menu unit exited")
+
 class ReleaseAdmission(unittest.TestCase):
     def test_recovery_boot_is_mandatory_before_upload_and_auto_promotion(self):
         workflow = (ROOT / ".github/workflows/build-arm.yml").read_text()

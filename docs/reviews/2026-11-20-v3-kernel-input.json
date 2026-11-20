@@ -109,5 +109,17 @@
     "source_change": "Recovery reserves tty1 for its menu while the install-complete marker is absent. The local menu starts with multi-user after Plymouth releases the display and /boot is mounted. Network and signature checks still run on explicit installation.",
     "source_controls": "Native systemd rejects the old 966 cycle and admits the previous late graph. Both owners were eligible for tty1 before the repair. The current native predicates switch tty1 between menu and getty while VT2 and serial login stay eligible.",
     "acceptance": "Require a fresh package, native down/up, verified Cancel, guest poweroff and unchanged target. No timeout or menu predicate changed."
+  },
+  "recovery_text_handoff": {
+    "revision": "f239ef8f5ebdeaab6a2f4983b9ab35311e8adeab",
+    "run": 44716670891,
+    "evidence_artifact": 14628479172,
+    "artifact_sha256": "4aa39c3d719d825298a71b01d578897f94ff7bc78a1d3f4ba4a0f096f7f43e17",
+    "archive_sha256": "05732174f54544fd3e7ee9afafcf445755903558fdbb9c1e50c9b69f51bb3a0f",
+    "frame_sha256": "7f05f6078648def12a886d749fc3491318acaa57edda5768b046d1ca621f9d53",
+    "previous_checks": "Local full source and generic image builds passed. The ARM and x86 PR image checks passed.",
+    "observation": "The previous tty1 login prompt was gone. The final graphics frame showed cloud-init SSH key generation at guest second 514. Serial reached its login. The archive, packaged files and target remained unchanged. The menu unit exit status is unavailable.",
+    "repair": "Keep the PL011 serial port as the recovery kernel console. Retain graphical Plymouth with its installed ignore-serial-consoles option, release its frame before newt and activate the actual menu VT. Desktop console and Plymouth policy stay with their existing owners.",
+    "evidence": "The source tests check the exact console list, splash release and VT selection. On a future boot refusal the disposable runner attempts a read-only inspection of PID 1 unit events. Only the original interactive disk proof can qualify the repair."
   }
 }
