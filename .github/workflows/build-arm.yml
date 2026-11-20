@@ -58,6 +58,7 @@ on:
       - "tests/arm_recovery_boot.py"
       - "tests/arm_recovery_failure_journal.sh"
       - "tests/test_arm_recovery_boot.py"
+      - "tests/fixtures/arm-recovery/**"
       - "tests/test_arm_recovery_startup.py"
       - "tests/test_icon_theme_inheritance.py"
       - "tests/test_webengine_dictionaries.py"
@@ -90,6 +91,7 @@ on:
       - "tests/arm_recovery_boot.py"
       - "tests/arm_recovery_failure_journal.sh"
       - "tests/test_arm_recovery_boot.py"
+      - "tests/fixtures/arm-recovery/**"
       - "tests/test_arm_recovery_startup.py"
       - "tests/test_icon_theme_inheritance.py"
       - "tests/test_webengine_dictionaries.py"
@@ -137,7 +139,7 @@ jobs:
       # Keep this explicit, as on the x86 workflow: hosted ARM runners do not
       # provide PIL and the source gate otherwise fails before the image build.
       - name: Gate dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pil
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pil tesseract-ocr
 
       - name: ARM and boot-splash source gates
         run: |
@@ -461,7 +463,7 @@ jobs:
           sudo apt-get install -y -qq \
             podman zstd qemu-utils btrfs-progs e2fsprogs fdisk \
             qemu-system-arm qemu-efi-aarch64 cloud-image-utils \
-            openssh-client socat imagemagick xvfb x11-utils tesseract-ocr
+            openssh-client socat imagemagick xvfb x11-utils tesseract-ocr python3-pil
 
       - name: Install cosign
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3

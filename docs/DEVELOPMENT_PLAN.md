@@ -48,7 +48,7 @@ target stayed intact. Give the recovery menu exclusive tty1 ownership while
 preserving serial login. At f239ef8f the local suite and both PR builds passed.
 The packaged guest instead displayed cloud-init host-key generation on the
 graphical console. Route system output to the serial port and explicitly hand
-the display from Plymouth to the menu. The pinned disk builder also injects tty0 and ttyS0. Omit those defaults for recovery, verify the actual packaged boot entry, then repeat the interaction.
+the display from Plymouth to the menu. The pinned disk builder also injects tty0 and ttyS0. Omit those defaults for recovery, verify the actual packaged boot entry, then repeat the interaction. Run 44742631108 booted with the single reviewed console and displayed the menu. The OCR reader saw only the backtitle. Verify the captured Linux-console glyphs and focus coordinates, then exercise navigation, Cancel and clean poweroff on the next packaged disk.
 
 The x86 editions reached production as 1173. ARM 994 from main a0261263 passed the desktop QCOW2 UEFI boot and production promotion in run 44573209173. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
 

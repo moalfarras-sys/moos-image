@@ -23,6 +23,8 @@ import tempfile
 import time
 import zipfile
 
+from PIL import Image, ImageChops
+
 PREFIX = "MoOS-UTM-Installer.utm/"
 MEMBERS = {PREFIX + p for p in (
     "config.plist", "README-FIRST.txt", "Data/installer.qcow2",
@@ -332,6 +334,54 @@ class QMP:
                                   "hold-time": 80})
 
 
+def console_ocr_image(frame):
+    # newt uses colored backgrounds for the dialog, selection and buttons.
+    # The Linux 8x16 font leaves the upper-left pixel of each text cell clear.
+    # Extract ink without using label text or inventing focus evidence.
+    width, height, pixels = frame
+    if width % 8 or height % 16:
+        return None
+    image = Image.frombytes("RGB", (width, height), pixels)
+    colors = image.getcolors(16)
+    if not colors or any(channel not in (0, 85, 170, 255)
+                         for _, color in colors for channel in color):
+        return None
+    background = Image.new("RGB", (width // 8, height // 16))
+    rgb = image.load()
+    background.putdata([rgb[x, y] for y in range(0, height, 16) for x in range(0, width, 8)])
+    background = background.resize(image.size, Image.Resampling.NEAREST)
+    ink = ImageChops.difference(image, background).convert("L").point(lambda v: 0 if v else 255)
+    return ink.resize((2 * width, 2 * height), Image.Resampling.NEAREST)
+
+
+def read_screen_text(path, frame, timeout):
+    image = console_ocr_image(frame)
+    arguments = ["tesseract", str(path) if image is None else "stdin", "stdout",
+                 "--psm", "6", "-l", "eng", "tsv"]
+    source = None
+    if image is not None:
+        buffer = io.BytesIO()
+        image.save(buffer, format="PPM")
+        source = buffer.getvalue()
+    result = subprocess.run(arguments, input=source, env=dict(os.environ, OMP_THREAD_LIMIT="1"),
+                            timeout=timeout, check=True, capture_output=True)
+    reader = csv.DictReader(io.StringIO(result.stdout.decode()), delimiter="\t")
+    rows = list(reader)
+    if image is not None:
+        # Focus checks always sample the original raw QMP pixels. Map the
+        # half-open OCR rectangles outward so they still enclose the native ink.
+        for row in rows:
+            for start, extent in (("left", "width"), ("top", "height")):
+                lo, length = int(row[start]), int(row[extent])
+                row[start] = str(lo // 2)
+                row[extent] = str((lo + length + 1) // 2 - lo // 2)
+    table = io.StringIO()
+    writer = csv.DictWriter(table, fieldnames=reader.fieldnames, delimiter="\t", lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return table.getvalue(), rows
+
+
 def screenshot(qmp, evidence, label, timeout):
     path = evidence / (label + ".ppm")
     table = path.with_suffix(".tsv")
@@ -342,10 +392,7 @@ def screenshot(qmp, evidence, label, timeout):
     require(path.is_file() and path.stat().st_size > 32, "native screen capture missing")
     frame = read_ppm(path.read_bytes())
     # Two emulated CPUs share this runner with OCR during guest startup.
-    tsv = subprocess.run(["tesseract", str(path), "stdout", "--psm", "6", "-l", "eng", "tsv"],
-                         env=dict(os.environ, OMP_THREAD_LIMIT="1"), timeout=timeout,
-                         check=True, capture_output=True).stdout.decode()
-    rows = list(csv.DictReader(io.StringIO(tsv), delimiter="\t"))
+    tsv, rows = read_screen_text(path, frame, timeout)
     text = " ".join(row["text"] for row in rows if row.get("text"))
     table.write_text(tsv)
     return frame, text, rows

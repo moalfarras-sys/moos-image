@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Controls for archive-bound recovery admission; never boot or access a guest."""
+import gzip
 import importlib.util
 import json
 from pathlib import Path
 import plistlib
+import shutil
 import socket
 import stat
 import subprocess
@@ -116,6 +118,31 @@ class RecoveryArchive(unittest.TestCase):
 
 
 class NativeObservation(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("tesseract"), "native OCR CLI unavailable")
+    def test_packaged_vga_menu_uses_real_ink_and_native_focus_coordinates(self):
+        pixels = gzip.decompress((ROOT / "tests/fixtures/arm-recovery/menu-44742631108.ppm.gz").read_bytes())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            qmp = Mock()
+            qmp.command.side_effect = lambda _, args: Path(args["filename"]).write_bytes(pixels)
+            screen = gate.screenshot(qmp, root, "menu", 12)
+            self.assertEqual(gate.sha(root / "menu.ppm"),
+                             "532335153b9d0444c6dd4dcd7bb91198d4c6cb42cd354f155d5e981e8b178be5")
+            self.assertTrue(gate.menu_text(screen[1]))
+            regions = gate.menu_regions(screen)
+            self.assertEqual([gate.dominant(screen[0], box) for box in regions["items"]],
+                             [bytes((170, 0, 0)), bytes((170, 170, 170))])
+            self.assertTrue(gate.anchored(screen, regions, ("ok", "cancel")))
+            self.assertFalse(gate.cancel_focused(screen, screen, regions))
+
+            # A real installer title with its dialog erased cannot authorize input.
+            width, height, rgb = screen[0]
+            rgb = rgb[:width * 16 * 3] + bytes((0, 0, 170)) * (width * (height - 16))
+            pixels = f"P6\n{width} {height}\n255\n".encode() + rgb
+            title = gate.screenshot(qmp, root, "title", 12)
+            self.assertFalse(gate.menu_text(title[1]))
+            self.assertFalse(gate.anchored(title, regions, ("ok", "cancel")))
+
     def test_original_os_name_starting_and_cloud_init_messages_are_not_a_menu(self):
         for text in ("Welcome to MoOS Installer", "MoOS Installer Starting...",
                      "MoOS UTM installer ready — choose Install from the menu", ""):

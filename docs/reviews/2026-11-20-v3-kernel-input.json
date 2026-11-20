@@ -129,5 +129,14 @@
       "old_entry_sha256": "f1bb1914ea9fe0743e6b7efd6f6ad91107e0d2a87e40940f20fc1c16654e7329",
       "fix": "Omit defaults only for the recovery disk and retain rw in its blueprint. Admission reads the real active BLS entry from the packaged boot partition before QEMU. The native old artifact is refused; the in-memory option correction passes. Desktop installers keep their existing sealing and signed-origin checks."
     }
+  },
+  "packaged_menu_observation": {
+    "source": "8f3fd5d82825fd268d6732b737f28922a1159171",
+    "run": 44742631108,
+    "artifact": 14646305358,
+    "artifact_sha256": "9d432ce20700c9c3ccdb06a1ef0f9ac3bcb8d8f08ee95c006dac1c462a4b8fc5",
+    "frame_sha256": "532335153b9d0444c6dd4dcd7bb91198d4c6cb42cd354f155d5e981e8b178be5",
+    "observation": "The packaged BLS listed only PL011. The original framebuffer displayed the native newt menu, selected install row, debug row and both buttons. Full-frame OCR returned just NoOS Installer and the proof timed out before sending a key. Target and archive were unchanged. The optional offline journal returned exit 32.",
+    "correction": "Read ink from the observed VGA text cells at twice native size; map text boxes back to the unmodified QMP pixels. The actual title-only control still refuses, and unchanged focus cannot authorize Return. Packaged navigation and shutdown require a fresh boot."
   }
 }
