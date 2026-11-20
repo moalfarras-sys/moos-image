@@ -1,6 +1,6 @@
 # V3 SMOCF05 exact-kernel module package
 
-This directory admits one additive transport RPM for kernel7.3.3-200.fc44.x86_64.
+This directory admits one additive transport RPM for kernel 7.3.4-200.fc44.x86_64.
 The upstream fix and original attribution remain in
 `docs/hardware/patches/smocf05/`; the source/build inputs are pinned in
 `scripts/review/smocf05-module.json`. Native old/fixed compilation precedes
@@ -19,7 +19,7 @@ python3 build_files/smocf05/package.py --module /private/fixed/st_lsm6dsx_i2c.ko
   --output /private/new-package-directory
 ```
 
-Only the public certificate and exact20,770-byte RPM are committed. The dedicated
+Only the public certificate and exact 20,779-byte RPM are committed. The dedicated
 certificate uses digitalSignature, codeSigning and the module-only
 1.3.6.1.4.1.2312.16.1.2 usage, and is distinct from OCI and review signing keys.
 Its SHA256 is `b8c98812edf59a6e3e96321a5dcd718cf70204baa25af00189d3fa8cc4d1a535`.
@@ -58,8 +58,9 @@ Production enrollment uses native administrator authentication and physical
 firmware confirmation; the private key never enters the image or GitHub.
 
 The owner defers native local enrollment; do not infer authorization to bypass
-that step from the module's permissive-kernel load. Preserve signed1152 rollback
-and pinned1078. The source matrix-publication correction and its native udev
+that step from the module's permissive-kernel load. V3 now boots signed 1173
+and retains pinned 1162. The owner archived the local settings and retired
+1152 and 1078. The source matrix-publication correction and its native udev
 old/fixed proof are recorded in docs/reviews/2026-11-16-sensor-matrix-publication.json. Four orientations,
 tilt, internal-panel sizing, physical touch, rotation lock, external display and
 suspend/reboot still require the real V3. CI/container success does not establish

@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-19. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-20. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -27,6 +27,14 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 | Trustworthy delivery | Matching source/artifact evidence, all edition-specific boot gates, signed promotion, installed readback and working recovery |
 
 ## Active delivery and acceptance batch
+
+Nov20 P0.1. The owner assigned V3 the merge and signed rollout for PR316.
+Its full source checks passed at c157f126. The local x86 image refused the
+new complete kernel digest from base 44.20261119.1. Its executable bytes,
+original vendor signature, sensor core and transport match the reviewed inputs.
+The successor admits the verified complete kernel from that upstream image.
+Qualify it through the four edition pipelines, packaged recovery disk and V3
+boot. [Kernel input review](reviews/2026-11-20-v3-kernel-input.json).
 
 The x86 editions reached production as 1173. ARM 994 from main a0261263 passed the desktop QCOW2 UEFI boot and production promotion in run 44573209173. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
 
@@ -275,12 +283,12 @@ For every task:
 
 The owner-authorized complete integration above is the current entry point.
 Boot/security/data-loss fixes still preempt the same M0→M1→M2/M3→M4→M5 queue.
-One Oracle root now owns final aggregate integration/release; V3 retains physical
-acceptance and disjoint work. PR313 includes d5d4897a and the preserved Oracle
+Oracle coordinated PR313. V3 owns the current PR316 merge, signed release and
+physical acceptance. PR313 includes d5d4897a and the preserved Oracle
 maintenance ancestry; all269 known refs are covered. Keep constituent component
 and V3 proofs with their actual sources; freeze one final combined candidate,
 then preserve its source/tree/attempt/signature and release admission.
-[Current ownership/audit](reviews/2026-11-18-unified-oracle-integration.json).
+[PR313 branch audit](reviews/2026-11-18-unified-oracle-integration.json).
 
 Owner permission for automated qualification is now granted. Freeze the complete
 source for its tests and image/CI. Preserve original refused runs and use a fresh
