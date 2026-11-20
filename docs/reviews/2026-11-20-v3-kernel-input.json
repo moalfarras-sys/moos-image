@@ -120,6 +120,14 @@
     "previous_checks": "Local full source and generic image builds passed. The ARM and x86 PR image checks passed.",
     "observation": "The previous tty1 login prompt was gone. The final graphics frame showed cloud-init SSH key generation at guest second 514. Serial reached its login. The archive, packaged files and target remained unchanged. The menu unit exit status is unavailable.",
     "repair": "Keep the PL011 serial port as the recovery kernel console. Retain graphical Plymouth with its installed ignore-serial-consoles option, release its frame before newt and activate the actual menu VT. Desktop console and Plymouth policy stay with their existing owners.",
-    "evidence": "The source tests check the exact console list, splash release and VT selection. On a future boot refusal the disposable runner attempts a read-only inspection of PID 1 unit events. Only the original interactive disk proof can qualify the repair."
+    "evidence": "The source tests check the exact console list, splash release and VT selection. On a future boot refusal the disposable runner attempts a read-only inspection of PID 1 unit events. Only the original interactive disk proof can qualify the repair.",
+    "builder": {
+      "image": "quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b",
+      "source": "a686afed6dde14fa5444a3d3be0f269acc783470",
+      "images_library": "v0.251.0",
+      "measured": "Recovery run 44716670891 handed rw, console=tty0 and console=ttyS0 to install-to-filesystem. The 966 archive active /loader/entries/ostree-1.conf contains PL011 followed by both tty0 and ttyS0.",
+      "old_entry_sha256": "f1bb1914ea9fe0743e6b7efd6f6ad91107e0d2a87e40940f20fc1c16654e7329",
+      "fix": "Omit defaults only for the recovery disk and retain rw in its blueprint. Admission reads the real active BLS entry from the packaged boot partition before QEMU. The native old artifact is refused; the in-memory option correction passes. Desktop installers keep their existing sealing and signed-origin checks."
+    }
   }
 }

@@ -57,6 +57,16 @@ def fixture(root, *, change=None, duplicate=False, link=False):
 
 
 class RecoveryArchive(unittest.TestCase):
+    def test_packaged_console_options_refuse_builder_defaults_and_missing_boot_identity(self):
+        base = "options root=UUID=example rw quiet splash ostree=/ostree/boot.1/default/id/0 "
+        fixed = base + "console=ttyAMA0,115200n8 plymouth.ignore-serial-consoles"
+        self.assertIn("rw", gate.recovery_boot_options(fixed))
+        for wrong in (fixed + " console=ttyS0", fixed + " console=tty0", fixed + "\n" + fixed,
+                      fixed.replace("plymouth.ignore-serial-consoles", ""),
+                      fixed.replace("ostree=/ostree/boot.1/default/id/0", ""), fixed.replace(" rw ", " ")):
+            with self.subTest(options=wrong), self.assertRaises(RuntimeError):
+                gate.recovery_boot_options(wrong)
+
     def test_installer_capacity_matches_the_packaged_ten_gib_image(self):
         gib = 1024**3
         with tempfile.TemporaryDirectory() as directory:

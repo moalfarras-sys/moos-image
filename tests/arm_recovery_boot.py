@@ -91,6 +91,58 @@ def unpack(archive, destination):
     return data
 
 
+def recovery_boot_options(entry):
+    lines = [line.split()[1:] for line in entry.splitlines() if line.startswith("options ")]
+    require(len(lines) == 1, "packaged recovery has no unique boot options")
+    options = lines[0]
+    consoles = [arg for arg in options if arg.startswith("console=")]
+    require(consoles == ["console=ttyAMA0,115200n8"], "packaged recovery consoles: " + str(consoles))
+    require({"rw", "quiet", "splash", "plymouth.ignore-serial-consoles"} <= set(options)
+            and sum(arg.startswith("ostree=/ostree/boot.") for arg in options) == 1,
+            "packaged recovery lost its writable root, graphical splash or OSTree selection")
+    return options
+
+
+def recovery_boot_entry(image, private, disk_size):
+    # sfdisk needs both GPT copies and the real virtual size. Read only the two
+    # ends and the boot partition from the previously admitted standalone QCOW.
+    def extract(offset, size, output):
+        source = {"driver": "raw", "offset": offset, "size": size,
+                  "file": {"driver": "qcow2", "file": {"driver": "file", "filename": str(image)}}}
+        run(["qemu-img", "convert", "-O", "raw", "json:" + json.dumps(source), str(output)])
+
+    with tempfile.TemporaryDirectory(dir=private) as temporary:
+        scratch = Path(temporary)
+        span = 1024**2
+        require(2 * span < disk_size <= RECOVERY_DISK_LIMITS["installer"], "invalid recovery disk extent")
+        table, tail = scratch / "gpt", scratch / "tail"
+        extract(0, span, table)
+        extract(disk_size - span, span, tail)
+        with table.open("r+b") as stream:
+            stream.seek(disk_size - span)
+            stream.write(tail.read_bytes())
+        layout = json.loads(run(["sfdisk", "--json", str(table)]).stdout)["partitiontable"]
+        parts = layout["partitions"]
+        require(layout["label"] == "gpt" and layout["unit"] == "sectors"
+                and layout["sectorsize"] == 512 and len(parts) == 3, "unknown recovery GPT")
+        boot = parts[1]
+        offset, size = boot["start"] * 512, boot["size"] * 512
+        require(boot["type"].lower() == "0fc63daf-8483-4772-8e79-3d69d8477de4"
+                and 0 < size <= 2 * 1024**3 and 0 < offset <= disk_size - size,
+                "unexpected recovery boot partition")
+        partition = scratch / "boot"
+        extract(offset, size, partition)
+        directory = "/loader/entries"
+        listing = run(["debugfs", "-R", "ls -p " + directory, str(partition)]).stdout.decode()
+        filenames = [row.split("/")[5] for row in listing.splitlines() if ".conf/" in row]
+        require(len(filenames) == 1 and re.fullmatch(r"ostree-[0-9]+\.conf", filenames[0]),
+                "packaged recovery has no unique active boot entry")
+        entry = directory + "/" + filenames[0]
+        contents = run(["debugfs", "-R", "cat " + entry, str(partition)]).stdout
+        return {"entry": entry, "sha256": hashlib.sha256(contents).hexdigest(),
+                "options": recovery_boot_options(contents.decode())}
+
+
 def ocr_word(text):
     word = re.sub(r"[^a-z0-9]+", "", text.lower())
     # Native newt's terminal cursor overlaps the final MoOS cell; retain these
@@ -379,6 +431,8 @@ def prove(archive, evidence, revision, run_id, failure_journal=False):
             info = qcow_input(data / (name + ".qcow2"), RECOVERY_DISK_LIMITS[name])
             (evidence / (name + "-info.json")).write_text(json.dumps(info, indent=2) + "\n")
             run(["qemu-img", "check", str(data / (name + ".qcow2"))])
+            if name == "installer":
+                record["boot_entry"] = recovery_boot_entry(data / "installer.qcow2", work, info["virtual-size"])
             run(["qemu-img", "create", "-q", "-f", "qcow2", "-F", "qcow2", "-b",
                  str(data / (name + ".qcow2")), str(work / (name + ".qcow2"))])
         serial = evidence / "serial.log"
