@@ -86,5 +86,12 @@
     "refusal": "Tesseract exceeded 60 seconds on the boot screen before the native menu appeared. The previous observation TSV and newer PPM could differ.",
     "failed_frame_sha256": "501ffcd8607fa68df37cce7722f2b2d8d6b7574ba7d107385ceff9910c726c9f",
     "observer_replay": "Original runner frame refused as a menu. Five native newt frames exercised down, up, OK and Cancel focus; unchanged focus could not authorize Enter. A timed-out OCR frame is recorded and retried within the original interaction deadline."
+  },
+  "mira_watchdog_fixture": {
+    "original_source": "815066d5617bf9ec3a4b1a5e457074a7deea438a",
+    "full_check_failure": "The blocked test process exceeded 10 seconds. Its temporary trace was removed during cleanup, so the original timeout cause is unknown.",
+    "live_controls": "85 single native tests and 250 complete ARM source-test suites passed on the old fixture in a subsequent ASCII-path replay. An Arabic temporary path reliably timed out because faulthandler escapes non-ASCII paths.",
+    "repair": "The parent reads the real diagnostic pipe and releases the blocked app only when its stack frame is present. It checks exit 9 and final output. A missing watchdog fails the native fixture.",
+    "scope": "Source diagnostic fixture only. Production watchdog, guest boot and release gates are unchanged."
   }
 }
