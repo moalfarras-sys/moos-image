@@ -72,6 +72,8 @@ main_menu
                 result, calls = self.probe("cancel", installed=installed)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("Recovery menu closed.", calls)
+                menu, = [line for line in calls.splitlines() if line.startswith("dialog:") and " --menu " in line]
+                self.assertIn("--clear", menu.removeprefix("dialog:").split())
                 self.assertNotIn("install:", calls)
                 self.assertNotIn("systemctl:", calls)
 

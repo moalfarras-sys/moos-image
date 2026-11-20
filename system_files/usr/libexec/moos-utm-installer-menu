@@ -99,14 +99,14 @@ main_menu() {
     while true; do
         dialog_status=0
         if [ "$has_data" -eq 1 ]; then
-            choice=$(whiptail --backtitle "MoOS Installer" --title "MoOS UTM" \
+            choice=$(whiptail --clear --backtitle "MoOS Installer" --title "MoOS UTM" \
                 --menu "اختر إجراءً | Choose an action:" 18 72 6 \
                 1 "إقلاع MoOS من UEFI | Boot MoOS firmware entry" \
                 2 "Install latest signed MoOS" \
                 4 "إعادة التثبيت: مسح القرص | Reinstall (erase target)" \
                 3>&1 1>&2 2>&3) || dialog_status=$?
         else
-            choice=$(whiptail --backtitle "MoOS Installer" --title "MoOS UTM" \
+            choice=$(whiptail --clear --backtitle "MoOS Installer" --title "MoOS UTM" \
                 --menu "اختر إجراءً | Choose an action:" 16 72 4 \
                 2 "Install latest signed MoOS" \
                 5 "Shell / serial debug" \

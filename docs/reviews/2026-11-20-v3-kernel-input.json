@@ -138,5 +138,14 @@
     "frame_sha256": "532335153b9d0444c6dd4dcd7bb91198d4c6cb42cd354f155d5e981e8b178be5",
     "observation": "The packaged BLS listed only PL011. The original framebuffer displayed the native newt menu, selected install row, debug row and both buttons. Full-frame OCR returned just NoOS Installer and the proof timed out before sending a key. Target and archive were unchanged. The optional offline journal returned exit 32.",
     "correction": "Read ink from the observed VGA text cells at twice native size; map text boxes back to the unmodified QMP pixels. The actual title-only control still refuses, and unchanged focus cannot authorize Return. Packaged navigation and shutdown require a fresh boot."
+  },
+  "packaged_menu_exit": {
+    "source": "ef850d88c7c715671600a365e72eda0158635831",
+    "run": 44799995260,
+    "artifact": 14672256546,
+    "artifact_sha256": "cc8c08de95a047078112481f018454b74c5ccec87643ddcf8c28d8510b76ad3f",
+    "closed_frame_sha256": "45c6a07fe5adf78b01f695dd3732661842c61d6b74386d83a9c2a6d8c419fdbf",
+    "observation": "The actual package passed Down, Up and verified Cancel focus. Both serial and graphics reported Recovery menu closed, but the inactive menu was still painted. Target, packaged files and archive were unchanged. The unchanged screen predicate refused before poweroff.",
+    "native_control": "With the actual newt whiptail, the released menu and TERM=linux on a private 160x50 terminal, Cancel returns success from the menu wrapper and leaves the install row and Cancel button on screen. Requesting --clear dismisses both and leaves the exit message. The packaged boot remains necessary."
   }
 }

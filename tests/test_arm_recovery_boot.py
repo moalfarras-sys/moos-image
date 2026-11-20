@@ -143,6 +143,11 @@ class NativeObservation(unittest.TestCase):
             self.assertFalse(gate.menu_text(title[1]))
             self.assertFalse(gate.anchored(title, regions, ("ok", "cancel")))
 
+    def test_closed_message_beneath_stale_controls_does_not_prove_cancel(self):
+        message = "Recovery menu closed."
+        self.assertFalse(gate.cancelled_screen((None, MENU + "\n" + message, [])))
+        self.assertTrue(gate.cancelled_screen((None, message, [])))
+
     def test_original_os_name_starting_and_cloud_init_messages_are_not_a_menu(self):
         for text in ("Welcome to MoOS Installer", "MoOS Installer Starting...",
                      "MoOS UTM installer ready — choose Install from the menu", ""):
