@@ -441,16 +441,27 @@ def icon_roles(roles: dict[str, str]) -> dict[str, str]:
 
     Mirrors generate_moos_ui2.color_scheme exactly (Colors:Window +
     Colors:Selection + AccentColor), so a mark's baked inks are literally the
-    same numbers as the colour scheme that ships with the same palette.
+    same numbers as the colour scheme that ships with the same palette —
+    including the legibility step that scheme applies to Window text roles on
+    their surface/card grounds.
     """
+    import importlib.util
+    path = pathlib.Path(__file__).resolve().with_name("generate_moos_ui2.py")
+    spec = importlib.util.spec_from_file_location("_moos_icons_ui2", path)
+    ui2 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ui2)
+    grounds = (roles["surface"], roles["card"])
+
+    def ink(role: str) -> str:
+        return ui2.legible(roles[role], grounds, 4.5)
     return {
-        "Text": roles["text"],
+        "Text": ink("text"),
         "Background": roles["surface"],
         "Highlight": roles["primary"],
         "HighlightedText": roles["selected_text"],
-        "PositiveText": roles["positive"],
-        "NeutralText": roles["warning"],
-        "NegativeText": roles["negative"],
+        "PositiveText": ink("positive"),
+        "NeutralText": ink("warning"),
+        "NegativeText": ink("negative"),
         "Accent": roles["primary"],
     }
 
