@@ -1095,6 +1095,69 @@ ROLE_STYLE = {
     ERROR: ("ColorScheme-NegativeText error", "#e01b24"),
 }
 
+# Session controls share one optical grid. A downward arrow means installation
+# on both update keys; their surrounding silhouette still identifies the action.
+power_bowl = path(arc_band(12, 12.2, 9.05, 6.8, -51, 231))
+restart_sweep = path(arc_band(12, 12, 9.15, 6.9, 2, 307))
+restart_head = path("M15.8 8.9 L20.7 8.9 Q21.35 8.9 21.35 8.2 V3.65 "
+                    "Q21.35 2.55 20.55 3.35 L15.35 8.1 Q14.55 8.9 15.8 8.9 Z")
+install_arrow = (
+    path(capsule(12, 8.3, 12, 14.3, 2.05)),
+    path(capsule(9.5, 12.3, 12, 14.8, 1.9)),
+    path(capsule(12, 14.8, 14.5, 12.3, 1.9)),
+)
+keyboard_face = (
+    path(rounded_ring(2.7, 3.0, 18.6, 12.6, 2.75, 1.9)),
+    path(rect(6.25, 6.8, 2.3, 2.15, .4)),
+    path(rect(10.85, 6.8, 2.3, 2.15, .4)),
+    path(rect(15.45, 6.8, 2.3, 2.15, .4)),
+    path(capsule(8.75, 11.6, 15.25, 11.6, 1.75)),
+)
+SYMBOLS.update({
+    "session-sleep": sym("Sleep", "session",
+        path("M15.6 3.3 A9.1 9.1 0 1 0 20.4 16.9 "
+             "A8 8 0 0 1 12.4 6.2 Q13.4 4.15 15.6 3.3 Z"),
+        path(star(18.8, 7, 2.5, 1.0, 4))),
+    "session-hibernate": sym("Hibernate", "session",
+        path("M8.9 2.7 A6.4 6.4 0 1 0 15.7 12 "
+             "A6.4 6.4 0 0 1 8.9 2.7 Z"),
+        path("M3 15 H7.4 L9.5 17.2 H14.5 L16.6 15 H21 V18.7 "
+             "Q21 21 18.7 21 H5.3 Q3 21 3 18.7 Z")),
+    "session-restart": sym("Restart", "session", restart_sweep, restart_head),
+    "session-update-restart": sym("Install updates and restart", "session",
+        restart_sweep, restart_head, *install_arrow),
+    "session-poweroff": sym("Shut down", "session", power_bowl,
+        path(capsule(12, 3.1, 12, 11.2, 2.3))),
+    "session-update-poweroff": sym("Install updates and shut down", "session",
+        power_bowl, path(capsule(12, 3.1, 12, 9, 2.05)), *install_arrow),
+    "session-logout": sym("Leave session", "session",
+        path("M12.7 3 V5.2 H6 Q5.35 5.2 5.35 5.9 V18.1 Q5.35 18.8 6 18.8 "
+             "H12.7 V21 H6 Q3.15 21 3.15 18.1 V5.9 Q3.15 3 6 3 Z"),
+        path(capsule(9.6, 12, 20, 12, 2.2)),
+        path(capsule(16.4, 8.0, 20.4, 12, 2.2)),
+        path(capsule(20.4, 12, 16.4, 16, 2.2))),
+    "session-lock": sym("Lock screen", "session",
+        path("M6.7 10 V7.8 A5.3 5.3 0 0 1 17.3 7.8 V10 H15.1 V7.8 "
+             "A3.1 3.1 0 0 0 8.9 7.8 V10 Z"),
+        compound(rect(4.2, 9.3, 15.6, 11.8, 3.1), capsule(12, 13, 12, 16.7, 2.2)),
+        min_holes=1),
+    "session-show-keyboard": sym("Show keyboard", "session", *keyboard_face,
+        path(capsule(8.7, 20.4, 12, 17.6, 2.15)), path(capsule(12, 17.6, 15.3, 20.4, 2.15))),
+    "session-hide-keyboard": sym("Hide keyboard", "session", *keyboard_face,
+        path(capsule(8.7, 17.6, 12, 20.4, 2.15)), path(capsule(12, 20.4, 15.3, 17.6, 2.15))),
+    "session-input-language": sym("Change keyboard layout", "session",
+        path(ring(12, 12, 9.25, 7.25)), path(ellipse_ring(12, 12, 4.45, 8.2, 2.5, 7.5)),
+        path(capsule(4.3, 12, 19.7, 12, 1.85))),
+    "session-switch-user": sym("Switch user", "session",
+        path(circle(9.15, 7.2, 3.65)),
+        path("M2.8 19.9 V17.8 Q2.8 13.3 7.7 12.9 H10.5 Q15.5 13.3 15.5 17.8 V19.9 Z"),
+        path("M15.1 4.8 A3.4 3.4 0 1 1 15.35 11.35 "
+             "Q17.5 7.95 15.1 4.8 Z"),
+        path("M15.8 13.3 Q21.2 13.4 21.2 17.9 V19.9 H17.7 V17.8 "
+             "Q17.7 15.2 15.8 13.3 Z")),
+})
+
+
 DEFAULT_PALETTE = {
     TEXT: "#243238",
     HIGHLIGHT: "#147d72",

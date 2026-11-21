@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import configparser
 import json
 import os
 from pathlib import Path
@@ -203,6 +204,10 @@ class DesignCoreTests(unittest.TestCase):
             families.setdefault(profile["family"], set()).add(profile["mode"])
             with self.subTest(profile=profile["id"]):
                 self.assertRegex(profile["accent"], r"^#[0-9A-F]{6}$")
+                colors = configparser.ConfigParser()
+                colors.read(ROOT / "system_files/usr/share/color-schemes" / (profile["scheme"]+".colors"))
+                rgb = colors["Colors:Selection"]["BackgroundNormal"].split(",")
+                self.assertEqual(profile["accent"], "#" + "".join(f"{int(v):02X}" for v in rgb))
                 self.assertTrue(
                     (SHARE / "plasma/look-and-feel" / profile["id"] / "metadata.json").is_file()
                 )

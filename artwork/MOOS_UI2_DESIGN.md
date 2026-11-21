@@ -256,9 +256,12 @@ logic or replace the native executor. Session actions keep complete captions,
 44px minimum targets and two-step sensitive confirmation. Pointer/key navigation
 cancels the native countdown; hidden/reduced motion settles finite transitions.
 The native login/lock buttons and power tiles share `SessionActionGlyph`:
-selected-theme accent under its paired ink, negative-role shutdown, no independent
-fixed palette. Enabled ink stays opaque. The session backdrop uses one24px
-Qt image-blur token; KWin's distinct0–15 blur ceiling remains unchanged. Extra
+the short corner of each key mirrors with the reading direction. Each session
+action has its own Tidal Cut silhouette. Installation adds a downward arrow inside
+the restart or power outline. The flat key uses selection and its paired ink.
+Shutdown uses the negative role. The rim mixes selection and the scheme's link
+colour. Enabled ink stays opaque. The session backdrop uses one24px
+Qt image-blur token on GPU renderers. The power screen paints the original image on the software renderer; KWin's distinct0–15 blur ceiling remains unchanged. Extra
 expanded halo rectangles are removed from login/lock too; GlassSurface owns depth.
 
 The three session surfaces are one scene with one set of parts, and the parts are
@@ -286,17 +289,15 @@ Rules that follow from it:
 - **Two poses.** With nobody at the keyboard the screen is a cover: the clock is its
   headline, up to half as large again, standing low in its band. At the first key
   or movement the clock draws back and rises, and the island arrives under it: the
-  plate settles with a small overshoot, then the face, the prompts and the action
-  keys, as slices of one finite driver.
+  plate and face have a short entrance. Prompts and action keys keep their positions
+  as the parent becomes visible. The power sheet opens with its actions fully visible.
 - **The frame.** The selected face stands in a ring of the accent's two tones, a
   hair's width off the picture, over a still bloom. A photo sits in it like a stone
   in a bezel. A face without a photo is its initial on a two-tone disc.
-- **The orbit.** When the island arrives a light runs round its rim and round the
-  face's frame, twice; a typed character sends it round once more; then it docks
-  in the crest and is no longer drawn. It is always a counted number of turns,
-  never a loop: a machine left at a half-typed password keeps this screen up
-  indefinitely. Measured on the station (NVIDIA, 3840×2160@2.5): 0.3% of a core as
-  a cover, 6.5% while the orbit turns, 0.0% once it has docked.
+- **Arrival and input.** The card rim and selected face each make one short sweep
+  when login or lock opens on a GPU. The password field and submit key own typing
+  feedback. The power sheet keeps its rim still and uses the pressed, focus and
+  confirmation states of the action itself.
 - **The key answers.** The Unlock/Log In key is glass until its field holds
   something, then fills with the accent and its arrow leans forward. A refusal
   flashes the island's rim once in the negative role, with the notice.
@@ -304,8 +305,8 @@ Rules that follow from it:
   top edge but its crest. The brand mark is in its corner and on the island's
   lower edge.
 - The island is sized from its content, never from outside.
-- Session surfaces wear the Complementary set in every family, light ones included:
-  the island is deliberate dark glass.
+- The working card uses the selected Window material in every family. Its paired
+  foreground and accent follow the account, including light profiles.
 - With animations off nothing moves: the clock keeps its working pose's size rules,
   the arrival driver rests at 1 and the orbit refuses to start.
 - MoOS replaces no file that carries authentication. The session design is drawn by
@@ -316,7 +317,7 @@ at the station's 1536×864@2.5 at least, in Arabic and one left-to-right languag
 with the password row idle, typed into and refused. `frames=` and `motion=6` capture an
 arrival as a sequence; a live look on the station's own GPU is one transient unit away
 (`kscreenlocker_greet --testing` with a private `QML_IMPORT_PATH`), and is where the
-orbit's cost is measured.
+cost of the session effects is measured.
 
 ### Panel and launcher
 

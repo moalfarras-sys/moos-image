@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-20. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-21. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -27,6 +27,15 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 | Trustworthy delivery | Matching source/artifact evidence, all edition-specific boot gates, signed promotion, installed readback and working recovery |
 
 ## Active delivery and acceptance batch
+
+V3 session qualification follows the signed 1178 baseline. Check the twelve
+session symbols, password entry, lock/unlock and power confirmation on the
+signed successor in the selected light and dark themes. The signed 1178 baseline was 21.173s. Plymouth exited at
+10.505s, KWin selected DRM at 11.787s, and the greeter signalled readiness at
+13.209s. On eDP-1 at 1.45 scale the owner requested larger glyphs and text.
+The revision enlarges the drawn symbols by 12% and increases caption size by
+one reference point. Compare the successor's cold boot and visible handoff
+with the owner's observation on the same internal panel.
 
 Nov20 P0.1. The owner assigned V3 the merge and signed rollout for PR316.
 Its full source checks passed at c157f126. The local x86 image refused the

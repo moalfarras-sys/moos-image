@@ -19,8 +19,8 @@
 //   2. The face has a FRAME, and the frame is alive. A ring in the accent's two
 //      tones floats a hair's width off the picture, so a photo sits in it like a
 //      stone in a bezel instead of being outlined. When the session island comes
-//      up the ring snaps on and its light runs twice round the face; a typed
-//      character sends it round once more. Then it rests. A still bloom in the
+//      up the ring marks the selected account with a single short sweep.
+//      The frame stays still during text entry. A still bloom in the
 //      accent stands behind it. All of it is drawn HERE, so the login screen has
 //      it too (the lock screen used to paint a bloom from outside, a grid unit
 //      low). Software rendering gets a plain accent ring.
@@ -66,15 +66,7 @@ Item {
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
     // The accent's second tone — decorative only, it never sits under a glyph.
-    readonly property color accentB: {
-        const c = Kirigami.Theme.highlightColor;
-        if (c.hslSaturation < 0.08 || c.hslHue < 0) {
-            return Qt.lighter(c, 1.28);
-        }
-        let nh = c.hslHue + 0.09;
-        if (nh > 1) { nh -= 1; }
-        return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
-    }
+    readonly property color accentB: design.sessionRim(Kirigami.Theme.highlightColor, Kirigami.Theme.linkColor)
 
     property bool isCurrent: true
 
@@ -113,32 +105,29 @@ Item {
     property real orbitAngle: 0
     property real framePop: 1
 
-    // The ring snaps on and its light goes round: twice on arrival, once for a
-    // typed character. Always a counted number of turns — a machine left at a
-    // half-typed password must not spend the night animating.
+    // A short entrance acknowledges the selected account.
     function arrive() {
         if (!wrapper.isCurrent || wrapper.softwareRendering || !wrapper.motionEnabled) {
             return;
         }
         framePopRun.restart();
-        orbitRun.loops = 2;
         orbitRun.restart();
     }
-    function poke() {
-        if (wrapper.isCurrent && wrapper.motionEnabled && !wrapper.softwareRendering
-                && !orbitRun.running) {
-            orbitRun.loops = 1;
-            orbitRun.restart();
-        }
+    function settleFrame() {
+        orbitRun.stop();
+        framePopRun.stop();
+        orbitAngle = 0;
+        framePop = 1;
     }
-    onOnStageChanged: if (onStage) { arrive(); }
+    onOnStageChanged: if (onStage) { arrive(); } else { settleFrame(); }
+    onMotionEnabledChanged: if (!motionEnabled) { settleFrame(); }
     Component.onCompleted: if (onStage && !sessionScreen) { arrive(); }
 
     NumberAnimation {
         id: orbitRun
         target: wrapper; property: "orbitAngle"
         from: 0; to: 360
-        duration: design.duration(wrapper.motionEnabled, design.motionPortal) * 8
+        duration: design.duration(wrapper.motionEnabled, design.motionGeometry)
         easing.type: Easing.InOutSine
     }
     NumberAnimation {

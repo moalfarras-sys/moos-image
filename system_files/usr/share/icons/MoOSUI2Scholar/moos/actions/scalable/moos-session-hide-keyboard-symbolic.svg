@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="session-hide-keyboard-title">
+  <title id="session-hide-keyboard-title">Hide keyboard</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F3EADB; fill: currentColor; }
+    .ColorScheme-Highlight { color: #E0A458; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #E0A458; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #E08B7D; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.45 3 H18.55 A2.75 2.75 0 0 1 21.3 5.75 V12.85 A2.75 2.75 0 0 1 18.55 15.6 H5.45 A2.75 2.75 0 0 1 2.7 12.85 V5.75 A2.75 2.75 0 0 1 5.45 3 Z M5.45 4.9 H18.55 A0.85 0.85 0 0 1 19.4 5.75 V12.85 A0.85 0.85 0 0 1 18.55 13.7 H5.45 A0.85 0.85 0 0 1 4.6 12.85 V5.75 A0.85 0.85 0 0 1 5.45 4.9 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M6.65 6.8 H8.15 A0.4 0.4 0 0 1 8.55 7.2 V8.55 A0.4 0.4 0 0 1 8.15 8.95 H6.65 A0.4 0.4 0 0 1 6.25 8.55 V7.2 A0.4 0.4 0 0 1 6.65 6.8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11.25 6.8 H12.75 A0.4 0.4 0 0 1 13.15 7.2 V8.55 A0.4 0.4 0 0 1 12.75 8.95 H11.25 A0.4 0.4 0 0 1 10.85 8.55 V7.2 A0.4 0.4 0 0 1 11.25 6.8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M15.85 6.8 H17.35 A0.4 0.4 0 0 1 17.75 7.2 V8.55 A0.4 0.4 0 0 1 17.35 8.95 H15.85 A0.4 0.4 0 0 1 15.45 8.55 V7.2 A0.4 0.4 0 0 1 15.85 6.8 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M8.75 12.475 L15.25 12.475 A0.875 0.875 0 0 0 15.25 10.725 L8.75 10.725 A0.875 0.875 0 0 0 8.75 12.475 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M8.004 18.42 L11.304 21.22 A1.075 1.075 0 0 0 12.696 19.58 L9.396 16.78 A1.075 1.075 0 0 0 8.004 18.42 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M12.696 21.22 L15.996 18.42 A1.075 1.075 0 0 0 14.604 16.78 L11.304 19.58 A1.075 1.075 0 0 0 12.696 21.22 Z"/>
+</svg>

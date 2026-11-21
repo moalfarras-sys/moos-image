@@ -19,7 +19,7 @@
       "decoration": "MoOSUI2",
       "wallpaper": "MoOSUI2Graphite",
       "wallpaperBranch": "images_dark",
-      "accent": "#55E6D2",
+      "accent": "#4ED7C8",
       "surfaceTreatment": "graphite-frost"
     },
     {
@@ -36,7 +36,7 @@
       "decoration": "MoOSUI2Light",
       "wallpaper": "MoOSUI2Tide",
       "wallpaperBranch": "images",
-      "accent": "#087F78",
+      "accent": "#006D67",
       "surfaceTreatment": "tidal-frost"
     },
     {
@@ -70,7 +70,7 @@
       "decoration": "MoOSUI2NovaLight",
       "wallpaper": "MoOSUI2NovaLight",
       "wallpaperBranch": "images",
-      "accent": "#4F46E5",
+      "accent": "#0E63C4",
       "surfaceTreatment": "cosmic-frost"
     },
     {
@@ -104,7 +104,7 @@
       "decoration": "MoOSUI2AmethystLight",
       "wallpaper": "MoOSUI2AmethystLight",
       "wallpaperBranch": "images",
-      "accent": "#9333EA",
+      "accent": "#7C3AED",
       "surfaceTreatment": "warm-frost"
     },
     {
@@ -138,7 +138,7 @@
       "decoration": "MoOSUI2Daylight",
       "wallpaper": "MoOSUI2Daylight",
       "wallpaperBranch": "images",
-      "accent": "#0891B2",
+      "accent": "#0284C7",
       "surfaceTreatment": "daylight-frost"
     },
     {
@@ -206,7 +206,7 @@
       "decoration": "MoOSUI2ArenaLight",
       "wallpaper": "MoOSUI2ArenaLight",
       "wallpaperBranch": "images",
-      "accent": "#DB2777",
+      "accent": "#C81D7A",
       "surfaceTreatment": "arena-glow"
     },
     {
@@ -240,7 +240,7 @@
       "decoration": "MoOSUI2ForgeLight",
       "wallpaper": "MoOSUI2ForgeLight",
       "wallpaperBranch": "images",
-      "accent": "#16803A",
+      "accent": "#1A7F37",
       "surfaceTreatment": "focus-frost"
     },
     {
@@ -274,7 +274,7 @@
       "decoration": "MoOSUI2ScholarLight",
       "wallpaper": "MoOSUI2ScholarLight",
       "wallpaperBranch": "images",
-      "accent": "#A16207",
+      "accent": "#B45309",
       "surfaceTreatment": "reading-frost"
     },
     {
@@ -308,7 +308,7 @@
       "decoration": "MoOSUI2BloomLight",
       "wallpaper": "MoOSUI2BloomLight",
       "wallpaperBranch": "images",
-      "accent": "#9333EA",
+      "accent": "#7C3AED",
       "surfaceTreatment": "bloom-soft"
     }
   ]

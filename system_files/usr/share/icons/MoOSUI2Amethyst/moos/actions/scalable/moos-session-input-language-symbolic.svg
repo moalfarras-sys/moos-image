@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="session-input-language-title">
+  <title id="session-input-language-title">Change keyboard layout</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F1E9F5; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C084FC; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M21.25 12 A9.25 9.25 0 1 1 2.75 12 A9.25 9.25 0 1 1 21.25 12 Z M19.25 12 A7.25 7.25 0 1 1 4.75 12 A7.25 7.25 0 1 1 19.25 12 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M16.45 12 A4.45 8.2 0 1 1 7.55 12 A4.45 8.2 0 1 1 16.45 12 Z M14.5 12 A2.5 7.5 0 1 1 9.5 12 A2.5 7.5 0 1 1 14.5 12 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M4.3 12.925 L19.7 12.925 A0.925 0.925 0 0 0 19.7 11.075 L4.3 11.075 A0.925 0.925 0 0 0 4.3 12.925 Z"/>
+</svg>

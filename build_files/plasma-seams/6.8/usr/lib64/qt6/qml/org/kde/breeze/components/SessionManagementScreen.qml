@@ -131,15 +131,7 @@ FocusScope {
     // The second hue of the two-tone signature, derived from the live accent so
     // every family gets its own pair. Decorative only: it has no paired ink in
     // a KDE colour scheme, so it never sits under a glyph.
-    readonly property color accentB: {
-        const c = Kirigami.Theme.highlightColor;
-        if (c.hslSaturation < 0.08 || c.hslHue < 0) {
-            return Qt.lighter(c, 1.28);
-        }
-        let nh = c.hslHue + 0.09;
-        if (nh > 1) { nh -= 1; }
-        return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
-    }
+    readonly property color accentB: root.design.sessionRim(root.accentA, Kirigami.Theme.linkColor)
 
     // The island hugs the cluster it frames: the prompt column is upstream's
     // sixteen grid units, and the plate adds one even margin around it. On a
@@ -185,17 +177,17 @@ FocusScope {
         ? root.unit * 2 : 0
 
     // ── Arrival ─────────────────────────────────────────────────────────────
-    // Both greeters fade this screen by fading the StackView that holds it, so
-    // the holder's opacity says when the doorway opens. When it does, ONE driver
-    // runs from 0 to 1 and everything on the island takes its cue from a slice
-    // of it: the plate rises and settles with a little overshoot, the face
-    // follows, then the prompts, then the action keys — a short wave, not a
-    // slab. The orbit below starts with it. One finite animation; with
-    // animations off the driver simply rests at 1.
+    // The parent controls visibility. Only decorative surfaces follow this
+    // short entrance; the password field and actions keep their final positions.
     readonly property real stage: parent ? parent.opacity : 1
     readonly property bool staged: stage > 0.02
     property real arrival: motionEnabled ? 0 : 1
-    onMotionEnabledChanged: if (!motionEnabled) { arrival = 1; }
+    onMotionEnabledChanged: if (!motionEnabled) {
+        arrivalRun.stop();
+        orbitRun.stop();
+        orbitGlow = 0;
+        arrival = 1;
+    }
     onStagedChanged: {
         if (staged) {
             if (motionEnabled) {
@@ -205,7 +197,7 @@ FocusScope {
             }
             island.arrivalPlayed = false;
             island.playArrival();
-            orbit(2);
+            playArrivalRim();
         } else {
             arrivalRun.stop();
             orbitRun.stop();
@@ -217,7 +209,7 @@ FocusScope {
         id: arrivalRun
         target: root; property: "arrival"
         from: 0; to: 1
-        duration: root.design.duration(root.motionEnabled, root.design.motionPortal) * 1.4
+        duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
     }
     // The slice [from, to] of the arrival, as 0..1.
     function slice(from, to) {
@@ -232,34 +224,14 @@ FocusScope {
         return 1 + (c + 1) * u * u * u + c * u * u;
     }
 
-    // ── The orbit ───────────────────────────────────────────────────────────
-    // A light runs round the island's rim: twice when it arrives, once more for
-    // a typed character, and then it docks in the crest. It is the same gesture
-    // the face's frame makes, on the same count. Always a counted number of
-    // turns, never a loop: a machine left at a half-typed password keeps this
-    // screen up indefinitely, and must not spend the night animating.
+    // A single accent sweep marks arrival. Editing a password never restarts it.
     property real orbitAngle: 0
     property real orbitGlow: 0
-    property int orbitTurns: 2
-    function orbit(turns) {
+    function playArrivalRim() {
         if (!root.motionEnabled || root.softwareRendering) {
             return;
         }
-        root.orbitTurns = turns;
         orbitRun.restart();
-    }
-    // A typed character: the orbit answers, and so does the face's frame.
-    function poke() {
-        if (!root.staged) {
-            return;
-        }
-        if (!orbitRun.running) {
-            root.orbit(1);
-        }
-        const face = userListView.currentItem;
-        if (face && face.poke !== undefined) {
-            face.poke();
-        }
     }
     SequentialAnimation {
         id: orbitRun
@@ -270,13 +242,12 @@ FocusScope {
         NumberAnimation {
             target: root; property: "orbitAngle"
             from: 0; to: 360
-            loops: root.orbitTurns
-            duration: root.design.duration(root.motionEnabled, root.design.motionPortal) * 8
+            duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
             easing.type: Easing.InOutSine
         }
         NumberAnimation {
             target: root; property: "orbitGlow"; to: 0
-            duration: root.design.duration(root.motionEnabled, root.design.motionPortal)
+            duration: root.design.duration(root.motionEnabled, root.design.motionFast)
         }
     }
 
@@ -329,7 +300,6 @@ FocusScope {
             control.background = fieldFace.createObject(control, { control: control });
             control.font.pointSize = Qt.binding(() => Math.max(8, Math.round(
                 (Kirigami.Theme.defaultFont.pointSize + 2) * root.sessionScale)));
-            fieldWatch.createObject(control, { target: control });
             // Both greeters run outside a normal application window, where an
             // assistive client cannot be assumed to fall back to the
             // placeholder. A field nobody named says what it asks for.
@@ -378,17 +348,6 @@ FocusScope {
         MoUI.SessionAppearance.followOwnSession();
         adoptPromptControls();
         console.info("MOOS_AUTH_SURFACE_READY", Qt.resolvedUrl("SessionManagementScreen.qml"));
-    }
-
-    // A change of a field's text is a keystroke. Only the EVENT is used — the
-    // orbit answers it — never what was typed.
-    Component {
-        id: fieldWatch
-        Connections {
-            function onTextChanged() {
-                root.poke();
-            }
-        }
     }
 
     Component {
@@ -944,10 +903,6 @@ FocusScope {
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
-            opacity: root.slice(0.2, 0.75)
-            transform: Translate {
-                y: (1 - root.settle(root.slice(0.2, 0.9))) * root.unit * 1.4
-            }
 
             ColumnLayout {
                 id: innerLayout
@@ -973,10 +928,6 @@ FocusScope {
             Layout.alignment: Qt.AlignHCenter
             implicitHeight: actionItemsLayout.implicitHeight
             implicitWidth: actionItemsLayout.implicitWidth
-            opacity: root.slice(0.4, 0.95)
-            transform: Translate {
-                y: (1 - root.settle(root.slice(0.4, 1))) * root.unit * 1.6
-            }
             GridLayout {
                 id: actionItemsLayout
                 Kirigami.Theme.inherit: false

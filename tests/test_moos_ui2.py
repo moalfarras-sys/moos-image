@@ -872,7 +872,7 @@ class TestMoOSUI2(unittest.TestCase):
         # orbit refuses to start at all then, and is counted when it does run.
         self.assertIn("property real arrival: motionEnabled ? 0 : 1", source)
         self.assertIn("arrival = motionEnabled ? 0 : 1;", source)
-        orbit = source[source.index("function orbit(turns)"):source.index("function poke()")]
+        orbit = source[source.index("function playArrivalRim()"):source.index("id: orbitRun")]
         self.assertIn("if (!root.motionEnabled || root.softwareRendering) {", orbit)
         self.assertNotIn("Animation.Infinite", source)
         self.assertNotIn("Timer {", source)
@@ -895,7 +895,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=171", apply,
+            "THEME_REV=172", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -977,14 +977,9 @@ class TestMoOSUI2(unittest.TestCase):
         button = qml_code(
             (logout_root / "MoOSUI2ActionButton.qml").read_text(encoding="utf-8")
         )
-        self.assertIn(
-            "Kirigami.Theme.colorSet: Kirigami.Theme.Complementary",
-            logout_screen,
-            "the wallpaper veil and native session clock retain Complementary",
-        )
-        self.assertIn("Kirigami.Theme.colorSet: Kirigami.Theme.Window",
-                      logout_screen[logout_screen.index("id: sheet"):],
-                      "the working sheet must match the selected desktop's light/dark roles")
+        self.assertIn("Kirigami.Theme.colorSet: Kirigami.Theme.Window", logout_screen)
+        self.assertNotIn("Kirigami.Theme.colorSet: Kirigami.Theme.Complementary", logout_screen,
+                         "the backdrop and sheet must both follow the selected colour family")
         self.assertRegex(
             button,
             r"readonly property color filledInk:\s*control\.destructive\s*"

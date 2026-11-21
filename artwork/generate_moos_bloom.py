@@ -68,9 +68,9 @@ def readable_pair(background: str) -> tuple[str, str]:
     raise ValueError("Bloom window action has no readable paired ink")
 
 
-def button(name: str, background: str, accent: str, text: str) -> str:
+def button(name: str, background: str, accent: str, text: str, negative: str) -> str:
     return glyphs._button_svg(name, {"surface": background, "text": text,
-                                   "muted": text, "negative": "#F36D75",
+                                   "muted": text, "negative": negative,
                                    "secondary": accent, "primary": accent})
 
 
@@ -83,6 +83,7 @@ def frame(light: bool, profile: dict) -> None:
     colors.read(SHARE / "color-schemes" / (profile["scheme"] + ".colors"))
     background = hex_color(rgb(colors["Colors:Window"]["BackgroundNormal"]))
     text = hex_color(rgb(colors["Colors:Window"]["ForegroundNormal"]))
+    negative = hex_color(rgb(colors["Colors:Window"]["ForegroundNegative"]))
     secondary = next(mix(text, background, n/100) for n in range(70, 101)
                      if contrast(mix(text, background, n/100), background) >= 4.5)
     svg = (source / "decoration.svg").read_text()
@@ -130,7 +131,7 @@ def frame(light: bool, profile: dict) -> None:
     rc += '\n# 44px target and title match in restored and maximized states.\nButtonMarginTopMaximized=0\n'
     write(target / (name+"rc"), rc)
     for action in glyphs.BUTTONS:
-        write(target / (action+".svg"), button(action, background, profile["accent"], text))
+        write(target / (action+".svg"), button(action, background, profile["accent"], text, negative))
     write(target / "metadata.desktop", '[Desktop Entry]\nName=MoOS UI · Bloom'+(' Light' if light else '')+'\n'
           'Comment=Soft native MoOS window frame\nX-KDE-PluginInfo-Author=MoOS; Vince Liuice\n'
           f'X-KDE-PluginInfo-Name={name}\nX-KDE-PluginInfo-Version=1.0\n'
