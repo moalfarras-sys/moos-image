@@ -1,0 +1,116 @@
+#!/usr/bin/python3
+"""Carry corrected MoOS colour roles into desktops that applied the old ones.
+
+KDE COPIES a colour scheme into the account's kdeglobals when it is applied,
+and `plasma-apply-colorscheme` refuses to re-apply the scheme already selected
+("already set as the theme for the current Plasma session", measured
+2026-11-22). A corrected /usr/share/color-schemes file therefore never reaches
+an existing desktop on its own.
+
+    moos-color-roles migrate [--dry-run]
+
+For the account's selected MoOS scheme only, each kdeglobals key that still
+holds EXACTLY the value MoOS shipped before a recorded correction
+(/usr/share/moos/color-role-migrations.json) is rewritten to the corrected
+value through kwriteconfig6. A personal colour, another scheme, an unknown
+key or an unreadable file is left alone. Running it again changes nothing.
+Exit 0 on success or nothing to do; 1 when a write failed (logged, retried by
+the next THEME_REV run).
+"""
+import configparser
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+TABLE = Path(os.environ.get("MOOS_COLOR_ROLE_TABLE", "/usr/share/moos/color-role-migrations.json"))
+
+
+def config_home() -> Path:
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+
+
+def read(path: Path):
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
+    parser.optionxform = str
+    try:
+        parser.read(path, encoding="utf-8")
+    except (configparser.Error, UnicodeDecodeError, OSError):
+        return None
+    return parser
+
+
+def selected_scheme(files):
+    for path in files:
+        parser = read(path)
+        if parser is not None and parser.has_section("General"):
+            value = parser["General"].get("ColorScheme", "").strip()
+            if value:
+                return value
+    return ""
+
+
+def main(argv) -> int:
+    if len(argv) < 2 or argv[1] != "migrate":
+        print(__doc__.strip().splitlines()[2].strip(), file=sys.stderr)
+        return 2
+    dry_run = "--dry-run" in argv[2:]
+    try:
+        table = json.loads(TABLE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        print("moos-color-roles: no readable migration table; nothing to do")
+        return 0
+    home = config_home()
+    # kdedefaults precedes /etc/xdg but follows the account's own file.
+    files = [home / "kdeglobals", home / "kdedefaults" / "kdeglobals"]
+    scheme = selected_scheme(files)
+    if not scheme.startswith("MoOSUI2"):
+        print(f"moos-color-roles: scheme {scheme or 'unset'} is not a MoOS scheme; nothing to do")
+        return 0
+    writer = shutil.which("kwriteconfig6")
+    changed = failed = 0
+    for migration in table.get("migrations", []):
+        roles = migration.get("schemes", {}).get(scheme, {})
+        for path in files:
+            parser = read(path) if path.is_file() else None
+            if parser is None:
+                continue
+            for section, keys in roles.items():
+                if not section.startswith("Colors:") or not parser.has_section(section):
+                    continue
+                for key, pair in keys.items():
+                    if not (isinstance(pair, list) and len(pair) == 2):
+                        continue
+                    before, after = pair
+                    current = parser[section].get(key)
+                    if current is None or current.strip() != before:
+                        continue
+                    if dry_run:
+                        print(f"would set {path.name} [{section}] {key}={after}")
+                        changed += 1
+                        continue
+                    if writer is None:
+                        failed += 1
+                        continue
+                    groups = []
+                    for part in section.split("]["):
+                        groups += ["--group", part]
+                    result = subprocess.run([writer, "--file", str(path), *groups, "--key", key, after],
+                                            capture_output=True, text=True, timeout=10)
+                    if result.returncode == 0:
+                        changed += 1
+                    else:
+                        failed += 1
+    if changed and not dry_run and os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
+        # KGlobalSettings::PaletteChanged, the signal the native colour KCM sends.
+        subprocess.run(["dbus-send", "--session", "--type=signal", "/KGlobalSettings",
+                        "org.kde.KGlobalSettings.notifyChange", "int32:0", "int32:0"],
+                       capture_output=True, timeout=5)
+    print(f"moos-color-roles: {scheme}: {changed} role(s) {'to update' if dry_run else 'updated'}, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

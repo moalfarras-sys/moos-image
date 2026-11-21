@@ -751,6 +751,17 @@ rm -rf "${cache_dir}/qmlcache" \
 find "${cache_dir}" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
     -exec rm -rf -- {} + 2>/dev/null || true
 
+# Corrected colour roles do not reach a desktop that already applied the old
+# ones: KDE copied the scheme into kdeglobals, and plasma-apply-colorscheme
+# refuses to re-apply the selected scheme. moos-color-roles rewrites only keys
+# that still hold the exact value MoOS shipped before a recorded correction,
+# for the selected MoOS scheme; personal colours stay. A failure is logged and
+# retried by the next revision; it never blocks the rest of this migration.
+if [ -x /usr/libexec/moos-color-roles ]; then
+    /usr/libexec/moos-color-roles migrate >>"$log" 2>&1 \
+        || echo "moos-color-roles reported a failed write; retried at the next revision" >>"$log" 2>/dev/null || true
+fi
+
 # Home icon overrides are the SAME class of trap as ~/.config/kdedefaults: they
 # outrank /usr in XDG_DATA_DIRS, and a live preview (or an earlier THEME_REV that
 # planted a fallback) leaves them forever. THEME_REV 27 ships the redrawn

@@ -463,6 +463,8 @@ check:
     python3 tests/test_qml_root_references.py
     # Secondary text must reach 4.5:1 on every shipped colour scheme.
     python3 tests/test_secondary_text_contrast.py
+    python3 tests/test_theme_role_contrast.py
+    python3 tests/test_color_role_migration.py
     # Alt+Tab is a MoOS surface (W7): it takes its reading direction from the LOCALE, because
     # Application.layoutDirection is LeftToRight in every MoOS session including Arabic ones;
     # every duration is guarded by reduced motion; and it still closes a window, really.
