@@ -159,6 +159,15 @@ IDs such as `org.moos.nova.clock`, `MoOSUI2*` and `org.moos.ui2.*` remain stable
 Text contrast is judged against the effective fallback fill, not an ideal blur
 sample. Every important edge must remain legible with compositing disabled.
 
+An accent chosen for fills is not automatically text. The generators pass every
+text role (KDE Link/Visited/Active/Negative/Neutral/Positive/Inactive, Konsole
+ANSI 1–6, libadwaita `accent_color`) through `legible()`: a role that reads at
+4.5:1 on its group's Normal and Alternate grounds is kept byte-identical; a
+failing one keeps hue and saturation and moves in lightness only. Focus and
+hover marks need 3:1. libadwaita's accent ink is the scheme's selected ink.
+Corrected roles reach existing desktops through `moos-color-roles`, which
+rewrites only exact retired values (`tests/test_theme_role_contrast.py`).
+
 ## Geometry and rhythm
 
 - spacing rhythm: 4 / 8 / 12 / 16 / 24 / 32 logical px;
