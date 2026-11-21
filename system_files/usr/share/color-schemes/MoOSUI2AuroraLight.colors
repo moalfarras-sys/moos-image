@@ -26,12 +26,12 @@ DecorationFocus=22,71,185
 DecorationHover=0,106,136
 ForegroundActive=22,71,185
 ForegroundInactive=64,85,109
-ForegroundLink=116,58,226
+ForegroundLink=103,40,223
 ForegroundNegative=153,43,60
 ForegroundNeutral=112,71,9
 ForegroundNormal=20,40,63
 ForegroundPositive=7,93,66
-ForegroundVisited=0,106,136
+ForegroundVisited=0,94,121
 
 [Colors:Complementary]
 BackgroundAlternate=25,36,54
@@ -54,12 +54,12 @@ DecorationFocus=22,71,185
 DecorationHover=0,106,136
 ForegroundActive=22,71,185
 ForegroundInactive=64,85,109
-ForegroundLink=116,58,226
+ForegroundLink=107,45,224
 ForegroundNegative=153,43,60
 ForegroundNeutral=112,71,9
 ForegroundNormal=20,40,63
 ForegroundPositive=7,93,66
-ForegroundVisited=0,106,136
+ForegroundVisited=0,98,126
 
 [Colors:Header][Inactive]
 BackgroundAlternate=195,213,229
@@ -68,12 +68,12 @@ DecorationFocus=22,71,185
 DecorationHover=0,106,136
 ForegroundActive=22,71,185
 ForegroundInactive=64,85,109
-ForegroundLink=116,58,226
+ForegroundLink=107,45,224
 ForegroundNegative=153,43,60
 ForegroundNeutral=112,71,9
 ForegroundNormal=20,40,63
 ForegroundPositive=7,93,66
-ForegroundVisited=0,106,136
+ForegroundVisited=0,98,126
 
 [Colors:Selection]
 BackgroundAlternate=116,58,226
@@ -96,12 +96,12 @@ DecorationFocus=22,71,185
 DecorationHover=0,106,136
 ForegroundActive=22,71,185
 ForegroundInactive=64,85,109
-ForegroundLink=116,58,226
+ForegroundLink=103,40,223
 ForegroundNegative=153,43,60
 ForegroundNeutral=112,71,9
 ForegroundNormal=20,40,63
 ForegroundPositive=7,93,66
-ForegroundVisited=0,106,136
+ForegroundVisited=0,94,121
 
 [Colors:View]
 BackgroundAlternate=206,220,235
@@ -110,12 +110,12 @@ DecorationFocus=22,71,185
 DecorationHover=0,106,136
 ForegroundActive=22,71,185
 ForegroundInactive=64,85,109
-ForegroundLink=116,58,226
+ForegroundLink=110,49,225
 ForegroundNegative=153,43,60
 ForegroundNeutral=112,71,9
 ForegroundNormal=20,40,63
 ForegroundPositive=7,93,66
-ForegroundVisited=0,106,136
+ForegroundVisited=0,102,131
 
 [Colors:Window]
 BackgroundAlternate=206,220,235
@@ -124,12 +124,12 @@ DecorationFocus=22,71,185
 DecorationHover=0,106,136
 ForegroundActive=22,71,185
 ForegroundInactive=64,85,109
-ForegroundLink=116,58,226
+ForegroundLink=107,45,224
 ForegroundNegative=153,43,60
 ForegroundNeutral=112,71,9
 ForegroundNormal=20,40,63
 ForegroundPositive=7,93,66
-ForegroundVisited=0,106,136
+ForegroundVisited=0,98,126
 
 [General]
 AccentColor=22,71,185

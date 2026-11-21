@@ -1,0 +1,999 @@
+{
+ "about": "Exact retired->current KDE colour-role values for MoOS schemes. moos-color-roles rewrites a user's kdeglobals key only when it still holds the retired value MoOS shipped; a personal colour is never touched.",
+ "migrations": [
+  {
+   "id": "2026-11-22-legible-roles",
+   "schemes": {
+    "MoOSUI2AmethystLight": {
+     "Colors:Button": {
+      "ForegroundActive": [
+       "124,58,237",
+       "108,35,235"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "146,67,7"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "126,46,204"
+      ]
+     },
+     "Colors:Header": {
+      "ForegroundActive": [
+       "124,58,237",
+       "115,44,236"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "129,47,208"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "ForegroundActive": [
+       "124,58,237",
+       "115,44,236"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "129,47,208"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundActive": [
+       "124,58,237",
+       "108,35,235"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "146,67,7"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "126,46,204"
+      ]
+     },
+     "Colors:View": {
+      "ForegroundActive": [
+       "124,58,237",
+       "118,49,236"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "156,72,8"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "131,50,209"
+      ]
+     },
+     "Colors:Window": {
+      "ForegroundActive": [
+       "124,58,237",
+       "115,44,236"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "129,47,208"
+      ]
+     }
+    },
+    "MoOSUI2ArenaLight": {
+     "Colors:Button": {
+      "ForegroundActive": [
+       "200,29,122",
+       "169,24,103"
+      ],
+      "ForegroundLink": [
+       "8,145,178",
+       "5,97,119"
+      ],
+      "ForegroundNegative": [
+       "165,47,63",
+       "161,46,61"
+      ],
+      "ForegroundNeutral": [
+       "123,82,15",
+       "118,79,14"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "124,58,237",
+       "105,30,234"
+      ]
+     },
+     "Colors:Header": {
+      "ForegroundActive": [
+       "200,29,122",
+       "173,25,106"
+      ],
+      "ForegroundLink": [
+       "8,145,178",
+       "6,101,124"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "124,58,237",
+       "108,35,235"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "ForegroundActive": [
+       "200,29,122",
+       "173,25,106"
+      ],
+      "ForegroundLink": [
+       "8,145,178",
+       "6,101,124"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "124,58,237",
+       "108,35,235"
+      ]
+     },
+     "Colors:Selection": {
+      "BackgroundAlternate": [
+       "8,145,178",
+       "7,125,154"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundActive": [
+       "200,29,122",
+       "169,24,103"
+      ],
+      "ForegroundLink": [
+       "8,145,178",
+       "5,97,119"
+      ],
+      "ForegroundNegative": [
+       "165,47,63",
+       "161,46,61"
+      ],
+      "ForegroundNeutral": [
+       "123,82,15",
+       "118,79,14"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "124,58,237",
+       "105,30,234"
+      ]
+     },
+     "Colors:View": {
+      "ForegroundActive": [
+       "200,29,122",
+       "178,26,108"
+      ],
+      "ForegroundLink": [
+       "8,145,178",
+       "6,101,124"
+      ],
+      "ForegroundVisited": [
+       "124,58,237",
+       "115,44,236"
+      ]
+     },
+     "Colors:Window": {
+      "ForegroundActive": [
+       "200,29,122",
+       "173,25,106"
+      ],
+      "ForegroundLink": [
+       "8,145,178",
+       "6,101,124"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "124,58,237",
+       "108,35,235"
+      ]
+     }
+    },
+    "MoOSUI2Aurora": {
+     "Colors:Button": {
+      "ForegroundLink": [
+       "172,137,238",
+       "181,150,240"
+      ],
+      "ForegroundNegative": [
+       "251,113,133",
+       "251,123,142"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundLink": [
+       "172,137,238",
+       "181,150,240"
+      ],
+      "ForegroundNegative": [
+       "251,113,133",
+       "251,123,142"
+      ]
+     }
+    },
+    "MoOSUI2AuroraLight": {
+     "Colors:Button": {
+      "ForegroundLink": [
+       "116,58,226",
+       "103,40,223"
+      ],
+      "ForegroundVisited": [
+       "0,106,136",
+       "0,94,121"
+      ]
+     },
+     "Colors:Header": {
+      "ForegroundLink": [
+       "116,58,226",
+       "107,45,224"
+      ],
+      "ForegroundVisited": [
+       "0,106,136",
+       "0,98,126"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "ForegroundLink": [
+       "116,58,226",
+       "107,45,224"
+      ],
+      "ForegroundVisited": [
+       "0,106,136",
+       "0,98,126"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundLink": [
+       "116,58,226",
+       "103,40,223"
+      ],
+      "ForegroundVisited": [
+       "0,106,136",
+       "0,94,121"
+      ]
+     },
+     "Colors:View": {
+      "ForegroundLink": [
+       "116,58,226",
+       "110,49,225"
+      ],
+      "ForegroundVisited": [
+       "0,106,136",
+       "0,102,131"
+      ]
+     },
+     "Colors:Window": {
+      "ForegroundLink": [
+       "116,58,226",
+       "107,45,224"
+      ],
+      "ForegroundVisited": [
+       "0,106,136",
+       "0,98,126"
+      ]
+     }
+    },
+    "MoOSUI2BloomLight": {
+     "Colors:Button": {
+      "ForegroundActive": [
+       "124,58,237",
+       "108,35,235"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "146,67,7"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "126,46,204"
+      ]
+     },
+     "Colors:Header": {
+      "ForegroundActive": [
+       "124,58,237",
+       "115,44,236"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "129,47,208"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "ForegroundActive": [
+       "124,58,237",
+       "115,44,236"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "129,47,208"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundActive": [
+       "124,58,237",
+       "108,35,235"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "146,67,7"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "126,46,204"
+      ]
+     },
+     "Colors:View": {
+      "ForegroundActive": [
+       "124,58,237",
+       "118,49,236"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "156,72,8"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "131,50,209"
+      ]
+     },
+     "Colors:Window": {
+      "ForegroundActive": [
+       "124,58,237",
+       "115,44,236"
+      ],
+      "ForegroundLink": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundVisited": [
+       "139,63,212",
+       "129,47,208"
+      ]
+     }
+    },
+    "MoOSUI2Daylight": {
+     "Colors:Button": {
+      "DecorationFocus": [
+       "2,132,199",
+       "2,122,184"
+      ],
+      "DecorationHover": [
+       "8,145,178",
+       "7,125,154"
+      ],
+      "ForegroundActive": [
+       "2,132,199",
+       "1,95,143"
+      ],
+      "ForegroundLink": [
+       "79,70,229",
+       "70,61,228"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "8,145,178",
+       "5,97,119"
+      ]
+     },
+     "Colors:Header": {
+      "DecorationFocus": [
+       "2,132,199",
+       "2,125,189"
+      ],
+      "DecorationHover": [
+       "8,145,178",
+       "7,129,158"
+      ],
+      "ForegroundActive": [
+       "2,132,199",
+       "1,99,149"
+      ],
+      "ForegroundLink": [
+       "79,70,229",
+       "75,66,228"
+      ],
+      "ForegroundVisited": [
+       "8,145,178",
+       "6,101,124"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "DecorationFocus": [
+       "2,132,199",
+       "2,125,189"
+      ],
+      "DecorationHover": [
+       "8,145,178",
+       "7,129,158"
+      ],
+      "ForegroundActive": [
+       "2,132,199",
+       "1,99,149"
+      ],
+      "ForegroundLink": [
+       "79,70,229",
+       "75,66,228"
+      ],
+      "ForegroundVisited": [
+       "8,145,178",
+       "6,101,124"
+      ]
+     },
+     "Colors:Selection": {
+      "BackgroundAlternate": [
+       "79,70,229",
+       "117,110,235"
+      ]
+     },
+     "Colors:Tooltip": {
+      "DecorationFocus": [
+       "2,132,199",
+       "2,122,184"
+      ],
+      "DecorationHover": [
+       "8,145,178",
+       "7,125,154"
+      ],
+      "ForegroundActive": [
+       "2,132,199",
+       "1,95,143"
+      ],
+      "ForegroundLink": [
+       "79,70,229",
+       "70,61,228"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "8,145,178",
+       "5,97,119"
+      ]
+     },
+     "Colors:View": {
+      "DecorationFocus": [
+       "2,132,199",
+       "2,129,194"
+      ],
+      "DecorationHover": [
+       "8,145,178",
+       "7,133,163"
+      ],
+      "ForegroundActive": [
+       "2,132,199",
+       "2,102,154"
+      ],
+      "ForegroundVisited": [
+       "8,145,178",
+       "6,105,129"
+      ]
+     },
+     "Colors:Window": {
+      "DecorationFocus": [
+       "2,132,199",
+       "2,125,189"
+      ],
+      "DecorationHover": [
+       "8,145,178",
+       "7,129,158"
+      ],
+      "ForegroundActive": [
+       "2,132,199",
+       "1,99,149"
+      ],
+      "ForegroundLink": [
+       "79,70,229",
+       "75,66,228"
+      ],
+      "ForegroundVisited": [
+       "8,145,178",
+       "6,101,124"
+      ]
+     }
+    },
+    "MoOSUI2Forge": {
+     "Colors:Button": {
+      "ForegroundNegative": [
+       "248,81,73",
+       "249,100,93"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundNegative": [
+       "248,81,73",
+       "249,100,93"
+      ]
+     }
+    },
+    "MoOSUI2ForgeLight": {
+     "Colors:Button": {
+      "DecorationHover": [
+       "45,164,78",
+       "37,136,65"
+      ],
+      "ForegroundActive": [
+       "26,127,55",
+       "21,102,44"
+      ],
+      "ForegroundLink": [
+       "9,105,218",
+       "8,88,184"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "45,164,78",
+       "29,104,49"
+      ]
+     },
+     "Colors:Header": {
+      "DecorationHover": [
+       "45,164,78",
+       "37,136,65"
+      ],
+      "ForegroundActive": [
+       "26,127,55",
+       "22,106,46"
+      ],
+      "ForegroundLink": [
+       "9,105,218",
+       "8,91,189"
+      ],
+      "ForegroundVisited": [
+       "45,164,78",
+       "30,108,51"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "DecorationHover": [
+       "45,164,78",
+       "37,136,65"
+      ],
+      "ForegroundActive": [
+       "26,127,55",
+       "22,106,46"
+      ],
+      "ForegroundLink": [
+       "9,105,218",
+       "8,91,189"
+      ],
+      "ForegroundVisited": [
+       "45,164,78",
+       "30,108,51"
+      ]
+     },
+     "Colors:Tooltip": {
+      "DecorationHover": [
+       "45,164,78",
+       "37,136,65"
+      ],
+      "ForegroundActive": [
+       "26,127,55",
+       "21,102,44"
+      ],
+      "ForegroundLink": [
+       "9,105,218",
+       "8,88,184"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "45,164,78",
+       "29,104,49"
+      ]
+     },
+     "Colors:View": {
+      "DecorationHover": [
+       "45,164,78",
+       "38,140,67"
+      ],
+      "ForegroundActive": [
+       "26,127,55",
+       "23,110,48"
+      ],
+      "ForegroundLink": [
+       "9,105,218",
+       "8,93,194"
+      ],
+      "ForegroundVisited": [
+       "45,164,78",
+       "30,108,51"
+      ]
+     },
+     "Colors:Window": {
+      "DecorationHover": [
+       "45,164,78",
+       "37,136,65"
+      ],
+      "ForegroundActive": [
+       "26,127,55",
+       "22,106,46"
+      ],
+      "ForegroundLink": [
+       "9,105,218",
+       "8,91,189"
+      ],
+      "ForegroundVisited": [
+       "45,164,78",
+       "30,108,51"
+      ]
+     }
+    },
+    "MoOSUI2Light": {
+     "Colors:Button": {
+      "ForegroundActive": [
+       "0,109,103",
+       "0,99,93"
+      ],
+      "ForegroundLink": [
+       "29,98,120",
+       "28,95,116"
+      ],
+      "ForegroundNegative": [
+       "165,47,63",
+       "161,46,61"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "11,105,101",
+       "11,100,97"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundActive": [
+       "0,109,103",
+       "0,99,93"
+      ],
+      "ForegroundLink": [
+       "29,98,120",
+       "28,95,116"
+      ],
+      "ForegroundNegative": [
+       "165,47,63",
+       "161,46,61"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "11,105,101",
+       "11,100,97"
+      ]
+     }
+    },
+    "MoOSUI2Nova": {
+     "Colors:Button": {
+      "ForegroundActive": [
+       "99,102,241",
+       "136,139,244"
+      ],
+      "ForegroundLink": [
+       "139,92,246",
+       "167,131,248"
+      ]
+     },
+     "Colors:Complementary": {
+      "ForegroundActive": [
+       "99,102,241",
+       "113,116,242"
+      ],
+      "ForegroundLink": [
+       "139,92,246",
+       "146,102,247"
+      ]
+     },
+     "Colors:Header": {
+      "ForegroundActive": [
+       "99,102,241",
+       "122,125,243"
+      ],
+      "ForegroundLink": [
+       "139,92,246",
+       "156,116,247"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "ForegroundActive": [
+       "99,102,241",
+       "113,116,242"
+      ],
+      "ForegroundLink": [
+       "139,92,246",
+       "146,102,247"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundActive": [
+       "99,102,241",
+       "136,139,244"
+      ],
+      "ForegroundLink": [
+       "139,92,246",
+       "167,131,248"
+      ]
+     },
+     "Colors:View": {
+      "ForegroundActive": [
+       "99,102,241",
+       "122,125,243"
+      ],
+      "ForegroundLink": [
+       "139,92,246",
+       "156,116,247"
+      ]
+     },
+     "Colors:Window": {
+      "ForegroundActive": [
+       "99,102,241",
+       "122,125,243"
+      ],
+      "ForegroundLink": [
+       "139,92,246",
+       "156,116,247"
+      ]
+     }
+    },
+    "MoOSUI2NovaLight": {
+     "Colors:Button": {
+      "ForegroundActive": [
+       "14,99,196",
+       "13,89,177"
+      ],
+      "ForegroundLink": [
+       "91,75,214",
+       "83,67,212"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "26,118,216",
+       "20,91,166"
+      ]
+     },
+     "Colors:Complementary": {
+      "ForegroundActive": [
+       "99,102,241",
+       "113,116,242"
+      ],
+      "ForegroundLink": [
+       "139,92,246",
+       "146,102,247"
+      ]
+     },
+     "Colors:Header": {
+      "ForegroundActive": [
+       "14,99,196",
+       "13,92,182"
+      ],
+      "ForegroundLink": [
+       "91,75,214",
+       "87,71,213"
+      ],
+      "ForegroundVisited": [
+       "26,118,216",
+       "21,93,170"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "ForegroundActive": [
+       "14,99,196",
+       "13,92,182"
+      ],
+      "ForegroundLink": [
+       "91,75,214",
+       "87,71,213"
+      ],
+      "ForegroundVisited": [
+       "26,118,216",
+       "21,93,170"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundActive": [
+       "14,99,196",
+       "13,89,177"
+      ],
+      "ForegroundLink": [
+       "91,75,214",
+       "83,67,212"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "26,118,216",
+       "20,91,166"
+      ]
+     },
+     "Colors:View": {
+      "ForegroundActive": [
+       "14,99,196",
+       "13,94,186"
+      ],
+      "ForegroundVisited": [
+       "26,118,216",
+       "21,96,175"
+      ]
+     },
+     "Colors:Window": {
+      "ForegroundActive": [
+       "14,99,196",
+       "13,92,182"
+      ],
+      "ForegroundLink": [
+       "91,75,214",
+       "87,71,213"
+      ],
+      "ForegroundVisited": [
+       "26,118,216",
+       "21,93,170"
+      ]
+     }
+    },
+    "MoOSUI2ScholarLight": {
+     "Colors:Button": {
+      "ForegroundActive": [
+       "180,83,9",
+       "146,67,7"
+      ],
+      "ForegroundLink": [
+       "79,122,107",
+       "63,97,85"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "161,98,7",
+       "127,77,6"
+      ]
+     },
+     "Colors:Header": {
+      "ForegroundActive": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundLink": [
+       "79,122,107",
+       "65,100,88"
+      ],
+      "ForegroundVisited": [
+       "161,98,7",
+       "132,80,6"
+      ]
+     },
+     "Colors:Header][Inactive": {
+      "ForegroundActive": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundLink": [
+       "79,122,107",
+       "65,100,88"
+      ],
+      "ForegroundVisited": [
+       "161,98,7",
+       "132,80,6"
+      ]
+     },
+     "Colors:Tooltip": {
+      "ForegroundActive": [
+       "180,83,9",
+       "146,67,7"
+      ],
+      "ForegroundLink": [
+       "79,122,107",
+       "63,97,85"
+      ],
+      "ForegroundPositive": [
+       "8,107,75",
+       "8,102,72"
+      ],
+      "ForegroundVisited": [
+       "161,98,7",
+       "127,77,6"
+      ]
+     },
+     "Colors:View": {
+      "ForegroundActive": [
+       "180,83,9",
+       "156,72,8"
+      ],
+      "ForegroundLink": [
+       "79,122,107",
+       "67,103,91"
+      ],
+      "ForegroundVisited": [
+       "161,98,7",
+       "137,83,6"
+      ]
+     },
+     "Colors:Window": {
+      "ForegroundActive": [
+       "180,83,9",
+       "151,70,8"
+      ],
+      "ForegroundLink": [
+       "79,122,107",
+       "65,100,88"
+      ],
+      "ForegroundVisited": [
+       "161,98,7",
+       "132,80,6"
+      ]
+     }
+    }
+   }
+  }
+ ],
+ "schema": 1
+}

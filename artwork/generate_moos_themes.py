@@ -21,7 +21,7 @@ Usage:
 Every output is a NEW package; nothing existing is overwritten. Re-runnable.
 """
 from __future__ import annotations
-import argparse, importlib.util, json, math, os, pathlib, random, shutil, sys
+import argparse, importlib.util, json, math, os, pathlib, random, re, shutil, sys
 
 # Honour the same isolated-root contract as generate_moos_ui2.py. Previously
 # this wrapper imported the base generator from the test tree but still wrote
@@ -1194,7 +1194,35 @@ def build_gtk(key: str, meta: dict) -> None:
     m = hexmap(key)
     css = recolor(SRC_GTK.read_text(encoding="utf-8"), m)
     css = css.replace("MoOS UI (Graphite Dark)", f"{meta['name']}")
-    write(SHARE / "moos/gtk" / f"moos-ui2-{key}.css", css)
+    write(SHARE / "moos/gtk" / f"moos-ui2-{key}.css", gtk_accent_pairs(css, _roles(key)))
+
+
+def gtk_accent_pairs(css: str, roles: dict) -> str:
+    """Give libadwaita's accent the ink KDE pairs with it, and a text-safe tone.
+
+    The palette is recoloured from the DARK source, where accent_fg is the
+    canvas. In light families that maps to the light canvas on a mid accent:
+    measured 2026-11-22, Daylight suggested buttons drew #CCDEF1 on #0284C7
+    (2.98:1) while KDE's own Selection pairs that accent with dark ink, and
+    accent_color — libadwaita's accent used AS TEXT (links, accent labels) —
+    sat at 2.85:1 on the window. accent_fg takes the scheme's selected ink
+    when it reads (else the better of text/canvas); accent_color keeps its hue
+    and moves in lightness until it reads at 4.5:1 on view and window.
+    """
+    found = dict(re.findall(r"@define-color\s+(\w+)\s+(#[0-9A-Fa-f]{6})\s*;", css))
+    needed = ("accent_bg_color", "accent_fg_color", "accent_color", "view_bg_color", "window_bg_color")
+    if not all(name in found for name in needed):
+        return css
+    accent = found["accent_bg_color"]
+    candidates = [roles["selected_text"], found["accent_fg_color"], roles["text"], roles["canvas"]]
+    ink = next((c for c in candidates if gen.contrast_ratio(c, accent) >= 4.5),
+               max(candidates, key=lambda c: gen.contrast_ratio(c, accent)))
+    standalone = gen.legible(found["accent_color"],
+                             (found["view_bg_color"], found["window_bg_color"]), 4.5)
+    for name, value in (("accent_fg_color", ink), ("accent_color", standalone)):
+        css = re.sub(rf"(@define-color\s+{name}\s+)#[0-9A-Fa-f]{{6}}(\s*;)",
+                     lambda match, v=value: match.group(1) + v.upper() + match.group(2), css, count=1)
+    return css
 
 
 def crop_to_fill(img, size: tuple[int, int]):
