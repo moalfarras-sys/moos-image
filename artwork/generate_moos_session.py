@@ -60,6 +60,27 @@ QtObject {
     property bool desktopObservationRequested: false
     property bool ownSessionRequested: false
 
+    // The greeter learns the selected account's appearance from AccountsService
+    // a few hundred milliseconds after it starts (V3 signed 1178: surface ready
+    // 13.209 s, appearance 13.552 s). Until then it holds the greeter account's
+    // seed palette and the login config's last synchronised image, which are
+    // usually ANOTHER look: the V3 booted dark Bloom through Graphite teal and a
+    // light BloomLight scene. Login surfaces wait for the selected appearance
+    // before they first draw, at most greeterWaitMs, and never wait again once
+    // they have appeared. Lock and power surfaces are never greeters.
+    readonly property int greeterWaitMs: 900
+    readonly property bool greeter: nativeBridge !== null && nativeBridge.value !== null
+                                    && nativeBridge.value.isGreeter === true
+    property bool greeterArrived: false
+    readonly property bool greeterSettled: !greeter || greeterArrived || greeterProfile() !== null
+    onGreeterSettledChanged: if (greeterSettled && greeter) greeterArrived = true
+    property Timer greeterWait: Timer {
+        interval: appearance.greeterWaitMs
+        repeat: false
+        running: appearance.greeter && !appearance.greeterArrived
+        onTriggered: appearance.greeterArrived = true
+    }
+
     function initializeNative() {
         const component = Qt.createComponent(Qt.resolvedUrl("NativeSessionAppearance.qml"));
         if (component.status === Component.Ready) nativeBridge = component.createObject(appearance);

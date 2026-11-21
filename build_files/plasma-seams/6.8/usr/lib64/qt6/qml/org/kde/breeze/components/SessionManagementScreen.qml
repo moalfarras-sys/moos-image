@@ -180,7 +180,16 @@ FocusScope {
     // The parent controls visibility. Only decorative surfaces follow this
     // short entrance; the password field and actions keep their final positions.
     readonly property real stage: parent ? parent.opacity : 1
-    readonly property bool staged: stage > 0.02
+    // The login greeter learns the selected account's look a moment after it
+    // starts. Until MoUI.SessionAppearance says it has settled (or its bounded
+    // wait ends) the island and its prompts are transparent — never invisible,
+    // so the password field keeps the keyboard — and then appear at once in the
+    // right colours, instead of arriving in the greeter account's seed palette
+    // and repainting a third of a second later. The lock screen is never a
+    // greeter, so this is always settled there.
+    readonly property bool appearanceSettled: MoUI.SessionAppearance.greeterSettled !== false
+    readonly property real settledOpacity: appearanceSettled ? 1 : 0
+    readonly property bool staged: stage > 0.02 && appearanceSettled
     property real arrival: motionEnabled ? 0 : 1
     onMotionEnabledChanged: if (!motionEnabled) {
         arrivalRun.stop();
@@ -188,8 +197,28 @@ FocusScope {
         orbitGlow = 0;
         arrival = 1;
     }
+    // ── The greeting ────────────────────────────────────────────────────────
+    // Read from the clock when the island arrives; nothing polls it.
+    property int greetingHour: new Date().getHours()
+    readonly property bool anonymousPrompt: userListView.currentItem !== null
+        && userListView.currentItem.anonymous === true
+    readonly property string greeting: {
+        if (root.anonymousPrompt) {
+            return MoUI.Locale.local("سجّل الدخول إلى MoOS", "Sign in to MoOS");
+        }
+        const hour = root.greetingHour;
+        if (hour >= 5 && hour < 12) {
+            return MoUI.Locale.local("صباح الخير", "Good morning");
+        }
+        if (hour >= 12 && hour < 17) {
+            return MoUI.Locale.local("طاب يومك", "Good afternoon");
+        }
+        return MoUI.Locale.local("مساء الخير", "Good evening");
+    }
+
     onStagedChanged: {
         if (staged) {
+            root.greetingHour = new Date().getHours();
             if (motionEnabled) {
                 arrivalRun.restart();
             } else {
@@ -297,7 +326,12 @@ FocusScope {
             root.adoptedControls.push(control);
             control.Kirigami.Theme.inherit = false;
             control.Kirigami.Theme.colorSet = Kirigami.Theme.Window;
-            control.background = fieldFace.createObject(control, { control: control });
+            // In the password row the partner is the key beside the field: the
+            // field's face becomes ONE capsule that holds both.
+            control.background = fieldFace.createObject(control, {
+                control: control,
+                key: (partner && partner !== control && partner instanceof T.AbstractButton) ? partner : null
+            });
             control.font.pointSize = Qt.binding(() => Math.max(8, Math.round(
                 (Kirigami.Theme.defaultFont.pointSize + 2) * root.sessionScale)));
             // Both greeters run outside a normal application window, where an
@@ -330,13 +364,16 @@ FocusScope {
                 // when that field has something in it.
                 const row = slot[i].children;
                 let field = null;
+                let key = null;
                 for (let j = 0; j < row.length; ++j) {
                     if (row[j] instanceof T.TextField) {
                         field = row[j];
+                    } else if (row[j] instanceof T.Button && !(row[j] instanceof T.ToolButton)) {
+                        key = row[j];
                     }
                 }
                 for (let j = 0; j < row.length; ++j) {
-                    root.adoptControl(row[j], field);
+                    root.adoptControl(row[j], row[j] === field ? key : field);
                 }
             } else {
                 root.adoptControl(slot[i]);
@@ -353,9 +390,18 @@ FocusScope {
     Component {
         id: fieldFace
 
-        Rectangle {
+        // The password capsule. The field's own face stays exactly the field's
+        // size (the control lays its text out against it); the plate it draws
+        // reaches across the row's gap and holds the key, so field and key read
+        // as ONE control — the way the key sits inside the field on every
+        // current desktop sign-in. The key is still upstream's own button beside
+        // the field, declared after it, so it paints over the plate and keeps
+        // its own focus, hit area and accessible role. A field with no key (the
+        // user-name prompt) is a capsule on its own.
+        Item {
             id: field
             required property T.TextField control
+            property T.AbstractButton key: null
             // Plasma's TextField takes its padding from these when they exist.
             readonly property QtObject margins: QtObject {
                 readonly property real left: Math.round(root.unit * 0.9)
@@ -363,41 +409,69 @@ FocusScope {
                 readonly property real top: Math.round(Kirigami.Units.smallSpacing * 2.5 * root.sessionScale)
                 readonly property real bottom: top
             }
+            readonly property bool joined: field.key !== null && field.key.visible
+                && field.key.parent === field.control.parent
+            // The key's span in the field's coordinates: both are children of
+            // the same row, so their x positions share one origin, mirrored or not.
+            readonly property real reachStart: field.joined ? Math.min(0, field.key.x - field.control.x) : 0
+            readonly property real reachEnd: field.joined
+                ? Math.max(field.control.width, field.key.x + field.key.width - field.control.x)
+                : field.control.width
+            readonly property bool lit: field.control.activeFocus
+                || (field.joined && field.key.activeFocus)
 
             implicitWidth: root.unit * 8 + margins.left + margins.right
             implicitHeight: Math.round(root.design.targetControl * root.sessionScale)
-            radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)
-            color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                           Kirigami.Theme.backgroundColor.g,
-                           Kirigami.Theme.backgroundColor.b,
-                           field.control.activeFocus ? root.design.mutedOpacity
-                                                     : root.design.disabledOpacity)
-            border.width: field.control.activeFocus ? root.design.focusWidth
-                                                    : root.design.borderHairline
-            border.color: field.control.activeFocus
-                ? Qt.rgba(root.accentA.r, root.accentA.g, root.accentA.b, 0.95)
-                : Qt.rgba(Kirigami.Theme.textColor.r,
-                          Kirigami.Theme.textColor.g,
-                          Kirigami.Theme.textColor.b,
-                          field.control.hovered ? 0.34 : 0.20)
-            Behavior on border.color { ColorAnimation {
-                duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
-            } }
 
-            // The focus halo: one soft ring outside the field, lit only while
-            // the field has the keyboard.
             Rectangle {
-                z: -1
-                anchors.fill: parent
-                anchors.margins: -Kirigami.Units.smallSpacing
-                radius: parent.radius + Kirigami.Units.smallSpacing
-                color: "transparent"
-                border.width: Kirigami.Units.smallSpacing
-                border.color: Qt.rgba(root.accentA.r, root.accentA.g, root.accentA.b,
-                                      field.control.activeFocus ? 0.16 : 0.0)
+                id: capsule
+                x: field.reachStart
+                width: field.reachEnd - field.reachStart
+                height: parent.height
+                radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)
+                color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
+                               Kirigami.Theme.backgroundColor.g,
+                               Kirigami.Theme.backgroundColor.b,
+                               field.lit ? root.design.mutedOpacity : root.design.disabledOpacity)
+                border.width: field.lit ? root.design.focusWidth : root.design.borderHairline
+                border.color: field.lit
+                    ? Qt.rgba(root.accentA.r, root.accentA.g, root.accentA.b, 0.95)
+                    : Qt.rgba(Kirigami.Theme.textColor.r,
+                              Kirigami.Theme.textColor.g,
+                              Kirigami.Theme.textColor.b,
+                              field.control.hovered ? 0.34 : 0.20)
                 Behavior on border.color { ColorAnimation {
                     duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
                 } }
+
+                // The catch-light along the capsule's upper edge: glass, not a slot.
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; top: parent.top }
+                    anchors.margins: parent.border.width
+                    height: parent.height * 0.5
+                    radius: parent.radius - parent.border.width
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
+                            Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.07) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                }
+
+                // The focus halo: one soft ring outside the capsule, lit only
+                // while the field or its key has the keyboard.
+                Rectangle {
+                    z: -1
+                    anchors.fill: parent
+                    anchors.margins: -Kirigami.Units.smallSpacing
+                    radius: parent.radius + Kirigami.Units.smallSpacing
+                    color: "transparent"
+                    border.width: Kirigami.Units.smallSpacing
+                    border.color: Qt.rgba(root.accentA.r, root.accentA.g, root.accentA.b,
+                                          field.lit ? 0.18 : 0.0)
+                    Behavior on border.color { ColorAnimation {
+                        duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
+                    } }
+                }
             }
         }
     }
@@ -412,39 +486,53 @@ FocusScope {
         // palette. Unarmed it is glass with the accent on its edge, so an empty
         // field does not shout a button nobody can use yet. accentB lives in the
         // rim only.
-        Rectangle {
+        // Inside the capsule the key is an inset portal: the full 44 px stays
+        // its hit area, the drawn key stands a few pixels in from the capsule's
+        // rim, concentric with it. Beside a field it sits in the field's plate;
+        // alone (a password-less "Log In") it is its own rounded key.
+        Item {
             id: key
             required property T.AbstractButton control
             property T.TextField partner: null
             readonly property bool armed: !key.partner || !key.partner.visible
                                           || key.partner.length > 0
+            readonly property bool nested: key.partner !== null && key.partner.visible
+            readonly property real inset: key.nested
+                ? Math.max(3, Math.round(4 * root.sessionScale)) : 0
 
             implicitWidth: Math.round(root.design.targetControl * root.sessionScale)
             implicitHeight: Math.round(root.design.targetControl * root.sessionScale)
-            radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)
-            color: key.armed ? root.accentA
-                             : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
-                                       Kirigami.Theme.textColor.b, root.design.surfaceRestingOpacity)
-            opacity: key.control.enabled ? 1 : root.design.disabledOpacity
-            scale: key.control.down ? root.design.pressScale : 1.0
-            border.width: key.control.visualFocus ? root.design.focusWidth
-                                                  : root.design.borderHairline
-            border.color: Qt.rgba(root.accentB.r, root.accentB.g, root.accentB.b,
-                                  (key.control.visualFocus || key.control.hovered) ? 0.95 : 0.50)
-            Behavior on scale { NumberAnimation {
-                duration: root.design.duration(root.motionEnabled, root.design.motionFast)
-                easing.type: root.design.easeStandard
-            } }
-            Behavior on color { ColorAnimation {
-                duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
-            } }
 
-            // Hover and press read as light on the key, never as a second hue.
             Rectangle {
+                id: keyPlate
                 anchors.fill: parent
-                radius: parent.radius
-                color: key.armed ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
-                opacity: key.control.down ? 0.16 : (key.control.hovered ? 0.08 : 0)
+                anchors.margins: key.inset
+                // Concentric with the capsule: the family radius less the inset.
+                radius: Math.round((root.design.radiusControl + 2) * root.sessionScale) - key.inset
+                color: key.armed ? root.accentA
+                                 : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                           Kirigami.Theme.textColor.b, root.design.surfaceRestingOpacity)
+                opacity: key.control.enabled ? 1 : root.design.disabledOpacity
+                scale: key.control.down ? root.design.pressScale : 1.0
+                border.width: key.control.visualFocus ? root.design.focusWidth
+                                                      : (key.nested ? 0 : root.design.borderHairline)
+                border.color: Qt.rgba(root.accentB.r, root.accentB.g, root.accentB.b,
+                                      (key.control.visualFocus || key.control.hovered) ? 0.95 : 0.50)
+                Behavior on scale { NumberAnimation {
+                    duration: root.design.duration(root.motionEnabled, root.design.motionFast)
+                    easing.type: root.design.easeStandard
+                } }
+                Behavior on color { ColorAnimation {
+                    duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
+                } }
+
+                // Hover and press read as light on the key, never as a second hue.
+                Rectangle {
+                    anchors.fill: parent
+                    radius: parent.radius
+                    color: key.armed ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                    opacity: key.control.down ? 0.16 : (key.control.hovered ? 0.08 : 0)
+                }
             }
         }
     }
@@ -563,6 +651,7 @@ FocusScope {
         width: root.islandWidth
         height: Math.round(bottomEdge - topEdge)
         scale: 0.94 + 0.06 * root.spring(root.slice(0, 0.8))
+        opacity: root.settledOpacity
         radius: Math.round(root.design.radiusDialog * Math.max(0.8, root.sessionScale))
         depth: root.design.glassLevelDialog
         surfaceColor: Kirigami.Theme.backgroundColor
@@ -677,7 +766,7 @@ FocusScope {
         horizontalRadius: width / 2
         verticalRadius: height / 2
         visible: !root.softwareRendering
-        opacity: root.settle(root.slice(0, 1))
+        opacity: root.settle(root.slice(0, 1)) * root.settledOpacity
         gradient: Gradient {
             GradientStop { position: 0.0; color: Qt.alpha(root.accentA, 0.20) }
             GradientStop { position: 0.45; color: Qt.alpha(root.accentB, 0.07) }
@@ -699,7 +788,7 @@ FocusScope {
         width: makersRow.implicitWidth + root.unit
         height: Math.round(root.unit * 1.2)
         radius: height / 2
-        opacity: root.slice(0.5, 1)
+        opacity: root.slice(0.5, 1) * root.settledOpacity
         color: Kirigami.Theme.backgroundColor
         border.width: root.design.borderHairline
         border.color: Qt.rgba(Kirigami.Theme.textColor.r,
@@ -774,6 +863,7 @@ FocusScope {
     // prompts instead, and one fixed gap keeps the actions clear of its edge.
     ColumnLayout {
         id: prompts
+        objectName: "moosSessionPrompts"
         Kirigami.Theme.inherit: false
         Kirigami.Theme.colorSet: Kirigami.Theme.Window
         anchors.top: parent.verticalCenter
@@ -782,6 +872,9 @@ FocusScope {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         spacing: Kirigami.Units.smallSpacing
+        // Interactive targets are never staged: they are opaque the moment the
+        // selected appearance is known (see appearanceSettled).
+        opacity: root.settledOpacity
 
         // Plasma 6.8: the authentication-type indicator, upstream's, verbatim.
         RowLayout {
@@ -803,13 +896,36 @@ FocusScope {
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
             Layout.maximumWidth: root.unit * 16
-            implicitHeight: Math.max(noticePill.implicitHeight,
+            implicitHeight: Math.max(noticePill.implicitHeight, greetingLabel.implicitHeight,
                                      noticeMetrics.height + Kirigami.Units.largeSpacing)
                             + Kirigami.Units.smallSpacing * 2
 
             FontMetrics {
                 id: noticeMetrics
                 font: notificationsLabel.font
+            }
+
+            // The greeting: the line is empty until somebody arrives, so the
+            // island says hello in the session's language — by the time of day
+            // read when it arrives, never on a timer. A notice (Caps Lock, PAM,
+            // a refusal) takes the same line and the greeting steps aside.
+            PlasmaComponents3.Label {
+                id: greetingLabel
+                objectName: "moosSessionGreeting"
+                anchors.centerIn: parent
+                width: Math.min(implicitWidth, root.unit * 15)
+                text: root.greeting
+                textFormat: Text.PlainText
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                font.family: root.design.interfaceFamily
+                font.pointSize: Math.max(8, Math.round((Kirigami.Theme.defaultFont.pointSize + 1)
+                                                       * root.sessionScale))
+                font.weight: Font.Medium
+                color: Kirigami.Theme.textColor
+                opacity: root.design.mutedOpacity
+                visible: notificationsLabel.text.length === 0 && text.length > 0
+                Accessible.ignored: true
             }
 
             Rectangle {
@@ -930,8 +1046,13 @@ FocusScope {
             implicitWidth: actionItemsLayout.implicitWidth
             GridLayout {
                 id: actionItemsLayout
+                // The actions stand on the scene, outside the island. The
+                // Window set is the selected look's own pair — light ink in
+                // every dark family, dark ink in every light one. Complementary
+                // is dark in ALL eighteen MoOS schemes, which left white
+                // captions on the light families' bright scenes.
                 Kirigami.Theme.inherit: false
-                Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
+                Kirigami.Theme.colorSet: Kirigami.Theme.Window
                 anchors.centerIn: parent
 
                 readonly property int spacing: Kirigami.Units.largeSpacing

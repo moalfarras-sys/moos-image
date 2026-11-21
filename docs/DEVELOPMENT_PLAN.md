@@ -37,6 +37,19 @@ The revision enlarges the drawn symbols by 12% and increases caption size by
 one reference point. Compare the successor's cold boot and visible handoff
 with the owner's observation on the same internal panel.
 
+Nov21 login handoff (owner: "black for a second or two, then a heavy, badly
+designed login"). On 1178 KWin takes 11.53→12.59 s before its clients start;
+the scene then painted the login config's stale BloomLight fallback while the
+island used the greeter account's Graphite seed, and both repainted when the
+dark Bloom appearance arrived (13.55 s). The successor waits for the selected
+appearance (≤900 ms, latched), paints the splash ground meanwhile, and draws
+one password capsule with a time-of-day greeting. A warm QML disk cache made no
+measurable difference in the private harness (cold/warm first paint 0.41/0.42 s),
+so the boot-time greeter cache purge is unchanged. Acceptance: a cold boot of the
+signed successor on eDP-1 with the owner's observation; KWin's own first black
+frame is not removed by this change. whats-new.json is at 65,476/65,536 bytes:
+the next entry must retire an old one.
+
 Nov20 P0.1. The owner assigned V3 the merge and signed rollout for PR316.
 Its full source checks passed at c157f126. The local x86 image refused the
 new complete kernel digest from base 44.20261119.1. Its executable bytes,

@@ -371,6 +371,9 @@ python3 tests/test_store_window_words.py
 python3 tests/test_moos_design_core.py
 python3 tests/test_moos_bloom.py
 python3 tests/test_session_continuity.py
+# The login greeter appears once, in the selected account's look: the splash's
+# ground until the bounded appearance wait settles, then the selected scene.
+python3 tests/test_login_handoff.py
 # One answer to "is this session Arabic". Four surfaces read
 # Qt.application.layoutDirection, which follows a translator and not the
 # locale — the Command Center, installer and welcome screen rendered in

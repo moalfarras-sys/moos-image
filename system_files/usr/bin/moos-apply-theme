@@ -425,7 +425,8 @@ set -uo pipefail
 # 170: distinguish native unavailable actions while retaining enabled-action contrast.
 # 171: refresh the cached Island privacy label when Mo Remote becomes Mawj.
 # 172: refresh cached session artwork, palette-matched Bloom frames and responsive session controls.
-THEME_REV=172
+# 173: one password capsule, a time-of-day greeting and the settled-appearance login handoff.
+THEME_REV=173
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

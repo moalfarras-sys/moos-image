@@ -101,7 +101,7 @@ Item {
 
     // ── The frame ───────────────────────────────────────────────────────────
     readonly property real ringGap: Math.max(2, Math.round(faceSize * 0.04))
-    readonly property real ringWidth: Math.max(2, Math.round(faceSize * 0.03))
+    readonly property real ringWidth: Math.max(2, Math.round(faceSize * 0.022))
     property real orbitAngle: 0
     property real framePop: 1
 
@@ -154,7 +154,11 @@ Item {
         return own === undefined || Math.abs(own - ListView.view.currentIndex) <= reach;
     }
 
-    opacity: !inReach ? 0 : (isCurrent ? 1.0 : design.mutedOpacity)
+    // On the login greeter the face waits, with the island, for the selected
+    // account's appearance (SessionManagementScreen.settledOpacity).
+    readonly property real settledOpacity: (sessionScreen && sessionScreen.settledOpacity !== undefined)
+        ? sessionScreen.settledOpacity : 1
+    opacity: (!inReach ? 0 : (isCurrent ? 1.0 : design.mutedOpacity)) * settledOpacity
     enabled: inReach
 
     Behavior on opacity {
@@ -173,15 +177,15 @@ Item {
     // The "type a user name" entry has no account behind it yet.
     readonly property bool anonymous: wrapper.userName === ""
 
-    // The bloom: three still discs of the accent behind the selected face.
+    // The bloom: two still discs of the accent behind the selected face. Three,
+    // reaching half a face out, read as a grey disc on the dark island.
     // Plain rectangles — no effect layer, nothing animated.
     Repeater {
         // Sized as a share of the face, so the small portrait on the power
         // screen wears the same bloom in proportion.
         model: [
-            { grow: 0.54, glow: 0.035 },
-            { grow: 0.33, glow: 0.06 },
-            { grow: 0.14, glow: 0.10 },
+            { grow: 0.36, glow: 0.045 },
+            { grow: 0.14, glow: 0.09 },
         ]
         Rectangle {
             required property var modelData

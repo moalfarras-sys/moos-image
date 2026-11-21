@@ -156,15 +156,39 @@ WallpaperItem {
         root.configuration.AmbientMotion
         && Kirigami.Units.longDuration > 1
 
-    // ── Base plate + wallpaper (both paint immediately) ─────────────────────
+    // ── The first frame continues the boot splash ───────────────────────────
+    //
+    // MEASURED on the V3 (signed 1178, owner on dark Bloom): this process paints
+    // before the greeter has read the selected account's appearance. Its
+    // fallback is whatever the login settings last synchronised — there,
+    // BloomLight — so the boot went: splash -> KWin's black frame -> a LIGHT
+    // lavender plate and photograph -> the dark Bloom scene ~0.5 s later, with
+    // the island repainting from the greeter account's Graphite teal at the
+    // same moment. Three different looks in one second read as a heavy, stuttering
+    // login.
+    //
+    // So until MoUI.SessionAppearance has settled (the selected account's look
+    // arrived, or its bounded wait ended — never a second time) the plate is
+    // the splash's own ground (moos.script: fixed #0A101B) and no photograph is
+    // loaded; then the selected scene is painted once. Nothing animates and
+    // nothing polls: the base plate still renders on the first frame, and an
+    // ordinary, non-greeter host (a preview, the settings page) is settled
+    // from the start.
+    readonly property color bootGround: "#0A101B"
+    readonly property bool settled: MoUI.SessionAppearance.greeterSettled !== false
+
+    // ── Base plate + wallpaper (both paint immediately once settled) ────────
     Rectangle {
+        objectName: "moosLoginGround"
         anchors.fill: parent
-        color: root.canvas
+        color: root.settled ? root.canvas : root.bootGround
     }
 
     Image {
+        objectName: "moosLoginScene"
         anchors.fill: parent
-        source: MoUI.SessionAppearance.imageUrl(root.sceneImage)
+        source: root.settled ? MoUI.SessionAppearance.imageUrl(root.sceneImage) : ""
+        visible: root.settled
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
@@ -178,10 +202,12 @@ WallpaperItem {
     // readable and frame the centred surface. Cheap, static gradients.
     Rectangle {
         anchors.fill: parent
+        visible: root.settled
         color: Qt.rgba(root.canvas.r, root.canvas.g, root.canvas.b, 0.12)
     }
     Rectangle {
         anchors.fill: parent
+        visible: root.settled
         gradient: Gradient {
             GradientStop { position: 0.0; color: Qt.rgba(root.canvas.r,
                                                          root.canvas.g,
@@ -230,7 +256,14 @@ WallpaperItem {
         }
         LayoutMirroring.enabled: Qt.locale().textDirection === Qt.RightToLeft
         LayoutMirroring.childrenInherit: true
-        Component.onCompleted: {
+        // It signs the selected scene, in that scene's ink: it arrives once the
+        // scene has settled, exactly once.
+        property bool arrived: false
+        function arrive() {
+            if (signature.arrived || !root.settled) {
+                return;
+            }
+            signature.arrived = true;
             if (root.motionEnabled) {
                 signatureEntrance.start();
             } else {
@@ -238,6 +271,11 @@ WallpaperItem {
                 signature.scale = 1;
                 signatureShift.y = 0;
             }
+        }
+        Component.onCompleted: signature.arrive()
+        Connections {
+            target: root
+            function onSettledChanged() { signature.arrive(); }
         }
         SequentialAnimation {
             id: signatureEntrance
