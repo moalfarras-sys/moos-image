@@ -8,14 +8,9 @@ user; a second launch raises it on the asked page (or, from the local wake liste
 voice turn).
 """
 import json
-import math
 import os
 import re
-import struct
 import sys
-import threading
-import wave
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -29,10 +24,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon  # noqa: E402
 from PySide6.QtNetwork import QLocalServer, QLocalSocket  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
-from mira_bridge import IP  # noqa: E402
-
 TEST_MODE = os.environ.get('MIRA_TEST_MODE') == '1'
-WAKE_MODELS = Path.home() / '.local/share/mira/wake-models'
 DESKTOP_ID = 'org.moos.moai'        # Mo AI's launcher, shortcut and dock identity are Mira's
 ICON_NAME = 'moos-moai'
 
@@ -103,55 +95,6 @@ def launch_request(argv):
     return request
 
 
-class ToneServer(BaseHTTPRequestHandler):
-    """Serves the wake models and a test tone to the paired Echo only."""
-
-    def log_message(self, *args):
-        pass
-
-    def do_GET(self):
-        if self.client_address[0] != IP:
-            self.send_error(403)
-            return
-        if self.path == '/tone.wav':
-            frames = struct.pack('<' + 'h' * 48000,
-                                 *[int(16000 * math.sin(2 * math.pi * 440 * i / 48000)) for i in range(48000)])
-            self.send_response(200)
-            self.send_header('Content-Type', 'audio/wav')
-            self.end_headers()
-            out = wave.open(self.wfile, 'wb')
-            out.setnchannels(1)
-            out.setsampwidth(2)
-            out.setframerate(48000)
-            out.writeframes(frames)
-            out.close()
-        elif self.path in ('/hey_mira.json', '/hey_mira.tflite'):
-            self._send_file(ROOT / self.path.lstrip('/'))
-        elif re.fullmatch(r'/announce/[0-9a-f]{12}(\.16k)?\.wav', self.path):
-            # A reminder or a finished job, spoken by Gemini TTS (announce.py), for the Echo to play.
-            import announce
-            self._send_file(announce.CACHE_DIR / self.path.rsplit('/', 1)[1], 'audio/wav')
-        elif re.fullmatch(r'/models/[a-z0-9_]{3,40}\.(json|tflite)', self.path):
-            # Wake models trained on this PC for the owner's voice; the Echo checks size and SHA-256.
-            name = self.path.rsplit('/', 1)[1]
-            folder = next((f for f in (WAKE_MODELS, ROOT / 'wake-models', ROOT / 'wake_training') if (f / name).exists()), WAKE_MODELS)
-            self._send_file(folder / name)
-        else:
-            self.send_error(404)
-
-    def _send_file(self, path, content_type='application/octet-stream'):
-        try:
-            data = path.read_bytes()
-        except OSError:
-            self.send_error(404)
-            return
-        self.send_response(200)
-        self.send_header('Content-Type', content_type)
-        self.send_header('Content-Length', str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
-
-
 def option(name, default=None):
     for arg in sys.argv:
         if arg.startswith(name + '='):
@@ -185,8 +128,8 @@ def main():
 
     from mira_bridge import paired
     if not TEST_MODE and paired():   # the model/announcement server exists only for a paired Echo
-        server = HTTPServer(('0.0.0.0', 18769), ToneServer)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        import echo_http
+        echo_http.start()
 
     from controller import Controller
     from faces import FaceProvider

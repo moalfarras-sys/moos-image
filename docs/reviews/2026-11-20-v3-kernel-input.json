@@ -147,5 +147,18 @@
     "closed_frame_sha256": "45c6a07fe5adf78b01f695dd3732661842c61d6b74386d83a9c2a6d8c419fdbf",
     "observation": "The actual package passed Down, Up and verified Cancel focus. Both serial and graphics reported Recovery menu closed, but the inactive menu was still painted. Target, packaged files and archive were unchanged. The unchanged screen predicate refused before poweroff.",
     "native_control": "With the actual newt whiptail, the released menu and TERM=linux on a private 160x50 terminal, Cancel returns success from the menu wrapper and leaves the install row and Cancel button on screen. Requesting --clear dismisses both and leaves the exit message. The packaged boot remains necessary."
+  },
+  "packaged_recovery_and_desktop_first_open": {
+    "source": "b55ac56c4682854ec9f71d7c7564a5762824faf4",
+    "run": 44821608069,
+    "recovery_artifact": 14680746808,
+    "recovery_sha256": "38fc5652b32436c7f77778c6d0d6743b44fd001a9d1d4fc56ab626cee104e6de",
+    "recovery": "Menu navigation, verified Cancel, dialog removal and guest poweroff passed. QEMU exited zero. The archive, three packaged files and target content were unchanged.",
+    "desktop_artifact": 14680164290,
+    "desktop_sha256": "a43423179f796a408c9b63ba773ab7ef97f43ed566f45d7a757448e7990d0572",
+    "desktop": "The separate full disk reached SSH. Mira reported voice ready and wrote its capture. The launcher returned 124 at the original 120-second limit. Its Python probe recorded 114840 ms before interpreter teardown.",
+    "imports": "The first-boot guest charged 17.210 seconds to the ESPHome import and 4.339 seconds to the HTTP server. The desktop loaded both with no paired device.",
+    "repair": "Load the ESPHome client in the connection worker and the device-only HTTP server when starting a paired Echo. Keep the packaged runtime dependencies, pairing, peer checks and 120-second production-disk gate.",
+    "native_controls": "On V3 the original and revised source both rendered a 1480x920 frame through the installed launcher and native Qt software backend. Only the original fresh process loaded the unused Echo modules. The actual unpaired bridge, paired API constructor and model HTTP allow/refuse paths have separate controls."
   }
 }

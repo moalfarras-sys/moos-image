@@ -50,6 +50,13 @@ The packaged guest instead displayed cloud-init host-key generation on the
 graphical console. Route system output to the serial port and explicitly hand
 the display from Plymouth to the menu. The pinned disk builder also injects tty0 and ttyS0. Omit those defaults for recovery, verify the actual packaged boot entry, then repeat the interaction. Run 44742631108 booted with the single reviewed console and displayed the menu. The OCR reader saw only the backtitle. Verify the captured Linux-console glyphs and focus coordinates, then exercise navigation, Cancel and clean poweroff on the next packaged disk. Run 44799995260 passed menu, navigation and Cancel focus. After Cancel the original controls stayed visible above the exit message. Both recovery menus now request newt’s native clear-on-exit; the next packaged disk must visibly close and power off.
 
+Run 44821608069 passed the packaged recovery menu, visible exit, clean guest
+poweroff and target preservation. The separate full ARM desktop reached SSH
+and captured Mira, then returned 124 at the 120-second first-open limit.
+Its import trace charged 17.21 seconds to ESPHome and 4.34 seconds to the HTTP
+server on a computer without a paired Echo. Load these only for a paired device.
+Repeat both boots of the desktop disk with the same time limit before promotion.
+
 The x86 editions reached production as 1173. ARM 994 from main a0261263 passed the desktop QCOW2 UEFI boot and production promotion in run 44573209173. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
 
 Nov19 P0.1/P6.8: the upstream ARM base moved to 44.20261119.0 and renumbered service accounts. Register the exact new account bodies, refuse the old ones (PR CI rebuilt ARM/recovery on the new base), then follow the signed ARM pipeline and read back passim ownership after the Oracle update. [Review](reviews/2026-11-19-arm-base-accounts.json).
