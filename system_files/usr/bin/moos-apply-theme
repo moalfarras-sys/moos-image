@@ -423,7 +423,8 @@ set -uo pipefail
 # 168: native 44px window targets, shared Tidal Cut actions and safe GTK publication.
 # 169: keep the same native action extents with fill-only edge artwork.
 # 170: distinguish native unavailable actions while retaining enabled-action contrast.
-THEME_REV=170
+# 171: refresh the cached Island privacy label when Mo Remote becomes Mawj.
+THEME_REV=171
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

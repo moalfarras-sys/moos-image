@@ -28,5 +28,11 @@
     "repo_run": 44853694371,
     "observed": "Both derived Bloom themes retained the monitor icon. The parent geometry and independent regeneration checks refused the old copies.",
     "repair": "Regenerate both inherited app icons with the existing Bloom generator; the parent equality and independent generation gates still run."
+  },
+  "island_upgrade": {
+    "candidate": "9146295563b215014dabc06ad7340c5d1c6b1af9",
+    "repo_run": 44854471349,
+    "observed": "The Island privacy label changed under theme revision 170. An upgraded account with that marker could retain the old cached shell component. The source fingerprint refused this version locally and on the PR.",
+    "repair": "Advance the existing session appearance migration to 171 and record the changed Island package with the maintained fingerprint tool."
   }
 }
