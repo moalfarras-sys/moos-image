@@ -22,5 +22,11 @@
     "private_agent": "The compiled Linux agent served its own PWA in isolated storage. The Arabic 390x844 and English 1366x768 setup screens rendered their localized title and native mark. The private session endpoint returned 401 before login. Normal setup, authenticated hello/pong and page reload with session resumption passed. No input was injected into the personal desktop.",
     "source": "Controller typecheck, every configured controller test and all .NET projects/test executables passed. Fourteen targeted MoOS runtime/control suites passed. The lockfile audit reported zero advisories.",
     "scope": "Simulated retry timing is time to initiate an attempt. It excludes TLS, authentication and video arrival on real mobile networks. Physical phone acceptance and production delivery are independent."
+  },
+  "bloom_icons": {
+    "candidate": "1c3e754ab34248580b4e0f020291aab0e4ac9961",
+    "repo_run": 44853694371,
+    "observed": "Both derived Bloom themes retained the monitor icon. The parent geometry and independent regeneration checks refused the old copies.",
+    "repair": "Regenerate both inherited app icons with the existing Bloom generator; the parent equality and independent generation gates still run."
   }
 }
