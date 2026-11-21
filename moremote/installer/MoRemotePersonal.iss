@@ -3,7 +3,7 @@
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\MoRemotePersonal.iss
 ; Produces installer\Output\MoRemotePersonal-Setup.exe  (no admin required, per-user install).
 
-#define AppName "Mo Remote Personal"
+#define AppName "Mawj"
 #define AppVersion "1.0.0"
 #define AppExe "MoRemotePersonal.exe"
 
@@ -11,7 +11,7 @@
 AppId={{8E0F7A12-BFB3-4FE8-B9A5-48FD50A15A9A}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=Mo Remote Personal
+AppPublisher=Moalfarras
 DefaultDirName={localappdata}\MoRemotePersonal\app
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
@@ -47,7 +47,35 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
   ValueName: "MoRemotePersonal"; ValueData: """{app}\{#AppExe}"""; Tasks: startup; Flags: uninsdeletevalue
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "Launch Mo Remote Personal now"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName} now"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+
+[Code]
+// Before the rename this installer created the desktop shortcut and the
+// matching Start Menu group. Only retire a link to this exact install.
+procedure RetireLegacyShortcut(FileName, Target: String);
+var
+  Shell, Link: Variant;
+begin
+  if not FileExists(FileName) then Exit;
+  try
+    Shell := CreateOleObject('WScript.Shell');
+    Link := Shell.CreateShortcut(FileName);
+    if (CompareText(Link.TargetPath, Target) = 0) and (Link.Arguments = '') then
+      DeleteFile(FileName);
+  except
+    Log('Could not inspect the old shortcut: ' + FileName);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Target: String;
+begin
+  if CurStep <> ssPostInstall then Exit;
+  Target := ExpandConstant('{app}\{#AppExe}');
+  RetireLegacyShortcut(ExpandConstant('{userdesktop}\Mo Remote Personal.lnk'), Target);
+  RetireLegacyShortcut(ExpandConstant('{userprograms}\Mo Remote Personal\Mo Remote Personal.lnk'), Target);
+end;

@@ -12,7 +12,6 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
-from aioesphomeapi import APIClient, MediaPlayerCommand
 
 
 KEY = Path.home() / '.config/mo-dot/device.key'
@@ -77,6 +76,7 @@ class Bridge(QObject):
     async def connect(self):
         while True:
             try:
+                from aioesphomeapi import APIClient
                 self.api = APIClient(IP, 6053, noise_psk=KEY.read_text().strip(), client_info='Mira Desktop')
                 await self.api.connect(login=True)
                 entities, _ = await self.api.list_entities_services()
@@ -183,6 +183,7 @@ class Bridge(QObject):
                     self.api.light_command(**args, state=value, brightness=.25,
                                            rgb=(.15, .5, 1), color_mode=35)
                 elif kind == 'stop':
+                    from aioesphomeapi import MediaPlayerCommand
                     self.api.media_player_command(**args, command=MediaPlayerCommand.STOP)
                 elif kind in ('tone', 'announce', 'announce_local'):
                     if kind != 'tone' and not (isinstance(value, str) and re.fullmatch(r'[0-9a-f]{12}(\.16k)?\.wav', value)):

@@ -14,7 +14,7 @@ pick_target_disk() {
 
 target_has_data() {
     local dev="$1" layout
-    [ -n "$dev" ] || return 1
+    [ -n "$dev" ] || return 2
     layout="$(lsblk -rnpo TYPE,FSTYPE "$dev" 2>/dev/null)" || return 2
     awk '$1 == "part" || NF > 1 { occupied = 1 }
          END { exit !occupied }' <<<"$layout"
@@ -84,7 +84,7 @@ run_install() {
 }
 
 main_menu() {
-    local target has_data=0 choice layout_status
+    local target has_data=0 choice layout_status dialog_status
     target="$(pick_target_disk || true)"
     if target_has_data "$target"; then
         has_data=1
@@ -97,19 +97,27 @@ main_menu() {
     fi
 
     while true; do
+        dialog_status=0
         if [ "$has_data" -eq 1 ]; then
-            choice=$(whiptail --backtitle "MoOS Installer" --title "MoOS UTM" \
+            choice=$(whiptail --clear --backtitle "MoOS Installer" --title "MoOS UTM" \
                 --menu "اختر إجراءً | Choose an action:" 18 72 6 \
-                1 "إقلاع MoOS من UEFI | Boot MoOS firmware entry" "" \
-                2 "Install latest signed MoOS" "" \
-                4 "إعادة التثبيت: مسح القرص | Reinstall (erase target)" "" \
-                3>&1 1>&2 2>&3) || return 0
+                1 "إقلاع MoOS من UEFI | Boot MoOS firmware entry" \
+                2 "Install latest signed MoOS" \
+                4 "إعادة التثبيت: مسح القرص | Reinstall (erase target)" \
+                3>&1 1>&2 2>&3) || dialog_status=$?
         else
-            choice=$(whiptail --backtitle "MoOS Installer" --title "MoOS UTM" \
+            choice=$(whiptail --clear --backtitle "MoOS Installer" --title "MoOS UTM" \
                 --menu "اختر إجراءً | Choose an action:" 16 72 4 \
-                2 "Install latest signed MoOS" "" \
-                5 "Shell / serial debug" "" \
-                3>&1 1>&2 2>&3) || return 0
+                2 "Install latest signed MoOS" \
+                5 "Shell / serial debug" \
+                3>&1 1>&2 2>&3) || dialog_status=$?
+        fi
+        if [ "$dialog_status" -eq 1 ]; then
+            show_status "أُغلقت قائمة الاسترداد | Recovery menu closed."
+            return 0
+        elif [ "$dialog_status" -ne 0 ]; then
+            show_status "تعذر عرض قائمة الاسترداد | Recovery menu failed."
+            return "$dialog_status"
         fi
 
         case "$choice" in
@@ -140,6 +148,6 @@ if [ -e /dev/tty1 ] && command -v whiptail >/dev/null 2>&1; then
     exec >/dev/tty1 2>&1 </dev/tty1
     main_menu
 else
-    show_status "MoOS Installer\n\nUse serial terminal.\nRun: sudo moos-utm-net-install"
-    exec /usr/libexec/moos-utm-net-install
+    show_status $'تعذر فتح قائمة التثبيت. افتح الطرفية التسلسلية لبدء التثبيت يدويًا.\nThe installer menu is unavailable. To start installation from an authenticated serial session, run:\nsudo /usr/libexec/moos-utm-net-install'
+    exit 1
 fi

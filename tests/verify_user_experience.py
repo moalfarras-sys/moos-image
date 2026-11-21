@@ -109,7 +109,7 @@ def kconfig_value(text: str, section: str, key: str) -> str:
 launchers = []
 for path in (ROOT / "system_files/usr/share/applications").glob("*.desktop"):
     text = path.read_text(encoding="utf-8")
-    if re.search(r"^Name=Mo (?:PC )?Remote(?: Personal)?$", text, re.MULTILINE):
+    if re.search(r"^Name=(?:Mawj|Mo (?:PC )?Remote(?: Personal)?)$", text, re.MULTILINE):
         launchers.append(path.name)
 require(launchers == ["org.moos.remote.desktop"],
         f"Mo Remote must have exactly one launcher; found {launchers}")
@@ -211,7 +211,10 @@ require("MO_REMOTE_ACQUIRE_ATTEMPTS" in code(remote_start)
         "logind/polkit call must fall through to the agent")
 
 remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
-# The dock pin opens the Mo PC Remote app, whose window app id is the entry's own name, so pin
+require(kconfig_value(remote_desktop, "Desktop Entry", "Name") == "Mawj"
+        and kconfig_value(remote_desktop, "Desktop Entry", "Name[ar]") == "موج",
+        "the existing remote launcher must advertise its localized Mawj identity")
+# The dock pin opens the Mawj app, whose window app id is the entry's own name, so pin
 # and window are one icon; its switches live in System Settings → MoOS → Mo PC Remote, and that
 # page still reaches the app for pairing.
 require(re.search(r"(?m)^Exec=mo-pc-remote$", remote_desktop)
@@ -3142,7 +3145,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=170" in apply_theme_code,
+require("THEME_REV=171" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -5005,8 +5008,10 @@ require("stage_x = cx - stage_w / 2" in moos_script_src
         and "intro_sprite.SetX(stage_x)" in moos_script_src
         and "intro_sprite.SetY(stage_y)" in moos_script_src,
         "the rendered boot stage must be centred as the hero")
-require("tick >= 9" in moos_script_src and "finished = 1" in moos_script_src,
-        "boot entrance must finish without an endless orbit")
+_entrance = _re.search(r"^ENTRANCE_TICKS = (\d+);", moos_script_src, _re.MULTILINE)
+require(_entrance is not None and int(_entrance.group(1)) <= 50
+        and "tick >= ENTRANCE_TICKS" in moos_script_src and "finished = 1" in moos_script_src,
+        "boot entrance must be a short finite scene (at most 2 s at 25 Hz), never an endless orbit")
 # Scale to screen height, so it is crisp at 1080p and 4K without stretching.
 require("Window.GetHeight(0)" in moos_script_src,
         "the boot splash must size itself from the screen height (crisp at 1080p and 4K)")

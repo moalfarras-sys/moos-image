@@ -18,11 +18,14 @@ after the owner has uploaded several gigabytes to Oracle:
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
+import selectors
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -1084,7 +1087,7 @@ class MiraStartupDiagnostics(unittest.TestCase):
         return text.split("<<'MIRA_STARTUP_PROBE'\n", 1)[1].split('\nMIRA_STARTUP_PROBE', 1)[0]
 
     def test_real_probe_preserves_argv_exit_and_reports_a_blocked_stack(self):
-        with tempfile.TemporaryDirectory(prefix='moos-mira-startup-') as temporary:
+        with tempfile.TemporaryDirectory(prefix='moos-mira-بدء-') as temporary:
             root = Path(temporary)
             probe = root / 'probe.py'
             probe.write_text(self.probe_source())
@@ -1099,14 +1102,58 @@ class MiraStartupDiagnostics(unittest.TestCase):
             bad = subprocess.run([sys.executable, str(probe), '-s', str(app)],
                                  capture_output=True, text=True, timeout=10)
             self.assertEqual(bad.returncode, 7, bad.stdout + bad.stderr)
-            app.write_text('import time\ntime.sleep(0.15)\nraise SystemExit(9)\n')
-            driver = ('import runpy,sys\nm=runpy.run_path(sys.argv[1])\n'
-                      "m['probe'](['-s',sys.argv[2]],trace_after=0.03)\n")
-            blocked = subprocess.run([sys.executable, '-c', driver, str(probe), str(app)],
-                                    capture_output=True, text=True, timeout=10)
-            self.assertEqual(blocked.returncode, 9, blocked.stdout + blocked.stderr)
-            self.assertIn('Timeout (', blocked.stderr)
-            self.assertIn(str(app), blocked.stderr)
+            # The production watchdog includes imports in its deadline. Start the
+            # fixture's short clock at app entry so it measures an application stall.
+            (root / 'fixture_clock.py').write_text(
+                "from faulthandler import dump_traceback_later as native_arm\n"
+                "from functools import partial\n"
+                "def defer(*args, **kwargs):\n"
+                "    global arm_at_entry\n"
+                "    arm_at_entry = partial(native_arm, *args, **kwargs)\n"
+            )
+            app.write_text(
+                "import sys\n"
+                "from fixture_clock import arm_at_entry\n"
+                "arm_at_entry()\n"
+                "assert sys.stdin.buffer.read(1) == b'x'\n"
+                "raise SystemExit(9)\n"
+            )
+            driver = (
+                "import runpy, sys\n"
+                "from unittest.mock import patch\n"
+                "from fixture_clock import defer\n"
+                "probe = runpy.run_path(sys.argv[1])['probe']\n"
+                "with patch('faulthandler.dump_traceback_later', defer):\n"
+                "    probe(['-s', sys.argv[2]], trace_after=0.03)\n"
+            )
+            # faulthandler uses ASCII backslash escapes for non-ASCII paths.
+            # The parent releases the blocked app only after seeing its actual frame.
+            frame = b'File "' + str(app).encode('ascii', 'backslashreplace') + b'", line '
+            stack = bytearray()
+            with subprocess.Popen([sys.executable, '-c', driver, str(probe), str(app)], cwd=root,
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as child:
+                try:
+                    deadline = time.monotonic() + 10
+                    with selectors.DefaultSelector() as poller:
+                        poller.register(child.stderr, selectors.EVENT_READ)
+                        while frame not in stack:
+                            remaining = deadline - time.monotonic()
+                            if remaining <= 0 or not poller.select(remaining):
+                                break
+                            chunk = os.read(child.stderr.fileno(), 4096)
+                            if not chunk:
+                                break
+                            stack.extend(chunk)
+                    self.assertIn(frame, stack, stack.decode(errors='replace'))
+                    stdout, rest = child.communicate(b'x', timeout=10)
+                    stack.extend(rest)
+                    self.assertEqual(child.returncode, 9, stdout + stack)
+                    self.assertIn(b'Timeout (', stack)
+                    self.assertIn(b'MIRA_STARTUP: python-ended elapsed_ms=', stdout)
+                finally:
+                    if child.poll() is None:
+                        child.kill()
+                        child.wait()
 
 
 if __name__ == "__main__":

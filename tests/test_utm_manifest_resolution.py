@@ -63,14 +63,21 @@ class ManifestResolution(unittest.TestCase):
 
 
 class TargetPolicy(unittest.TestCase):
-    def probe(self, action, inventory="", code=0, target=""):
+    def probe(self, action, inventory="", code=0, target="", boot_disk="/dev/vda"):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             binary = base / "bin"
             binary.mkdir()
             lsblk = binary / "lsblk"
-            lsblk.write_text('#!/bin/sh\nprintf "%s\\n" "$MOOS_TARGET_TEST_LAYOUT"\nexit "$MOOS_TARGET_TEST_CODE"\n')
+            lsblk.write_text('#!/bin/sh\n'
+                             'if [ "$*" = "-dnpro PKNAME -- /dev/vda2" ]; then\n'
+                             '    printf "%s\\n" "$MOOS_TEST_BOOT_DISK"\n'
+                             'else\n    printf "%s\\n" "$MOOS_TARGET_TEST_LAYOUT"\nfi\n'
+                             'exit "$MOOS_TARGET_TEST_CODE"\n')
             lsblk.chmod(0o755)
+            findmnt = binary / "findmnt"
+            findmnt.write_text('#!/bin/sh\n[ "$*" = "--noheadings --nofsroot --output SOURCE --mountpoint /boot" ] || exit 1\necho /dev/vda2\n')
+            findmnt.chmod(0o755)
             source = SOURCE.read_text()
             functions = source[source.index("pick_target_disk() {"):source.index("resolve_digest() {")]
             helper = base / "probe.sh"
@@ -78,17 +85,30 @@ class TargetPolicy(unittest.TestCase):
                               'log() { printf "%s\\n" "$*" >&2; }\n' + functions + '\n' + action + '\n')
             env = {**os.environ, "PATH": str(binary) + ":/usr/bin:/bin",
                    "MOOS_TARGET_TEST_LAYOUT": inventory, "MOOS_TARGET_TEST_CODE": str(code),
-                   "MOOS_TARGET_TEST_EXPLICIT": target}
+                   "MOOS_TARGET_TEST_EXPLICIT": target, "MOOS_TEST_BOOT_DISK": boot_disk}
             return subprocess.run(["bash", str(helper)], env=env, capture_output=True, text=True, timeout=5)
 
     def test_only_two_disk_bundle_can_auto_select_its_second_disk(self):
-        result = self.probe("pick_target_disk", "/dev/vda disk\n/dev/vdb disk")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), "/dev/vdb")
-        for inventory in ("/dev/vda disk", "/dev/vda disk\n/dev/vdb disk\n/dev/vdc disk"):
-            with self.subTest(inventory=inventory):
-                result = self.probe("pick_target_disk", inventory)
-                self.assertEqual(result.stdout.strip(), "")
+        installer = dict(name="/dev/vda", type="disk", ro=False, fstype=None, label=None)
+        target = dict(installer, name="/dev/vdb")
+        seed = dict(installer, name="/dev/vdc", ro=True, fstype="iso9660", label="cidata")
+        swap = dict(installer, name="/dev/zram0", fstype="swap")
+        def select(disks, boot="/dev/vda"):
+            return self.probe("pick_target_disk", json.dumps({"blockdevices": disks}), boot_disk=boot)
+        for disks in ([installer, target], [seed, target, swap, installer]):
+            result = select(disks)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "/dev/vdb")
+        for disks in ([installer], [installer, target, dict(seed, ro=False)],
+                      [installer, target, dict(seed, label="other")],
+                      [installer, target, dict(seed, fstype=None)],
+                      [installer, target, seed, dict(swap, name="/dev/sdc")],
+                      [installer, target, seed, dict(swap, fstype=None)],
+                      [installer, dict(target, ro=True)]):
+            with self.subTest(disks=disks):
+                self.assertEqual(select(disks).stdout.strip(), "")
+        for boot in ("/dev/vdb", ""):
+            self.assertEqual(select([installer, target, seed], boot).stdout.strip(), "")
 
     def test_invalid_explicit_target_never_falls_back_to_second_disk(self):
         result = self.probe("pick_target_disk", "/dev/vda disk\n/dev/vdb disk", target="/dev/moos-private-nonexistent")

@@ -18,7 +18,7 @@ use_when: Pages do not load, Wi-Fi does not connect, the connection drops, or on
 7. "No carrier" on a cable → the cable or the router port. A DHCP timeout on every network → restart the router.
 
 ## Never
-- Never use `toggle_wifi` value=`off` to "reset" the connection when the person may be reaching this computer over the network (Mo PC Remote): it cuts them off. The system asks them first for exactly that reason.
+- Never use `toggle_wifi` value=`off` to "reset" the connection when the person may be reaching this computer over the network (Mawj): it cuts them off. The system asks them first for exactly that reason.
 
 ## Stop and tell the person when
 - This computer has an address, a route and working DNS, and only some sites fail: the problem is not on this machine. Say so.

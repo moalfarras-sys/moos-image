@@ -400,7 +400,7 @@ def main() -> int:
         "    moos:<your VM-unique password>",
         "",
         "Use that password on the graphical MoOS login screen. SSH password",
-        "login is disabled and Mo PC Remote is off until you explicitly enable it.",
+        "login is disabled and Mawj is off until you explicitly enable it.",
         "After login, change the bootstrap password in Settings, then stop the VM",
         "and detach the read-only seed.iso drive. The password is not forcibly",
         "expired at the greeter because Plasma Login Manager 6.7 cannot complete",

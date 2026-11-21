@@ -1,5 +1,5 @@
 [Unit]
-Description=Mo Remote
+Description=Mawj
 ConditionUser=!@system
 After=plasma-workspace.target network-online.target ydotoold-moremote.service xdg-desktop-portal.service plasma-xdg-desktop-portal-kde.service
 Wants=network-online.target ydotoold-moremote.service xdg-desktop-portal.service plasma-xdg-desktop-portal-kde.service

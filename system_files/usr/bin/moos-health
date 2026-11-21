@@ -90,7 +90,7 @@ WHY = {
     "code": "محرر VS Code وإضافاته | VS Code and its extensions",
     "node": "برنامج Node.js (غالباً إضافة محرر أو خادم تطوير) | a Node.js program, often an editor extension or dev server",
     "python3": "برنامج Python | a Python program",
-    "gst-launch-1.0": "بث الشاشة عبر Mo PC Remote | Mo PC Remote streaming the screen",
+    "gst-launch-1.0": "بث الشاشة عبر موج | Mawj streaming the screen",
     "waydroid": "حاوية أندرويد | the Android container",
     "tracker-miner-fs-3": "فهرسة الملفات | file indexing",
 }
@@ -433,7 +433,7 @@ def listeners(findings):
             f"open-port-{protocol}-{port}", "warning",
             REMOTE_ACCESS_PORTS.get(port, "منفذ مفتوح على الشبكة | A port is open to the network"),
             f"{protocol} {where} — {who}"
-            + (" — MoOS's remote desktop is Mo PC Remote" if desktop_share else ""),
+            + (" — MoOS's remote desktop is Mawj" if desktop_share else ""),
             # MoOS's remote desktop is Mo PC Remote (private tailnet, PIN, an
             # indicator while a session is live). A second desktop server open to
             # the whole network is the finding; the action TURNS IT OFF rather

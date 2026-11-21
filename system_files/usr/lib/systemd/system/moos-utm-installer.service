@@ -1,12 +1,14 @@
 [Unit]
 Description=MoOS UTM installer menu
-After=NetworkManager.service cloud-final.service
+RequiresMountsFor=/boot
+After=NetworkManager.service plymouth-quit.service
 Wants=NetworkManager.service
 ConditionPathExists=!/etc/moos-utm-install-complete
 
 [Service]
 Type=simple
 Environment=TERM=linux
+ExecStartPre=/usr/bin/chvt --console=/dev/tty1 1
 ExecStart=/usr/libexec/moos-utm-installer-menu
 StandardInput=tty
 StandardOutput=tty

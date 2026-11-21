@@ -1,5 +1,5 @@
 /*
- * Mo PC Remote — "Glass Console" (v56), on the MoOS UI Liquid Glass tokens.
+ * Mawj — "Glass Console" (v56), on the MoOS UI Liquid Glass tokens.
  *
  * One idea per surface:
  *   the STAGE is the remote desktop and nothing is ever drawn over its encoded pixels;
@@ -188,10 +188,10 @@ svg { flex: none; }
   margin-bottom: 22px;
 }
 .brand h1 {
-  font-size: 24px;
+  font-size: 30px;
+  line-height: 1.35;
   font-weight: 750;
   margin: 0;
-  letter-spacing: -0.01em;
 }
 .brand p {
   margin: 4px 0 0;
@@ -199,29 +199,9 @@ svg { flex: none; }
   font-size: 14px;
 }
 .brand-logo {
-  position: relative;
+  display: block;
   width: 112px;
   height: 112px;
-  border-radius: 34px;
-  display: grid;
-  place-items: center;
-  background: var(--glass-plate), var(--surface-2);
-  border: 1px solid var(--glass-edge);
-  box-shadow: 0 20px 50px var(--brand-glow), inset 0 1px 0 var(--glass-highlight);
-}
-.brand-logo::before {
-  content: "";
-  position: absolute;
-  top: -1px; left: -1px; right: -1px; bottom: -1px;
-  border-radius: inherit;
-  background: radial-gradient(80% 60% at 30% 10%, rgba(168, 241, 232, 0.25), transparent 70%);
-  pointer-events: none;
-}
-.brand-logo img {
-  position: relative;
-  width: 78px;
-  height: 78px;
-  border-radius: 22px;
 }
 .pin-dots {
   display: flex;
@@ -1657,8 +1637,7 @@ svg { flex: none; }
 @media (max-height: 640px) and (orientation: portrait) {
   .auth { justify-content: flex-start; }
   .brand { margin-bottom: 12px; }
-  .brand-logo { width: 84px; height: 84px; border-radius: 26px; }
-  .brand-logo img { width: 58px; height: 58px; border-radius: 16px; }
+  .brand-logo { width: 84px; height: 84px; }
   .key { width: 64px; height: 64px; font-size: 24px; }
   .keypad { grid-template-columns: repeat(3, 64px); gap: 10px 18px; }
   .dock-btn { min-height: 48px; }

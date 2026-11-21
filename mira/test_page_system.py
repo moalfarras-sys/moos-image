@@ -77,7 +77,7 @@ REPORT = {
     'findings': [
         {'id': 'open-port-tcp-3389', 'severity': 'warning',
          'title': 'سطح المكتب البعيد (RDP) مفتوح للشبكة | Remote Desktop (RDP) is open to the network',
-         'detail': "tcp *:3389 — krdpserver — MoOS's remote desktop is Mo PC Remote", 'action': 'moos://privacy/stop-sharing'},
+         'detail': "tcp *:3389 — krdpserver — MoOS's remote desktop is Mawj", 'action': 'moos://privacy/stop-sharing'},
         {'id': 'open-port-tcp-8123', 'severity': 'warning', 'title': 'منفذ مفتوح على الشبكة | A port is open to the network',
          'detail': 'tcp 0.0.0.0:8123, [::]:8123 — python3', 'action': ''},
         {'id': 'check-incomplete-updates', 'severity': 'warning',

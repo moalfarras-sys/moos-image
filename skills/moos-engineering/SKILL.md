@@ -23,9 +23,9 @@ description: Engineer and verify Arabic-first MoOS, native KDE/Wayland UI, Linux
 - Four editions share one source tree and MoOS filesystem overlay: **`moos`**
   (x86 desktop), **`moos-nvidia`** (same x86 base + NVIDIA driver), **`moos-cloud`**
   (x86 VPS), and **`moos-arm`** (native aarch64, including Oracle A1).
-  The three x86 editions use the same upstream repository; ARM uses the native
-  bootc base in `Containerfile.arm`. Current upstream `:44` inputs are mutable
-  tags, not locked release digests. Published MoOS images are cosign-signed and
+  The three x86 editions share the reviewed upstream manifest in `Containerfile`.
+  The daily scheduled x86 build resolves the moving `:44` tag once for all three.
+  ARM uses the native bootc base in `Containerfile.arm`. Published MoOS images are cosign-signed and
   installed origins enforce signatures. See `docs/DEVELOPMENT_PLAN.md`.
 - Targets: **speed, stability, beauty, and security** on real hardware and VMs.
   This physical computer is now the dedicated MoOS development station. Its

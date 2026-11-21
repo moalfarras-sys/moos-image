@@ -1,4 +1,4 @@
-/* Mo PC Remote notification click contract. Imported by the generated Workbox worker. */
+/* Mawj notification click contract. Imported by the generated Workbox worker. */
 self.addEventListener("notificationclick", event => {
   event.notification.close();
   event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true })

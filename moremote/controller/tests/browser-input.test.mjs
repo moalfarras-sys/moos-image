@@ -123,6 +123,29 @@ try {
   await rp.waitForFunction(() => window.testDecoders.length > 0);
   assert.equal(recovery.packets.find(p => p.type === 'video')?.h264, true,
     'the upgraded phone must try the new recovery implementation despite the retired revision verdict');
+  // Check the visible and background event paths in the same browser turn, so a
+  // periodic heartbeat cannot be mistaken for the controller's network-return probe.
+  const onlineProbes = await rp.evaluate(() => {
+    const send = WebSocket.prototype.send;
+    const hidden = Object.getOwnPropertyDescriptor(document, 'hidden');
+    let count = 0;
+    WebSocket.prototype.send = function (packet) {
+      if (typeof packet === 'string' && JSON.parse(packet).type === 'ping') count++;
+      return send.call(this, packet);
+    };
+    try {
+      window.dispatchEvent(new Event('online'));
+      const visible = count;
+      Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+      window.dispatchEvent(new Event('online'));
+      return [visible, count - visible];
+    } finally {
+      WebSocket.prototype.send = send;
+      if (hidden) Object.defineProperty(document, 'hidden', hidden);
+      else delete document.hidden;
+    }
+  });
+  assert.deepEqual(onlineProbes, [1, 0], 'network return probes only a visible phone session');
   const beforeRestart = await rp.evaluate(() => window.testDecoders.length);
   recovery.sockets.at(-1).send(JSON.stringify({type:'codec',codec:'h264',sequence:2}));
   recovery.sendFrame(recovery.sockets.at(-1));

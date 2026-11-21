@@ -3,14 +3,14 @@
 
 THE PROBLEM THIS SOLVES
 
-Mo PC Remote injects input through xdg-desktop-portal's RemoteDesktop interface.
+Mawj injects input through xdg-desktop-portal's RemoteDesktop interface.
 The portal wants one interactive approval, and it remembers it afterwards:
 mo-remote-portal.py asks for `persist_mode = 2` and saves the returned
 `restore_token`, so the dialog appears exactly once per account, ever.
 
 "Once" is one time too many for MoOS Cloud's second desktop. That session runs on
 `kwin_wayland --virtual` with nobody in front of it, and the only way to click the
-dialog is through Mo PC Remote — which is the thing waiting on the grant. The
+dialog is through Mawj — which is the thing waiting on the grant. The
 seat-owning account never hit this because it HAS a seat: ydotoold works there,
 so it could click its own prompt. A virtual session has no such route.
 
@@ -20,7 +20,7 @@ Read off a working account rather than guessed at:
 
     table       remote-desktop
     id          tan02ApTgIYasWH2ZZPc1w      <- the RESTORE TOKEN, random per grant
-    app-id      ""                          <- empty: Mo PC Remote is not sandboxed
+    app-id      ""                          <- empty: Mawj is not sandboxed
     permission  yes
     data        ('KDE', uint32 1, <bytes>)  <- KDE's session state: clipboardEnabled,
                                                devices (pointer|keyboard), screenShareEnabled
@@ -39,7 +39,7 @@ what makes this look impossible:
 
 WHY THIS IS NOT A PRIVILEGE ESCALATION
 
-It grants an account's own Mo PC Remote the right to drive that account's own
+It grants an account's own Mawj the right to drive that account's own
 desktop — precisely what the dialog would have granted had anyone been able to
 click it. Nothing crosses between users: the data blob carries device flags, not
 identity, and each account's token lands in its own store and its own home. Mo PC
@@ -102,7 +102,7 @@ def cmd_dump(args):
         return 0
 
     raise SystemExit(
-        "this account has no RemoteDesktop grant to copy. Approve Mo PC Remote's\n"
+        "this account has no RemoteDesktop grant to copy. Approve Mawj's\n"
         "prompt once on an account that HAS a seat, then run this again.")
 
 

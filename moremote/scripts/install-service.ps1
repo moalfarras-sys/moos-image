@@ -26,8 +26,8 @@ Write-Host "==> Creating the service" -ForegroundColor Cyan
 sc.exe stop $svc 2>$null | Out-Null
 sc.exe delete $svc 2>$null | Out-Null
 Start-Sleep -Milliseconds 600
-New-Service -Name $svc -BinaryPathName "`"$exe`" --service" -DisplayName "Mo Remote Personal" -StartupType Automatic | Out-Null
-sc.exe description $svc "Mo Remote Personal remote-control service (reachable across the lock/login screen)." | Out-Null
+New-Service -Name $svc -BinaryPathName "`"$exe`" --service" -DisplayName "Mawj" -StartupType Automatic | Out-Null
+sc.exe description $svc "Mawj remote-control service (reachable across the lock/login screen)." | Out-Null
 sc.exe failure $svc reset= 60 actions= restart/5000/restart/5000/restart/5000 | Out-Null
 
 Write-Host "==> Starting the service" -ForegroundColor Cyan

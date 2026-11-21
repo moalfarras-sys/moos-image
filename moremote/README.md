@@ -1,4 +1,4 @@
-# Mo Remote Personal
+# Mawj · موج
 
 A **private** remote control for your MoOS or Windows PC, driven from your iPhone (or any browser) over **Tailscale**. View your screen and control the mouse + keyboard by touch — no VPS, no cloud, no database, no domain, no open router ports.
 
@@ -7,6 +7,10 @@ A **private** remote control for your MoOS or Windows PC, driven from your iPhon
 ---
 
 ## 🇸🇦 البداية السريعة (عربي)
+
+**على MoOS** افتح «موج» من إعدادات النظام. انسخ عنوان الاتصال الخاص أو امسح رمز QR من هاتفك المتصل بنفس شبكة Tailscale، ثم سجّل الدخول برمز موج. يبقى عنوانك واقتران الأجهزة المحفوظ بعد التحديث.
+
+**على Windows** اتبع الخطوات التالية.
 
 1. **ثبّت Tailscale** على الكمبيوتر والآيفون من [tailscale.com/download](https://tailscale.com/download) وسجّل الدخول بنفس الحساب على الجهازين.
 2. على الكمبيوتر، افتح PowerShell داخل مجلد المشروع ونفّذ:
@@ -151,7 +155,9 @@ Common commands inside `controller/`:
    - **Command line:** `tailscale ip -4`
 3. Make sure both devices show as "Connected" in the Tailscale app.
 
-> The agent listens on all interfaces but **accepts connections only from the Tailscale range (`100.64.0.0/10`) + loopback** — everything else is rejected. This means it becomes reachable automatically as soon as Tailscale connects, with no restart needed even if Tailscale starts after the app or its IP changes. On Windows 11 with Smart App Control, `install.ps1` also adds the required Windows Firewall rule (one UAC prompt).
+> On MoOS, open Mawj (موج) from System Settings and copy its private HTTPS address or scan the QR code from your phone. The session agent listens on loopback; Tailscale Serve provides the private address. Existing paired browsers keep their address and trusted-device settings.
+
+> On Windows, the agent listens on all interfaces but **accepts connections only from the Tailscale range (`100.64.0.0/10`) + loopback** — everything else is rejected. This means it becomes reachable automatically as soon as Tailscale connects, with no restart needed even if Tailscale starts after the app or its IP changes. On Windows 11 with Smart App Control, `install.ps1` also adds the required Windows Firewall rule (one UAC prompt).
 
 ---
 

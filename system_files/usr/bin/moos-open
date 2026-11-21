@@ -133,16 +133,16 @@ REMOTE_UNIT="mo-remote-personal.service"
 remote_ctl() {
     if [ "${1:-}" = disable ]; then
         if moos-control remote off >/dev/null 2>&1; then
-            notify "Mo PC Remote ✓"
+            notify "$(localized_message 'موج ✓ | Mawj ✓')"
         else
-            notify "Mo PC Remote: لم يكتمل الإيقاف | stop did not complete"
+            notify "$(localized_message 'موج: لم يكتمل الإيقاف | Mawj: stop did not complete')"
         fi
         return
     fi
     if systemctl --user "$@" "$REMOTE_UNIT" >/dev/null 2>&1; then
-        notify "Mo PC Remote ✓"
+        notify "$(localized_message 'موج ✓ | Mawj ✓')"
     else
-        notify "Mo PC Remote: تعذّر التنفيذ | action failed"
+        notify "$(localized_message 'موج: تعذّر التنفيذ | Mawj: action failed')"
     fi
 }
 
@@ -493,7 +493,7 @@ case "${cat}/${tgt}" in
     # ── Mo PC Remote: start / stop / reconnect, from inside Mo AI ────────────
     # start ENABLES the service (it returns every boot), so it must be confirmed —
     # a drive-by moos://remote/start must not silently open persistent remote access.
-    remote/start)   confirm "تشغيل Mo PC Remote والسماح له بالعمل بعد كل إقلاع؟ | Turn on Mo PC Remote (it will start at every boot)?" \
+    remote/start)   confirm "تشغيل موج والسماح له بالعمل بعد كل إقلاع؟ | Turn on Mawj (it will start at every boot)?" \
                           && remote_ctl enable --now ;;
     remote/stop)    remote_ctl disable --now ;;
     # try-restart is a no-op when remote access is off. Plain restart would turn
@@ -734,10 +734,10 @@ PY
         IFS=/ read -r -a control_args <<<"$tgt"
         control_run "${control_args[@]}" ;;
     control/remote/on)
-        confirm "تشغيل Mo PC Remote ليتحكم هاتفك المقترن بهذا الكمبيوتر، ويبقى يعمل بعد كل إقلاع؟ | Turn on Mo PC Remote so your paired phone can control this computer, also after every restart?" \
+        confirm "تشغيل موج ليتحكم هاتفك المقترن بهذا الكمبيوتر، ويبقى يعمل بعد كل إقلاع؟ | Turn on Mawj so your paired phone can control this computer, also after every restart?" \
             && control_run remote on ;;
     control/remote/off)
-        confirm "إيقاف Mo PC Remote يقطع أي هاتف يتحكم بهذا الكمبيوتر الآن. متابعة؟ | Turning off Mo PC Remote disconnects any phone controlling this computer right now. Continue?" \
+        confirm "إيقاف موج يقطع أي هاتف يتحكم بهذا الكمبيوتر الآن. متابعة؟ | Turning off Mawj disconnects any phone controlling this computer right now. Continue?" \
             && control_run remote off ;;
     # Fast Remote ON rewrites blur, motion and the keyboard layout until it is turned off.
     control/fast-remote/on)
@@ -792,7 +792,7 @@ PY
         confirm "إيقاف مشاركة سطح المكتب غير التابعة لـ MoOS؟ | Turn off desktop sharing that is not MoOS's?" \
             && { /usr/bin/moos-remote-guard off >/dev/null 2>&1 \
                  || "${BASH_SOURCE%/*}/moos-remote-guard" off >/dev/null 2>&1 || true; \
-                 notify "أُوقفت المشاركة الغريبة؛ Mo PC Remote يبقى متاحاً | Foreign sharing is off; Mo PC Remote stays"; } ;;
+                 notify "أُوقفت المشاركة الغريبة؛ موج يبقى متاحاً | Foreign sharing is off; Mawj stays"; } ;;
     session/logout) confirm "تسجيل الخروج الآن؟ | Log out now?" \
                           && { qdbus_run org.kde.Shutdown /Shutdown logout 2>/dev/null || true; } ;;
     session/power) confirm "إيقاف تشغيل الجهاز الآن؟ | Shut the computer down now?" \

@@ -44,10 +44,10 @@ Object.defineProperty(globalThis, "document", {configurable: true, value: {hidde
 assert.equal(await showRemoteAlert("connection-interrupted"), false, "visible controllers must stay quiet");
 assert.equal(calls.length, 0);
 
-Object.defineProperty(globalThis, "document", {configurable: true, value: {hidden: true}});
+Object.defineProperty(globalThis, "document", {configurable: true, value: {hidden: true, documentElement: {lang: "en"}}});
 assert.equal(await showRemoteAlert("upload-complete"), true);
 assert.deepEqual(calls, [{
-  title: "Mo PC Remote",
+  title: "Mawj",
   options: {
     body: "The file upload completed.",
     tag: "remote-upload",
@@ -55,6 +55,14 @@ assert.deepEqual(calls, [{
     badge: "/icons/favicon-64.png",
   },
 }]);
+
+Object.defineProperty(globalThis, "document", {
+  configurable: true, value: {hidden: true, documentElement: {lang: "ar"}},
+});
+assert.equal(await showRemoteAlert("connection-interrupted"), true);
+assert.equal(calls[1].title, "موج");
+assert.equal(calls[1].options.body, "انقطع الاتصال بسطح المكتب.");
+assert.equal(calls[1].options.tag, "remote-connection");
 
 const worker = readFileSync(resolve(here, "../public/notification-sw.js"), "utf8");
 for (const contract of ["notificationclick", "notification.close()", "clients.matchAll", "includeUncontrolled: true", "existing.focus()", 'clients.openWindow("/")']) {

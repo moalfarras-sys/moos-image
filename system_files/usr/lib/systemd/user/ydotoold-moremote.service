@@ -1,5 +1,5 @@
 [Unit]
-Description=Mo Remote virtual pointer helper
+Description=Mawj virtual pointer helper
 After=graphical-session.target
 PartOf=graphical-session.target
 

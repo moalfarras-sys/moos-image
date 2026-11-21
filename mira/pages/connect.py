@@ -1,11 +1,11 @@
 """Connect: every way to reach this computer, and Mira, away from the desk.
 
-Mo PC Remote (the phone drives this PC), Mira on the phone (the companion, read from the controller),
+Mawj (the phone drives this PC), Mira on the phone (the companion, read from the controller),
 the phone link (the image's own KDE Connect, which MoOS names «الهاتف» / Phone), the message channels
 Mo AI's agent answers on (Telegram, WhatsApp) and the Echo speaker (read from the controller).
 
 Every state on the page is read back from its backend:
-- Mo PC Remote: moai-control /quick `remote` and the Fast Remote journal file moos-fast-remote keeps.
+- Mawj: moai-control /quick `remote` and the Fast Remote journal file moos-fast-remote keeps.
   When the installed schemas declare `remote_control` / `fast_remote`, a click goes to their executor:
   what the schema confirms (remote on and off, fast on) is an owner card, the rest (restart, fast
   off) runs at once, and the executor's exit status is the result. On an image without those tools
@@ -59,7 +59,8 @@ STRINGS = {
     'cn_not_done_direct': ('لم يتمكّن MoOS من التنفيذ', 'MoOS could not do it'),
     'cn_stop_waiting': ('توقّف عن الانتظار', 'Stop waiting'),
 
-    # Mo PC Remote
+    # Mawj
+    'cn_remote_name': ('موج', 'Mawj'),
     'cn_remote_sub': ('شاشة الكمبيوتر وفأرته ولوحة مفاتيحه وحافظته على هاتفك',
                       "This PC's screen, mouse, keyboard and clipboard on your phone"),
     'cn_running': ('يعمل', 'Running'),
@@ -74,11 +75,11 @@ STRINGS = {
                         'ولن يعمل تلقائياً عند الإقلاع التالي.',
                         'Your phone may be connected right now, and stopping ends that session. '
                         'Press the button again within 5 seconds to confirm. It will also not start at the next boot.'),
-    'cn_card_start': ('يشغّل Mo PC Remote: يستطيع هاتفك المقترن التحكم بهذا الكمبيوتر، ويبقى يعمل بعد كل إقلاع.',
-                      'Starts Mo PC Remote: your paired phone can control this computer, and it keeps running '
+    'cn_card_start': ('يشغّل موج: يستطيع هاتفك المقترن التحكم بهذا الكمبيوتر، ويبقى يعمل بعد كل إقلاع.',
+                      'Starts Mawj: your paired phone can control this computer, and it keeps running '
                       'after every restart.'),
-    'cn_card_stop': ('يوقف Mo PC Remote: ينقطع أي هاتف يتحكم بهذا الكمبيوتر الآن، ولن يعمل تلقائياً عند الإقلاع التالي.',
-                     'Stops Mo PC Remote: any phone controlling this computer right now is disconnected, '
+    'cn_card_stop': ('يوقف موج: ينقطع أي هاتف يتحكم بهذا الكمبيوتر الآن، ولن يعمل تلقائياً عند الإقلاع التالي.',
+                     'Stops Mawj: any phone controlling this computer right now is disconnected, '
                      'and it will not start at the next boot.'),
     'cn_restart': ('إعادة تشغيل', 'Restart'),
     'cn_fast_on': ('تفعيل الاتصال السريع', 'Turn on fast mode'),
@@ -90,23 +91,23 @@ STRINGS = {
     'cn_fast_now': ('الاتصال السريع يعمل: الضبابية والحركة متوقفة، ولوحة المفاتيح على US، والعقل المحلي معلّق حتى تطفئه.',
                     'Fast mode is on: blur and motion are paused, the keyboard is on US and the local brain is '
                     'suspended until you turn it off.'),
-    'cn_open_remote': ('فتح Mo PC Remote', 'Open Mo PC Remote'),
+    'cn_open_remote': ('فتح موج', 'Open Mawj'),
     'cn_remote_settings': ('الإعدادات', 'Settings'),
     'cn_anywhere': ('الوصول من خارج البيت', 'Reach it from outside home'),
-    'cn_anywhere_detail': ('يعطي هذا الكمبيوتر اسماً وشهادة HTTPS على شبكة Tailscale الخاصة بك، فيعمل Mo PC Remote '
+    'cn_anywhere_detail': ('يعطي هذا الكمبيوتر اسماً وشهادة HTTPS على شبكة Tailscale الخاصة بك، فيعمل موج '
                            'من بيانات الجوال. لا يُنشر شيء على الإنترنت العام: الوصول لأجهزتك فقط. '
                            'يحتاج Tailscale متصلاً، ويطلب كلمة المرور مرة واحدة.',
-                           'Gives this PC an HTTPS name on your private Tailscale network, so Mo PC Remote works '
+                           'Gives this PC an HTTPS name on your private Tailscale network, so Mawj works '
                            'on mobile data. Nothing is published to the public internet: only your devices reach it. '
                            'Tailscale must be connected, and it asks for your password once.'),
     'cn_anywhere_done': ('تمّ: صار لهذا الكمبيوتر عنوان HTTPS على شبكتك في Tailscale، والعنوان في تفاصيل البطاقة',
                          "Done: this PC has an HTTPS name on your Tailscale network; the address is in the card's details"),
     'cn_wait_dialog': ('أكّد في نافذة MoOS التي فُتحت، ثم أقرأ الحالة…', 'Confirm in the MoOS window that opened; then I read the state…'),
     'cn_wait_readback': ('أُرسل الأمر، أقرأ الحالة…', 'Sent; reading the state back…'),
-    'cn_done_running': ('تأكدت: Mo PC Remote يعمل', 'Confirmed: Mo PC Remote is running'),
-    'cn_done_stopped': ('تأكدت: Mo PC Remote متوقف', 'Confirmed: Mo PC Remote is stopped'),
+    'cn_done_running': ('تأكدت: موج يعمل', 'Confirmed: Mawj is running'),
+    'cn_done_stopped': ('تأكدت: موج متوقف', 'Confirmed: Mawj is stopped'),
     'cn_done_restarted': ('أُرسلت إعادة التشغيل، والخدمة تعمل', 'Restart sent; the service is running'),
-    'cn_done_restarted_tool': ('تأكدت: أُعيد تشغيل Mo PC Remote وهو يعمل', 'Confirmed: Mo PC Remote restarted and is running'),
+    'cn_done_restarted_tool': ('تأكدت: أُعيد تشغيل موج وهو يعمل', 'Confirmed: Mawj restarted and is running'),
     'cn_done_fast_on': ('تأكدت: الاتصال السريع مفعّل', 'Confirmed: fast mode is on'),
     'cn_done_fast_off': ('تأكدت: عادت المؤثرات ولغة لوحة المفاتيح كما كانت', 'Confirmed: effects and keyboard layout are restored'),
     'cn_not_confirmed': ('لم تتغيّر الحالة: ربما أُلغي التأكيد أو تعذّر التنفيذ',
@@ -348,7 +349,7 @@ class ConnectPage(Page):
         super().__init__(host, parent)
         self._pending = set()          # reads in flight (never started twice)
         self._loading = set()          # the reads of one refresh (the header's busy ring)
-        self._follow = None            # the one Mo PC Remote action being followed
+        self._follow = None            # the one Mawj action being followed
         self._claim = None             # (key, value) the remote note confirmed; a read that disagrees clears it
         self._cards = {}               # card id -> what it is for ('remote:<verb>', 'anywhere', 'agent')
         self._note_until = {}          # note slot -> monotonic time it goes away (0 = with its process)

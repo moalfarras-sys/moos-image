@@ -318,8 +318,8 @@ STRINGS = {
     'sy_sk_install-an-app': ('تثبيت تطبيق من Mo Store أو من ملف منزَّل', 'Install an app, from Mo Store or a downloaded file'),
     'sy_sk_no-internet': ('لا يوجد إنترنت، أو الاتصال غير مستقر', 'No internet, or an unstable connection'),
     'sy_sk_no-sound': ('لا يوجد صوت، أو الصوت يخرج من جهاز خاطئ', 'No sound, or sound from the wrong device'),
-    'sy_sk_oracle-cloud-workstation': ('حاسوب سحابي عبر Mo PC Remote: بطيء أو صورته غير واضحة',
-                                       'A cloud computer through Mo PC Remote: slow, or an unclear picture'),
+    'sy_sk_oracle-cloud-workstation': ('حاسوب سحابي عبر موج: بطيء أو صورته غير واضحة',
+                                       'A cloud computer through Mawj: slow, or an unclear picture'),
     'sy_sk_slow-system': ('الجهاز بطيء أو يتجمّد', 'The computer is slow or freezes'),
     'sy_sk_update-and-rollback': ('تحديث MoOS، أو الرجوع بعد تحديث سيّئ', 'Update MoOS, or go back after a bad update'),
 }
@@ -1192,7 +1192,7 @@ class SystemPage(Page):
         findings = [
             item('finding', 'open-port-tcp-3389', 'warning',
                  'سطح المكتب البعيد (RDP) مفتوح للشبكة | Remote Desktop (RDP) is open to the network',
-                 "tcp *:3389 — krdpserver — MoOS's remote desktop is Mo PC Remote (sample)", 'moos://privacy/stop-sharing'),
+                 "tcp *:3389 — krdpserver — MoOS's remote desktop is Mawj (sample)", 'moos://privacy/stop-sharing'),
             item('finding', 'open-port-tcp-8123', 'warning', 'منفذ مفتوح على الشبكة | A port is open to the network',
                  'tcp 0.0.0.0:8123 — python3 (sample)'),
             item('finding', 'app-updates', 'info', 'تحديثات تطبيقات متاحة (2) | App updates available (2)',

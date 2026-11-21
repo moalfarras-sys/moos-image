@@ -510,10 +510,14 @@ desktop_dir = Path("/usr/share/applications")
 remote_launchers = []
 for path in desktop_dir.glob("*.desktop"):
     value = path.read_text(encoding="utf-8", errors="replace")
-    if re.search(r"^Name=Mo (?:PC )?Remote(?: Personal)?$", value, re.MULTILINE):
+    if re.search(r"^Name=(?:Mawj|Mo (?:PC )?Remote(?: Personal)?)$", value, re.MULTILINE):
         remote_launchers.append(path.name)
 require(remote_launchers == ["org.moos.remote.desktop"],
         f"expected one Mo Remote launcher, found {remote_launchers}")
+remote_desktop = text("/usr/share/applications/org.moos.remote.desktop")
+require(re.search(r"^Name=Mawj$", remote_desktop, re.MULTILINE)
+        and re.search(r"^Name\[ar\]=موج$", remote_desktop, re.MULTILINE),
+        "the installed remote launcher is missing its localized Mawj identity")
 native = text("/usr/bin/mo-pc-remote")
 require('UNIT = "mo-remote-personal.service"' in native,
         "Mo PC Remote does not manage its MoPC backend")

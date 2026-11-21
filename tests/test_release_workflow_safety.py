@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 import os
 import re
+import runpy
 import shutil
 import stat
 import subprocess
@@ -56,6 +57,40 @@ def workflow_job(text: str, job_name: str) -> str:
 
 
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
+    def test_x86_release_and_nightly_share_one_exact_input_per_matrix(self):
+        workflow = WORKFLOW.read_text()
+        script = workflow_run_script(workflow, "Select the reviewed or nightly x86 base")
+        manifest = json.loads((ROOT / "build_files/smocf05/manifest.json").read_text())
+        containerfile = (ROOT / "Containerfile").read_text()
+        resolve = runpy.run_path(str(ROOT / "scripts/ci/x86-base-ref.py"))["reviewed_base"]
+        reviewed = resolve(containerfile, manifest)
+        with self.assertRaises(ValueError):
+            resolve(containerfile.replace(reviewed, reviewed.split("@")[0] + ":44"), manifest)
+        with self.assertRaises(ValueError):
+            resolve(containerfile, dict(manifest, vendor_base_manifest_sha256="a" * 64))
+        source = "${{ needs.x86-base.outputs.reference }}"
+        for consumer in ("extra-args: --from=", "BASE_IMAGE: ", "X86_BASE: "):
+            self.assertIn(consumer + source, workflow_job(workflow, "build-push-sign"))
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            mock = work / "skopeo"
+            mock.write_text('#!/bin/sh\n[ "$4" = docker://ghcr.io/ublue-os/kinoite-main:44 ] || exit 7\n'
+                            'printf "%s\\n" "$TEST_DIGEST"\n')
+            mock.chmod(0o700)
+            output = work / "output"
+            newer = "sha256:" + "e" * 64
+            for event, digest, expected in (("push", "invalid", reviewed),
+                                            ("workflow_dispatch", "invalid", reviewed),
+                                            ("schedule", newer, reviewed.split("@")[0] + "@" + newer),
+                                            ("schedule", "invalid", None)):
+                with self.subTest(event=event, digest=digest):
+                    output.write_text("")
+                    env = dict(os.environ, GITHUB_EVENT_NAME=event, GITHUB_OUTPUT=str(output),
+                               TEST_DIGEST=digest, PATH=directory + os.pathsep + os.environ["PATH"])
+                    result = subprocess.run(["bash", "-c", script], cwd=ROOT, env=env, capture_output=True)
+                    self.assertEqual(result.returncode == 0, expected is not None, result.stderr)
+                    self.assertEqual(output.read_text().splitlines(), ["reference=" + expected] if expected else [])
+
     def test_controller_keeps_one_locked_install_and_every_source_gate(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         job = workflow_job(text, "build-push-sign")

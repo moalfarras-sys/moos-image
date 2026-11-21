@@ -9,7 +9,7 @@ function Assert-LastExit($what) {
   if ($LASTEXITCODE -ne 0) { throw "$what failed (exit $LASTEXITCODE)" }
 }
 
-Write-Host "==> Building Mo Remote Personal" -ForegroundColor Cyan
+Write-Host "==> Building Mawj" -ForegroundColor Cyan
 
 # 1) Frontend (PWA) -> agent\wwwroot, and icons -> agent\app.ico
 Push-Location (Join-Path $root "controller")

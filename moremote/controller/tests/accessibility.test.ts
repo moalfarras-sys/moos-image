@@ -47,7 +47,7 @@ console.log("PASS: remote modal focus, status disclosure, and live announcements
 
 for (const contract of [
   'role="status"',
-  'aria-label={`${count} PIN digits entered`}',
+  'aria-label={tr("pinDigitsEntered").replace("{count}", String(count))}',
   'window.addEventListener("keydown", onKeyDown)',
   'event.key === "Backspace" || event.key === "Delete"',
   'event.key === "Enter" && canSubmit',

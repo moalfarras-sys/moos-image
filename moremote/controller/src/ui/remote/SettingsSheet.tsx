@@ -287,7 +287,7 @@ function GeneralTab({ m }: { m: RemoteModel }) {
         </div>
         <div className="kv"><span>{tr("thisDevice")}</span><b dir="ltr">{describeHints(m.deviceHints)}</b></div>
       </Section>
-      <div className="credit">Mo PC Remote · by Moalfarras</div>
+      <div className="credit">{tr("brandName")} · {tr("brandCredit")}</div>
     </>
   );
 }

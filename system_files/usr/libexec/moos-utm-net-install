@@ -29,12 +29,25 @@ pick_target_disk() {
         printf '%s\n' "$TARGET_DEV"
         return 0
     fi
-    local inventory
-    inventory="$(lsblk -dnpo NAME,TYPE)" || return 1
-    # This recovery bundle has exactly two disks. Additional disks make the
-    # second-disk convention ambiguous; require an explicit inspected target.
-    awk '$2 == "disk" { disks[++count] = $1 }
-         END { if (count == 2) print disks[2] }' <<<"$inventory"
+    local boot_partition boot_disk inventory
+    boot_partition="$(findmnt --noheadings --nofsroot --output SOURCE --mountpoint /boot)" || return 1
+    boot_disk="$(lsblk -dnpro PKNAME -- "$boot_partition")" || return 1
+    [ -n "$boot_disk" ] || return 1
+    inventory="$(lsblk -dJpo NAME,TYPE,RO,FSTYPE,LABEL)" || return 1
+    # VirtIO exposes the packaged NoCloud CD as a read-only disk. Active zram
+    # swap is also a disk in lsblk. Neither owns a persistent install target.
+    # Recognize only the actual seed and swap identities. An extra unknown
+    # disk, or booting the second disk, makes automatic installation unsafe.
+    jq -er --arg boot "$boot_disk" '
+        [.blockdevices[] | select(.type == "disk")
+         | select((.name == "/dev/vdc" and .ro == true
+                   and .fstype == "iso9660" and .label == "cidata") | not)
+         | select(((.name | test("^/dev/zram[0-9]+$")) and .fstype == "swap") | not)]
+        | if length == 2 and all(.[]; .ro == false)
+             and (map(.name) | sort) == ["/dev/vda", "/dev/vdb"]
+             and $boot == "/dev/vda"
+          then "/dev/vdb" else empty end
+    ' <<<"$inventory"
 }
 
 target_has_data() {

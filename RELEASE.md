@@ -32,6 +32,10 @@ revision واحد، ثم يُقلع artifact النهائي نفسه، ثم يُ
    ويرفض تغيّره قبل أول قراءة Actions أو dispatch. احفظ SHA الناتج عن الدمج،
    ولا تسمح لانتظار CI باختيار `main` أحدث لم يخضع للمراجعة. هذا فحص دخول
    إضافي؛ تطابق الشجرة والتوقيع وrevision لكل run عند الترقية تبقى إلزامية.
+   اقرأ مرجع أساس x86 بالأمر `python3 scripts/ci/x86-base-ref.py`. عند تحديثه
+   تحقّق من توقيع الصورة وطبقة النواة، ثم حدّث مرجع `Containerfile` ومرجع
+   اختبار Plasma وملف `build_files/smocf05/manifest.json` معاً. البناء الليلي
+   يفحص أحدث مدخل على القناة، وبناء الإصدار يستخدم البصمة التي راجعتها.
 2. شغّل **Build MoOS image** يدويًا على branch. الإصدارات الثلاثة تُدفع بوسم
    `candidate-<run-id>-<sha12>` فقط، وتُوقّع، ويرفع كل matrix job ملف
    `moos-candidate-proof-<edition>/candidate.txt`.

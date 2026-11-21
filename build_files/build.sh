@@ -1726,6 +1726,7 @@ _core_power=(
     gh
     nodejs22
     nodejs22-npm
+    libatomic
     # Hermes Agent needs Python 3.11-3.13 and the system Python is newer; moai-do
     # install-hermes builds the user's Hermes venv on this interpreter.
     python3.12
@@ -4508,7 +4509,7 @@ BENTO
 <?xml version="1.0" encoding="utf-8"?>
 <zone target="ACCEPT">
   <short>Trusted</short>
-  <description>The tailnet. Mo PC Remote, and anything else a developer binds,
+  <description>The tailnet. Mawj, and anything else a developer binds,
   answer here and only here — never on the public address.</description>
   <interface name="tailscale0"/>
 </zone>

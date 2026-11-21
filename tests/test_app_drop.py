@@ -1424,6 +1424,11 @@ class AppImages(Home):
             "(exec 3<>/dev/tcp/1.1.1.1/53) 2>/dev/null && echo yes > saw-network\n"
             "cat /proc/net/route > routes 2>/dev/null\n"
             "echo \"$HOME|$PATH\" > saw-env\n"
+            "if [ -f /usr/lib64/libz.so.1 ] && [ ! -e /usr/lib64/libz.so ]; then\n"
+            "  test \"$LD_LIBRARY_PATH\" = /run/moos-appimage-libs || exit 10\n"
+            "  cmp /usr/lib64/libz.so.1 \"$LD_LIBRARY_PATH/libz.so\" || exit 11\n"
+            "  (touch \"$LD_LIBRARY_PATH/other\" 2>/dev/null) && exit 12\n"
+            "fi\n"
             "env > saw-all-env\n"
             "printf '\\177ELF' > AppRun; chmod 755 AppRun\n", encoding="utf-8")
         probe.chmod(0o755)

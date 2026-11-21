@@ -738,7 +738,7 @@ class TestRemoteVerbs(unittest.TestCase):
     def test_remote_on_enables_for_every_boot_and_reads_it_back(self):
         done = self.control("remote", "on")
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertIn("Mo PC Remote on", done.stdout)
+        self.assertIn("Mawj on", done.stdout)
         self.assertEqual(self.acting(), [["systemctl", "--user", "enable", "--now",
                                           "mo-remote-personal.service"]])
         self.assertIn(["logger", "-t", "moos-control", "remote on"], self.calls())

@@ -413,7 +413,7 @@ KCM.SimpleKCM {
             FormCard.FormDelegateSeparator {}
             MoosActionRow {
                 glyph: "phone"
-                text: "Mo PC Remote"
+                text: root.t("موج", "Mawj")
                 description: root.remoteText
                 enabled: root.routeAvailable("moos://settings/remote")
                 onClicked: root.open("moos://settings/remote")

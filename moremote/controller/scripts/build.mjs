@@ -1,5 +1,5 @@
 /**
- * Build the Mo PC Remote controller into agent/wwwroot (or another owned output directory).
+ * Build the Mawj controller into agent/wwwroot (or another owned output directory).
  *
  *   node scripts/build.mjs            # the shipped bundle, ../agent/wwwroot
  *   node scripts/build.mjs --out dist # the dev server's private copy (gitignored)

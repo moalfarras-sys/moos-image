@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-18. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-20. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -28,6 +28,48 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+Nov20 P0.1. The owner assigned V3 the merge and signed rollout for PR316.
+Its full source checks passed at c157f126. The local x86 image refused the
+new complete kernel digest from base 44.20261119.1. Its executable bytes,
+original vendor signature, sensor core and transport match the reviewed inputs.
+The successor admits the verified complete kernel from that upstream image.
+Qualify it through the four edition pipelines, packaged recovery disk and V3
+boot. [Kernel input review](reviews/2026-11-20-v3-kernel-input.json).
+
+Nov20 follow-up. The local and PR images passed on 7753b182. The full local
+check refused a 206-line state summary. The packaged ARM recovery proof timed
+out reading an early boot screen before it saw the menu. Preserve that run and
+exercise the bounded observer on the next packaged disk. The x86 release now
+shares the verified 44.20261120.1 digest across its three editions while the
+nightly still discovers the upstream base. At dacd5245 the complete local checks
+and both PR image builds passed. Run 44696732832 reached a real tty1 login on
+the packaged recovery disk and timed out waiting for the installer menu. Its
+target stayed intact. Give the recovery menu exclusive tty1 ownership while
+preserving serial login. At f239ef8f the local suite and both PR builds passed.
+The packaged guest instead displayed cloud-init host-key generation on the
+graphical console. Route system output to the serial port and explicitly hand
+the display from Plymouth to the menu. The pinned disk builder also injects tty0 and ttyS0. Omit those defaults for recovery, verify the actual packaged boot entry, then repeat the interaction. Run 44742631108 booted with the single reviewed console and displayed the menu. The OCR reader saw only the backtitle. Verify the captured Linux-console glyphs and focus coordinates, then exercise navigation, Cancel and clean poweroff on the next packaged disk. Run 44799995260 passed menu, navigation and Cancel focus. After Cancel the original controls stayed visible above the exit message. Both recovery menus now request newt’s native clear-on-exit; the next packaged disk must visibly close and power off.
+
+Run 44821608069 passed the packaged recovery menu, visible exit, clean guest
+poweroff and target preservation. The separate full ARM desktop reached SSH
+and captured Mira, then returned 124 at the 120-second first-open limit.
+Its import trace charged 17.21 seconds to ESPHome and 4.34 seconds to the HTTP
+server on a computer without a paired Echo. Load these only for a paired device.
+Repeat both boots of the desktop disk with the same time limit before promotion.
+
+Nov21 P2.17. The owner uses Mawj (موج) as the daily phone/browser connection.
+Keep the existing account, pre-login boundary, routes and pairing through the
+rename. At the five-second retry cap the old controller waited out the timer
+after a network return, and could miss a socket left closing. The revised
+controller starts one attempt on the foreground network event, preserves a
+handshake already in flight and retires stale events. Native private-agent
+setup, sign-in, reload and an authenticated WebSocket reply passed on V3.
+The Chromium mobile fixture covers Arabic typing, frame continuity, switching
+workspaces and return from the background. Physical phone timing and the signed
+installed update require their own readback. [Mawj evidence](reviews/2026-11-21-mawj.json).
+
+The x86 editions reached production as 1173. ARM 994 from main a0261263 passed the desktop QCOW2 UEFI boot and production promotion in run 44573209173. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
+
 Nov19 P0.1/P6.8: the upstream ARM base moved to 44.20261119.0 and renumbered service accounts. Register the exact new account bodies, refuse the old ones (PR CI rebuilt ARM/recovery on the new base), then follow the signed ARM pipeline and read back passim ownership after the Oracle update. [Review](reviews/2026-11-19-arm-base-accounts.json).
 
 Nov19: qualify the integrated ARM tray providers, Store runtime and archive icons on the same source as the native frame and V3 changes. Verify all 16 tray components and the offline npm journey on the built images. Oracle boots signed 966 with 964 retained. [Maintenance record](reviews/2026-11-19-oracle-maintenance.json).
@@ -36,7 +78,14 @@ Nov18 owner authorizes preserving/pushing all remaining source, correct integrat
 and a signed system update, and has explicitly approved the requested automated source/image/CI/boot-fixture
 checks. Physical host reboot/suspend remains coordinated with open editor work.
 
-The owner selects Oracle root as the final integration/release coordinator alongside V3.
+Oracle merged PR313 at 3f114cb0 and started the signed x86 cycle (44511467942).
+V3 coordinates the packaged ARM recovery follow-up. On signed 1173 its normal firmware
+order contains only MoOS entry 0001, and GRUB hides the normal menu for one second.
+The 966 recovery guest recorded a coldplug probe before udev readiness in one
+boot and a cloud-final/menu ordering cycle. Its native dialog also refused an
+occupied target and misreported the second empty-target row. Require a real
+menu, confirmed cancellation, clean shutdown and unchanged target on the
+packaged successor. [V3 evidence](reviews/2026-11-19-v3-integration-and-recovery.json).
 A late native KConfig failure control reproduces the Night Light opposite-pulse persistence defect.
 The successor sends only the requested value and the existing fixed KConfig notification;
 native watcher and unchanged already-off KWin readback pass. Final combined qualification
@@ -78,19 +127,16 @@ production bytes. Private captures/build trees, credentials and inaccessible
 native evidence directories are not publication candidates. No blanket add,
 prune or worktree removal is authorized by an inventory.
 
-The signed-update helper on V3 reports 1162 current, 1152 available for rollback
-and no staged deployment. ARM966 has a separate promotion. Only 1078 is pinned.
-At least four readable files in its local configuration differ from both surviving
-deployments. Preserve its private configuration and metadata before retiring it
-after replacement boot and validation. The locally retained 1139 offline ISO
-passed a fresh full-byte checksum and detached-signature check. Most 1078 files
-share storage with retained OSTree objects. The historical user qualification
+On Nov19 V3 booted signed 1173 in 22.202 s. The only other deployment is 1162 for rollback.
+The owner authorized retiring 1152 and 1078 after their local settings and origin metadata
+were archived privately and checked against the originals. The locally retained 1139 offline ISO
+previously passed full-byte checksum and detached-signature checks. The successor 1.8 s Liquid Glass scene passed native render, early handoff, and Arabic passphrase checks. Qualify the scene
+in the signed successor and verify its appearance on the physical screen. The historical user qualification
 159 failure has a preserved log and was cleared after the d8 source pass.
 The V3 service reproduced exit 1 while ddcutil could not locate its dynamic
 sleep cache. A private systemd runtime cache restored a completed, inactive
-oneshot and a new stamp with the same mixed display topology. The temporary
-override under /run expires at boot. The signed successor must carry the unit
-setting and pass its own postboot readback. The existing PowerDevil policy and
+oneshot and a new stamp with the same mixed display topology. After reboot, the signed 1173 unit completed on the internal backlight.
+Repeat on the mixed-display topology to verify that separate path. The existing PowerDevil policy and
 zram size were preserved.
 
 The V3 audit at 6315e997 includes all 70 local branch tips, 216 live GitHub
@@ -269,12 +315,12 @@ For every task:
 
 The owner-authorized complete integration above is the current entry point.
 Boot/security/data-loss fixes still preempt the same M0→M1→M2/M3→M4→M5 queue.
-One Oracle root now owns final aggregate integration/release; V3 retains physical
-acceptance and disjoint work. PR313 includes d5d4897a and the preserved Oracle
+Oracle coordinated PR313. V3 owns the current PR316 merge, signed release and
+physical acceptance. PR313 includes d5d4897a and the preserved Oracle
 maintenance ancestry; all269 known refs are covered. Keep constituent component
 and V3 proofs with their actual sources; freeze one final combined candidate,
 then preserve its source/tree/attempt/signature and release admission.
-[Current ownership/audit](reviews/2026-11-18-unified-oracle-integration.json).
+[PR313 branch audit](reviews/2026-11-18-unified-oracle-integration.json).
 
 Owner permission for automated qualification is now granted. Freeze the complete
 source for its tests and image/CI. Preserve original refused runs and use a fresh
@@ -383,8 +429,8 @@ M0 evidence as measured performance or require another local VM image.
    القديم إلى عقد44 الأصلي المقاس دون إسقاط تغطية الرسوم/الحالات/الهوية.
 4. احفظ كلcommit أصلي والأرشيف والعمل الخاص. لا تدفع أسرارًا أو صورًا خاصة
    أوbuild trees. تحقق من الأسلاف والمالك والملفات المفتوحة قبل تقاعد شجرة عمل.
-5. اقرأ الجهاز الحالي:1162 مع1152 و1078 مثبت. لا تحذف1152؛1078 مرشح فقط بعد
-   القبول وقراءةtuple فورية ومسارإزالةdeployment أصلي، لاprune ولاحذف يدوي.
+5. أقلع V3 إلى 1173 الموقّع وبقي 1162 للرجوع. أُزيلت 1152 و1078 بعد التحقق من
+   أرشيفَي الإعدادات المحليين. يلزم فحص الحركة الجديدة على الجهاز بعد إصدارها.
 6. بعد البوابات المعتمدة، ادمج مرة واحدة وجمّدSHA الفعلي عبر`--expected-revision`.
    كلتوقيع/digest/tree/attempt وإثباتx86/ISO/ARM وrecovery المنفصل لازم. التحديث
    والإقلاع الفعلي وقراءة الجهاز مرحلة أخرى؛ نسّق حفظ المحررات قبل إعادة التشغيل.
@@ -395,12 +441,12 @@ M0 evidence as measured performance or require another local VM image.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | PR313 preserves the reviewed window, sensor, Store/App Drop and Night Light work. All 70 local and 216 GitHub branch tips were ancestors of 6315e997 on V3. Oracle coordinates the final merge and release after successor qualification. | Exact candidate source, all integrated fixes and no local override counted as release. |
+| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | PR313 preserves the reviewed window, sensor, Store/App Drop and Night Light work. All 70 local and 216 GitHub branch tips were ancestors of 6315e997 on V3. PR313 merged at 3f114cb0. Qualify the combined recovery and ARM base-account changes before the next signed cycle. | Exact candidate source, all integrated fixes and no local override counted as release. |
 | P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Signed x86 1162 and ARM 966 have independent promotion receipts. PR313 at 6315e997 passed ARM image CI. Its x86 package solver refused the missing stable liboapv.so.11 provider before image construction. The separately packaged ARM recovery disk still needs its own UEFI boot evidence. | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Nov16 V3 boots signed1162/fc6dc666 at62156a3b, rollback1152 and pinned1078. Three x86 QCOW2/offline ISO/promotion43909184122 and native ARM43903637017 pass. Postcheck55/1 retains actual DDC failure; source successor is not installed. Physical journeys remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | Nov19 V3 booted signed 1173/d3ce53eb, retaining 1162. The native hardware unit and all 54 settled self-checks passed. Post-update returned 55/1 after the early check service logged a display error. All three x86 editions and ARM 994 reached production. The separate recovery disk and a signed physical boot of the new animation remain open. | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Reviewed Plymouth producer/native library and exact final initramfs gates are integrated for desktop and separate ARM recovery. Main ARM44289879261 passes recovery image/archive construction and desktop disk boot/promotion. The packaged recovery disk has no separate UEFI boot proof; keep that acceptance open and preserve old stock-package/source-log refusals | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | PR311 Repo44323788769 refuses old TitleHeight32/ButtonWidth20 assertions against reviewed native44px geometry; exact remaining SVG/state/identity controls stay intact. Its ARM44323788733/x8644323788622 jobs retain their original1df inputs. New combined-head Repo/image CI is approved and remains mandatory before normal main merge | PR generic image gates block real image failures; no signing/publishing from PR. |
@@ -432,7 +478,7 @@ M0 evidence as measured performance or require another local VM image.
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |
 | P2.7 | Horizon feedback, clock input and system sound | Nov11 shared-role Quiet Lift KWin effect passes native open/close/reversal/reduced/broken controls and is session-loaded on V3; complete source/signed/default/frame-time qualification pending. Existing shell and sound acceptance remain open. See docs/reviews/2026-11-11-native-motion-qt-workloads.json | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
 | P2.8 | MoOS Bar, Search and Island as one shell | Merged source unifies native Control Center and Mova through existing tray/Kicker/Milou/KWin owners, retaining old/fixed/input controls. Recorded user-local packages on signed1162 are not immutable delivery. Original Island keyboard/token proofs and installed inventories remain historical evidence; owner portrait/touch/Orca and full connected launcher/panel acceptance remain open | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
-| P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
+| P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains. Nov19 Liquid Glass boot scene passes source/native-pixel review; owner acceptance, image initramfs and signed boot pending | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
 | P2.10 | Readable text and glyph contrast on every palette | Open / acceptance not complete | All schemes meet role-specific contrast; actual glyph/card/pointer frames instead of token names. |
 | P2.11 | Visible, bilingual update changes | Implemented/delivered within recorded scope; wider acceptance remains | Readable current entries and working routes, delivered update/notification readback. |
 | P2.12 | One update surface for OS, apps and firmware | Open / acceptance not complete | OS image, Flatpak apps and firmware share truthful pending/failure/unsupported/finished states. |
@@ -486,7 +532,7 @@ M0 evidence as measured performance or require another local VM image.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P6.1 | Resolve immutable base inputs once per release | Open / acceptance not complete | Immutable base inputs recorded once and consumed consistently by all same-architecture editions. |
+| P6.1 | Resolve immutable base inputs once per release | x86 source pins the reviewed manifest for all three editions and records it in each candidate receipt. Signed matrix readback and ARM remain open. | Immutable base inputs recorded once and consumed consistently by all same-architecture editions. |
 | P6.2 | Produce SBOM and provenance for each image | Open / acceptance not complete | Exact digest-linked SBOM/provenance on a separately budgeted workflow, not release-critical disk exhaustion. |
 | P6.3 | Security-release cadence for all editions | Open / acceptance not complete | The cadence of release cycles is the security cadence of MoOS: schedules only build candidates. Triage upstream advisories daily; target a qualified cycle weekly and start urgent affected-input qualification within24h. Publish affected editions, mitigation and delivery status; an unproven candidate never bypasses gates to meet a deadline. |
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |

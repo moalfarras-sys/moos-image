@@ -11,10 +11,10 @@ Start-Sleep -Milliseconds 500
 Write-Host "==> Removing start-with-Windows entry" -ForegroundColor Cyan
 Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "MoRemotePersonal"
 
-Write-Host "==> Removing Start Menu shortcut" -ForegroundColor Cyan
-Remove-Item (Join-Path ([Environment]::GetFolderPath("Programs")) "Mo Remote Personal.lnk") -Force
-
 $base = Join-Path $env:LOCALAPPDATA "MoRemotePersonal"
+Write-Host "==> Removing Mawj shortcuts" -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "..\installer\portable\mawj-shortcuts.ps1") -Mode Uninstall -Executable (Join-Path $base "app\MoRemotePersonal.exe")
+
 Write-Host "==> Removing app files" -ForegroundColor Cyan
 Remove-Item (Join-Path $base "app") -Recurse -Force
 

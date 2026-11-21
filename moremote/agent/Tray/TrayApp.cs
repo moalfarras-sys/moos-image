@@ -284,7 +284,7 @@ public sealed class TrayApp : ApplicationContext
             RefreshUi();
             MessageBox.Show(
                 $"HTTPS is ready.\n\nNew address:\n    https://{msg}:{_svc.Config.Port}\n\n" +
-                "Restart Mo Remote (tray ▸ Exit, then relaunch) to switch to HTTPS, then open the new address " +
+                "Restart " + AppInfo.Name + " (tray ▸ Exit, then relaunch) to switch to HTTPS, then open the new address " +
                 "on your phone. This makes the native clipboard and offline install work properly.",
                 AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }

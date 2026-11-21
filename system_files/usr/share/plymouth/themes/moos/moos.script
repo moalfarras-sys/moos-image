@@ -1,7 +1,11 @@
-// MoOS boot identity. Independent of the selected desktop/login theme.
-// No minimum display time, fake percentage, perpetual orbit or full-screen blur.
-// Decode one hero; scale it once. The short opacity entrance finishes in 360 ms;
-// shutdown and quit immediately present the resting composition.
+// MoOS boot identity — "Liquid Glass". Independent of the desktop/login theme.
+// Three liquid glass droplets flow into a glass lens, the MoOS mark resolves
+// inside it, a sheen and a glint run over the glass, and the Meyar wordmark and
+// Arabic welcome settle below. Every layer is a Blender render
+// (artwork/blender/moos_boot_glass.py) decoded and scaled once during setup;
+// refresh() only moves and fades sprites for ENTRANCE_TICKS at 25 Hz (1.8 s),
+// then nothing changes. No minimum display time, fake percentage, perpetual
+// orbit or full-screen blur. Shutdown, quit and password entry show the rest.
 Window.SetBackgroundTopColor(0.039, 0.063, 0.106);      // fixed #0A101B brand ground
 Window.SetBackgroundBottomColor(0.039, 0.063, 0.106);   // flat fallback, no seam
 
@@ -10,11 +14,11 @@ sh = Window.GetHeight(0);
 cx = sw / 2;
 cy = sh / 2;
 
-PI = 3.14159265;
-
 fun fmin(a, b) { if (a < b) return a; return b; }
 fun fmax(a, b) { if (a > b) return a; return b; }
 fun clamp01(v) { return fmax(0, fmin(1, v)); }
+fun smooth(v) { t = clamp01(v); return t * t * (3 - 2 * t); }
+fun ease_out(v) { r = 1 - clamp01(v); return 1 - r * r * r; }
 
 // Cover the screen without stretching. Scaling happens once during theme
 // setup, never in refresh(), and the 1080p source keeps initramfs decode cost
@@ -30,15 +34,18 @@ backdrop_sprite.SetY(cy - backdrop_h / 2);
 backdrop_sprite.SetZ(0);
 
 
+// The improved mark is centred like a hardware logo: a fifth of the screen
+// height, never wider than 30% of a portrait screen. The emblem image places
+// the mark's diameter at 0.96 of its width.
 INTRO_COUNT = 1;
-INTRO_ASPECT = 1.5396;
-// A restrained signature leaves the horizon and encrypted-volume prompts room.
-// Keep the approved mark sharp instead of enlarging it across most of the screen.
-stage_w = fmin(sw * 0.44, sh * 0.40 * INTRO_ASPECT);
+INTRO_ASPECT = 1.0;
+EMBLEM_FILL = 0.96;
+emblem_d = fmin(sh * 0.21, sw * 0.30);
+stage_w = emblem_d / EMBLEM_FILL;
 stage_h = stage_w / INTRO_ASPECT;
 stage_x = cx - stage_w / 2;
 stage_y = cy - stage_h / 2;
-entrance_rise = fmin(18, sh * 0.018);
+entrance_rise = fmin(16, sh * 0.016);
 OVERLAY_MAX_W = sw * 0.78;
 frames[1] = Image("intro1.png");
 hero = frames[INTRO_COUNT].Scale(stage_w, stage_h);
@@ -48,41 +55,235 @@ intro_sprite.SetY(stage_y);
 intro_sprite.SetZ(5);
 intro_sprite.SetOpacity(1);
 
-// Rasterized with real Arabic shaping, so early boot needs no user font or
-// locale. Keep this subordinate to the approved mark and above native prompts.
+// Glass bezel behind the mark and the sheen over it span 1.3 hero widths.
+lens_w = stage_w * 1.3;
+bezel_sprite = Sprite(Image("glass-bezel.png").Scale(lens_w, lens_w));
+bezel_sprite.SetX(cx - lens_w / 2);
+bezel_sprite.SetY(cy - lens_w / 2);
+bezel_sprite.SetZ(3);
+SHEEN_REST = 0.80;
+sheen_sprite = Sprite(Image("glass-sheen.png").Scale(lens_w, lens_w));
+sheen_sprite.SetX(cx - lens_w / 2);
+sheen_y = cy - lens_w / 2;
+sheen_sprite.SetY(sheen_y);
+sheen_sprite.SetZ(6);
+
+// Three liquid glass droplets curve inwards (quadratic Bezier to the centre,
+// all turning clockwise) and dissolve into the lens. Directions are literal
+// unit vectors; the control direction is each start direction turned 55 deg.
+DROP_TICKS = 16;
+drop_delay[0] = 0;
+drop_delay[1] = 2;
+drop_delay[2] = 4;
+drop_ux[0] = -0.82;
+drop_ux[1] = 0.97;
+drop_ux[2] = -0.42;
+drop_uy[0] = -0.57;
+drop_uy[1] = 0.24;
+drop_uy[2] = 0.91;
+drop_vx[0] = 0.00;
+drop_vx[1] = 0.36;
+drop_vx[2] = -0.99;
+drop_vy[0] = -1.00;
+drop_vy[1] = 0.93;
+drop_vy[2] = 0.18;
+drop_size[0] = 0.56;
+drop_size[1] = 0.46;
+drop_size[2] = 0.38;
+drop_image[0] = Image("glass-drop-1.png");
+drop_image[1] = Image("glass-drop-2.png");
+drop_image[2] = Image("glass-drop-3.png");
+drop_start = emblem_d * 1.55;
+drop_bend = emblem_d * 1.05;
+k = 0;
+while (k < 3) {
+    drop_half[k] = emblem_d * drop_size[k] / 2;
+    drop_sprite[k] = Sprite(drop_image[k].Scale(drop_half[k] * 2, drop_half[k] * 2));
+    drop_sprite[k].SetZ(4);
+    drop_sprite[k].SetOpacity(0);
+    drop_live[k] = 0;
+    k++;
+}
+
+// One glint runs over the upper rim of the glass.
+glint_half = emblem_d * 0.17;
+glint_sprite = Sprite(Image("glass-glint.png").Scale(glint_half * 2, glint_half * 2));
+glint_sprite.SetZ(7);
+glint_sprite.SetOpacity(0);
+glint_live = 0;
+glint_radius = emblem_d * 0.52;
+
+// Meyar Sans wordmark, one letter per image on a shared baseline. Each image
+// carries LETTER_PAD x height of margin on both sides; tracking is added here.
+LETTER_PAD = 0.08;
+letter_h = emblem_d * 0.20;
+letter_pad = letter_h * LETTER_PAD;
+tracking = emblem_d * 0.022;
+letter_source[0] = Image("mark-letter-1.png");
+letter_source[1] = Image("mark-letter-2.png");
+letter_source[2] = Image("mark-letter-3.png");
+letter_source[3] = Image("mark-letter-4.png");
+word_w = 0;
+k = 0;
+while (k < 4) {
+    letter_w[k] = letter_h * letter_source[k].GetWidth() / letter_source[k].GetHeight();
+    word_w = word_w + letter_w[k];
+    k++;
+}
+word_w = word_w + 3 * (tracking - 2 * letter_pad);
+word_y = cy + emblem_d * 0.58 + emblem_d * 0.22;
+letter_at = cx - word_w / 2;
+k = 0;
+while (k < 4) {
+    letter_image[k] = letter_source[k].Scale(letter_w[k], letter_h);
+    letter_sprite[k] = Sprite(letter_image[k]);
+    letter_x[k] = letter_at;
+    letter_sprite[k].SetX(letter_at);
+    letter_sprite[k].SetY(word_y);
+    letter_sprite[k].SetZ(5);
+    letter_at = letter_at + letter_w[k] - 2 * letter_pad + tracking;
+    k++;
+}
+
+// Rasterized with real Arabic shaping (Meyar Arabic, libraqm), so early boot
+// needs no user font or locale. Both captions share one type size.
 greeting = Image("welcome-ar.png");
-greeting_w = fmin(sw * 0.50, fmax(stage_w * 0.30, 100));
+caption_scale = emblem_d * 0.20 / greeting.GetHeight();
+greeting_w = fmin(greeting.GetWidth() * caption_scale, sw * 0.80);
 greeting_h = greeting_w * greeting.GetHeight() / greeting.GetWidth();
 greeting_sprite = Sprite(greeting.Scale(greeting_w, greeting_h));
 greeting_sprite.SetX(cx - greeting_w / 2);
-greeting_sprite.SetY(stage_y + stage_h + fmin(28, sh * 0.025));
+greeting_y = word_y + letter_h + emblem_d * 0.10;
+greeting_sprite.SetY(greeting_y);
 greeting_sprite.SetZ(5);
 
+// Shutdown and reboot say goodbye in Arabic instead.
+farewell = Image("farewell-ar.png");
+farewell_w = fmin(farewell.GetWidth() * caption_scale, sw * 0.80);
+farewell_h = farewell_w * farewell.GetHeight() / farewell.GetWidth();
+farewell_sprite = Sprite(farewell.Scale(farewell_w, farewell_h));
+farewell_sprite.SetX(cx - farewell_w / 2);
+farewell_sprite.SetY(greeting_y);
+farewell_sprite.SetZ(5);
+farewell_sprite.SetOpacity(0);
+
+// The resting composition, shared by quit, password entry and shutdown.
+fun settle_glass() {
+    bezel_sprite.SetOpacity(1);
+    sheen_sprite.SetY(sheen_y);
+    sheen_sprite.SetOpacity(SHEEN_REST);
+    k = 0;
+    while (k < 4) {
+        letter_sprite[k].SetX(letter_x[k]);
+        letter_sprite[k].SetY(word_y);
+        letter_sprite[k].SetOpacity(1);
+        k++;
+    }
+    greeting_sprite.SetY(greeting_y);
+    greeting_sprite.SetOpacity(greeting_at_rest);
+    farewell_sprite.SetOpacity(1 - greeting_at_rest);
+    k = 0;
+    while (k < 3) {
+        if (drop_live[k] == 1) { drop_sprite[k].SetOpacity(0); drop_live[k] = 2; }
+        k++;
+    }
+    if (glint_live == 1) { glint_sprite.SetOpacity(0); glint_live = 2; }
+}
+
 // Only a finite entrance. Pre-login has no desktop Reduced Motion preference;
-// use a still composition after nine ticks and during password entry/quit.
+// keep the resting composition during password entry and handoff.
+ENTRANCE_TICKS = 45;
+MARK_GHOST = 0.22;
 tick = 0;
 finished = 0;
 mode = Plymouth.GetMode();
-if (mode == "shutdown" || mode == "reboot") { greeting_sprite.SetOpacity(0); }
-if (mode == "shutdown" || mode == "reboot") { finished = 1; }
+greeting_at_rest = 1;
+if (mode == "shutdown" || mode == "reboot") {
+    greeting_at_rest = 0;
+    finished = 1;
+    settle_glass();
+}
 if (finished == 0) {
-    intro_sprite.SetOpacity(0.70);
+    bezel_sprite.SetOpacity(0);
+    sheen_sprite.SetOpacity(0);
+    k = 0;
+    while (k < 4) { letter_sprite[k].SetOpacity(0); k++; }
+    greeting_sprite.SetOpacity(0);
+    greeting_sprite.SetY(greeting_y + entrance_rise / 2);
+    // Identity from the first frame: the mark waits as a faint glass ghost.
+    intro_sprite.SetOpacity(MARK_GHOST);
     intro_sprite.SetY(stage_y + entrance_rise);
 }
 Plymouth.SetRefreshRate(25);
 fun refresh() {
     if (finished == 0) {
         tick++;
-        remaining = 1 - clamp01(tick / 9.0);
-        arrival = 1 - remaining * remaining * remaining;
-        intro_sprite.SetOpacity(0.70 + 0.30 * arrival);
+        // 0-20: droplets flow in along clockwise curves and dissolve.
+        k = 0;
+        while (k < 3) {
+            p = (tick - drop_delay[k]) / DROP_TICKS;
+            if (p > 0 && p < 1) {
+                t = smooth(p);
+                a = (1 - t) * (1 - t) * drop_start;
+                b = 2 * (1 - t) * t * drop_bend;
+                drop_sprite[k].SetX(cx + a * drop_ux[k] + b * drop_vx[k] - drop_half[k]);
+                drop_sprite[k].SetY(cy + a * drop_uy[k] + b * drop_vy[k] - drop_half[k]);
+                drop_sprite[k].SetOpacity(smooth(p / 0.2) * (1 - smooth((p - 0.62) / 0.38)));
+                drop_live[k] = 1;
+            }
+            if (p >= 1 && drop_live[k] == 1) {
+                drop_sprite[k].SetOpacity(0);
+                drop_live[k] = 2;
+            }
+            k++;
+        }
+        // 8-20: the glass bezel forms where they meet.
+        bezel_sprite.SetOpacity(ease_out((tick - 8) / 12.0));
+        // 10-24: the mark resolves inside the lens.
+        arrival = ease_out((tick - 10) / 14.0);
+        intro_sprite.SetOpacity(1 - (1 - MARK_GHOST) * (1 - arrival));
         intro_sprite.SetY(stage_y + entrance_rise * (1 - arrival));
-        if (tick >= 9) {
+        // 18-32: liquid sheen flows down over the glass; 32-40 it settles.
+        flow = ease_out((tick - 18) / 14.0);
+        sheen_sprite.SetY(sheen_y - emblem_d * 0.06 * (1 - flow));
+        sheen_sprite.SetOpacity(flow * (1 - (1 - SHEEN_REST) * smooth((tick - 32) / 8.0)));
+        // 22-34: a glint runs over the upper rim, right to left.
+        g = (tick - 22) / 12.0;
+        if (g > 0 && g < 1) {
+            angle = 1.05 + 1.60 * smooth(g);
+            glint_sprite.SetX(cx + glint_radius * Math.Cos(angle) - glint_half);
+            glint_sprite.SetY(cy - glint_radius * Math.Sin(angle) - glint_half);
+            glint_sprite.SetOpacity(smooth(g / 0.3) * (1 - smooth((g - 0.55) / 0.45)));
+            glint_live = 1;
+        }
+        if (g >= 1 && glint_live == 1) {
+            glint_sprite.SetOpacity(0);
+            glint_live = 2;
+        }
+        // 24-40: the wordmark gathers letter by letter as its tracking closes.
+        k = 0;
+        while (k < 4) {
+            w = ease_out((tick - 24 - 2 * k) / 12.0);
+            letter_sprite[k].SetX(letter_x[k] + (k - 1.5) * emblem_d * 0.08 * (1 - w));
+            letter_sprite[k].SetY(word_y + entrance_rise / 2 * (1 - w));
+            letter_sprite[k].SetOpacity(w);
+            k++;
+        }
+        // 32-45: the Arabic welcome follows.
+        greeting_arrival = smooth((tick - 32) / 13.0);
+        greeting_sprite.SetOpacity(greeting_arrival);
+        greeting_sprite.SetY(greeting_y + entrance_rise / 2 * (1 - greeting_arrival));
+        if (tick >= ENTRANCE_TICKS) {
             // Commit the same final raster as quit/password. Native Plymouth
             // otherwise retained the preceding blended edge until that event.
             intro_sprite.SetImage(hero);
+            k = 0;
+            while (k < 4) {
+                letter_sprite[k].SetImage(letter_image[k]);
+                k++;
+            }
             finished = 1;
-            // Keep input/status redraws responsive. The mark is now still;
+            // Keep input/status redraws responsive. Everything is now still;
             // sprite refresh draws only damaged regions, not a new movie frame.
         }
     }
@@ -93,6 +294,7 @@ fun quit_callback() {
     intro_sprite.SetImage(hero);
     intro_sprite.SetY(stage_y);
     intro_sprite.SetOpacity(1);
+    settle_glass();
     Plymouth.SetRefreshRate(1);
 }
 Plymouth.SetQuitFunction(quit_callback);

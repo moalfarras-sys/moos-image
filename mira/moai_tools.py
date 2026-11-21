@@ -57,7 +57,7 @@ TITLES_AR = {
     'install_hermes': 'تثبيت Hermes', 'install_openclaw': 'تثبيت وكيل الهاتف OpenClaw',
     'smart_setup': 'الإعداد الذكي للتطبيقات', 'check_system_update': 'البحث عن تحديث MoOS',
     'restart_computer': 'إعادة تشغيل الكمبيوتر', 'install_rpm': 'تثبيت حزمة RPM موقّعة',
-    'remote_control': 'Mo PC Remote', 'fast_remote': 'الوضع السريع في Mo PC Remote',
+    'remote_control': 'موج', 'fast_remote': 'الوضع السريع في موج',
     'desktop_size': 'حجم سطح المكتب السحابي',
     # The desktop's hands (W9.10).
     'list_windows': 'النوافذ وأسطح المكتب', 'window_action': 'نافذة', 'move_window_to_desktop': 'نقل نافذة',
@@ -88,7 +88,7 @@ TITLES_EN = {
     'install_hermes': 'Install Hermes', 'install_openclaw': 'Install the OpenClaw phone agent',
     'smart_setup': 'Smart app setup', 'check_system_update': 'Check for a MoOS update',
     'restart_computer': 'Restart the computer', 'install_rpm': 'Install a signed RPM package',
-    'remote_control': 'Mo PC Remote', 'fast_remote': 'Mo PC Remote fast mode',
+    'remote_control': 'Mawj', 'fast_remote': 'Mawj fast mode',
     'desktop_size': 'Cloud desktop size',
     'list_windows': 'Windows and desktops', 'window_action': 'Window', 'move_window_to_desktop': 'Move a window',
     'go_to_desktop': 'Go to a desktop', 'add_or_remove_desktop': 'Desktops', 'control_media': 'Media',
@@ -483,7 +483,7 @@ def _gpu_name(pci, fallback=''):
 
 def machine_facts(timeout=6):
     """This computer in one read: MoOS version and edition, CPU, memory, disk, GPU and driver,
-    Mo PC Remote, the coding agents and the device plan (moai-control /scan and /quick, read-only).
+    Mawj, the coding agents and the device plan (moai-control /scan and /quick, read-only).
     Every kernel is a number only. {'status': 'error', ...} when moai-control cannot answer."""
     scan = get('/scan', timeout=timeout)
     if not isinstance(scan, dict) or scan.get('error'):

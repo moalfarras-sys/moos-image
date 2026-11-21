@@ -1040,7 +1040,7 @@ do_setup_windows() {
 # later change to it — needs no root at all.
 # -----------------------------------------------------------------------------
 do_remote_anywhere() {
-    hdr "الوصول إلى Mo PC Remote من أي مكان" "Reach Mo PC Remote from anywhere"
+    hdr "الوصول إلى موج من أي مكان" "Reach Mawj from anywhere"
     need tailscale || return 1
 
     local state
@@ -1510,7 +1510,7 @@ do_net_doctor() {
         echo "  ${R}✗ تعذّر تحليل ghcr.io — التحديثات لن تعمل | cannot resolve ghcr.io${N}"
     fi
     echo
-    echo "${B}Tailscale (Mo PC Remote من الخارج | remote from outside):${N}"
+    echo "${B}Tailscale (موج من الخارج | remote from outside):${N}"
     if command -v tailscale >/dev/null 2>&1; then
         tailscale status --peers=false 2>/dev/null | head -4 || echo "  ${D}غير متّصل | not connected${N}"
     else
@@ -2259,8 +2259,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Phone agent (Telegram) in ~/.local, no password
   ${C}setup-brain${N}       فتح صفحة Mo AI في الإعدادات (المزوّد والنموذج السحابي)
                     Open the Mo AI settings page (cloud provider and model)
-  ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)
-                    Reach Mo PC Remote from outside the house
+  ${C}remote-anywhere${N}   تشغيل موج من خارج البيت (Tailscale HTTPS)
+                    Reach Mawj from outside the house
   ${C}diagnose-services${N} عرض الخدمات الفاشلة (قراءة فقط)
                     Show failed services (read-only)
   ${C}inspect-boot${N}      عرض حالة النشر وأخطاء الإقلاع (قراءة فقط)

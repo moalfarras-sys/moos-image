@@ -4,9 +4,8 @@ name: Plasma next canary
 #
 # WHY THIS EXISTS (plan row P6.7)
 #
-# The x86 editions build FROM ghcr.io/ublue-os/kinoite-main:44, a tag that moves every day. When
-# Fedora ships a new Plasma into Fedora 44, it reaches the next MoOS candidate with no change in
-# this repository at all — and MoOS replaces ten files inside Plasma's own packages. On
+# The x86 editions use an immutable input reviewed from the upstream daily tag.
+# A new upstream Plasma can change the ten files MoOS replaces inside its packages. On
 # 2026-09-24 Plasma 6.8 beta 1 was measured to remove a type MoOS's 6.7 lock screen instantiates:
 # kscreenlocker's real greeter fell back to its emergency locker. Plasma 6.8 is released
 # 2026-10-14. Learning that from a red release build, or from an owner who cannot use the lock
@@ -103,7 +102,7 @@ jobs:
              build_files/plasma_stable/runtime_state.py build_files/plasma_stable/login_state.py \
              build_files/plasma_stable/runtime-rules.json "$out/"
           cat > "$out/Containerfile" <<'CONTAINERFILE'
-          FROM ghcr.io/ublue-os/kinoite-main:44
+          FROM ghcr.io/ublue-os/kinoite-main@sha256:7c6683256540fae793676da33bb7a417016381a45c0fdddbe40dc4c1d238c359
           COPY finalize_canary_base.py finalize_image_state.py finalize_root_home.py prepare_plasma_canary_base.py runtime_state.py login_state.py runtime-rules.json /canary-review/
           RUN python3 /canary-review/prepare_plasma_canary_base.py \
            && ostree container commit \

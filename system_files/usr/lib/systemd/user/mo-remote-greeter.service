@@ -1,5 +1,5 @@
 [Unit]
-Description=Mo PC Remote on the MoOS login screen
+Description=Mawj on the MoOS login screen
 ConditionUser=plasmalogin
 ConditionPathExists=/var/lib/mo-remote-greeter/enabled.json
 After=plasma-login-kwin_wayland.service mo-remote-greeter-portal.service

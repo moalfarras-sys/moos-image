@@ -37,8 +37,8 @@ KCM.SimpleKCM {
 
     function t(ar, en) { return rtl ? ar : en }
     function open(route) {
-        routeError = kcm.openRoute(route) ? "" : t("تعذّر فتح Mo PC Remote. حاول مرة أخرى.",
-                                                    "Could not open Mo PC Remote. Try again.")
+        routeError = kcm.openRoute(route) ? "" : t("تعذّر فتح موج. حاول مرة أخرى.",
+                                                    "Could not open Mawj. Try again.")
     }
     function request(route, field, value) {
         var opened = kcm.openRoute(route)
@@ -70,11 +70,11 @@ KCM.SimpleKCM {
             return { tone: "neutral", title: t("حالة الاتصال غير معروفة", "Connection status unknown"), detail: "" }
         if (!remote.available)
             return { tone: "neutral", title: t("غير مثبت على هذا الجهاز", "Not installed on this device"),
-                     detail: t("لا يحمل هذا الإصدار من MoOS تطبيق Mo PC Remote.", "This edition of MoOS does not carry Mo PC Remote.") }
+                     detail: t("لا يحمل هذا الإصدار من MoOS تطبيق موج.", "This edition of MoOS does not carry Mawj.") }
         if (remote.failed)
             return { tone: "negative", title: t("توقفت الخدمة بخطأ", "The service stopped with an error"),
-                     detail: t("أعد تشغيل الاتصال، أو افتح Mo PC Remote لترى السبب.",
-                               "Restart the connection, or open Mo PC Remote to see why.") }
+                     detail: t("أعد تشغيل الاتصال، أو افتح موج لترى السبب.",
+                               "Restart the connection, or open Mawj to see why.") }
         if (remote.active)
             return { tone: "positive", title: t("جاهز لاتصال خاص من هاتفك", "Ready for a private connection from your phone"),
                      detail: t("يعمل الآن ويبدأ مع كل جلسة.", "Running now, and it starts with every session.") }
@@ -134,7 +134,7 @@ KCM.SimpleKCM {
 
         FormCard.FormHeader {
             maximumWidth: root.cardWidth
-            title: "Mo PC Remote"
+            title: root.t("موج", "Mawj")
         }
         FormCard.FormCard {
             maximumWidth: root.cardWidth
@@ -210,7 +210,7 @@ KCM.SimpleKCM {
 
             MoosActionRow {
                 glyph: "external"
-                text: root.t("فتح Mo PC Remote", "Open Mo PC Remote")
+                text: root.t("فتح موج", "Open Mawj")
                 description: root.t("اقرن هاتفاً، واعرض الرمز وتفاصيل الاتصال.",
                                     "Pair a phone, and see the PIN and the connection details.")
                 enabled: root.installed

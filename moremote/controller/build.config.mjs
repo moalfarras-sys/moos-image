@@ -1,4 +1,4 @@
-// Mo PC Remote controller build settings: the one place the shipped bundle's shape is declared.
+// Mawj controller build settings: the one place the shipped bundle's shape is declared.
 //
 // This replaced vite.config.ts on 2026-11-18. Vite 8 (and the vite-plugin-pwa/Workbox build
 // chain) depend on picomatch, and GHSA-fc5q-39xc-vjpf covers every picomatch release with no
@@ -52,8 +52,8 @@ export const DEV_PROXY = ["/api", "/ws"];
 // Key order and the "lang" default match the manifest vite-plugin-pwa wrote, so an
 // installed copy sees the same document.
 export const MANIFEST = {
-  name: "Mo PC Remote",
-  short_name: "Mo Remote",
+  name: "موج · Mawj",
+  short_name: "موج · Mawj",
   description: "Control your MoOS desktop from your phone, over your own private tailnet.",
   start_url: "/",
   display: "standalone",

@@ -7,6 +7,8 @@ let nextTimer = 1;
 
 class TestSocket {
   static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  readonly createdAt = Date.now();
   binaryType = "";
   readyState = 0;
   onopen: (() => void) | null = null;
@@ -306,6 +308,65 @@ const open = (conn: RemoteConnection) => {
   assert.equal(packet.secure,true);
   socket.close();assert.equal(conn.secretText("offline-test"),false);
   conn.disconnect();deadlines.clear();
+}
+
+// A mobile browser can regain Wi-Fi while the retry timer is at its 5 s cap.
+{
+  const conn = new RemoteConnection("token", {});
+  open(conn);
+  for (let i = 0; i < 5; i++) {
+    latest.close();
+    advance(5000);
+  }
+  const retired = latest;
+  retired.close();
+  const restoredAt = clock;
+  conn.probe();
+  conn.probe(); // pageshow and online can arrive together
+  advance(5000);
+  assert.notEqual(latest, retired);
+  assert.equal(latest.createdAt - restoredAt, 0,
+    "a restored visible link must start a retry immediately and cancel the old backoff timer");
+  const connecting = latest;
+  conn.probe();
+  assert.equal(latest, connecting, "an in-flight handshake must keep its socket");
+  conn.disconnect();
+  deadlines.clear();
+}
+
+for (const hint of ["probe", "heartbeat"]) {
+  let heartbeat: () => void = () => assert.fail("heartbeat not armed");
+  const originalInterval = window.setInterval;
+  window.setInterval = ((cb: () => void) => { heartbeat = cb; return nextTimer++; }) as typeof window.setInterval;
+  const notices: boolean[] = [];
+  const conn = new RemoteConnection("token", {onClose: recoverable => notices.push(recoverable)});
+  const closing = open(conn);
+  closing.readyState = TestSocket.CLOSING; // no longer usable; close event is still pending
+  closing.close = () => {};
+  if (hint === "probe") conn.probe();
+  else heartbeat();
+  advance(500);
+  assert.notEqual(latest, closing, hint + " must recover a socket stuck in its closing handshake");
+  closing.onclose?.();
+  assert.deepEqual(notices, [true], "the delayed close cannot retire its replacement");
+  conn.disconnect();
+  deadlines.clear();
+  window.setInterval = originalInterval;
+}
+
+for (const end of ["disconnect", "stopped", "idle", "unauthorized"]) {
+  const conn = new RemoteConnection("token", {});
+  const socket = open(conn);
+  if (end === "disconnect") conn.disconnect();
+  else {
+    const msg = end === "unauthorized" ? {type: "error", error: end} : {type: end};
+    socket.onmessage?.({data: JSON.stringify(msg)});
+    socket.close();
+  }
+  conn.probe();
+  advance(10000);
+  assert.equal(latest, socket, end + " must stay closed when the phone comes online");
+  deadlines.clear();
 }
 
 Date.now = realDateNow;

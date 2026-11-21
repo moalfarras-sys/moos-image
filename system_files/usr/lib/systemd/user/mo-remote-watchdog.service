@@ -1,5 +1,5 @@
 [Unit]
-Description=Recover Mo PC Remote if it crashed out of its start limit
+Description=Recover Mawj if it crashed out of its start limit
 Documentation=file:/usr/libexec/mo-remote-watchdog
 # Mo AI's units use this to keep a root login session from starting a user
 # service that belongs to a human; the same reasoning applies here.

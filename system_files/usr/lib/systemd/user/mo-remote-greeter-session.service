@@ -1,5 +1,5 @@
 [Unit]
-Description=Mo PC Remote login-screen access policy
+Description=Mawj login-screen access policy
 ConditionUser=plasmalogin
 After=plasma-login-kwin_wayland.service
 Before=mo-remote-greeter-portal.service plasma-xdg-desktop-portal-kde.service

@@ -12,7 +12,7 @@ public sealed class UserSettings
 {
     [JsonPropertyName("_comment")]
     public string Comment { get; set; } =
-        "Mo Remote Personal settings. Edit and restart the app. The PIN is stored separately and encrypted.";
+        "Mawj settings. Edit and restart the app. The PIN is stored separately and encrypted.";
 
     [JsonPropertyName("port")] public int port { get; set; }
     [JsonPropertyName("allowLan")] public bool allowLan { get; set; }

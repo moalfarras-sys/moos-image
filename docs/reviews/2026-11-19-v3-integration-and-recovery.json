@@ -1,0 +1,184 @@
+{
+  "date": "2026-11-19",
+  "integration_base": "3f114cb03ba92f311017d3d77603dbbdc6864323",
+  "qualified_head": "434222538eb1e3fba10d0bcd146fe54d88e3fa04",
+  "qualified_tree": "e1ec3aee8a6746c6199ff62b0048917888a90184",
+  "generic_image": {
+    "local_build_exit": 0,
+    "seconds": 5860.217,
+    "image_id": "a5900c0d56d694315d54d297c7521a195bca915ecf8f2a5dba8170c6898f6e20",
+    "manifest": "sha256:8ecf4cec0d2912a05c511d8fdf33b6fc81ad14dfbe6ae2ed3a5a5acc27c37d2d",
+    "log_sha256": "f227ad18806614a38a434230f77aea6f6a561fff2e593b6913c2277b1282f6a6",
+    "matched_source_file_count": 12,
+    "packages": [
+      "kernel-core-7.3.4-200.fc44.x86_64",
+      "kwin-6.8.3-1.fc44.x86_64",
+      "qt6-qtdeclarative-6.11.2-3.1.moos1.fc44.x86_64",
+      "kmod-moos-smocf05-7.3.4-200.1.moos1.fc44.x86_64"
+    ],
+    "printed_parity": [
+      "MoOS Store npm runtime OK: fixed Node/npm, offline install/run/remove, private prefix",
+      "MoOS desktop parity OK: 12 capabilities, 6 bar applets, 4 pinned status items, 16 tray applets"
+    ]
+  },
+  "native_arm_image": {
+    "run": 44489790163,
+    "attempt": 1,
+    "build_job": 135442328630,
+    "log_sha256": "d09ddba521656093eb4ed14a41781fc11d4dab4f3796e51763442f49af2f9a63",
+    "image_steps": [
+      [
+        "Build and verify the native recovery image",
+        "success"
+      ],
+      [
+        "Build the image",
+        "success"
+      ]
+    ],
+    "disk_job": "skipped at pull_request"
+  },
+  "x86_first_attempt_pr_gate": 44489790122,
+  "repo_gate": 44489790058,
+  "branch_audit_before_follow_up": {
+    "local": 72,
+    "github": 217,
+    "worktrees": 39,
+    "all_tips_in_qualified_head": true,
+    "old_untracked_qt_files_equal_to_archive": 7
+  },
+  "installer_menu": {
+    "source_parent": "434222538eb1e3fba10d0bcd146fe54d88e3fa04",
+    "repair": "f7cae2c9ce47121b4c7fbfb849f0b6f5efc6ee85",
+    "newt_rpm": "newt-0.52.25-6.fc44.x86_64",
+    "rpm_sha256": "ee69f443417ced31feec6b1bac094ad47c5ae6851537de7fd98fc7beeaf3cdf2",
+    "whiptail_sha256": "7a41ff221f134a3d765cf858eb7eaef56267807194e8f79d04c6c5f8ba5847fc",
+    "native_test": "Actual signed whiptail processes on private 100 by 32 Linux pseudo-terminals. Only the dialog received keys. A separate private namespace replaced the installer with an inert marker command.",
+    "original_occupied_menu_exit": 255,
+    "original_empty_down_enter": {
+      "exit": 0,
+      "selection": ""
+    },
+    "fixed_occupied_selection": [
+      "1",
+      "2",
+      "4"
+    ],
+    "fixed_empty_selection": [
+      "2",
+      "5"
+    ],
+    "cancel_button": {
+      "keys": [
+        "Tab",
+        "Tab",
+        "Enter"
+      ],
+      "exit": 1,
+      "selection": ""
+    },
+    "old_headless_path": "automatically called the private marker",
+    "fixed_headless_path": "reported the authenticated manual command and returned 1 without calling the marker",
+    "scope": "Native dialog and source entry points. A complete recovery bundle boot is a separate qualification."
+  },
+  "signed_release": {
+    "current_x86_cycle_build": 44511467942,
+    "arm_main_refusal": 44511422376,
+    "account_repair_pr": 314,
+    "local_followup": "Integrate the corrected boot order, menu and packaged recovery acceptance, then qualify the combined source.",
+    "main_arm_994": {
+      "revision": "a02612638c0e557b7fe289a469adc05baa961d47",
+      "run": 44573209173,
+      "result": "The native image, desktop QCOW2 UEFI boot and promotion passed. Separate packaged recovery interaction requires a successor."
+    }
+  },
+  "packaged_arm_966": {
+    "main": "fbb8a46d15739fed90e94be440b32c3276c0020c",
+    "run": 44289879261,
+    "artifact": 14429991924,
+    "archive_sha256": "6b562a7ee8ff6f884a9a38319b365e8ffea2bd6a091c9b2a6d292379712eecea",
+    "devices": "Packaged recovery disk, empty target and original seed. Guest writes went to private overlays.",
+    "first_boot": {
+      "cpu": "max",
+      "seed": "read-only VirtIO raw block",
+      "probe_start_seconds": 181.751,
+      "udev_ping_timeout_seconds": 212.489,
+      "udevd_ready_seconds": 247.683,
+      "guest_state": "Recovery coldplug failed and boot mounts entered emergency mode. Target comparison passed."
+    },
+    "default_profile_replay": {
+      "cpu": "cortex-a72",
+      "seed": "read-only VirtIO CD backend",
+      "firmware": "UEFI",
+      "machine": "virt with GICv3 and virtualization enabled",
+      "ram_mib": 3072,
+      "vcpus": 2,
+      "udevd_ready_seconds": 117.76,
+      "coldplug_completed_seconds": 152.486,
+      "menu_job": "systemd discarded the installer menu start to break its ordering cycle",
+      "cloud_final_started_seconds": 288.724,
+      "result": "Serial login appeared. The installer menu did not complete the required interaction during 900 seconds.",
+      "scope": "CPU and disk profile replay on stock QEMU with virtio-gpu. Physical iPhone performance and display remain unqualified."
+    },
+    "journal_sha256": {
+      "native-coldplug-journal.log": "d7055aec96800a9b910c08c78ac503575c6652c017de01e65e51c4fe925c9b46",
+      "native-ordering-journal.log": "8b0ac7cfbc2f23d1b312080ae8006cfef49faa2807071bf9eaf57f06d1262978",
+      "native-early-unit-journal.log": "392e6fd1159c8680d292774c72858baedf7551e2c9011de6caaecdd863917e90"
+    }
+  },
+  "startup_fixture": {
+    "original_refusal": "At 92e8921d the 30 ms diagnostic fired in the Python module loader before the fixture entered app.py.",
+    "repair": "c9258e4ff9a6264c0085c076438a4d86e6ee4c8e",
+    "controls": "A private 120 ms loader delay reproduces the old refusal three times. The fixture repair passes five times and refuses missing watchdog registration. All 69 ARM tests and the journal isolation gate passed on the component."
+  },
+  "v3_before_update": {
+    "booted": "44.20261116.1162",
+    "pinned_versions": [
+      "44.20261114.1152",
+      "44.20261019.1078"
+    ],
+    "stage": null,
+    "upgrade_acceptance": "requires boot of the signed successor"
+  },
+  "v3": {
+    "booted": "44.20261119.1173",
+    "image_digest": "sha256:d3ce53eb368d286ce8ae5b235c2d36ebf176150274f79ef4fcfe1bf7bd7e2113",
+    "ostree_checksum": "7cdfe5e26851c8e50d73ae0a82e475ae4f3c986cb1b3be157cd66d663834822d",
+    "boot_id": "dad2d244-091c-4e5d-8bba-d56263da437c",
+    "efi_boot_current": "0001",
+    "efi_boot_order": [
+      "0001"
+    ],
+    "grub": "One-second hidden menu on the normal path, with manual recovery available.",
+    "systemd_analyze_seconds": {
+      "firmware": 6.742,
+      "loader": 3.247,
+      "kernel": 0.819,
+      "initrd": 2.145,
+      "userspace": 9.247,
+      "total": 22.202,
+      "graphical_target_in_userspace": 8.706
+    },
+    "settled_selfcheck_passed": 54,
+    "settled_post_update": {
+      "passed": 55,
+      "failed": 1,
+      "journal": "The temporary moos-v3-check-1173.service ran kiconfinder6 before the display was available."
+    },
+    "hardware_adapter": "Exited 0 at 21:07:38 CET. The internal panel had a connector-owned kernel backlight and no external monitor bus.",
+    "retained_rollback": "44.20261116.1162",
+    "retired_after_configuration_archive": [
+      "44.20261114.1152",
+      "44.20261019.1078"
+    ],
+    "settings_archive": "Both /etc trees and deployment origin metadata were compared with private local archives before removal. A fresh deployment listing contained only 1173 and 1162."
+  },
+  "plymouth_arrival_review": {
+    "commit": "4990055d",
+    "duration_ms": 720,
+    "frame_count": 32,
+    "distinct_frames": 17,
+    "renderer": "Native Plymouth in the development SDK rendered the boot theme. At 640x360, 640x480 and 800x480, the Arabic greeting and password ink stayed separate and the password bullets redrew within 200 ms. Additional renders covered 800x1280, 1920x1080 and 3840x2160.",
+    "delivery": "V3 ran the existing signed 1173 theme. The new animation requires a signed successor and physical boot observation."
+  }
+}

@@ -1,3 +1,3 @@
 @echo off
-title Install Mo Remote
+title Install Mawj
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"

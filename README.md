@@ -3,7 +3,7 @@
 MoOS is an atomic desktop operating system with its own identity, signed image
 updates, a KDE Plasma 6 Wayland session, first-party system applications, Mira
 (with Mo AI's fixed executors),
-Mo Store, MoPlayer and Mo PC Remote. This repository is the single source used
+Mo Store, MoPlayer and Mawj (موج). This repository is the single source used
 to build the installable images; a local override is never a release.
 
 **The bar is Windows, macOS, Android and iOS** — not as API targets, but as the
@@ -58,7 +58,7 @@ artwork/                      canonical design sources and deterministic generat
 mira/                         shipped Mira assistant, controller and device adapters
 moos-settings-kcm/            native MoOS modules inside KDE System Settings
 moplayer/                     first-party MoPlayer source and tests
-moremote/                     Mo PC Remote source and component documentation
+moremote/                     Mawj remote desktop source and component documentation
 iso/                          offline ISO inputs
 tests/                        repository, image, VM and hardware verification
 scripts/release-candidate.sh  one command per release batch: signed build, every boot proof, promotion

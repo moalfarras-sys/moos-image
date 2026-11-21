@@ -38,6 +38,6 @@ if loginctl list-sessions --no-legend 2>/dev/null \
 fi
 
 echo "moos-has-seat: ${user} owns no seated session — /dev/uinput is unreachable here." >&2
-echo "moos-has-seat: this is normal for a private cloud desktop; Mo PC Remote uses the" >&2
+echo "moos-has-seat: this is normal for a private cloud desktop; Mawj uses the" >&2
 echo "moos-has-seat: XDG RemoteDesktop portal for input, which addresses the right session." >&2
 exit 1

@@ -1,6 +1,8 @@
 """Mira's controller: state machine, routes and honest results, with stand-in backends only."""
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -32,6 +34,68 @@ def pump(predicate=lambda: False, timeout=2.0):
             return True
         time.sleep(0.005)
     return predicate()
+
+
+class EchoStartupTest(unittest.TestCase):
+    def test_unpaired_start_leaves_echo_dependencies_unloaded(self):
+        # Run the real import path in a fresh interpreter, independent of suite order.
+        probe = """
+import sys
+import app
+import mira_bridge
+assert not mira_bridge.paired()
+bridge = mira_bridge.Bridge()
+errors = []
+bridge.error.connect(errors.append)
+try:
+    bridge.start()
+    assert errors == ['unpaired'] and not bridge.thread.is_alive()
+    assert 'aioesphomeapi' not in sys.modules
+    assert 'echo_http' not in sys.modules and 'http.server' not in sys.modules
+finally:
+    bridge.loop.close()
+"""
+        with tempfile.TemporaryDirectory() as home:
+            env = dict(os.environ, HOME=home, MIRA_ECHO_HOST='')
+            subprocess.run([sys.executable, '-s', '-c', probe], check=True, env=env,
+                           cwd=Path(__file__).resolve().parent, timeout=60)
+
+    def test_pair_loads_the_client_with_the_device_key(self):
+        import asyncio
+        import aioesphomeapi
+        import mira_bridge
+        with tempfile.TemporaryDirectory() as home:
+            key = Path(home) / 'fixture.key'
+            key.write_text('private-fixture')
+            bridge = mira_bridge.Bridge()
+            self.addCleanup(bridge.loop.close)
+            with patch.object(mira_bridge, 'KEY', key), patch.object(mira_bridge, 'IP', '127.0.0.1'), \
+                    patch.object(aioesphomeapi, 'APIClient', side_effect=asyncio.CancelledError) as client:
+                self.assertTrue(mira_bridge.paired())
+                with self.assertRaises(asyncio.CancelledError):
+                    bridge.loop.run_until_complete(bridge.connect())
+                client.assert_called_once_with('127.0.0.1', 6053, noise_psk='private-fixture',
+                                               client_info='Mira Desktop')
+
+    def test_wake_model_http_still_restricts_the_peer(self):
+        import http.client
+        import threading
+        import echo_http
+        with echo_http.HTTPServer(('127.0.0.1', 0), echo_http.ToneServer) as server:
+            for allowed, status in [('127.0.0.1', 200), ('192.0.2.1', 403)]:
+                with self.subTest(peer=allowed), patch.object(echo_http, 'IP', allowed):
+                    thread = threading.Thread(target=server.handle_request)
+                    thread.start()
+                    client = http.client.HTTPConnection(*server.server_address, timeout=5)
+                    try:
+                        client.request('GET', '/hey_mira.json')
+                        response = client.getresponse()
+                        self.assertEqual(response.status, status)
+                        if status == 200:
+                            self.assertEqual(response.read(), (echo_http.ROOT / 'hey_mira.json').read_bytes())
+                    finally:
+                        client.close()
+                        thread.join(timeout=5)
 
 
 class ControllerTest(unittest.TestCase):
