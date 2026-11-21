@@ -1,4 +1,4 @@
-// Mo PC Remote service worker source. scripts/build.mjs bundles this, with the Workbox
+// Mawj service worker source. scripts/build.mjs bundles this, with the Workbox
 // runtime modules it imports, into one classic-script agent/wwwroot/sw.js.
 //
 // The precache list is generated from the built files ("virtual:precache-manifest"); hashed

@@ -30,7 +30,7 @@
     "overview": {"host": "moos-settings", "target": "overview", "label": {"ar": "إعدادات MoOS", "en": "MoOS Settings"}, "moai": true},
     "whats-new": {"host": "moos-settings", "target": "whats-new", "label": {"ar": "ما الجديد", "en": "What's new"}, "moai": true},
     "assistant": {"host": "moos-settings", "target": "assistant", "label": {"ar": "Mo AI", "en": "Mo AI"}, "moai": true},
-    "remote": {"host": "moos-settings", "target": "remote", "label": {"ar": "Mo PC Remote", "en": "Mo PC Remote"}, "moai": true},
+    "remote": {"host": "moos-settings", "target": "remote", "label": {"ar": "موج", "en": "Mawj"}, "moai": true},
     "recovery": {"host": "moos-settings", "target": "recovery", "label": {"ar": "الاستعادة", "en": "Recovery"}, "moai": true},
     "appearance": {"host": "moos-settings", "target": "appearance", "label": {"ar": "المظهر", "en": "Appearance"}, "moai": true},
     "global-theme": {"host": "systemsettings", "target": "kcm_lookandfeel", "label": {"ar": "السمة العامة", "en": "Global theme"}, "moai": true},

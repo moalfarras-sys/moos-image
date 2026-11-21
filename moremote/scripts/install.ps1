@@ -29,16 +29,7 @@ Copy-Item (Join-Path $dist "*") $dest -Recurse -Force
 $exe = Join-Path $dest $exeName
 
 Write-Host "==> Creating shortcuts" -ForegroundColor Cyan
-$iconFile = Join-Path $dest "app.ico"
-$iconLoc = if (Test-Path $iconFile) { "$iconFile,0" } else { "$exe,0" }
-$ws = New-Object -ComObject WScript.Shell
-foreach ($loc in @([Environment]::GetFolderPath("Programs"), [Environment]::GetFolderPath("Desktop"))) {
-  $lnk = $ws.CreateShortcut((Join-Path $loc "Mo Remote.lnk"))
-  $lnk.TargetPath = $exe
-  $lnk.WorkingDirectory = $dest
-  $lnk.IconLocation = $iconLoc
-  $lnk.Save()
-}
+& (Join-Path $PSScriptRoot "..\installer\portable\mawj-shortcuts.ps1") -Mode Install -Executable $exe
 
 Write-Host "==> Enabling start-with-Windows" -ForegroundColor Cyan
 $run = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"

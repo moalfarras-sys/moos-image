@@ -1164,15 +1164,20 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       drawEpochRef.current++;
     };
     const onVis = () => document.hidden ? onHide() : onShow();
+    const onOnline = () => {
+      if (!document.hidden) connRef.current?.probe();
+    };
     // iOS fires pagehide rather than visibilitychange when Safari is backgrounded from the app
     // switcher. Same intent, different name; both are wired, and both are removed.
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", onHide);
     window.addEventListener("pageshow", onShow);
+    window.addEventListener("online", onOnline);
     return () => {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pagehide", onHide);
       window.removeEventListener("pageshow", onShow);
+      window.removeEventListener("online", onOnline);
     };
   }, []);
 

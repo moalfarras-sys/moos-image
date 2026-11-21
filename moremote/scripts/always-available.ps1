@@ -36,7 +36,7 @@ Write-Host "To control the PC right after it BOOTS (before any login screen), en
 Write-Host "  1) Press Win+R, type:  netplwiz   then press Enter"
 Write-Host "  2) Uncheck: 'Users must enter a user name and password to use this computer'"
 Write-Host "  3) Apply -> enter your Windows password once."
-Write-Host "  Now the PC boots straight to the desktop where Mo Remote is already running,"
+Write-Host "  Now the PC boots straight to the desktop where Mawj is already running,"
 Write-Host "  so you can connect from your iPhone without touching the computer."
 Write-Host ""
 Write-Host "Note: the Windows lock/login screen itself cannot be captured by any normal app"

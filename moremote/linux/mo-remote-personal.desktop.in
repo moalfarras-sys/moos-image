@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=Mo Remote Personal
-Name[ar]=Mo Remote
+Name=Mawj
+Name[ar]=موج
 Comment=Private remote control for this computer
 Comment[ar]=تحكم خاص وآمن بهذا الكمبيوتر
 Exec=@APP@/MoRemotePersonal

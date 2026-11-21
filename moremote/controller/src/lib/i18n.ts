@@ -19,21 +19,32 @@ export function detectLang(): Lang {
   return navigator.language?.toLowerCase().startsWith("ar") ? "ar" : "en";
 }
 
-export function setLang(lang: Lang): void {
-  try { localStorage.setItem(LANG_KEY, lang); } catch { /* keep the current page usable */ }
+function applyLang(lang: Lang): void {
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  document.title = t(lang, "brandName");
+  const appleTitle = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]');
+  if (appleTitle) appleTitle.content = document.title;
+}
+
+export function setLang(lang: Lang): void {
+  try { localStorage.setItem(LANG_KEY, lang); } catch { /* keep the current page usable */ }
+  applyLang(lang);
 }
 
 /** Apply the stored language before first paint of any screen. */
 export function initLang(): Lang {
   const lang = detectLang();
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  applyLang(lang);
   return lang;
 }
 
 const dict = {
+  brandName: { ar: "موج", en: "Mawj" },
+  brandCredit: { ar: "من تطوير Moalfarras", en: "by Moalfarras" },
+  pinDigitsEntered: { ar: "عدد أرقام الرمز المُدخلة: {count}", en: "{count} PIN digits entered" },
+  alertInterrupted: { ar: "انقطع الاتصال بسطح المكتب.", en: "The desktop connection was interrupted." },
+  alertUploadComplete: { ar: "اكتمل رفع الملف.", en: "The file upload completed." },
   secureTyping: { ar: "كتابة كلمة مرور", en: "Password typing" },
   hostLockedTitle: { ar: "الكمبيوتر مقفول", en: "Computer locked" },
   preLoginTitle: { ar: "تسجيل الدخول إلى MoOS", en: "Sign in to MoOS" },
@@ -138,8 +149,8 @@ const dict = {
 
   // ── PWA install banner ──
   installBanner: {
-    ar: "ثبّت التطبيق على جهازك للحصول على تجربة كاملة",
-    en: "Install Mo PC Remote for the full experience",
+    ar: "أضف موج إلى الشاشة الرئيسية",
+    en: "Add Mawj to your home screen",
   },
   install: { ar: "تثبيت", en: "Install" },
 
@@ -512,6 +523,11 @@ export type StringId = keyof typeof dict;
 export function t(lang: Lang, id: StringId): string {
   const entry = dict[id];
   return entry ? entry[lang] : id;
+}
+
+/** The active tab language also applies after changing language and signing out. */
+export function pageText(id: StringId): string {
+  return t(document.documentElement.lang === "ar" ? "ar" : "en", id);
 }
 
 /** Convenience: a bound translator. */

@@ -725,10 +725,10 @@ Kirigami.ApplicationWindow {
     }
     readonly property string greetingText: moaiRtl
         ? ("‏مرحباً! أنا **Mo AI** — مساعد MoOS.\n\n" +
-           "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأجهّز Mo PC Remote.\n\n" +
+           "أقدر أصلّح التعريفات، أحدّث النظام، أثبّت أي تطبيق، أنظّف الجهاز، وأجهّز موج.\n\n" +
            "_اسألني، أو استخدم الشريط الجانبي._")
         : ("‎Hi! I'm **Mo AI** — your MoOS assistant.\n\n" +
-           "I can fix drivers, update the system, install any app, clean things up, and set up Mo PC Remote.\n\n" +
+           "I can fix drivers, update the system, install any app, clean things up, and set up Mawj.\n\n" +
            "_Ask me, or use the side rail._")
 
     readonly property var starters: [
@@ -1192,7 +1192,7 @@ Kirigami.ApplicationWindow {
         if (p.firmware_updates && p.firmware_updates.length)
             c += "• Pending firmware updates: " + p.firmware_updates.join("; ") + "\n"
         const r = s.remote || {}
-        c += "• Mo PC Remote: " + (r.active ? "running" : "stopped") + "\n"
+        c += "• Mawj: " + (r.active ? "running" : "stopped") + "\n"
         const a = s.agents || {}
         c += "• Coding agents installed: codex=" + (a.codex ? "yes" : "no")
            + ", claude=" + (a.claude ? "yes" : "no")
@@ -1364,9 +1364,9 @@ Kirigami.ApplicationWindow {
         case "clarity": return root.local("وضوح الزجاج: " + v, "Glass clarity: " + v)
         case "power-profile": return root.local("وضع الطاقة: " + v, "Power profile: " + v)
         case "remote":
-            return v === "on" ? root.local("شغّل Mo PC Remote", "Turn on Mo PC Remote")
-                 : v === "off" ? root.local("أوقف Mo PC Remote", "Turn off Mo PC Remote")
-                 : root.local("أعد وصل Mo PC Remote", "Reconnect Mo PC Remote")
+            return v === "on" ? root.local("شغّل موج", "Turn on Mawj")
+                 : v === "off" ? root.local("أوقف موج", "Turn off Mawj")
+                 : root.local("أعد وصل موج", "Reconnect Mawj")
         case "fast-remote":
             return v === "on" ? root.local("شغّل الاتصال السريع", "Fast Remote on")
                               : root.local("أطفئ الاتصال السريع", "Fast Remote off")
@@ -1925,9 +1925,9 @@ Kirigami.ApplicationWindow {
             case "install_rpm": return root.local("تثبيت حزمة: ", "Install package: ")
                                        + String(args.path || "").split("/").pop()
             case "remote_control": return args.value === "on"
-                ? root.local("تشغيل Mo PC Remote", "Turn On Mo PC Remote")
-                : args.value === "off" ? root.local("إيقاف Mo PC Remote", "Turn Off Mo PC Remote")
-                : root.local("إعادة وصل Mo PC Remote", "Reconnect Mo PC Remote")
+                ? root.local("تشغيل موج", "Turn On Mawj")
+                : args.value === "off" ? root.local("إيقاف موج", "Turn Off Mawj")
+                : root.local("إعادة وصل موج", "Reconnect Mawj")
             case "fast_remote": return args.value === "on"
                 ? root.local("تشغيل الاتصال السريع", "Turn On Fast Remote")
                 : root.local("إطفاء الاتصال السريع", "Turn Off Fast Remote")
@@ -4913,7 +4913,7 @@ Kirigami.ApplicationWindow {
                                             Layout.fillWidth: true
                                             spacing: 2
                                             Text {
-                                                text: "Mo PC Remote"
+                                                text: root.local("موج", "Mawj")
                                                 color: root.textHi
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(13)
@@ -4922,8 +4922,8 @@ Kirigami.ApplicationWindow {
                                             Text {
                                                 Layout.fillWidth: true
                                                 text: root.local(
-                                                    "تشغيله وإيقافه والوضع السريع في إعدادات النظام ← MoOS ← Mo PC Remote.",
-                                                    "Turning it on or off, and Fast Remote, are in System Settings → MoOS → Mo PC Remote.")
+                                                    "تشغيله وإيقافه والوضع السريع في إعدادات النظام ← MoOS ← موج.",
+                                                    "Turning it on or off, and Fast Remote, are in System Settings → MoOS → Mawj.")
                                                 color: root.textLo
                                                 font.family: root.uiFont
                                                 font.pixelSize: root.typePx(11)
@@ -4935,10 +4935,10 @@ Kirigami.ApplicationWindow {
                                         Layout.fillWidth: true
                                         spacing: design.space2
                                         MoButton {
-                                            label: root.local("إعدادات Mo PC Remote", "Mo PC Remote settings")
+                                            label: root.local("إعدادات موج", "Mawj settings")
                                             iconName: "moos-settings-symbolic"
                                             primary: true
-                                            onClicked: root.launch("moos://settings/remote", "Mo PC Remote")
+                                            onClicked: root.launch("moos://settings/remote", root.local("موج", "Mawj"))
                                         }
                                         // Tailscale serve: an HTTPS name for this computer on the
                                         // owner's tailnet, so the phone reaches it on mobile data too.

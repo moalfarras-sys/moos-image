@@ -2,18 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { login, setupPin, type AuthResult } from "../lib/api";
 import { BUILD } from "../types";
 import { IconBackspace, IconEnter, IconLock } from "./icons";
-import { detectLang, makeT } from "../lib/i18n";
-
-const tr = makeT(detectLang());
+import { pageText as tr } from "../lib/i18n";
 
 function Brand({ subtitle }: { subtitle: string }) {
   return (
     <div className="brand">
-      <div className="brand-logo">
-        <img src="/icons/brand-logo.png" alt="Mo PC Remote" />
-      </div>
+      <img className="brand-logo" src="/icons/brand-logo.png" width="112" height="112" alt="" />
       <div>
-        <h1>Mo PC Remote</h1>
+        <h1>{tr("brandName")}</h1>
         <p>{subtitle}</p>
       </div>
     </div>
@@ -23,7 +19,7 @@ function Brand({ subtitle }: { subtitle: string }) {
 function Signature() {
   return (
     <div className="signature">
-      by <b>Moalfarras</b> · <span style={{ color: "var(--ok)" }}>{BUILD}</span>
+      <b>{tr("brandCredit")}</b> · <span style={{ color: "var(--ok)" }}>{BUILD}</span>
     </div>
   );
 }
@@ -54,7 +50,7 @@ function PinDots({ count, error }: { count: number; error?: boolean }) {
     <div
       className={"pin-dots" + (error ? " error" : "")}
       role="status"
-      aria-label={`${count} PIN digits entered`}
+      aria-label={tr("pinDigitsEntered").replace("{count}", String(count))}
     >
       {Array.from({ length: shown }).map((_, i) => (
         <i key={i} className={i < count ? "on" : ""} />

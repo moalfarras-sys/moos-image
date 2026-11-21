@@ -1366,9 +1366,9 @@ CAPABILITY_RULES = (
     (('smart_setup',),
      'لتجهيز الجهاز بالتطبيقات الأساسية الناقصة حسب عتاده استدعي smart_setup. '),
     (('remote_control',),
-     'لتشغيل Mo PC Remote أو إيقافه أو إعادة تشغيله لإصلاح اتصال عالق استدعي remote_control، وللوصول من خارج البيت remote_anywhere. '),
+     'لتشغيل موج أو إيقافه أو إعادة تشغيله لإصلاح اتصال عالق استدعي remote_control، وللوصول من خارج البيت remote_anywhere. '),
     (('fast_remote',),
-     'إن كان التحكم عن بعد بطيئاً فاقترحي fast_remote: سطح مكتب أخف بلا تمويه ولا حركة يجعل Mo PC Remote أسلس، ويُطفأ بطلبه. '),
+     'إن كان التحكم عن بعد بطيئاً فاقترحي fast_remote: سطح مكتب أخف بلا تمويه ولا حركة يجعل موج أسلس، ويُطفأ بطلبه. '),
 )
 APP_DROP_RULE = ('ملف تطبيق نزّله المالك (AppImage أو أرشيف أو غيره) يُثبَّت من زرّ {from_file} في صفحة {apps}، '
                  'أو بإفلاته على بطاقة {file_card} فيها؛ App Drop يسأله قبل أي تثبيت ولا يحتاج صلاحيات مسؤول. '
@@ -1509,8 +1509,8 @@ def format_machine(facts: dict, lang: str = 'ar', age_s: float = 0.0) -> str:
         parts.append(('graphics ' if en else 'كرت الشاشة ') + str(facts['gpu']) +
                      ((', driver: ' if en else '، التعريف: ') + str(driver) if driver else ''))
     if facts.get('remote_running') is not None:
-        parts.append(('Mo PC Remote ' + ('running' if facts['remote_running'] else 'stopped')) if en else
-                     ('Mo PC Remote ' + ('يعمل' if facts['remote_running'] else 'متوقف')))
+        parts.append(('Mawj ' + ('running' if facts['remote_running'] else 'stopped')) if en else
+                     ('موج ' + ('يعمل' if facts['remote_running'] else 'متوقف')))
     have, missing = facts.get('agents_installed') or [], facts.get('agents_missing') or []
     if have or missing:
         none = 'none' if en else 'لا شيء'

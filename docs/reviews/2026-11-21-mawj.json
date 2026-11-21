@@ -1,0 +1,26 @@
+{
+  "baseline": "c66961b3cdc33a17cc8414fb73c207f202a58f85",
+  "plan": "P2.17",
+  "owner": "existing moremote controller, native session agent and desktop integration",
+  "installed_before": {
+    "device": "Minisforum V3",
+    "edition": "44.20261119.1173 generic",
+    "session": "Wayland",
+    "displays": "1536x864 logical at 2.5; 1766x1104 logical at 1.45",
+    "input": "MoOS native session input (EIS), ready",
+    "live_kernel": {
+      "tcp_congestion_control": "bbr",
+      "default_qdisc": "fq"
+    },
+    "account_service": "active; no restart performed for this work"
+  },
+  "identity": "Mawj / موج uses the existing launcher, desktop ID, KCM, private address, portal, pairing store and browser preference keys. The wave artwork scales through the existing native icon generator to the desktop, PWA and Windows tray.",
+  "controls": {
+    "old_websocket": "At a simulated 5000 ms backoff, a foreground probe did not begin a retry. A socket stuck closing did not recover on resume or the normal heartbeat. The original bundle produced zero immediate pings on a visible online event in real Chromium.",
+    "fixed_websocket": "A foreground hint starts one retry at the same clock tick. The in-flight handshake stays in place, and a delayed close cannot tear down the replacement. Hidden online events, explicit disconnect, idle, Stop and authentication rejection do not resurrect a session.",
+    "browser": "Chromium 1247 passed the shipped bundle on isolated mobile and desktop transports, including RTL, typing, video continuity, background/resume and pre-login restrictions.",
+    "private_agent": "The compiled Linux agent served its own PWA in isolated storage. The Arabic 390x844 and English 1366x768 setup screens rendered their localized title and native mark. The private session endpoint returned 401 before login. Normal setup, authenticated hello/pong and page reload with session resumption passed. No input was injected into the personal desktop.",
+    "source": "Controller typecheck, every configured controller test and all .NET projects/test executables passed. Fourteen targeted MoOS runtime/control suites passed. The lockfile audit reported zero advisories.",
+    "scope": "Simulated retry timing is time to initiate an attempt. It excludes TLS, authentication and video arrival on real mobile networks. Physical phone acceptance and production delivery are independent."
+  }
+}

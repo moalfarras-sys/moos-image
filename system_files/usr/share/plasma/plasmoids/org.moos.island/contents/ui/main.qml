@@ -232,7 +232,9 @@ PlasmoidItem {
 
         root.privacyType = stream.type;
         root.privacyNodeId = stream.nodeId;
-        root.privacyApp = stream.app || root.local("تطبيق", "An app");
+        // The privacy monitor also uses this legacy token for the existing Stop action.
+        root.privacyApp = stream.app === "Mo PC Remote" ? root.local("موج", "Mawj")
+                                                       : (stream.app || root.local("تطبيق", "An app"));
         const stopHint = root.local(root.privacyApp + " · انقر للإيقاف", root.privacyApp + " · Tap to stop");
         if (stream.type === "screen") {
             root.privacyIcon = "moos-cast-symbolic";
@@ -1599,7 +1601,7 @@ PlasmoidItem {
 
             PC3.Button {
                 Layout.fillWidth: true
-                text: root.local("فتح مركز Mo PC Remote", "Open Mo PC Remote")
+                text: root.local("فتح مركز موج", "Open Mawj")
                 icon.name: "configure-symbolic"
                 onClicked: Qt.openUrlExternally("moos://app/remote")
             }

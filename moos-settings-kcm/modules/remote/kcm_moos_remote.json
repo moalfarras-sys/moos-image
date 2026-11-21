@@ -1,7 +1,7 @@
 {
   "KPlugin": {
-    "Name": "Mo PC Remote",
-    "Name[ar]": "Mo PC Remote",
+    "Name": "Mawj",
+    "Name[ar]": "موج",
     "Description": "Control this computer from your phone, privately",
     "Description[ar]": "تحكّم بهذا الحاسوب من هاتفك بخصوصية",
     "Icon": "moos-pc-remote",
@@ -12,6 +12,6 @@
   },
   "X-KDE-System-Settings-Parent-Category": "moos",
   "X-KDE-Weight": 5,
-  "X-KDE-Keywords": "remote,phone,remote control,Mo PC Remote,fast remote,pairing,PIN,connection",
-  "X-KDE-Keywords[ar]": "تحكم عن بعد,التحكم عن بعد,هاتف,الوضع السريع,إقران,رمز,اتصال"
+  "X-KDE-Keywords": "remote,phone,remote control,Mawj,Mo PC Remote,Mo Remote,fast remote,pairing,PIN,connection",
+  "X-KDE-Keywords[ar]": "موج,تحكم عن بعد,التحكم عن بعد,هاتف,الوضع السريع,إقران,رمز,اتصال"
 }

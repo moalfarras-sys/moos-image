@@ -264,16 +264,22 @@ export class RemoteConnection {
    */
   private static readonly STALL_MS = 8000;
 
+  private get closing() {
+    return this.ws !== null && this.ws.readyState >= WebSocket.CLOSING;
+  }
+
   private startPing() {
     this.stopPing();
+    const generation = this.generation;
     this.lastAliveAt = performance.now();
     this.pingTimer = window.setInterval(() => {
-      this.send({ type: "ping", t: performance.now() });
-      if (performance.now() - this.lastAliveAt > RemoteConnection.STALL_MS && this.ws?.readyState === WebSocket.OPEN) {
-        // Not closedByUs: this must reconnect, and it must be reported as a reconnect rather than a
-        // deliberate exit, or the UI would show "signed out" for a network blip.
-        this.finishConnection(this.generation);
+      if (generation !== this.generation || this.closedByUs) return;
+      const now = performance.now();
+      if (this.closing || now - this.lastAliveAt > RemoteConnection.STALL_MS) {
+        this.finishConnection(generation);
+        return;
       }
+      this.send({ type: "ping", t: now });
     }, 2000);
   }
 
@@ -289,7 +295,15 @@ export class RemoteConnection {
    * the reconnect it already owns.
    */
   probe() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.closedByUs) return;
+    if (this.closedByUs) return;
+    // On return to a reachable network the old close event can still be queued, or a retry
+    // may be sleeping through its backoff. Keep a handshake already in flight.
+    if (this.closing) this.finishConnection(this.generation);
+    if (this.reconnectTimer !== null) {
+      this.connect();
+      return;
+    }
+    if (this.ws?.readyState !== WebSocket.OPEN) return;
     const generation = this.generation;
     const aliveVersion = this.aliveVersion;
     const asked = performance.now();

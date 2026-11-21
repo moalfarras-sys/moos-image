@@ -75,6 +75,9 @@ jobs:
           dotnet-version: ${{ steps.dotnet.outputs.version }}
       - name: Compile the Windows agent
         run: dotnet build moremote/agent/MoRemoteAgent.csproj -c Release --nologo
+      - name: Verify Mawj shortcut upgrade and removal
+        shell: powershell
+        run: ./moremote/tests/windows-shortcuts.ps1
 
   controller:
     name: Controller typecheck, unit tests and shipped-bundle freshness

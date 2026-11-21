@@ -9,8 +9,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>MoRemote</RootNamespace>
     <AssemblyName>MoRemotePersonal</AssemblyName>
-    <Product>Mo Remote Personal</Product>
-    <Company>Mo Remote Personal</Company>
+    <Product>Mawj</Product>
+    <Company>Moalfarras</Company>
     <Version>1.0.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>

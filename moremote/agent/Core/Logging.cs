@@ -19,7 +19,7 @@ public static class Log
             // Roll the log if it grows past ~1 MB.
             if (File.Exists(_path) && new FileInfo(_path).Length > 1_000_000)
                 File.Delete(_path);
-            Info($"==== Mo Remote Personal starting (v{AppInfo.Version}) ====");
+            Info($"==== {AppInfo.Name} starting (v{AppInfo.Version}) ====");
         }
         catch { /* logging must never crash the app */ }
     }
@@ -44,7 +44,7 @@ public static class Log
 public static class AppInfo
 {
     public const string Version = "1.0.0";
-    public const string Name = "Mo Remote Personal";
+    public const string Name = "Mawj";
 }
 
 /// <summary>Well-known local paths. Everything stays on this machine.</summary>
@@ -112,7 +112,7 @@ public static class Paths
         var dir = string.IsNullOrEmpty(local) ? "" : Path.Combine(local, "MoRemotePersonal");
         if (!Path.IsPathRooted(dir))
             throw new InvalidOperationException(
-                "Mo Remote cannot determine where to keep its configuration: neither " +
+                "Mawj cannot determine where to keep its configuration: neither " +
                 "XDG_DATA_HOME nor HOME is set. Refusing to fall back to the current directory — " +
                 "that would create an unconfigured config and leave the PIN open to whoever asks first.");
         return dir;

@@ -2,7 +2,7 @@
 Type=Application
 Name=Fast Remote
 Name[ar]=اتصال سريع
-Comment=Toggle a low-overhead mode that speeds up Mo PC Remote
+Comment=Toggle a low-overhead mode that speeds up Mawj
 Comment[ar]=يشغّل/يوقف وضعاً خفيفاً يسرّع الاتصال عن بُعد
 Exec=moos-fast-remote toggle
 Icon=moos-pc-remote

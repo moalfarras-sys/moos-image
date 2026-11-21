@@ -72,7 +72,7 @@ class EisInput:
             if not self.ctx:
                 os.close(fd)
                 raise RuntimeError("libei could not create an input context")
-            self.lib.ei_configure_name(self.ctx, b"Mo PC Remote")
+            self.lib.ei_configure_name(self.ctx, b"Mawj")
             # libei takes ownership, including a failed initialization.
             if self.lib.ei_setup_backend_fd(self.ctx, fd) != 0:
                 raise RuntimeError("libei refused KWin's input socket")

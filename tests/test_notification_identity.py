@@ -230,7 +230,7 @@ class TheSendersExecuted(unittest.TestCase):
         self.open("moos://remote/stop", NOTIFY_EXIT="1")
         popups = self.wait_for(self.popups)
         self.assertEqual(len(popups), 1, popups)
-        self.assertIn("Mo PC Remote", popups[0])
+        self.assertIn("Mawj", popups[0])
 
     def test_app_drop_files_its_messages_under_mo_store(self):
         done = subprocess.run([sys.executable, str(SYSTEM / "usr/bin/moos-app-drop"),

@@ -26,4 +26,4 @@ else
   printf 'Warning: enable mo-remote-personal.service manually.\n' >&2
 fi
 command -v update-desktop-database >/dev/null && update-desktop-database "$DATA" || true
-printf 'Installed Mo Remote Personal for Linux.\n'
+printf 'Installed Mawj for Linux.\n'

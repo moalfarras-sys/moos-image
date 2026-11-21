@@ -4509,7 +4509,7 @@ BENTO
 <?xml version="1.0" encoding="utf-8"?>
 <zone target="ACCEPT">
   <short>Trusted</short>
-  <description>The tailnet. Mo PC Remote, and anything else a developer binds,
+  <description>The tailnet. Mawj, and anything else a developer binds,
   answer here and only here — never on the public address.</description>
   <interface name="tailscale0"/>
 </zone>

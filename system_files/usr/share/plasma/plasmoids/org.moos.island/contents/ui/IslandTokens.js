@@ -61,7 +61,7 @@ var MOAI_JOB_LABELS = {
     toggle_bluetooth: ["إيقاف البلوتوث", "Turning off Bluetooth"],
     set_do_not_disturb: ["تشغيل عدم الإزعاج", "Turning on Do Not Disturb"],
     set_mic_mute: ["تشغيل الميكروفون", "Turning the microphone on"],
-    remote_control: ["تبديل Mo PC Remote", "Switching Mo PC Remote"],
+    remote_control: ["تبديل موج", "Switching Mawj"],
     fast_remote: ["تشغيل الاتصال السريع", "Turning on Fast Remote"]
 };
 

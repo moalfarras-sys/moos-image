@@ -390,13 +390,13 @@ head_ "البث عن بُعد | Remote viewing"
 if systemctl --user is-active mo-remote-personal.service >/dev/null 2>&1; then
     connections="$(ss -tn state established '( sport = :8765 )' 2>/dev/null | tail -n +2 | wc -l)"
     if [ "${connections:-0}" -gt 0 ]; then
-        note "Mo PC Remote has ${connections} active connection(s); connections alone do not prove capture or its cost"
+        note "Mawj has ${connections} active connection(s); connections alone do not prove capture or its cost"
         note "review connected devices in Mo AI → Access; keep Remote running when it is your only display"
     else
-        ok "Mo PC Remote is on; no established connection was observed"
+        ok "Mawj is on; no established connection was observed"
     fi
 else
-    ok "Mo PC Remote service is off"
+    ok "Mawj service is off"
 fi
 
 # ── The wallet policy ────────────────────────────────────────────────────────

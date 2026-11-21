@@ -79,8 +79,8 @@ off() {
         fi
     done
     if [ "$changed" = 1 ]; then
-        printf '%s\n' "أُوقفت المشاركة الغريبة. جهازك يبقى متاحاً عبر Mo PC Remote."
-        printf '%s\n' "Foreign sharing is off. Your computer stays reachable through Mo PC Remote."
+        printf '%s\n' "أُوقفت المشاركة الغريبة. جهازك يبقى متاحاً عبر موج."
+        printf '%s\n' "Foreign sharing is off. Your computer stays reachable through Mawj."
     else
         printf '%s\n' "لا شيء ليُوقف | nothing to turn off"
     fi

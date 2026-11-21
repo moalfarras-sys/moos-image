@@ -1,15 +1,16 @@
-/** Privacy-safe, opt-in phone alerts for events produced by Mo PC Remote itself. */
+/** Privacy-safe, opt-in phone alerts for events produced by Mawj itself. */
+import { pageText, type StringId } from "./i18n.ts";
 
 export type AlertPermission = "unsupported" | NotificationPermission;
 export type RemoteAlert = "connection-interrupted" | "upload-complete";
 
-const ALERTS: Record<RemoteAlert, { body: string; tag: string }> = {
+const ALERTS: Record<RemoteAlert, { body: StringId; tag: string }> = {
   "connection-interrupted": {
-    body: "The desktop connection was interrupted.",
+    body: "alertInterrupted",
     tag: "remote-connection",
   },
   "upload-complete": {
-    body: "The file upload completed.",
+    body: "alertUploadComplete",
     tag: "remote-upload",
   },
 };
@@ -47,8 +48,8 @@ export async function showRemoteAlert(kind: RemoteAlert): Promise<boolean> {
         timeout = window.setTimeout(() => reject(new Error("service_worker_timeout")), 2000);
       }),
     ]);
-    await registration.showNotification("Mo PC Remote", {
-      body: alert.body,
+    await registration.showNotification(pageText("brandName"), {
+      body: pageText(alert.body),
       tag: alert.tag,
       icon: "/icons/icon-192.png",
       badge: "/icons/favicon-64.png",

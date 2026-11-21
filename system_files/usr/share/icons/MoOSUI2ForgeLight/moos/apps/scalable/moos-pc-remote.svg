@@ -101,15 +101,12 @@
   <rect class="ColorScheme-HighlightedText" fill="none" stroke="currentColor"
         stroke-opacity=".10" stroke-width="6" x="84" y="84" width="856" height="856" rx="116"/>
   <g class="ColorScheme-HighlightedText" fill="currentColor">
-    <rect x="228" y="230" width="520" height="376" rx="64"/>
-    <rect x="433" y="606" width="110" height="56"/>
-    <rect x="352" y="662" width="272" height="62" rx="31"/>
-  </g>
-  <rect class="ColorScheme-Highlight" fill="currentColor" x="296" y="298" width="384" height="240" rx="28"/>
-  <rect class="ColorScheme-Highlight" fill="currentColor" x="552" y="422" width="268" height="404" rx="80"/>
-  <rect class="ColorScheme-HighlightedText" fill="currentColor" x="576" y="446" width="220" height="356" rx="58"/>
-  <g class="ColorScheme-Highlight" fill="currentColor">
-    <rect x="656" y="488" width="60" height="18" rx="9"/>
-    <rect x="646" y="742" width="80" height="18" rx="9"/>
+    <path d="M194 605c79-14 111-88 151-178 47-106 120-190 238-190
+             52 0 101 20 136 56-80-7-147 34-159 103-14 76 44 137 123 137
+             56 0 104-24 144-70-18 110-96 193-207 193-68 0-113-27-158-51
+             -40-22-70-35-112-35-50 0-91 27-133 69Z"/>
+    <path d="M236 704c46-49 90-78 145-78 45 0 78 16 120 39
+             41 22 79 41 131 45 46 3 90-4 137-26-36 56-95 89-164 89
+             -57 0-101-20-146-44-43-23-74-34-111-34-36 0-68 10-99 27Z"/>
   </g>
 </svg>

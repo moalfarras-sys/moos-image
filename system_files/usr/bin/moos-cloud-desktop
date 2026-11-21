@@ -132,7 +132,7 @@ ensure_render_device() {
     local group="${1:-}"
     if ! modinfo vgem >/dev/null 2>&1; then
         note "this kernel has no vgem — the private desktop will composite with QPainter"
-        note "and Mo PC Remote will not be able to stream it"
+        note "and Mawj will not be able to stream it"
         return 0
     fi
     modprobe vgem 2>/dev/null || true
@@ -495,9 +495,9 @@ UNIT
         systemctl --user restart mo-remote-personal.service >/dev/null 2>&1 || true
     sleep 8
     if ss -tnl 2>/dev/null | grep -q ":${port} "; then
-        ok "Mo PC Remote listening on ${port} for ${user}"
+        ok "Mawj listening on ${port} for ${user}"
     else
-        note "Mo PC Remote is not listening on ${port} yet — it starts with the session"
+        note "Mawj is not listening on ${port} yet — it starts with the session"
     fi
 
     echo
@@ -654,9 +654,9 @@ CONF
 
     if runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
             systemctl --user enable --now mo-remote-personal.service >/dev/null 2>&1; then
-        ok "Mo PC Remote started"
+        ok "Mawj started"
     else
-        note "could not start Mo PC Remote yet — it will come up with the session"
+        note "could not start Mawj yet — it will come up with the session"
     fi
 
     # ── the seat owner's HTTPS ───────────────────────────────────────────────
@@ -694,7 +694,7 @@ CONF
     else
         ok "the desktop is on. Join this server to Tailscale to reach it:"
         note "tailscale up --ssh     then re-run: moos-cloud-desktop on ${user}"
-        note "(Mo PC Remote refuses connections from outside the tailnet — by design.)"
+        note "(Mawj refuses connections from outside the tailnet — by design.)"
     fi
 }
 
@@ -702,7 +702,7 @@ cmd_off() {
     rm -f "$CONF"
     systemctl restart plasmalogin.service 2>/dev/null || true
     ok "autologin removed — the greeter asks again on the next boot"
-    note "Mo PC Remote is left as it is; it simply has no session to stream."
+    note "Mawj is left as it is; it simply has no session to stream."
 }
 
 cmd_status() {
@@ -713,7 +713,7 @@ cmd_status() {
     fi
     printf '  graphical session: %s\n' \
         "$(loginctl list-sessions --no-legend 2>/dev/null | awk '$4=="seat0"{print $3; found=1} END{if(!found) print "none"}')"
-    printf '  Mo PC Remote: %s\n' \
+    printf '  Mawj: %s\n' \
         "$(ss -tnl 2>/dev/null | grep -q ':8765' && echo 'listening on 8765' || echo 'not listening')"
     # The seat owner is uid 1000 by construction (cmd_on configures autologin for them), so status
     # reports THEIR secure address. Printing tailscale_url() here was the third copy of the same
@@ -721,7 +721,7 @@ cmd_status() {
     local url
     url="$(account_url 1000)"
     [ -n "$url" ] && printf '  browser: %s\n' "$url" \
-                  || printf '  browser: join Tailscale first — Mo PC Remote answers nothing else\n'
+                  || printf '  browser: join Tailscale first — Mawj answers nothing else\n'
 }
 
 # ── doctor: the two things that go wrong on a private desktop ────────────────
@@ -893,7 +893,7 @@ grant_input() {
     # The agent reads the token once, at session start, so it has to come back.
     runuser -u "$user" -- env "XDG_RUNTIME_DIR=/run/user/${uid}" \
         systemctl --user restart mo-remote-personal.service >/dev/null 2>&1 || true
-    ok "${user}'s Mo PC Remote may now drive ${user}'s own desktop"
+    ok "${user}'s Mawj may now drive ${user}'s own desktop"
     note "verify: moos-cloud-desktop doctor ${user}"
 }
 
@@ -930,7 +930,7 @@ set_pin() {
     else
         # -s so it is not echoed, and asked twice so a typo cannot lock the account
         # out in the very act of unlocking it.
-        printf 'New Mo PC Remote PIN for %s (6+ chars, not shown): ' "$user" >&2
+        printf 'New Mawj PIN for %s (6+ chars, not shown): ' "$user" >&2
         IFS= read -rs pin; printf '\n' >&2
         printf 'Again: ' >&2
         local again; IFS= read -rs again; printf '\n' >&2
@@ -1075,9 +1075,9 @@ PYBUDGET
         case "$sent" in
             ''|*[!0-9]*) ;;
             *)  if [ "${current%x*}" -le "$sent" ]; then
-                    note "Mo PC Remote on Auto sends ${sent} px wide here: this desktop arrives 1:1, pixel for pixel."
+                    note "Mawj on Auto sends ${sent} px wide here: this desktop arrives 1:1, pixel for pixel."
                 else
-                    note "Mo PC Remote on Auto sends ${sent} px wide here: this desktop is scaled down to fit, which softens small text."
+                    note "Mawj on Auto sends ${sent} px wide here: this desktop is scaled down to fit, which softens small text."
                 fi ;;
         esac
         note "phone  1280x720   sent as it is drawn: sharper on a phone, more frames for less work"
@@ -1107,7 +1107,7 @@ PYBUDGET
     systemctl --user daemon-reload >/dev/null 2>&1 || true
     ok "the desktop will be ${size} from the next sign-in"
     note "Nothing was restarted, so nothing you have open was closed. It is ${current} until this"
-    note "account signs in again or the machine restarts; Mo PC Remote reconnects by itself."
+    note "account signs in again or the machine restarts; Mawj reconnects by itself."
 }
 
 case "${1:-status}" in

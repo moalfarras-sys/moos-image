@@ -299,7 +299,7 @@ PageFrame {
                     Flow {
                         Layout.fillWidth: true
                         spacing: 10
-                        T { id: heroTitle; text: "Mo PC Remote"; font.pixelSize: hero.compact ? Theme.title + 1 : Theme.heading; font.weight: Font.DemiBold; wrapMode: Text.NoWrap }
+                        T { id: heroTitle; text: mira.s.cn_remote_name; font.pixelSize: hero.compact ? Theme.title + 1 : Theme.heading; font.weight: Font.DemiBold; wrapMode: Text.NoWrap }
                         Item {   // the pill centred on the title's line
                             width: statePill.implicitWidth; height: heroTitle.height
                             StatusPill {

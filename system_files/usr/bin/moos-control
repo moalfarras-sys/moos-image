@@ -23,7 +23,7 @@ still asks to save — and Mo AI shows a card before it (confirm_values in the s
 Free text reaches argv only as a search term, a reminder's words or an http(s) address,
 each bounded and validated here; none of it is ever a command.
 
-The remote verbs (remote, fast-remote) drive Mo PC Remote the way its settings page and the
+The remote verbs (remote, fast-remote) drive Mawj the way its settings page and the
 moos://remote/… routes do: the one user unit, enabled or disabled with --now so it agrees with
 the page about the next boot, and the Fast Remote profile through its own tool. Each reads the
 result back; a unit that did not come up is a failure, not "on".
@@ -1249,30 +1249,30 @@ def remote(value):
         run(["systemctl", "--user", "enable", "--now", REMOTE_UNIT], timeout=60)
         up, state = remote_came_up()
         if not up:
-            raise Unavailable(f"Mo PC Remote did not start (it is {state})")
-        return "📱 Mo PC Remote يعمل | Mo PC Remote on"
+            raise Unavailable(f"Mawj did not start (it is {state})")
+        return "📱 موج يعمل | Mawj on"
     if value == "off":
         disable_login_remote()
         run(["systemctl", "--user", "disable", "--now", REMOTE_UNIT], timeout=60)
         if remote_state() in REMOTE_RUNNING:
-            raise Unavailable("Mo PC Remote is still running")
-        return "📴 Mo PC Remote متوقف | Mo PC Remote off"
+            raise Unavailable("Mawj is still running")
+        return "📴 موج متوقف | Mawj off"
     # try-restart does nothing to a stopped unit and still exits 0: say so instead.
     if remote_state() not in REMOTE_RUNNING:
-        raise Unavailable("Mo PC Remote is off; turn it on first")
+        raise Unavailable("Mawj is off; turn it on first")
     try:
         result = subprocess.run(["systemctl", "--user", "try-restart", REMOTE_UNIT],
                                 capture_output=True, text=True, timeout=REMOTE_RESTART_TIMEOUT,
                                 stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired as error:
         # systemd keeps the restart job when its client stops waiting: it is not a failure yet.
-        raise Unavailable("Mo PC Remote is still restarting; check again in a moment") from error
+        raise Unavailable("Mawj is still restarting; check again in a moment") from error
     if result.returncode != 0:
         raise Unavailable((result.stderr or result.stdout or "systemctl failed").strip())
     up, state = remote_came_up()
     if not up:
-        raise Unavailable(f"Mo PC Remote did not come back (it is {state})")
-    return "🔄 أُعيد تشغيل Mo PC Remote | Mo PC Remote restarted"
+        raise Unavailable(f"Mawj did not come back (it is {state})")
+    return "🔄 أُعيد تشغيل موج | Mawj restarted"
 
 
 def run_unkilled(argv, budget):

@@ -109,7 +109,7 @@ def kconfig_value(text: str, section: str, key: str) -> str:
 launchers = []
 for path in (ROOT / "system_files/usr/share/applications").glob("*.desktop"):
     text = path.read_text(encoding="utf-8")
-    if re.search(r"^Name=Mo (?:PC )?Remote(?: Personal)?$", text, re.MULTILINE):
+    if re.search(r"^Name=(?:Mawj|Mo (?:PC )?Remote(?: Personal)?)$", text, re.MULTILINE):
         launchers.append(path.name)
 require(launchers == ["org.moos.remote.desktop"],
         f"Mo Remote must have exactly one launcher; found {launchers}")
@@ -211,7 +211,10 @@ require("MO_REMOTE_ACQUIRE_ATTEMPTS" in code(remote_start)
         "logind/polkit call must fall through to the agent")
 
 remote_desktop = read("system_files/usr/share/applications/org.moos.remote.desktop")
-# The dock pin opens the Mo PC Remote app, whose window app id is the entry's own name, so pin
+require(kconfig_value(remote_desktop, "Desktop Entry", "Name") == "Mawj"
+        and kconfig_value(remote_desktop, "Desktop Entry", "Name[ar]") == "موج",
+        "the existing remote launcher must advertise its localized Mawj identity")
+# The dock pin opens the Mawj app, whose window app id is the entry's own name, so pin
 # and window are one icon; its switches live in System Settings → MoOS → Mo PC Remote, and that
 # page still reaches the app for pairing.
 require(re.search(r"(?m)^Exec=mo-pc-remote$", remote_desktop)

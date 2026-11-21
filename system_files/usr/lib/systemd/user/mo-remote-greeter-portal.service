@@ -1,5 +1,5 @@
 [Unit]
-Description=Mo PC Remote login-screen desktop portal
+Description=Mawj login-screen desktop portal
 ConditionUser=plasmalogin
 ConditionPathExists=/var/lib/mo-remote-greeter/enabled.json
 After=plasma-login-kwin_wayland.service plasma-xdg-desktop-portal-kde.service mo-remote-greeter-session.service

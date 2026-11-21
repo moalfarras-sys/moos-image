@@ -57,6 +57,17 @@ Its import trace charged 17.21 seconds to ESPHome and 4.34 seconds to the HTTP
 server on a computer without a paired Echo. Load these only for a paired device.
 Repeat both boots of the desktop disk with the same time limit before promotion.
 
+Nov21 P2.17. The owner uses Mawj (موج) as the daily phone/browser connection.
+Keep the existing account, pre-login boundary, routes and pairing through the
+rename. At the five-second retry cap the old controller waited out the timer
+after a network return, and could miss a socket left closing. The revised
+controller starts one attempt on the foreground network event, preserves a
+handshake already in flight and retires stale events. Native private-agent
+setup, sign-in, reload and an authenticated WebSocket reply passed on V3.
+The Chromium mobile fixture covers Arabic typing, frame continuity, switching
+workspaces and return from the background. Physical phone timing and the signed
+installed update require their own readback. [Mawj evidence](reviews/2026-11-21-mawj.json).
+
 The x86 editions reached production as 1173. ARM 994 from main a0261263 passed the desktop QCOW2 UEFI boot and production promotion in run 44573209173. V3 follow-up PR315 passed the full Oracle suite and ARM/x86 image CI. Keep the separate recovery disk and physical tablet checks open. [Release and installed application checks](reviews/2026-11-19-app-runtime-compatibility.json).
 
 Nov19 P0.1/P6.8: the upstream ARM base moved to 44.20261119.0 and renumbered service accounts. Register the exact new account bodies, refuse the old ones (PR CI rebuilt ARM/recovery on the new base), then follow the signed ARM pipeline and read back passim ownership after the Oracle update. [Review](reviews/2026-11-19-arm-base-accounts.json).

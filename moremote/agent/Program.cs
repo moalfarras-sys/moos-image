@@ -45,7 +45,7 @@ internal static class Program
             }
             if (!isFirst)
             {
-                MessageBox.Show("Mo Remote Personal is already running (see the tray icon).",
+                MessageBox.Show(AppInfo.Name + " is already running (see the tray icon).",
                     AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 mutex.Dispose();
                 return;

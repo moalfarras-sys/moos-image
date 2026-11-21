@@ -1161,11 +1161,11 @@ class MachineFactsTest(unittest.TestCase):
         english = tools.format_machine(FACTS, 'en', 0)
         self.assertTrue(arabic.startswith('هذا الجهاز (قراءة MoOS نفسها قبل 2 دقيقة'))
         for needle in ('MoOS 44.20260927.952 (نسخة NVIDIA)', 'النواة 7.2.7-200', 'NVIDIA GeForce RTX 2080 SUPER',
-                       'تعريف NVIDIA الرسمي يعمل', 'Mo PC Remote يعمل', 'Codex، OpenCode، Hermes', 'Claude Code',
+                       'تعريف NVIDIA الرسمي يعمل', 'موج يعمل', 'Codex، OpenCode، Hermes', 'Claude Code',
                        'خطة الجهاز: جاهز، مشكلات: 0 (مهمة: 0)، اقتراحات: 2', 'تطبيقات مقترحة ناقصة: 5', '4 ملاحظات'):
             self.assertIn(needle, arabic)
         for needle in ('THIS MACHINE', 'kernel 7.2.7-200', '(16 threads)', 'memory 15.4 GB', 'disk 194 GB free of 476',
-                       'driver: NVIDIA proprietary driver active', 'Mo PC Remote running', 'not installed: Claude Code',
+                       'driver: NVIDIA proprietary driver active', 'Mawj running', 'not installed: Claude Code',
                        'device plan: ready, 0 problems (0 important), 2 suggestions, 5 recommended apps missing'):
             self.assertIn(needle, english)
         leaked = tools.format_machine({**FACTS, 'kernel': '7.2.7-200.fc44.x86_64'}, 'en')

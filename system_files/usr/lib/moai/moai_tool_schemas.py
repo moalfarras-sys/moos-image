@@ -391,7 +391,7 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
     ),
     _schema(
         "remote_anywhere",
-        "Enable Mo PC Remote access from anywhere via Tailscale HTTPS — يفعّل التحكم عن بعد من أي مكان عبر Tailscale",
+        "Enable Mawj access from anywhere via Tailscale HTTPS — يفعّل التحكم عن بعد من أي مكان عبر Tailscale",
         category=PRIV_CONFIRM, executor="moai-do", command="remote-anywhere",
         consequence=("يمنح هذا الكمبيوتر اسماً وشهادة HTTPS على شبكة Tailscale الخاصة بك ليصله هاتفك من "
                      "أي مكان. لا يُنشر شيء على الإنترنت العام. تُطلب كلمة المرور.",
@@ -845,9 +845,9 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
     # restart only reconnects a remote that is already on (try-restart), so it never opens one.
     _schema(
         "remote_control",
-        "Turn Mo PC Remote (control this computer from your phone) on or off, or restart it to "
+        "Turn Mawj (control this computer from your phone) on or off, or restart it to "
         "fix a stuck connection. For reaching it from outside the home use remote_anywhere — "
-        "يشغّل أو يوقف Mo PC Remote (التحكم بالكمبيوتر من الهاتف) أو يعيد تشغيله لإصلاح اتصال عالق",
+        "يشغّل أو يوقف موج (التحكم بالكمبيوتر من الهاتف) أو يعيد تشغيله لإصلاح اتصال عالق",
         category=CONTROL, executor="moos-control", command="remote",
         parameters={"value": {"type": "string", "enum": ["on", "off", "restart"],
                               "description": "on, off, or restart to reconnect"}},
@@ -865,8 +865,8 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
     _schema(
         "fast_remote",
         "Turn Fast Remote on or off: a lighter desktop (no blur, animations or wallpaper motion) "
-        "that makes Mo PC Remote smoother — يشغّل أو يطفئ الاتصال السريع: سطح مكتب أخف يجعل "
-        "Mo PC Remote أسلس",
+        "that makes Mawj smoother — يشغّل أو يطفئ الاتصال السريع: سطح مكتب أخف يجعل "
+        "موج أسلس",
         category=CONTROL, executor="moos-control", command="fast-remote",
         parameters={"value": {"type": "string", "enum": ["on", "off"],
                               "description": "on for a lighter desktop, off restores it"}},
@@ -886,9 +886,9 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
     _schema(
         "desktop_size",
         "Choose the size of this computer's desktop when it has NO monitor and is watched "
-        "through Mo PC Remote: phone (sharper and smoother on a phone) or desk (more room for "
+        "through Mawj: phone (sharper and smoother on a phone) or desk (more room for "
         "a computer). Applies at the next sign-in — يختار حجم سطح المكتب لحاسوب بلا شاشة "
-        "يُشاهَد عبر Mo PC Remote: هاتف أو مكتب، ويُطبَّق عند الدخول التالي",
+        "يُشاهَد عبر موج: هاتف أو مكتب، ويُطبَّق عند الدخول التالي",
         category=CONTROL, executor="moos-control", command="desktop-size",
         parameters={"value": {"type": "string", "enum": ["phone", "desk"],
                               "description": "phone for a phone-sized desktop, desk for a larger one"}},

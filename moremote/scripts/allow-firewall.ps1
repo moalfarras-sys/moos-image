@@ -20,5 +20,5 @@ if (-not $isAdmin) {
 Remove-NetFirewallRule -DisplayName "Mo Remote Personal" -ErrorAction SilentlyContinue
 New-NetFirewallRule -DisplayName "Mo Remote Personal" `
   -Direction Inbound -Action Allow -Program $exe -Profile Any `
-  -Description "Allow iPhone to reach Mo Remote Personal over Tailscale" | Out-Null
+  -Description "Allow iPhone to reach Mawj over Tailscale" | Out-Null
 Write-Host "Firewall inbound rule added for: $exe" -ForegroundColor Green

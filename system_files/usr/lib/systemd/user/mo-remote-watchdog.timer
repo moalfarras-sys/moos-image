@@ -1,5 +1,5 @@
 [Unit]
-Description=Check once a minute whether Mo PC Remote crashed and needs bringing back
+Description=Check once a minute whether Mawj crashed and needs bringing back
 Documentation=file:/usr/libexec/mo-remote-watchdog
 
 [Timer]
