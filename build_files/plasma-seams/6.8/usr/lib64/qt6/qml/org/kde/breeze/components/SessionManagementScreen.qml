@@ -429,10 +429,10 @@ FocusScope {
                 width: field.reachEnd - field.reachStart
                 height: parent.height
                 radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)
-                // The Tidal Cut at control size: the top-trailing corner — the
-                // one over the key — is short, like the key's own and like the
-                // cut on the island above it.
-                readonly property real shortCorner: Math.max(2, Math.round(radius * 0.32))
+                // The MoOS corner at control size: the top-trailing corner — the
+                // one over the key — is square, like the key's own and like the
+                // island's above it.
+                readonly property real shortCorner: Math.min(radius, root.design.radiusSquare)
                 topLeftRadius: capsule.LayoutMirroring.enabled ? shortCorner : radius
                 topRightRadius: capsule.LayoutMirroring.enabled ? radius : shortCorner
                 color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
@@ -519,7 +519,7 @@ FocusScope {
                 anchors.margins: key.inset
                 // Concentric with the capsule: the family radius less the inset.
                 radius: Math.round((root.design.radiusControl + 2) * root.sessionScale) - key.inset
-                readonly property real shortCorner: Math.max(2, Math.round(radius * 0.32))
+                readonly property real shortCorner: Math.min(radius, root.design.radiusSquare)
                 topLeftRadius: keyPlate.LayoutMirroring.enabled ? shortCorner : radius
                 topRightRadius: keyPlate.LayoutMirroring.enabled ? radius : shortCorner
                 color: key.armed ? root.accentA
@@ -666,10 +666,8 @@ FocusScope {
         scale: 0.94 + 0.06 * root.spring(root.slice(0, 0.8))
         opacity: root.settledOpacity
         radius: Math.round(root.design.radiusDialog * Math.max(0.8, root.sessionScale))
-        // The Tidal Cut (MoUI.TidalShape): the island is the same silhouette as
-        // every MoOS window action, at the size of the sheet — three corners
-        // round, the top-trailing one cut at 45°, lit along the top and the cut.
-        cut: radius
+        // The MoOS corner comes with the surface (MoUI.Surface): three corners
+        // round, the top-trailing one square. The sheet is lit from above.
         sheen: 0.07
         depth: root.design.glassLevelDialog
         surfaceColor: Kirigami.Theme.backgroundColor
@@ -709,12 +707,15 @@ FocusScope {
             anchors.fill: parent
             visible: false
             layer.enabled: root.orbitGlow > 0
-            MoUI.TidalShape {
+            Rectangle {
                 anchors.fill: parent
                 radius: island.radius
-                cut: island.cut
-                strokeColor: "black"
-                strokeWidth: Math.max(2, Math.round(2 * root.sessionScale))
+                topLeftRadius: island.topLeftRadius
+                topRightRadius: island.topRightRadius
+                color: "transparent"
+                border.width: Math.max(2, Math.round(2 * root.sessionScale))
+                border.color: "black"
+                antialiasing: true
             }
         }
         Effects.ConicalGradient {
@@ -739,13 +740,15 @@ FocusScope {
         }
 
         // A refusal: the rim answers once in the negative role, with the notice.
-        MoUI.TidalShape {
+        Rectangle {
             id: refusalRim
             anchors.fill: parent
             radius: island.radius
-            cut: island.cut
-            strokeWidth: Math.max(2, Math.round(2 * root.sessionScale))
-            strokeColor: Kirigami.Theme.negativeTextColor
+            topLeftRadius: island.topLeftRadius
+            topRightRadius: island.topRightRadius
+            color: "transparent"
+            border.width: Math.max(2, Math.round(2 * root.sessionScale))
+            border.color: Kirigami.Theme.negativeTextColor
             opacity: 0
             visible: opacity > 0
             SequentialAnimation {
@@ -1074,21 +1077,22 @@ FocusScope {
                 && actionItemsLayout.visibleChildren.length > 0
             implicitHeight: actionItemsLayout.implicitHeight + (docked ? dockPad * 2 : 0)
             implicitWidth: actionItemsLayout.implicitWidth + (docked ? dockPad * 2 : 0)
-            MoUI.TidalShape {
+            MoUI.GlassSurface {
                 id: actionDock
                 objectName: "moosSessionActionDock"
                 anchors.fill: parent
                 visible: actionDockSlot.docked
                 Kirigami.Theme.inherit: false
                 Kirigami.Theme.colorSet: Kirigami.Theme.Window
+                animateArrival: false
                 radius: Math.round(root.design.radiusPanel * Math.max(0.8, root.sessionScale))
-                cut: radius
-                fillColor: Qt.alpha(Kirigami.Theme.backgroundColor, 0.58)
+                depth: root.design.glassLevelPanel
+                surfaceColor: Kirigami.Theme.backgroundColor
+                fillOpacity: root.softwareRendering ? 0.9 : 0.58
+                inkColor: Kirigami.Theme.textColor
+                accentColor: root.accentA
                 sheen: 0.06
-                strokeColor: Qt.alpha(Kirigami.Theme.textColor, 0.14)
-                strokeWidth: root.design.borderHairline
-                specularColor: root.design.glassSpecular(Kirigami.Theme.backgroundColor,
-                                                         root.design.glassLevelPanel)
+                border.color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
             }
             GridLayout {
                 id: actionItemsLayout

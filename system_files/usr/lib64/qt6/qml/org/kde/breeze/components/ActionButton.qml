@@ -191,9 +191,9 @@ PlasmaComponents3.AbstractButton {
         width: implicitWidth
         height: implicitHeight
         radius: design.radiusPanel
-        // The Tidal Cut at key size: the top-trailing corner is short.
-        topLeftRadius: root.LayoutMirroring.enabled ? Math.round(design.radiusPanel * 0.32) : design.radiusPanel
-        topRightRadius: root.LayoutMirroring.enabled ? design.radiusPanel : Math.round(design.radiusPanel * 0.32)
+        // The MoOS corner at key size: the top-trailing corner is square.
+        topLeftRadius: root.LayoutMirroring.enabled ? design.radiusSquare : design.radiusPanel
+        topRightRadius: root.LayoutMirroring.enabled ? design.radiusPanel : design.radiusSquare
         // MoOS glass: the brand tint, warmed by the pointer. Software rendering
         // keeps upstream's opaque fallback — a tint over an unblurred surface
         // reads as dirt, and that path exists for machines with no GPU at all.
