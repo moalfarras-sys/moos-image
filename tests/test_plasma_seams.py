@@ -39,6 +39,23 @@ import plasma_seams  # noqa: E402
 
 REGISTRY = plasma_seams.load_registry()
 SEAM_PATHS = [s["path"] for s in REGISTRY["seams"]]
+# Which package rpm says owns a path: every seam, and every module qmldir a seam relies on.
+PACKAGE_OF = {s["path"]: s["package"] for s in REGISTRY["seams"]}
+PACKAGE_OF.update({s["qmldir"]: s["package"] for s in REGISTRY["seams"] if s.get("qmldir")})
+KEYBOARD_SEAMS = [s["path"] for s in REGISTRY["seams"] if s["package"] == "plasma-keyboard"]
+# plasma-keyboard 6.8.3-1.fc44's two module qmldirs, byte for byte (rpm digests in set 6.8.3).
+KEYBOARD_QMLDIRS = {
+    "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/qmldir": (
+        "module org.kde.plasma.keyboard.lib\nlinktarget keyboardlib\noptional plugin keyboardlib\n"
+        "classname org_kde_plasma_keyboard_libPlugin\ntypeinfo keyboardlib.qmltypes\ndepends QtQuick\n"
+        "prefer :/qt/qml/org/kde/plasma/keyboard/lib/\nBreezeKeyPanel 254.0 BreezeKeyPanel.qml\n"
+        "singleton BreezeConstants 254.0 BreezeConstants.qml\nBreezePopup 254.0 BreezePopup.qml\n\n"),
+    "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/qmldir": (
+        "module QtQuick.VirtualKeyboard.Styles.Breeze\nlinktarget breezestyle\n"
+        "optional plugin breezestyle\nclassname QtQuick_VirtualKeyboard_Styles_BreezePlugin\n"
+        "typeinfo breezestyle.qmltypes\ndepends QtQuick\n"
+        "prefer :/qt/qml/QtQuick/VirtualKeyboard/Styles/Breeze/\n\n"),
+}
 SYSTEM = ROOT / "system_files"
 LOCK = "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
 COMPONENTS = "/usr/lib64/qt6/qml/org/kde/breeze/components"
@@ -259,8 +276,7 @@ def fake_rpm(version: str, digests: dict[str, str], verify: dict[str, str]):
             return "8"
         if args[:2] == ("-q", "--qf"):
             package = args[3]
-            owned = {p: d for p, d in digests.items()
-                     if next(s["package"] for s in REGISTRY["seams"] if s["path"] == p) == package}
+            owned = {p: d for p, d in digests.items() if PACKAGE_OF[p] == package}
             return "".join(f"{p}\t{d}\n" for p, d in owned.items())
         if args[0] == "-q":
             return args[1]
@@ -316,14 +332,16 @@ class TheGateRefuses(unittest.TestCase):
             self.run_gate('6.7.5', self.reviewed('6.7'), {'plasma-desktop': 'S.5....T.    '+path})
 
     def test_invalid_scopes_or_missing_variant_are_never_a_gate_bypass(self):
+        def power(data):
+            return next(s for s in data['seams'] if s['path'].endswith('/logout/LogoutControls.qml'))
         for scopes in ([], ['unknown'], ['6.8.1','6.8.1'], '6.8.1', [1]):
             data = json.loads(json.dumps(REGISTRY))
-            data['seams'][-1]['sets'] = scopes
+            power(data)['sets'] = scopes
             with self.assertRaises(plasma_seams.SeamError):
                 plasma_seams.active_seams(data, next(s for s in data['sets'] if s['id']=='6.8.1'))
         data = json.loads(json.dumps(REGISTRY))
         chosen = next(s for s in data['sets'] if s['id']=='6.8.1')
-        del chosen['sources'][data['seams'][-1]['path']]
+        del chosen['sources'][power(data)['path']]
         with self.assertRaisesRegex(plasma_seams.SeamError, 'no installed variant'):
             plasma_seams.active_seams(data, chosen)
 
@@ -374,6 +392,84 @@ class TheGateRefuses(unittest.TestCase):
         del digests[BACKDROP]
         with self.assertRaisesRegex(plasma_seams.SeamError, "no longer ships"):
             self.run_gate("6.7.5", digests)
+
+    # ── plasma-keyboard: Plasma's on-screen keyboard, restyled for 6.8.3 ─────────────────
+    def plant_keyboard_qmldirs(self):
+        for path, text in KEYBOARD_QMLDIRS.items():
+            target = self.root / path.lstrip("/")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text, encoding="utf-8")
+
+    def keyboard_digests(self):
+        chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8.3")
+        digests = self.reviewed("6.8.3")
+        digests.update({path: reviewed[0] for path, reviewed in chosen["qmldirs"].items()})
+        return digests
+
+    def test_the_upstream_qmldirs_here_are_the_reviewed_bytes(self):
+        chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8.3")
+        self.assertEqual(sorted(chosen["qmldirs"]), sorted(KEYBOARD_QMLDIRS))
+        self.assertEqual(sorted({s["qmldir"] for s in REGISTRY["seams"] if s.get("qmldir")}),
+                         sorted(KEYBOARD_QMLDIRS))
+        for path, text in KEYBOARD_QMLDIRS.items():
+            self.assertIn(hashlib.sha256(text.encode()).hexdigest(), chosen["qmldirs"][path], path)
+            self.assertEqual(sum(line.startswith("prefer ") for line in text.splitlines()), 1, path)
+
+    def test_six_eight_three_restyles_the_keyboard_and_reads_it_from_disk(self):
+        self.plant_keyboard_qmldirs()
+        report = self.run_gate("6.8.3", self.keyboard_digests())
+        chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8.3")
+        self.assertEqual(len(KEYBOARD_SEAMS), 4)
+        for path in KEYBOARD_SEAMS:
+            self.assertEqual((self.root / path.lstrip("/")).read_bytes(),
+                             (ROOT / "build_files/plasma-seams" / chosen["sources"][path]).read_bytes(), path)
+        for path, text in KEYBOARD_QMLDIRS.items():
+            self.assertEqual((self.root / path.lstrip("/")).read_text(encoding="utf-8"),
+                             "".join(line for line in text.splitlines(keepends=True)
+                                     if not line.startswith("prefer ")), path)
+        self.assertEqual(sum("dropped `prefer`" in line for line in report), 2, report)
+
+    def test_a_keyboard_qmldir_upstream_changed_is_refused(self):
+        self.plant_keyboard_qmldirs()
+        digests = self.keyboard_digests()
+        digests[next(iter(KEYBOARD_QMLDIRS))] = "b" * 64
+        with self.assertRaisesRegex(plasma_seams.SeamError, "changed how this module resolves"):
+            self.run_gate("6.8.3", digests)
+
+    def test_an_unreviewed_keyboard_qmldir_is_refused(self):
+        self.plant_keyboard_qmldirs()
+        data = json.loads(json.dumps(REGISTRY))
+        del next(s for s in data["sets"] if s["id"] == "6.8.3")["qmldirs"]
+        a, b = fake_rpm("6.8.3", self.keyboard_digests(), {})
+        with a, b, self.assertRaisesRegex(plasma_seams.SeamError, "reviewed nothing"):
+            plasma_seams.apply_and_verify(data, str(self.root))
+
+    def test_a_keyboard_qmldir_is_edited_once_and_only_from_upstream_bytes(self):
+        self.plant_keyboard_qmldirs()
+        self.run_gate("6.8.3", self.keyboard_digests())
+        with self.assertRaisesRegex(plasma_seams.SeamError, "already ran"):
+            self.run_gate("6.8.3", self.keyboard_digests())
+
+    def test_six_seven_never_touches_the_keyboard(self):
+        self.plant_keyboard_qmldirs()
+        self.run_gate("6.7.5", self.reviewed("6.7"))
+        for path, text in KEYBOARD_QMLDIRS.items():
+            self.assertEqual((self.root / path.lstrip("/")).read_text(encoding="utf-8"), text, path)
+        for path in KEYBOARD_SEAMS:
+            self.assertFalse((self.root / path.lstrip("/")).exists(), path)
+        verify = {"plasma-keyboard": f"S.5....T.    {next(iter(KEYBOARD_QMLDIRS))}\n"}
+        with self.assertRaisesRegex(plasma_seams.SeamError, "neither a registered seam"):
+            self.run_gate("6.7.5", self.reviewed("6.7"), verify)
+
+    def test_rpm_accounts_for_every_keyboard_edit_on_six_eight_three(self):
+        self.plant_keyboard_qmldirs()
+        verify = {"plasma-keyboard": "".join(f"S.5....T.    {path}\n"
+                                             for path in [*KEYBOARD_SEAMS, *KEYBOARD_QMLDIRS])}
+        self.run_gate("6.8.3", self.keyboard_digests(), verify)
+        verify["plasma-keyboard"] += "S.5....T.    /usr/share/plasma/keyboard/layouts/ar_AR/main.qml\n"
+        self.plant_keyboard_qmldirs()
+        with self.assertRaisesRegex(plasma_seams.SeamError, "ar_AR/main.qml.*neither a registered seam"):
+            self.run_gate("6.8.3", self.keyboard_digests(), verify)
 
     def test_an_unreviewed_plasma_is_refused(self):
         with self.assertRaisesRegex(plasma_seams.SeamError, "no reviewed MoOS seam set"):
@@ -452,6 +548,98 @@ BROKEN_RUN = [
     "kscreenlocker_greet: file:///tmp/p/contents/lockscreen/LockScreenUi.qml:675:9: VirtualKeyboardLoaderRemovedIn68 is not a type ",
     "Locked at 1790233218",
 ]
+
+
+# plasma-keyboard 6.8.3 offscreen with MoOS's style, outside KWin (V3, 2026-11-22).
+CLEAN_KEYBOARD = [
+    "qt.qml.propertyCache.append: Member contentWidth of the object PopupList_QMLTYPE_47 overrides a member of the base object. Consider renaming it or adding final or override specifier",
+    "kf.windowsystem: Could not find any platform plugin",
+    "Failed to create wl_display (No such file or directory)",
+    "OverlayWindow_QMLTYPE_87(0x563a9ab39050) is not a wayland window. Not creating input panel surface.",
+    "InputPanelWindow(0x563a9ab123b0) is not a wayland window. Not creating input panel surface.",
+    "org.kde.plasma.keyboard: Cannot run plasma-keyboard standalone. You can enable it in Plasma's System Settings app, on the \u201cVirtual Keyboard\u201d page.",
+]
+# The first MoOS popup draft read `theme` in a child before the style assigned it (measured).
+NULL_THEME = "file:///usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezePopup.qml:41:9: TypeError: Cannot read property 'popupRadius' of null"
+BROKEN_KEYBOARD = [
+    "file:///usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeKeyPanel.qml:89:5: MoosNoSuchKeyType is not a type",
+    "qrc:/qt/qml/org/kde/plasma/keyboard/LanguagePopupDelegate.qml:59: TypeError: Cannot read property 'scaleHint' of null",
+    "file:///usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeConstants.qml:81: ReferenceError: moosNoSuchScale is not defined",
+    NULL_THEME,
+]
+
+
+class TheKeyboardProbeReadsPlasmaKeyboard(unittest.TestCase):
+    def test_a_clean_keyboard_passes(self):
+        self.assertEqual(plasma_seams.keyboard_problems(1, CLEAN_KEYBOARD), [])
+
+    def test_the_measured_failures_fail(self):
+        for line in BROKEN_KEYBOARD:
+            self.assertEqual(plasma_seams.classify_keyboard_output([line]), [line])
+            self.assertTrue(plasma_seams.keyboard_problems(1, [*CLEAN_KEYBOARD, line]))
+
+    def test_an_unfinished_or_crashed_keyboard_fails(self):
+        self.assertTrue(plasma_seams.keyboard_problems(1, CLEAN_KEYBOARD[:-1]))
+        self.assertTrue(plasma_seams.keyboard_problems(-11, CLEAN_KEYBOARD))
+        self.assertTrue(plasma_seams.keyboard_problems(None, CLEAN_KEYBOARD))
+
+    def test_script_errors_elsewhere_are_not_the_keyboards(self):
+        line = "file:///usr/share/plasma/look-and-feel/x/Foo.qml:3: TypeError: Cannot read property 'x' of null"
+        self.assertEqual(plasma_seams.classify_keyboard_output([line]), [])
+
+    def test_the_build_runs_it_only_where_the_set_restyles_the_keyboard(self):
+        for version, expected in (("6.8.3", True), ("6.8.2", False), ("6.7.5", False)):
+            with mock.patch.object(plasma_seams, "package_version", lambda pkg, root="/": version):
+                self.assertEqual(plasma_seams.restyles_keyboard(REGISTRY), expected, version)
+
+
+def native_keyboard_version() -> str | None:
+    if not os.access(plasma_seams.KEYBOARD, os.X_OK) or not shutil.which("rpm"):
+        return None
+    try:
+        return plasma_seams.package_version("plasma-keyboard")
+    except plasma_seams.SeamError:
+        return None
+
+
+@unittest.skipUnless(native_keyboard_version() == "6.8.3",
+                     "needs native plasma-keyboard 6.8.3; both image builds run this probe")
+class TheRealKeyboardLoadsTheseFiles(unittest.TestCase):
+    """The real plasma-keyboard, offscreen and isolated, with this tree's style in a shadow copy."""
+
+    def overlay(self, popup: Path | None = None) -> dict[str, Path]:
+        chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8.3")
+        files = {path: ROOT / "build_files/plasma-seams" / chosen["sources"][path] for path in KEYBOARD_SEAMS}
+        if popup is not None:
+            files[next(p for p in KEYBOARD_SEAMS if p.endswith("/BreezePopup.qml"))] = popup
+        return files
+
+    def run_shadow(self, tmp: Path, name: str, **kwargs) -> tuple[Path, int | None, list[str]]:
+        shadow = plasma_seams.shadow_keyboard_modules(tmp / name, **kwargs)
+        status, lines = plasma_seams.run_keyboard(shadow, timeout=60)
+        return shadow, status, lines
+
+    def test_the_style_loads_clean_and_a_planted_error_is_seen(self):
+        with tempfile.TemporaryDirectory(prefix="moos-kbt-") as tmp:
+            _shadow, status, lines = self.run_shadow(Path(tmp), "clean", overlay=self.overlay())
+            self.assertEqual(plasma_seams.keyboard_problems(status, lines), [], "\n".join(lines))
+            shadow, _status, lines = self.run_shadow(Path(tmp), "planted", overlay=self.overlay(), plant=True)
+            self.assertTrue(any(plasma_seams.KEYBOARD_CONTROL in line and str(shadow) in line
+                                for line in lines), "\n".join(lines))
+
+    def test_the_first_popup_drafts_null_theme_fails_for_real(self):
+        source = self.overlay()[next(p for p in KEYBOARD_SEAMS if p.endswith("/BreezePopup.qml"))]
+        fixed = source.read_text(encoding="utf-8")
+        light = "x: popup.typingRightToLeft ? popup.squareRadius + 1 : popup.roundRadius * 0.7"
+        self.assertIn(light, fixed)
+        with tempfile.TemporaryDirectory(prefix="moos-kbt-") as tmp:
+            draft = Path(tmp) / "BreezePopup.qml"
+            draft.write_text(fixed.replace(light, "x: popup.typingRightToLeft ? popup.theme.squareRadius + 1"
+                                                  " : popup.theme.popupRadius * 0.7"), encoding="utf-8")
+            _shadow, status, lines = self.run_shadow(Path(tmp), "draft", overlay=self.overlay(draft))
+            problems = plasma_seams.keyboard_problems(status, lines)
+            self.assertTrue(any("BreezePopup.qml" in line and "of null" in line for line in problems),
+                            "\n".join(lines))
 
 
 class TheProbeReadsTheGreeter(unittest.TestCase):

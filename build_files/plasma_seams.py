@@ -6,7 +6,9 @@ WHY THIS EXISTS (plan row P6.7)
 MoOS restyles Plasma by REPLACING twelve common files inside two Plasma packages (the shell package's
 widget explorer, edit mode, panel, lock-screen media strip, defaults and panel template; six breeze
 components the login, lock and logout screens draw). Each replacement is a fork of the upstream file at one Plasma
-version. Plasma 6.8.1 adds one explicitly scoped native power-control destination.
+version. Plasma 6.8.1 adds one explicitly scoped native power-control destination, and
+6.8.3 four scoped plasma-keyboard style files (the on-screen keyboard), whose module qmldirs
+lose `prefer` here and whose real keyboard is loaded offscreen with a negative control.
 Nothing in the build knew which version: the survival gate proves MoOS's bytes are still
 there, which is exactly what goes wrong when upstream moves on.
 
@@ -73,7 +75,22 @@ REGISTERED_EDITS = {
                     "org.kde.breezetwilight.desktop")},
 }
 PLASMA_PACKAGES = ("plasma-desktop", "plasma-workspace", "kscreenlocker", "kwin",
-                   "libplasma", "plasma-login-manager")
+                   "libplasma", "plasma-login-manager", "plasma-keyboard")
+
+# plasma-keyboard (Plasma's on-screen keyboard) draws its keys with a Qt Virtual Keyboard style
+# from two QML modules. MoOS's keyboard seams live there, and both modules' qmldir says `prefer`.
+KEYBOARD = "/usr/bin/plasma-keyboard"
+KEYBOARD_MODULES = ("/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib",
+                    "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze")
+QML_ROOT = "/usr/lib64/qt6/qml"
+# Errors in these files are MoOS's to answer for: the style, its constants and key panels, and
+# upstream's own keyboard QML, which reads MoOS's constants (its errors cascade from MoOS's).
+KEYBOARD_OWNED = re.compile(r"/org/kde/plasma/keyboard/|/QtQuick/VirtualKeyboard/Styles/Breeze/")
+# Outside KWin, plasma-keyboard builds its QML scene (style, constants, popups) and then refuses
+# to run standalone. That refusal is the probe's proof that it got through loading.
+KEYBOARD_LOADED = re.compile(r"Cannot run plasma-keyboard standalone")
+# The negative control: one planted reference error in a shadow copy of the style's constants.
+KEYBOARD_CONTROL = "moosKeyboardProbeControl"
 
 # What kscreenlocker and the QML engine print when the lock screen did NOT load.
 LOAD_FAILURES = (
@@ -233,8 +250,55 @@ def apply_and_verify(registry: dict, root: str = "/", seams_dir: Path = HERE / "
         elif not target.is_file():
             errors.append(f"{path}: MoOS's copy is missing from the image")
 
+    # A seam can live in a module whose qmldir says `prefer :/qt/qml/...`: Qt then loads the
+    # copies compiled into the module's plugin and never reads the file MoOS installed beside
+    # them (measured 2026-07-17 for the breeze components, 2026-11-22 for plasma-keyboard's
+    # style). Such a seam names its qmldir; the set reviews that qmldir's upstream bytes, and
+    # this step drops its one `prefer` line. Only for active seams: an older Plasma's module,
+    # with no MoOS file in it, is never touched.
+    unpreferred: dict[str, str] = {}
+    for seam in selected_seams:
+        if seam.get("qmldir"):
+            unpreferred.setdefault(seam["qmldir"], seam["package"])
+    for qmldir, package in sorted(unpreferred.items()):
+        if package not in digests:
+            digests[package] = upstream_digests(package, root)
+        upstream = digests[package].get(qmldir)
+        reviewed = chosen.get("qmldirs", {}).get(qmldir, [])
+        target = rooted(root, qmldir)
+        if upstream is None:
+            errors.append(f"{package} no longer ships {qmldir}: the MoOS files in that module "
+                          "would sit where nothing loads them. Re-review its seams.")
+            continue
+        if upstream not in reviewed:
+            errors.append(
+                f"{qmldir}: {package} ships upstream bytes {upstream[:16]}…, and set "
+                f"{chosen['id']} reviewed {', '.join(d[:16] + '…' for d in reviewed) or 'nothing'}. "
+                "Upstream changed how this module resolves its QML; re-review the seams in it.")
+            continue
+        if not target.is_file():
+            errors.append(f"{qmldir} is missing from the image")
+            continue
+        lines = target.read_text(encoding="utf-8").splitlines(keepends=True)
+        prefer = [line for line in lines if line.startswith("prefer ")]
+        if dry_run:
+            # Before the build the qmldir is upstream's; after it, upstream's without `prefer`.
+            if sha256(target) != upstream and prefer:
+                errors.append(f"{qmldir}: modified, yet it still prefers the compiled copies")
+            continue
+        if sha256(target) != upstream:
+            errors.append(f"{qmldir}: not the upstream bytes set {chosen['id']} reviewed — another "
+                          "step changed it, or this step already ran")
+            continue
+        if len(prefer) != 1:
+            errors.append(f"{qmldir}: expected one `prefer` line, found {len(prefer)}")
+            continue
+        target.write_text("".join(line for line in lines if not line.startswith("prefer ")),
+                          encoding="utf-8")
+        report.append(f"  {qmldir}: dropped `prefer`, so the MoOS files in this module load")
+
     # Every modified Plasma file must be accounted for, from rpm's point of view.
-    seam_paths = {s["path"] for s in selected_seams}
+    seam_paths = {s["path"] for s in selected_seams} | set(unpreferred)
     for package in PLASMA_PACKAGES:
         try:
             rpm("-q", package, root=root)
@@ -257,6 +321,127 @@ def apply_and_verify(registry: dict, root: str = "/", seams_dir: Path = HERE / "
         raise SeamError("\n".join(errors))
     report.append(f"  {len(selected_seams)} seams match their reviewed upstream bytes")
     return report
+
+
+def restyles_keyboard(registry: dict, root: str = "/") -> bool:
+    """Whether the set for this image's Plasma installs MoOS's on-screen keyboard style."""
+    chosen = select_set(registry, package_version(registry["version_package"], root))
+    return any(seam["package"] == "plasma-keyboard" for seam in active_seams(registry, chosen))
+
+
+def classify_keyboard_output(lines: list[str]) -> list[str]:
+    """The lines that mean the keyboard style did not load, or errored."""
+    return [line for line in lines
+            if any(p.search(line) for p in LOAD_FAILURES)
+            or (SCRIPT_ERROR.search(line) and KEYBOARD_OWNED.search(line))]
+
+
+def shadow_keyboard_modules(dest: Path, overlay: dict[str, Path] | None = None,
+                            plant: bool = False) -> Path:
+    """Copy the two keyboard modules under dest/ (a QML import root), without `prefer`.
+
+    overlay maps an image path to a file to put in its place (a source tree under review);
+    plant adds one reference error to the constants, the negative control.
+    """
+    for module in KEYBOARD_MODULES:
+        target = dest / Path(module).relative_to(QML_ROOT)
+        shutil.copytree(module, target, symlinks=True)
+        for path, source in (overlay or {}).items():
+            if path.startswith(module + "/"):
+                shutil.copyfile(source, target / Path(path).name)
+        qmldir = target / "qmldir"
+        qmldir.write_text("".join(line for line in qmldir.read_text(encoding="utf-8")
+                                  .splitlines(keepends=True) if not line.startswith("prefer ")),
+                          encoding="utf-8")
+    if plant:
+        constants = dest / Path(KEYBOARD_MODULES[0]).relative_to(QML_ROOT) / "BreezeConstants.qml"
+        text = constants.read_text(encoding="utf-8")
+        end = text.rstrip().rfind("}")
+        if end < 0:
+            raise SeamError(f"{constants}: no closing brace to plant the negative control before")
+        constants.write_text(text[:end] + f"    readonly property real moosProbe: {KEYBOARD_CONTROL}.x\n"
+                             + text[end:], encoding="utf-8")
+    return dest
+
+
+def run_keyboard(import_root: Path | None = None, timeout: float = 60.0) -> tuple[int | None, list[str]]:
+    """Start the real plasma-keyboard offscreen, isolated, and return its exit and output.
+
+    No compositor exists for it, so it never shows a panel: it builds its QML scene and refuses to
+    run standalone. Private HOME/XDG directories, unreachable session and system buses.
+    """
+    import resource
+
+    work = Path(tempfile.mkdtemp(prefix="moos-kb-"))  # short: a Wayland socket path is bounded
+    try:
+        dirs = {name: work / name for name in ("home", "config", "cache", "data", "run")}
+        for d in dirs.values():
+            d.mkdir()
+        dirs["run"].chmod(0o700)
+        (dirs["config"] / "plasmakeyboardrc").write_text("[General]\nenabledLocales=ar_AR,en_US\n",
+                                                         encoding="utf-8")
+        env = {
+            "PATH": "/usr/bin:/usr/sbin",
+            "HOME": str(dirs["home"]),
+            "XDG_CONFIG_HOME": str(dirs["config"]),
+            "XDG_CACHE_HOME": str(dirs["cache"]),
+            "XDG_DATA_HOME": str(dirs["data"]),
+            "XDG_RUNTIME_DIR": str(dirs["run"]),
+            "XDG_DATA_DIRS": "/usr/share",
+            "DBUS_SESSION_BUS_ADDRESS": f"unix:path={dirs['run']}/no-bus",
+            "DBUS_SYSTEM_BUS_ADDRESS": f"unix:path={dirs['run']}/no-system-bus",
+            "QT_QPA_PLATFORM": "offscreen",
+            "QT_QUICK_BACKEND": "software",
+            "QT_FORCE_STDERR_LOGGING": "1",
+            "QT_LOGGING_RULES": "*.debug=false;qml.warning=true;js.warning=true",
+            "QML_DISABLE_DISK_CACHE": "1",
+            "LANG": "C.UTF-8",
+        }
+        if import_root is not None:
+            env["QML_IMPORT_PATH"] = str(import_root)
+        try:
+            proc = subprocess.run([KEYBOARD], env=env, stdin=subprocess.DEVNULL,
+                                  capture_output=True, text=True, timeout=timeout,
+                                  preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
+        except subprocess.TimeoutExpired as exc:
+            out = (exc.stdout or b"") + (exc.stderr or b"")
+            text = out.decode("utf-8", "replace") if isinstance(out, bytes) else out
+            return None, [*text.splitlines(), f"plasma-keyboard did not finish within {timeout:.0f} s"]
+        return proc.returncode, (proc.stdout + proc.stderr).splitlines()
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def keyboard_problems(exit_status: int | None, lines: list[str]) -> list[str]:
+    problems = classify_keyboard_output(lines)
+    if exit_status is None or exit_status < 0:
+        problems.append(f"plasma-keyboard ended abnormally (status {exit_status})")
+    if not any(KEYBOARD_LOADED.search(line) for line in lines):
+        problems.append("plasma-keyboard never reported finishing its QML scene")
+    return problems
+
+
+def probe_keyboard(timeout: float = 60.0) -> tuple[bool, list[str]]:
+    """The installed keyboard style loads clean, from disk, and a planted error is seen."""
+    if not os.access(KEYBOARD, os.X_OK):
+        return False, [f"{KEYBOARD} is missing: plasma-keyboard is not installed"]
+    problems = []
+    for module in KEYBOARD_MODULES:
+        qmldir = Path(module) / "qmldir"
+        if any(line.startswith("prefer ") for line in qmldir.read_text(encoding="utf-8").splitlines()):
+            problems.append(f"{qmldir} still prefers its compiled copies: MoOS's style never loads")
+    status, lines = run_keyboard(timeout=timeout)
+    problems += keyboard_problems(status, lines)
+    shadow = Path(tempfile.mkdtemp(prefix="moos-kbshadow-"))
+    try:
+        shadow_keyboard_modules(shadow, plant=True)
+        _status, control = run_keyboard(shadow, timeout=timeout)
+        if not any(KEYBOARD_CONTROL in line and str(shadow) in line for line in control):
+            problems.append("negative control: plasma-keyboard did not report an error planted in a "
+                            "shadow copy of its style, so this probe cannot see the style at all")
+    finally:
+        shutil.rmtree(shadow, ignore_errors=True)
+    return (not problems), (problems or lines)
 
 
 def classify_greeter_output(lines: list[str]) -> list[str]:
@@ -409,6 +594,15 @@ def main(argv: list[str] | None = None) -> int:
                   "MoOS's lock screen. See build_files/plasma-seams/README.md.", file=sys.stderr)
             return 1
         print("MoOS seams: the lock screen loads in kscreenlocker's real greeter")
+        if args.cmd == "build" and restyles_keyboard(registry, args.root):
+            ok, lines = probe_keyboard(timeout=args.timeout)
+            if not ok:
+                print("GATE FAIL: MoOS's on-screen keyboard style does not load:", file=sys.stderr)
+                for line in lines:
+                    print(f"  {line}", file=sys.stderr)
+                return 1
+            print("MoOS seams: the on-screen keyboard style loads in plasma-keyboard, and a "
+                  "planted error in it is caught")
         return 0
     except SeamError as exc:
         print(f"GATE FAIL: {exc}", file=sys.stderr)

@@ -4797,6 +4797,9 @@ fi
 # Plasma file rpm reports that is not registered, then loads the real greeter offscreen with no
 # session bus. Runs after the last transaction that can touch Plasma; the survival gate below
 # then checks the installed bytes. Never widen a range or add a digest to get past it.
+# On 6.8.3 the same step restyles plasma-keyboard (the on-screen keyboard): it drops `prefer`
+# from that module's reviewed qmldirs and loads the real keyboard offscreen, with a planted-error
+# negative control (build_files/plasma-seams/README.md).
 python3 /ctx/plasma_seams.py build || {
     echo "GATE FAIL: MoOS's Plasma seams do not fit this Plasma (see the lines above)."
     exit 1

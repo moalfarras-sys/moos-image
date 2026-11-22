@@ -59,6 +59,38 @@
         "6.8.2",
         "6.8.3"
       ]
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeConstants.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ],
+      "qmldir": "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/qmldir"
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeKeyPanel.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ],
+      "qmldir": "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/qmldir"
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezePopup.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ],
+      "qmldir": "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/qmldir"
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ],
+      "qmldir": "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/qmldir"
     }
   ],
   "sets": [
@@ -327,12 +359,16 @@
         "from": "6.8.3",
         "before": "6.8.4"
       },
-      "reviewed_on": "2026-11-16: exact native x86_64 and aarch64 6.8.3-1.fc44 transaction. Upstream Clock.qml updated font.features to inherit defaultFont features (182941183dd7f7c164a2239d24d8c91d5e6c050e5d985537bdf5d0376800a52d); all 12 other upstream seam digests match the 6.8.2 review. Existing MoOS variants load in native 6.8.3 kscreenlocker_greet; authentication QML remains upstream.",
+      "reviewed_on": "2026-11-16: exact native x86_64 and aarch64 6.8.3-1.fc44 transaction. Upstream Clock.qml updated font.features to inherit defaultFont features (182941183dd7f7c164a2239d24d8c91d5e6c050e5d985537bdf5d0376800a52d); all 12 other upstream seam digests match the 6.8.2 review. Existing MoOS variants load in native 6.8.3 kscreenlocker_greet; authentication QML remains upstream. 2026-11-22: plasma-keyboard 6.8.3-1.fc44 (Plasma's on-screen keyboard) gains four MoOS seams, the Meyar Glass keyboard: its Qt Virtual Keyboard style and the three plasma-keyboard style files it instantiates (constants, key panel, popup). Upstream names, types, slots and feedback are kept; MoOS owns values and drawing. Both module qmldirs are reviewed at their upstream bytes and lose `prefer`, as the breeze components do. Native evidence: the real plasma-keyboard as a private KWin's input method draws them (Bloom/BloomLight, ar_AR/de_DE), and offscreen it loads them clean while a planted type or reference error is reported.",
       "sources": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": "6.8.0/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml",
         "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml",
         "/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml",
-        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml": "6.8.1/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml"
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml": "6.8.1/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml",
+        "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeConstants.qml": "6.8.3/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeConstants.qml",
+        "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeKeyPanel.qml": "6.8.3/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeKeyPanel.qml",
+        "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezePopup.qml": "6.8.3/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezePopup.qml",
+        "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml": "6.8.3/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml"
       },
       "reviewed": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": [
@@ -373,6 +409,26 @@
         ],
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml": [
           "6ed15b0ea18d118e8862ad0fd01038ab62afc41d96946fff2075dfd8f656d201"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeConstants.qml": [
+          "5232a739c24dc9bff84e52d2df738f626a58b9240ade65e340d414ad5fc58e28"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeKeyPanel.qml": [
+          "c6083d734bac3482c341b49c6a40cd85a17561a24f40f3e1a0e5927193b5ba5b"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezePopup.qml": [
+          "0e1d8dcafd6b27533221bffd311b52ea7999bc4d9046754a57159d5d78fbdcf5"
+        ],
+        "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml": [
+          "91d9e1c3f546a20d127903ea61ea231d0332e4029ec919e2d042955617887ced"
+        ]
+      },
+      "qmldirs": {
+        "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/qmldir": [
+          "8f397ff5b3bf35ecd34d9a55bfe2782fe95e4be5f5251cf2465b2354e301f783"
+        ],
+        "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/qmldir": [
+          "90cdbed180a6a394b4a636e66a9344fbb578380fe15cf7ed91338700a2d62dc6"
         ]
       }
     }
