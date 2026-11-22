@@ -902,7 +902,7 @@ FocusScope {
 
             FontMetrics {
                 id: noticeMetrics
-                font: notificationsLabel.font
+                font: noticeText.font
             }
 
             // The greeting: the line is empty until somebody arrives, so the
@@ -936,8 +936,8 @@ FocusScope {
                 // OWN width: a wrapping Text whose width comes from its parent
                 // while the parent's implicit width comes from the Text is the
                 // classic binding loop.
-                implicitWidth: notificationsLabel.width + root.unit * 1.6
-                implicitHeight: notificationsLabel.implicitHeight + Kirigami.Units.largeSpacing
+                implicitWidth: noticeText.width + root.unit * 1.6
+                implicitHeight: noticeText.implicitHeight + Kirigami.Units.largeSpacing
                 width: implicitWidth
                 height: implicitHeight
                 // A pill for one line, a rounded card when PAM says something
@@ -972,8 +972,21 @@ FocusScope {
                     easing.type: root.design.easeStandard
                 } }
 
+                // Upstream's notice text, verbatim: the public alias writes
+                // here and the refusal check reads it. It is not drawn.
                 PlasmaComponents3.Label {
                     id: notificationsLabel
+                    visible: false
+                    font: noticeText.font
+                    textFormat: Text.PlainText
+                }
+                // What the island SAYS: the same notice in the session's own
+                // Arabic (MoUI.SessionText — exact known plasma_login/PAM
+                // strings only; anything else is shown as it came).
+                PlasmaComponents3.Label {
+                    id: noticeText
+                    objectName: "moosSessionNotice"
+                    text: MoUI.SessionText.present(notificationsLabel.text, MoUI.SessionText.isArabic(Qt.locale().name))
                     anchors.centerIn: parent
                     width: Math.min(implicitWidth, root.unit * 14)
                     font.family: root.design.interfaceFamily

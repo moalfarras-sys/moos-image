@@ -60,7 +60,12 @@ def no_core() -> None:
 def overlays() -> list[str]:
     """Bind every source session file over its installed counterpart."""
     binds: list[str] = []
+    # org.moos.ui is MoOS's own module: bind the whole source directory so a
+    # NEW file (and its qmldir line) is visible too, not only replaced ones.
+    binds += ["--ro-bind", str(FILES / "usr/lib64/qt6/qml/org/moos/ui"), str(QML / "org/moos/ui")]
     for rel in OVERLAY_DIRS:
+        if rel == "org/moos/ui":
+            continue
         for src in sorted((FILES / "usr/lib64/qt6/qml" / rel).iterdir()):
             if src.suffix not in (".qml", ".js") or not src.is_file():
                 continue
@@ -95,6 +100,8 @@ def main() -> int:
     ap.add_argument("--poll", type=float, default=0.0,
                     help="sample the screen every N seconds until the last frame time")
     args = ap.parse_args()
+    if args.type and any(c not in "abcdefghijklmnopqrstuvwxyz" for c in args.type):
+        ap.error("--type accepts lowercase ASCII letters for the private keycode fixture")
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     lw, lh = (int(v) for v in args.logical.split("x"))

@@ -11,8 +11,8 @@
         "en": "Sign-in appears once, in your colours"
       },
       "body": {
-        "ar": "تبقى الخلفية بلون الإقلاع حتى يُعرف مظهرك، ثم تظهر شاشة الدخول مرة واحدة بلا وميض. كلمة السر وزرّها كبسولة واحدة، مع تحية حسب الوقت.",
-        "en": "The boot colour holds until your look is known, then sign-in appears once with no flash. The password and its key form one capsule, with a greeting by time of day."
+        "ar": "تبقى الخلفية بلون الإقلاع حتى يُعرف مظهرك، ثم تظهر شاشة الدخول مرة واحدة بلا وميض. كلمة السر وزرّها كبسولة واحدة، مع تحية حسب الوقت، ورسائل البصمة والأزرار صارت بعربية سليمة.",
+        "en": "The boot colour holds until your look is known, then sign-in appears once with no flash. The password and its key form one capsule, with a greeting by time of day; fingerprint prompts and buttons now read in proper Arabic."
       },
       "route": "moos://settings/appearance"
     },

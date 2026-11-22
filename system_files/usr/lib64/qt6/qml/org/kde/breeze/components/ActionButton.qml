@@ -115,7 +115,12 @@ PlasmaComponents3.AbstractButton {
     // raw string makes assistive clients announce the implementation marker;
     // MnemonicData is already the source of the visible label and provides the
     // same label as plain text with markup and ampersands removed.
-    Accessible.name: root.Kirigami.MnemonicData.plainTextLabel
+    // The caption and the spoken name are the same words: plasma_login's
+    // text, in the session's own Arabic where MoUI.SessionText knows a
+    // better one (presentation only; the action is upstream's).
+    readonly property string presentedLabel: MoUI.SessionText.present(root.Kirigami.MnemonicData.plainTextLabel,
+                                                                       MoUI.SessionText.isArabic(Qt.locale().name))
+    Accessible.name: root.presentedLabel
     Accessible.pressed: root.down
     Accessible.onPressAction: root.animateClick()
 
@@ -299,7 +304,8 @@ PlasmaComponents3.AbstractButton {
             // portal follows this content width above.  Elision remains only
             // as a last resort for genuinely exceptional translations.
             width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2 * Math.max(1, root.compactScale))
-            text: root.Kirigami.MnemonicData.richTextLabel
+            text: root.presentedLabel !== root.Kirigami.MnemonicData.plainTextLabel
+                ? root.presentedLabel : root.Kirigami.MnemonicData.richTextLabel
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline
             font.family: design.interfaceFamily

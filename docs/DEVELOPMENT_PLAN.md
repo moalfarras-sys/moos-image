@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-21. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-22. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -27,6 +27,11 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 | Trustworthy delivery | Matching source/artifact evidence, all edition-specific boot gates, signed promotion, installed readback and working recovery |
 
 ## Active delivery and acceptance batch
+
+PR318 contains the Arabic session keys from PR317, the selected-look handoff,
+and the light-theme contrast fixes. On V3, check the native fingerprint prompt,
+keyboard input, refusal and accessible action names after signed installation.
+The last observed physical boot used 1178.
 
 V3 session qualification follows the signed 1178 baseline. Check the twelve
 session symbols, password entry, lock/unlock and power confirmation on the

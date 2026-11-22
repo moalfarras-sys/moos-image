@@ -452,6 +452,7 @@ FocusRing 1.0 FocusRing.qml
 SymbolIcon 1.0 SymbolIcon.qml
 SessionSignature 1.0 SessionSignature.qml
 SessionActionGlyph 1.0 SessionActionGlyph.qml
+SessionText 1.0 SessionText.js
 singleton SessionAppearance 1.0 SessionAppearance.qml
 SessionPower 1.0 SessionPower.qml
 SessionPowerButton 1.0 SessionPowerButton.qml

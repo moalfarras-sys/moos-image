@@ -784,7 +784,7 @@ class TestMoOSUI2(unittest.TestCase):
         action = qml_code((components / "ActionButton.qml").read_text(encoding="utf-8"))
         for contract in (
             "Accessible.role: Accessible.Button",
-            "Accessible.name: root.Kirigami.MnemonicData.plainTextLabel",
+            "Accessible.name: root.presentedLabel",
             "Accessible.pressed: root.down",
             "Accessible.onPressAction: root.animateClick()",
             "Keys.onEnterPressed: clicked()",
@@ -807,7 +807,7 @@ class TestMoOSUI2(unittest.TestCase):
         user = qml_code((components / "UserDelegate.qml").read_text(encoding="utf-8"))
         for contract in (
             "Accessible.role: Accessible.Button",
-            "Accessible.name: name",
+            "Accessible.name: wrapper.presentedName",
             "Accessible.focusable: true",
             "Accessible.focused: activeFocus",
             "Accessible.onPressAction: wrapper.clicked()",
@@ -895,7 +895,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=173", apply,
+            "THEME_REV=174", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "

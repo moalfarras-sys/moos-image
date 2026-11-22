@@ -307,22 +307,26 @@ class LoginHandoff(unittest.TestCase):
 
     def test_negative_control_predecessor_painted_the_stale_scene_first(self):
         try:
-            old_scene = subprocess.run(
-                ["git", "-C", str(ROOT), "show", PREDECESSOR + ":" + str(SCENE.relative_to(ROOT))],
-                capture_output=True, text=True, check=True).stdout
-            old_ui = {p.name: subprocess.run(
-                ["git", "-C", str(ROOT), "show", PREDECESSOR + ":" + str((UI / p.name).relative_to(ROOT))],
-                capture_output=True, text=True, check=True).stdout
-                for p in UI.iterdir() if p.suffix in (".qml", ".js")}
-        except (subprocess.CalledProcessError, FileNotFoundError):
+            revision = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify",
+                                       PREDECESSOR + "^{commit}"], capture_output=True)
+        except FileNotFoundError:
+            self.skipTest("git unavailable")
+        if revision.returncode:
             self.skipTest("predecessor revision unavailable in this checkout")
+
+        def old_blob(path):
+            return subprocess.check_output(["git", "-C", str(ROOT), "show",
+                                            PREDECESSOR + ":" + str(path.relative_to(ROOT))])
+
         with tempfile.TemporaryDirectory(prefix="moos-login-old-") as td:
             scene = Path(td) / "main.qml"
-            scene.write_text(old_scene)
+            scene.write_bytes(old_blob(SCENE))
             ui = Path(td) / "ui"
-            shutil.copytree(UI, ui)
-            for name, text in old_ui.items():
-                (ui / name).write_text(text)
+            ui.mkdir()
+            listed = subprocess.check_output(["git", "-C", str(ROOT), "ls-tree", "--name-only",
+                                              PREDECESSOR + ":" + str(UI.relative_to(ROOT))], text=True)
+            for name in listed.splitlines():
+                (ui / name).write_bytes(old_blob(UI / name))
             pending = self.run_case("scene", scene=scene, ui=ui)[0]
         self.assertNotEqual(pending["ground"], "#0a101b")
         self.assertIn("MoOSUI2BloomLight", pending["source"], pending)

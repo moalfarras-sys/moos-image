@@ -71,6 +71,9 @@ Item {
     property bool isCurrent: true
 
     property string name
+    // Account names are personal data. Only the synthetic account-entry prompt is translated.
+    readonly property string presentedName: !userName && name === "اكتب اسم المستخدم و كلمة السّر"
+        ? MoUI.SessionText.present(name, MoUI.SessionText.isArabic(Qt.locale().name)) : name
     property string userName
     property string avatarPath
     property string iconSource
@@ -391,7 +394,9 @@ Item {
         width: wrapper.constrainText
             ? parent.width
             : Math.min(implicitWidth, Kirigami.Units.gridUnit * 16 * wrapper.sessionScale)
-        text: wrapper.name
+        // The "type a user name" entry's caption comes from plasma_login's
+        // catalogue; MoUI.SessionText presents it in current Arabic.
+        text: wrapper.presentedName
         textFormat: Text.PlainText
         style: wrapper.softwareRendering ? Text.Outline : Text.Normal
         styleColor: wrapper.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent" //no outline, doesn't matter
@@ -416,7 +421,7 @@ Item {
     Keys.onEnterPressed: wrapper.clicked()
     Keys.onReturnPressed: wrapper.clicked()
 
-    Accessible.name: name
+    Accessible.name: wrapper.presentedName
     Accessible.role: Accessible.Button
     Accessible.focusable: true
     Accessible.focused: activeFocus
