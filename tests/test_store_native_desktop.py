@@ -19,6 +19,17 @@ class NativeInventory(unittest.TestCase):
  def test_packaged_exports_are_not_duplicated(self):
   for i,key in enumerate(mod.MARKERS):self.entry(self.user,f'org.example.App{i}.desktop',f'{key}=org.example.App\n')
   self.assertEqual(mod.inventory(),[])
+ def test_actual_windows_store_launcher_is_not_a_second_native_app(self):
+  # Use the producer's actual key rather than generating a fixture from the
+  # consumer's own marker list: that circular fixture missed this regression.
+  producer=(ROOT/'system_files/usr/bin/moos-storectl').read_text()
+  self.assertIn('f"X-MoOS-WindowsApp={app_id}"',producer)
+  name='org.moos.windows.notepad-plus-plus.desktop'
+  self.entry(self.user,name,'Exec=/usr/bin/moos-run-foreign --app notepad-plus-plus\nX-MoOS-WindowsApp=notepad-plus-plus\n')
+  self.entry(self.user,'org.example.Unmanaged.desktop')
+  self.assertEqual([a['desktop_id'] for a in mod.inventory()],['org.example.Unmanaged.desktop'])
+  with patch.object(mod,'MARKERS',tuple(k for k in mod.MARKERS if k!='X-MoOS-WindowsApp')):
+   self.assertIn(name,[a['desktop_id'] for a in mod.inventory()])
  def test_invisible_helpers_wrong_desktop_and_missing_executables_are_excluded(self):
   for i,extra in enumerate(['NoDisplay=true','OnlyShowIn=GNOME;','NotShowIn=KDE;','TryExec=/nonexistent/example']):self.entry(self.system,f'org.example.App{i}.desktop',extra+'\n')
   self.assertEqual(mod.inventory(),[])
