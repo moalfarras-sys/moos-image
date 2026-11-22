@@ -443,6 +443,7 @@ KeyboardViewport 1.0 KeyboardViewport.js
 SymbolCatalog 1.0 SymbolCatalog.js
 Surface 1.0 Surface.qml
 GlassSurface 1.0 GlassSurface.qml
+TidalShape 1.0 TidalShape.qml
 Card 1.0 Card.qml
 Button 1.0 Button.qml
 SpringFeedback 1.0 SpringFeedback.qml

@@ -196,7 +196,7 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertIn("id: island", island)
         self.assertIn("root.design.radiusDialog * Math.max(0.8, root.sessionScale)", island)
         self.assertIn("Kirigami.Theme.colorSet: Kirigami.Theme.Window", island)
-        self.assertIn("fillOpacity: 0.94", island)
+        self.assertIn("fillOpacity: root.softwareRendering ? 0.94 : 0.80", island)
         self.assertNotIn("modelData.grow", island)
         # It hugs the cluster it frames instead of being sized from outside…
         self.assertIn("userListView.y + faceInset - root.islandPadTop", island)

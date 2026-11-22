@@ -91,6 +91,8 @@ PlasmaComponents3.AbstractButton {
     // here for one build; two red buttons side by side read as an alarm, and it
     // disagreed with the logout screen. One system, one language.)
     readonly property bool destructive: root.icon.name === "system-shutdown"
+    // Set by the session screen's action dock (MoOS SessionManagementScreen).
+    readonly property bool docked: root.parent !== null && root.parent.moosDock === true
     readonly property bool lit: root.activeFocus || root.hovered
 
     // Meyar keeps both scripts on the same line metrics.
@@ -125,7 +127,10 @@ PlasmaComponents3.AbstractButton {
     Accessible.onPressAction: root.animateClick()
 
     // Expand clickable area, keep background centered
-    leftInset: Math.max(Kirigami.Units.largeSpacing * 4 * compactScale,
+    // In the dock the keys sit close, like the MoOS bar's; alone they keep the
+    // wide threshold that separates them.
+    readonly property real dockFactor: root.docked ? 0.62 : 1
+    leftInset: Math.max(Kirigami.Units.largeSpacing * 4 * compactScale * (root.docked ? 0.2 : 1),
                         (implicitContentWidth - implicitBackgroundWidth) / 2)
     rightInset: leftInset
 
@@ -178,14 +183,17 @@ PlasmaComponents3.AbstractButton {
         // one-way sizing (no binding loop), and the 9-unit ceiling keeps a
         // single long translation from distorting the session layout.
         implicitWidth: Math.max(
-            Kirigami.Units.gridUnit * 6.6 * Math.max(0.82, root.compactScale),
+            Kirigami.Units.gridUnit * 6.6 * Math.max(0.82, root.compactScale) * root.dockFactor,
             Math.min(Kirigami.Units.gridUnit * 9 * Math.max(1, root.compactScale),
                      root.implicitContentWidth + Kirigami.Units.gridUnit * 1.2))
-        implicitHeight: Kirigami.Units.gridUnit * 4.8 * root.compactScale
+        implicitHeight: Kirigami.Units.gridUnit * 4.8 * root.compactScale * (root.docked ? 0.86 : 1)
         // explicitly set size to keep it from expanding or shrinking
         width: implicitWidth
         height: implicitHeight
         radius: design.radiusPanel
+        // The Tidal Cut at key size: the top-trailing corner is short.
+        topLeftRadius: root.LayoutMirroring.enabled ? Math.round(design.radiusPanel * 0.32) : design.radiusPanel
+        topRightRadius: root.LayoutMirroring.enabled ? design.radiusPanel : Math.round(design.radiusPanel * 0.32)
         // MoOS glass: the brand tint, warmed by the pointer. Software rendering
         // keeps upstream's opaque fallback — a tint over an unblurred surface
         // reads as dirt, and that path exists for machines with no GPU at all.
@@ -197,7 +205,13 @@ PlasmaComponents3.AbstractButton {
              ? Kirigami.Theme.backgroundColor
              : (root.destructive ? Kirigami.Theme.negativeTextColor
                                  : Kirigami.Theme.textColor)
+        // In the session dock (SessionManagementScreen) the dock IS the glass:
+        // a key is transparent at rest and lights only under the pointer, the
+        // keyboard focus or a press, like the keys of the MoOS bar.
         opacity: {
+            if (root.docked && !root.lit && !root.down) {
+                return 0
+            }
             if (root.softwareRendering) {
                 return root.lit ? 0.8 : 0.6
             }
@@ -292,7 +306,7 @@ PlasmaComponents3.AbstractButton {
                                          : Kirigami.Theme.highlightColor
             inkColor: root.destructive ? Kirigami.Theme.backgroundColor
                                       : Kirigami.Theme.highlightedTextColor
-            implicitWidth: Math.round(design.targetControl * root.compactScale)
+            implicitWidth: Math.round(design.targetControl * root.compactScale * (root.docked ? 0.84 : 1))
             implicitHeight: implicitWidth
             active: root.lit
         }

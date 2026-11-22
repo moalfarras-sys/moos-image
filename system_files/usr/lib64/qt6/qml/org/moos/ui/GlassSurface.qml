@@ -73,12 +73,37 @@ Surface {
     fillOpacity: Tokens.glassFill(surfaceColor, depth,
                                   floating ? Tokens.floatingGlassOpacity
                                            : Tokens.glassRestingOpacity)
-    color: Qt.alpha(surfaceColor, fillOpacity)
+    // The Tidal Cut (TidalShape). 0 keeps the rounded rectangle every existing
+    // surface was reviewed in; a positive leg cuts the top-trailing corner at
+    // 45°, and the sheet's fill, rim and lit edge follow that silhouette.
+    property real cut: 0
+    // Lit from above: how much lighter the top edge of a cut sheet is.
+    property real sheen: 0.06
+    readonly property bool tidal: cut > 0
+    readonly property color sheetColor: Qt.alpha(surfaceColor, fillOpacity)
+    readonly property color rimColor: selected ? Qt.alpha(accentColor, rimOpacity)
+                                               : Tokens.glassEdge(surfaceColor, depth)
+    color: tidal ? "transparent" : sheetColor
     radius: Tokens.radiusPanel
     // A selected surface keeps the accent rim it always had; everything else
     // takes the palette's own shadow instead of a tint of the ink colour.
-    border.color: selected ? Qt.alpha(accentColor, rimOpacity)
-                           : Tokens.glassEdge(surfaceColor, depth)
+    border.color: rimColor
+    border.width: tidal ? 0 : Tokens.borderHairline
+
+    TidalShape {
+        id: tidalSheet
+        objectName: "moosTidalSheet"
+        anchors.fill: parent
+        visible: glass.tidal
+        radius: glass.radius
+        cut: glass.cut
+        fillColor: glass.sheetColor
+        sheen: glass.sheen
+        sheenColor: "white"
+        strokeColor: glass.border.color
+        strokeWidth: Tokens.borderHairline
+        specularColor: Tokens.glassSpecular(glass.surfaceColor, glass.depth)
+    }
 
     // The light on the top edge. Inset by the corner so it lives on the straight
     // part of the rim. The resting hairline holds the edge; a brighter, soft
@@ -92,7 +117,8 @@ Surface {
         width: Math.max(0, parent.width - parent.radius * 1.6)
         height: 2
         clip: true
-        visible: parent.width > parent.radius * 2 && glass.opacity > 0
+        // A cut sheet draws its own lit edge along the top and down the cut.
+        visible: !glass.tidal && parent.width > parent.radius * 2 && glass.opacity > 0
 
         Rectangle {
             anchors.top: parent.top
