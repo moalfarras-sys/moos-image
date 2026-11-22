@@ -211,6 +211,38 @@ def identity(info: os.stat_result) -> tuple:
             info.st_nlink, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
+def config_directory(parent: int, path: Path, mounts: set[str], create: bool) -> tuple[int, Path]:
+    """Admit Flatpak's exact config -> .config sibling layout, without following it.
+
+    Steam's persistent-home layout is also exercised by upstream Flatpak's
+    test-run.sh. Every other alias and every linked target remains refused.
+    """
+    config = path / "config"
+    if str(config) in mounts:
+        raise ValueError("Preserve mounted font configuration")
+    try:
+        link = os.stat("config", dir_fd=parent, follow_symlinks=False)
+    except FileNotFoundError:
+        link = None
+    if link is None or not stat.S_ISLNK(link.st_mode):
+        return directory(parent, "config", config, mounts, create=create), config
+    if (link.st_uid != os.getuid() or link.st_nlink != 1
+            or os.readlink("config", dir_fd=parent) != ".config"):
+        raise ValueError("Preserve unknown font configuration alias")
+    target = path / ".config"
+    # Never create an absent target for an existing alias. Open the fixed
+    # sibling by the already-owned app descriptor, not by resolving the link.
+    fd = directory(parent, ".config", target, mounts, create=False)
+    try:
+        current = os.stat("config", dir_fd=parent, follow_symlinks=False)
+        if identity(current) != identity(link) or os.readlink("config", dir_fd=parent) != ".config":
+            raise ValueError("Font configuration alias changed during admission")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd, target
+
+
 def install(home: Path, app_id: str, data: bytes | None, mounts: set[str] | None = None) -> bool:
     """Publish one bounded owned fragment; return False for an unchanged policy.
 
@@ -227,7 +259,7 @@ def install(home: Path, app_id: str, data: bytes | None, mounts: set[str] | None
         stack.callback(os.close, fd)
         check_stat(os.fstat(fd), True)
         path = home
-        for part in (".var", "app", app_id, "config", "fontconfig", "conf.d"):
+        for part in (".var", "app", app_id):
             path /= part
             # refresh() verifies installation before this bounded path is made.
             # Preparing it at install time also covers the app's first launch.
@@ -235,6 +267,20 @@ def install(home: Path, app_id: str, data: bytes | None, mounts: set[str] | None
                 fd = directory(fd, part, path, mounts, create=data is not None)
             except FileNotFoundError:
                 return False  # retirement never manufactures a missing path
+            stack.callback(os.close, fd)
+        try:
+            fd, path = config_directory(fd, path, mounts, create=data is not None)
+        except FileNotFoundError:
+            if data is None:
+                return False
+            raise
+        stack.callback(os.close, fd)
+        for part in ("fontconfig", "conf.d"):
+            path /= part
+            try:
+                fd = directory(fd, part, path, mounts, create=data is not None)
+            except FileNotFoundError:
+                return False
             stack.callback(os.close, fd)
         previous = read_file(fd, FILE, path / FILE, mounts)
         if previous is None and data is None:
