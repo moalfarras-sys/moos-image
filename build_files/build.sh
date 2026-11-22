@@ -690,7 +690,11 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
         exit 1
     }
     rm -f /usr/lib/bootc/kargs.d/20-moos-simpledrm.toml
-    echo "=== NVIDIA edition: plymouth.use-simpledrm withheld (nvidia owns the display) ==="
+    # Omitting the bare switch still inherits UseSimpledrmNoLuks=1 on
+    # unencrypted installs. The shipped daemon reads an explicit numeric
+    # command-line value before consulting either configuration default.
+    printf '%s\n' 'kargs = ["plymouth.use-simpledrm=0"]' > /usr/lib/bootc/kargs.d/21-moos-nvidia-splash.toml
+    echo "=== NVIDIA edition: Plymouth firmware renderer disabled ==="
 fi
 rm -f /tmp/moos-lsinitrd.txt /tmp/moos-lsinitrd.err
 
