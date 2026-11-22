@@ -213,6 +213,12 @@ def render_tokens(document: dict) -> str:
         "        return Math.max(1, Math.round(role * longDuration / 200))",
         "    }",
         "",
+        "    // The session rim borrows a little of the scheme's link ink. The opaque",
+        "    // selection/foreground pair remains reserved for the controls themselves.",
+        "    function sessionRim(accent, link) {",
+        "        return Qt.tint(accent, Qt.alpha(link, 0.32))",
+        "    }",
+        "",
         "    function isLight(color) {",
         "        return color.hslLightness > 0.55",
         "    }",
@@ -446,6 +452,7 @@ FocusRing 1.0 FocusRing.qml
 SymbolIcon 1.0 SymbolIcon.qml
 SessionSignature 1.0 SessionSignature.qml
 SessionActionGlyph 1.0 SessionActionGlyph.qml
+SessionText 1.0 SessionText.js
 singleton SessionAppearance 1.0 SessionAppearance.qml
 SessionPower 1.0 SessionPower.qml
 SessionPowerButton 1.0 SessionPowerButton.qml

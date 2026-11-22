@@ -26,8 +26,6 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
-// Under a name as well: QtQuick.Shapes has gradients of the same names, and they are not Items.
-import Qt5Compat.GraphicalEffects as Effects
 
 import org.kde.breeze.components as SessionComponents
 import org.kde.coreaddons as KCoreAddons
@@ -53,7 +51,7 @@ Item {
     readonly property url wallpaperSource: MoUI.SessionAppearance.configuredWallpaper()
 
     Kirigami.Theme.inherit: false
-    Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
+    Kirigami.Theme.colorSet: Kirigami.Theme.Window
 
     LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
     LayoutMirroring.childrenInherit: true
@@ -91,7 +89,7 @@ Item {
     // the face are not mirrored at all — this screen instantiates the same
     // two components. Change a token here → change it there to match.
     //   accentA = Kirigami.Theme.highlightColor       · live theme accent
-    //   accentB = accentA HSL hue +0.09               · two-tone signature
+    //   accentB = selection blended with the scheme link · decorative rim
     //   ink     = Kirigami.Theme.textColor            · neutral glyph / text
     //   island  = selected Window roles at0.94 · quiet rim · readable ink
     //             accent crest gradient · radius radiusDialog · depth halo
@@ -113,54 +111,7 @@ Item {
     // tiles and its type grow and shrink with the clock and the face.
     readonly property real sessionScale: design.sessionScale(root.width, root.height)
 
-    function settleScene() {
-        backdropFade.stop();
-        sheetEnter.stop();
-        orbitRun.stop();
-        wallpaper.opacity = 1;
-        sheet.opacity = 1;
-        sheet.scale = 1;
-        sheetRise.y = 0;
-        orbitGlow = 0;
-    }
-    onMotionEnabledChanged: if (!motionEnabled) { settleScene(); }
-    onVisibleChanged: if (!visible) { settleScene(); }
-
-    // The orbit: the light that runs round the lock and login island's rim runs
-    // round this one too, twice, when the island arrives, and then docks in the
-    // crest. A counted number of turns, never a loop.
-    property real orbitAngle: 0
-    property real orbitGlow: 0
-    SequentialAnimation {
-        id: orbitRun
-        PauseAnimation { duration: root.design.motionPortal }
-        NumberAnimation {
-            target: root; property: "orbitGlow"; to: 1
-            duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
-        }
-        NumberAnimation {
-            target: root; property: "orbitAngle"
-            from: 0; to: 360
-            loops: 2
-            duration: root.design.duration(root.motionEnabled, root.design.motionPortal) * 8
-            easing.type: Easing.InOutSine
-        }
-        NumberAnimation {
-            target: root; property: "orbitGlow"; to: 0
-            duration: root.design.duration(root.motionEnabled, root.design.motionPortal)
-        }
-    }
-    // accentB — the two-tone partner (accentA hue-rotated +0.09 in HSL), same
-    // derivation as the portal rim. The horizon rides accentA/accentB so its
-    // hue is 100% theme-derived — no hardcoded base colour anywhere.
-    //
-    // The shared TidalHorizon component consumes both roles directly.
-    readonly property color accentB: {
-        const c = Kirigami.Theme.highlightColor;
-        if (c.hslSaturation < 0.08 || c.hslHue < 0) { return Qt.lighter(c, 1.28); }
-        let nh = c.hslHue + 0.09; if (nh > 1) { nh -= 1; }
-        return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
-    }
+    readonly property color accentB: design.sessionRim(root.accent, Kirigami.Theme.linkColor)
 
     function stopCountdown() { root.cancelCountdown(); }
 
@@ -291,20 +242,10 @@ Item {
         fillMode: Image.PreserveAspectCrop
         cache: true
         asynchronous: true
-        opacity: 0
-        layer.enabled: true
-        // The lock and power scene use one blur radius; retain more of the
-        // selected image's colour and contours while the card protects text.
+        // The software renderer cannot paint FastBlur. Keep the selected wallpaper
+        // visible there and only allocate the offscreen layer on a hardware renderer.
+        layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
         layer.effect: FastBlur { radius: root.design.sessionWallpaperBlur }
-        Component.onCompleted: {
-            if (root.motionEnabled) {
-                backdropFade.start();
-            } else {
-                wallpaper.opacity = 1;
-            }
-        }
-        OpacityAnimator { id: backdropFade; target: wallpaper; from: 0; to: 1.0
-            duration: root.design.motionPortal; easing.type: root.design.easeStandard }
     }
     // Legibility scrim — the theme's own canvas, heavier at the top and foot so
     // the island stays readable over any wallpaper. Calculated transparency,
@@ -388,10 +329,7 @@ Item {
     // wear it natively, and there is no offscreen effect layer behind it.
     Item {
         id: sheet
-        // The wallpaper keeps the shared session veil; the working sheet
-        // follows the selected desktop's light/dark material and ink roles.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.colorSet: Kirigami.Theme.Window
+        // Inherit the same selected colour set as the scene and clock.
         anchors.horizontalCenter: parent.horizontalCenter
         y: root.groupTop + (root.clockFits ? clockBand.implicitHeight + root.clockGap : 0)
         width: Math.min(root.width - Kirigami.Units.gridUnit * 3,
@@ -400,38 +338,13 @@ Item {
         height: Math.min(root.height - Kirigami.Units.gridUnit * 3,
                          column.implicitHeight + Kirigami.Units.gridUnit * 3.6)
 
-        opacity: root.motionEnabled ? 0 : 1
-        scale: root.motionEnabled ? 0.965 : 1
-        transformOrigin: Item.Center
-        transform: Translate { id: sheetRise; y: Kirigami.Units.gridUnit * 2 }
-        Component.onCompleted: {
-            if (root.motionEnabled) {
-                sheetEnter.start();
-                if (GraphicsInfo.api !== GraphicsInfo.Software) {
-                    orbitRun.start();
-                }
-            } else {
-                sheetRise.y = 0;
-                sheet.scale = 1;
-            }
-        }
-        ParallelAnimation {
-            id: sheetEnter
-            NumberAnimation { target: sheet; property: "opacity"; from: 0; to: 1
-                duration: root.design.motionPortal; easing.type: root.design.easeStandard }
-            NumberAnimation { target: sheetRise; property: "y"; from: Kirigami.Units.gridUnit * 2; to: 0
-                duration: root.design.motionPortal; easing.type: root.design.easeStandard }
-            NumberAnimation { target: sheet; property: "scale"; from: 0.965; to: 1
-                duration: root.design.motionPortal; easing.type: root.design.easeEmphasis }
-        }
-
         // The same material owner as login/lock. Three hard halo rectangles
         // produced visible nested rings over light wallpapers.
         MoUI.GlassSurface {
             id: island
             objectName: "moosSessionCard"
             anchors.fill: parent
-            animateArrival: false // The complete sheet owns its finite entrance.
+            animateArrival: false // Keep the action hit targets stationary from the first frame.
             radius: root.design.radiusDialog
             depth: root.design.glassLevelDialog
             surfaceColor: Kirigami.Theme.backgroundColor
@@ -471,42 +384,6 @@ Item {
                     GradientStop { position: 0; color: root.accent }
                     GradientStop { position: 1; color: root.accentB }
                 }
-            }
-
-            // The orbit's light, cut to the island's own rim; not drawn once docked.
-            Item {
-                id: rimMask
-                anchors.fill: parent
-                visible: false
-                layer.enabled: root.orbitGlow > 0
-                Rectangle {
-                    anchors.fill: parent
-                    radius: island.radius
-                    color: "transparent"
-                    border.width: 2
-                    border.color: "black"
-                    antialiasing: true
-                }
-            }
-            Effects.ConicalGradient {
-                id: rimPaint
-                anchors.fill: parent
-                visible: false
-                angle: root.orbitAngle
-                gradient: Gradient {
-                    GradientStop { position: 0.00; color: Qt.alpha(root.accent, 0.0) }
-                    GradientStop { position: 0.70; color: Qt.alpha(root.accent, 0.0) }
-                    GradientStop { position: 0.90; color: Qt.alpha(root.accentB, 0.85) }
-                    GradientStop { position: 0.985; color: root.accent }
-                    GradientStop { position: 1.00; color: Qt.alpha(root.accent, 0.0) }
-                }
-            }
-            Effects.OpacityMask {
-                anchors.fill: parent
-                source: rimPaint
-                maskSource: rimMask
-                visible: root.orbitGlow > 0
-                opacity: root.orbitGlow
             }
         }
 
@@ -643,8 +520,8 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 visible: otherSessionsModel.count > 0 && (sdtype !== ShutdownType.ShutdownTypeNone || root.showAllOptions)
                 text: otherSessionsModel.count === 1
-                    ? root.bilingual("يوجد مستخدم آخر مسجّل الدخول وقد يفقد عمله", "Another user is signed in and may lose work")
-                    : root.bilingual("يوجد %1 مستخدمين آخرين مسجّلي الدخول".arg(otherSessionsModel.count), "%1 other users are signed in".arg(otherSessionsModel.count))
+                    ? root.bilingual("قد يفقد مستخدم آخر عمله غير المحفوظ", "Another user is signed in and may lose work")
+                    : root.bilingual("عدد المستخدمين الآخرين المتصلين: %1".arg(otherSessionsModel.count), "%1 other users are signed in".arg(otherSessionsModel.count))
                 color: Kirigami.Theme.neutralTextColor
                 wrapMode: Text.WordWrap; font.family: root.design.interfaceFamily
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
@@ -695,7 +572,7 @@ Item {
 
                 SessionPowerButton {
                     id: suspendButton
-                    revealOrder: 0
+                    objectName: "suspendButton"
                     iconName: "system-suspend-symbolic"
                     text: root.shortLabel("السكون", "Sleep")
                     description: root.bilingual("إبقاء الجلسة", "Keep session")
@@ -706,10 +583,10 @@ Item {
                 }
                 SessionPowerButton {
                     id: hibernateButton
-                    revealOrder: 1
+                    objectName: "hibernateButton"
                     iconName: "system-suspend-hibernate-symbolic"
                     text: root.shortLabel("إسبات", "Hibernate")
-                    description: root.bilingual("حفظ الجلسة", "Save session")
+                    description: root.bilingual("حفظ الجلسة على القرص", "Save the session to disk")
                     visible: root.showAllOptions && spdMethods.HibernateState
                     onClicked: root.fireNow(() => root.suspendRequested(4))
                     onInteracted: root.stopCountdown()
@@ -717,7 +594,7 @@ Item {
                 }
                 SessionPowerButton {
                     id: rebootButton
-                    revealOrder: 2
+                    objectName: "rebootButton"
                     iconName: softwareUpdatePending ? "system-reboot-update-symbolic" : "system-reboot-symbolic"
                     text: softwareUpdatePending ? root.shortLabel("تحديث وإعادة التشغيل", "Update & Restart") : root.shortLabel("إعادة التشغيل", "Restart")
                     description: armed ? root.bilingual("اضغط مجددًا لإعادة التشغيل", "Tap again to restart")
@@ -730,7 +607,7 @@ Item {
                 }
                 SessionPowerButton {
                     id: rebootWithoutUpdatesButton
-                    revealOrder: 3
+                    objectName: "rebootWithoutUpdatesButton"
                     iconName: "system-reboot-symbolic"
                     text: root.shortLabel("إعادة الآن", "Restart now")
                     description: armed ? root.bilingual("اضغط مجددًا لإعادة التشغيل", "Tap again to restart") : root.bilingual("بدون تحديث", "Without updating")
@@ -741,7 +618,7 @@ Item {
                 }
                 SessionPowerButton {
                     id: shutdownButton
-                    revealOrder: 4
+                    objectName: "shutdownButton"
                     iconName: softwareUpdatePending ? "system-shutdown-update-symbolic" : "system-shutdown-symbolic"
                     text: softwareUpdatePending ? root.shortLabel("تحديث وإيقاف التشغيل", "Update & Shut Down") : root.shortLabel("إيقاف التشغيل", "Shut Down")
                     description: armed ? root.bilingual("اضغط مجددًا للإيقاف", "Tap again to power off")
@@ -755,7 +632,7 @@ Item {
                 }
                 SessionPowerButton {
                     id: shutdownWithoutUpdatesButton
-                    revealOrder: 5
+                    objectName: "shutdownWithoutUpdatesButton"
                     iconName: "system-shutdown-symbolic"
                     text: root.shortLabel("إيقاف الآن", "Shut down now")
                     description: armed ? root.bilingual("اضغط مجددًا للإيقاف", "Tap again to power off") : root.bilingual("بدون تحديث", "Without updating")
@@ -767,7 +644,7 @@ Item {
                 }
                 SessionPowerButton {
                     id: logoutButton
-                    revealOrder: 6
+                    objectName: "logoutButton"
                     iconName: "system-log-out-symbolic"
                     text: root.shortLabel("تسجيل الخروج", "Log Out")
                     description: root.bilingual("إنهاء الجلسة", "End session")
@@ -778,7 +655,7 @@ Item {
                 }
                 SessionPowerButton {
                     id: lockButton
-                    revealOrder: 7
+                    objectName: "lockButton"
                     iconName: "system-lock-screen-symbolic"
                     text: root.shortLabel("قفل الشاشة", "Lock Screen")
                     description: root.bilingual("العودة لاحقًا", "Return later")
@@ -822,7 +699,7 @@ Item {
             }
             SessionPowerButton {
                 id: cancelButton
-                revealOrder: 8
+                objectName: "cancelButton"
                 iconName: "cancel-operation-symbolic"
                 text: root.shortLabel("العودة إلى سطح المكتب", "Back to desktop")
                 description: root.bilingual("العودة إلى سطح المكتب", "Back to desktop")

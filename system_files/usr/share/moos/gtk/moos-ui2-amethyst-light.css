@@ -3,8 +3,8 @@
  * marker is the user's own and moos-theme will not touch it.
  * Values are artwork/moos-ui2/palette.json (dark); a repo gate holds them equal. */
 @define-color accent_bg_color #7C3AED;
-@define-color accent_fg_color #DCDDF3;
-@define-color accent_color #7C3AED;
+@define-color accent_fg_color #F7FBFF;
+@define-color accent_color #732CEC;
 @define-color window_bg_color #D5D9EE;
 @define-color window_fg_color #17302E;
 @define-color view_bg_color #DCDDF3;

@@ -209,12 +209,12 @@ class TidalPortalContractTests(unittest.TestCase):
             island.count("Math.round(root.design.targetControl * root.sessionScale)"), 3)
         self.assertEqual(
             island.count("radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)"), 2)
-        # Its motion is counted, never endless: one arrival, and an orbit of a stated
-        # number of turns. A machine left at a half-typed password keeps this screen up.
-        self.assertIn("loops: root.orbitTurns", island)
-        self.assertEqual(island.count("loops:"), 2)       # the orbit, and the notice's `loops: 1`
-        self.assertIn("root.orbit(1);", island)
-        self.assertIn("orbit(2);", island)
+        # Editing a credential cannot restart any ornamental effects.
+        self.assertIn("playArrivalRim();", island)
+        self.assertNotIn("fieldWatch", island)
+        self.assertNotIn("onTextChanged", island)
+        arrival_effect = island[island.index("id: orbitRun"):island.index("readonly property bool noticeIsAlert")]
+        self.assertNotIn("loops:", arrival_effect)
         # The island signs itself (the login scene is another process and may be absent).
         self.assertIn('source: "file:///usr/share/pixmaps/moos-logo.png"', island)
 

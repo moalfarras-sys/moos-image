@@ -98,8 +98,23 @@ Item {
     implicitHeight: heroWhenIdle ? Math.max(face.implicitHeight, Math.floor(band - Kirigami.Units.gridUnit))
                                  : face.implicitHeight
 
+    // On the login greeter the clock waits, with the island, for the selected
+    // account's appearance (MoUI.SessionAppearance.greeterSettled, bounded), so
+    // its colon and horizon never show the greeter account's seed accent first.
+    // Lock and power screens are never greeters: settled from the start.
+    readonly property bool appearanceSettled: MoUI.SessionAppearance.greeterSettled !== false
+
     ColumnLayout {
         id: face
+
+        opacity: root.appearanceSettled ? 1 : 0
+        Behavior on opacity {
+            enabled: root.motionEnabled
+            NumberAnimation {
+                duration: root.design.duration(root.motionEnabled, root.design.motionFast)
+                easing.type: root.design.easeStandard
+            }
+        }
 
         // Cover: large, standing on the band's floor. Working: its own size,
         // a little above the band's middle, clear of the island below.

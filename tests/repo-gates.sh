@@ -371,6 +371,10 @@ python3 tests/test_store_window_words.py
 python3 tests/test_moos_design_core.py
 python3 tests/test_moos_bloom.py
 python3 tests/test_session_continuity.py
+# The login greeter appears once, in the selected account's look: the splash's
+# ground until the bounded appearance wait settles, then the selected scene.
+python3 tests/test_login_handoff.py
+python3 tests/test_session_text.py
 # One answer to "is this session Arabic". Four surfaces read
 # Qt.application.layoutDirection, which follows a translator and not the
 # locale — the Command Center, installer and welcome screen rendered in
@@ -396,6 +400,10 @@ python3 tests/test_qml_root_references.py
 # light schemes. The token gate required them to follow the theme, not to be legible. This
 # does the arithmetic for every app on every shipped scheme.
 python3 tests/test_secondary_text_contrast.py
+# Every MoOS look reads: KDE text roles, terminal ANSI colours and GTK accent
+# pairs meet WCAG, and corrected roles reach desktops that applied the old ones.
+python3 tests/test_theme_role_contrast.py
+python3 tests/test_color_role_migration.py
 # Alt+Tab is a MoOS surface (W7): it takes its reading direction from the LOCALE, because
 # Application.layoutDirection is LeftToRight in every MoOS session including Arabic ones;
 # every duration is guarded by reduced motion; and it still closes a window, really.

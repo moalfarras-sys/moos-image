@@ -19,8 +19,8 @@
 //   2. The face has a FRAME, and the frame is alive. A ring in the accent's two
 //      tones floats a hair's width off the picture, so a photo sits in it like a
 //      stone in a bezel instead of being outlined. When the session island comes
-//      up the ring snaps on and its light runs twice round the face; a typed
-//      character sends it round once more. Then it rests. A still bloom in the
+//      up the ring marks the selected account with a single short sweep.
+//      The frame stays still during text entry. A still bloom in the
 //      accent stands behind it. All of it is drawn HERE, so the login screen has
 //      it too (the lock screen used to paint a bloom from outside, a grid unit
 //      low). Software rendering gets a plain accent ring.
@@ -66,19 +66,14 @@ Item {
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
     // The accent's second tone — decorative only, it never sits under a glyph.
-    readonly property color accentB: {
-        const c = Kirigami.Theme.highlightColor;
-        if (c.hslSaturation < 0.08 || c.hslHue < 0) {
-            return Qt.lighter(c, 1.28);
-        }
-        let nh = c.hslHue + 0.09;
-        if (nh > 1) { nh -= 1; }
-        return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
-    }
+    readonly property color accentB: design.sessionRim(Kirigami.Theme.highlightColor, Kirigami.Theme.linkColor)
 
     property bool isCurrent: true
 
     property string name
+    // Account names are personal data. Only the synthetic account-entry prompt is translated.
+    readonly property string presentedName: !userName && name === "اكتب اسم المستخدم و كلمة السّر"
+        ? MoUI.SessionText.present(name, MoUI.SessionText.isArabic(Qt.locale().name)) : name
     property string userName
     property string avatarPath
     property string iconSource
@@ -109,36 +104,33 @@ Item {
 
     // ── The frame ───────────────────────────────────────────────────────────
     readonly property real ringGap: Math.max(2, Math.round(faceSize * 0.04))
-    readonly property real ringWidth: Math.max(2, Math.round(faceSize * 0.03))
+    readonly property real ringWidth: Math.max(2, Math.round(faceSize * 0.022))
     property real orbitAngle: 0
     property real framePop: 1
 
-    // The ring snaps on and its light goes round: twice on arrival, once for a
-    // typed character. Always a counted number of turns — a machine left at a
-    // half-typed password must not spend the night animating.
+    // A short entrance acknowledges the selected account.
     function arrive() {
         if (!wrapper.isCurrent || wrapper.softwareRendering || !wrapper.motionEnabled) {
             return;
         }
         framePopRun.restart();
-        orbitRun.loops = 2;
         orbitRun.restart();
     }
-    function poke() {
-        if (wrapper.isCurrent && wrapper.motionEnabled && !wrapper.softwareRendering
-                && !orbitRun.running) {
-            orbitRun.loops = 1;
-            orbitRun.restart();
-        }
+    function settleFrame() {
+        orbitRun.stop();
+        framePopRun.stop();
+        orbitAngle = 0;
+        framePop = 1;
     }
-    onOnStageChanged: if (onStage) { arrive(); }
+    onOnStageChanged: if (onStage) { arrive(); } else { settleFrame(); }
+    onMotionEnabledChanged: if (!motionEnabled) { settleFrame(); }
     Component.onCompleted: if (onStage && !sessionScreen) { arrive(); }
 
     NumberAnimation {
         id: orbitRun
         target: wrapper; property: "orbitAngle"
         from: 0; to: 360
-        duration: design.duration(wrapper.motionEnabled, design.motionPortal) * 8
+        duration: design.duration(wrapper.motionEnabled, design.motionGeometry)
         easing.type: Easing.InOutSine
     }
     NumberAnimation {
@@ -165,7 +157,11 @@ Item {
         return own === undefined || Math.abs(own - ListView.view.currentIndex) <= reach;
     }
 
-    opacity: !inReach ? 0 : (isCurrent ? 1.0 : design.mutedOpacity)
+    // On the login greeter the face waits, with the island, for the selected
+    // account's appearance (SessionManagementScreen.settledOpacity).
+    readonly property real settledOpacity: (sessionScreen && sessionScreen.settledOpacity !== undefined)
+        ? sessionScreen.settledOpacity : 1
+    opacity: (!inReach ? 0 : (isCurrent ? 1.0 : design.mutedOpacity)) * settledOpacity
     enabled: inReach
 
     Behavior on opacity {
@@ -184,15 +180,15 @@ Item {
     // The "type a user name" entry has no account behind it yet.
     readonly property bool anonymous: wrapper.userName === ""
 
-    // The bloom: three still discs of the accent behind the selected face.
+    // The bloom: two still discs of the accent behind the selected face. Three,
+    // reaching half a face out, read as a grey disc on the dark island.
     // Plain rectangles — no effect layer, nothing animated.
     Repeater {
         // Sized as a share of the face, so the small portrait on the power
         // screen wears the same bloom in proportion.
         model: [
-            { grow: 0.54, glow: 0.035 },
-            { grow: 0.33, glow: 0.06 },
-            { grow: 0.14, glow: 0.10 },
+            { grow: 0.36, glow: 0.045 },
+            { grow: 0.14, glow: 0.09 },
         ]
         Rectangle {
             required property var modelData
@@ -398,7 +394,9 @@ Item {
         width: wrapper.constrainText
             ? parent.width
             : Math.min(implicitWidth, Kirigami.Units.gridUnit * 16 * wrapper.sessionScale)
-        text: wrapper.name
+        // The "type a user name" entry's caption comes from plasma_login's
+        // catalogue; MoUI.SessionText presents it in current Arabic.
+        text: wrapper.presentedName
         textFormat: Text.PlainText
         style: wrapper.softwareRendering ? Text.Outline : Text.Normal
         styleColor: wrapper.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent" //no outline, doesn't matter
@@ -423,7 +421,7 @@ Item {
     Keys.onEnterPressed: wrapper.clicked()
     Keys.onReturnPressed: wrapper.clicked()
 
-    Accessible.name: name
+    Accessible.name: wrapper.presentedName
     Accessible.role: Accessible.Button
     Accessible.focusable: true
     Accessible.focused: activeFocus

@@ -33,10 +33,6 @@ QQC2.AbstractButton {
     property bool emphasized: false
     property bool destructive: false
     property bool armed: false   // a sensitive action awaiting its confirm tap
-    // Visual order only. Logout.qml assigns this once so the existing controls
-    // arrive as a short wave after their parent island, without changing focus,
-    // capability checks or any power-session signal.
-    property int revealOrder: 0
     // The way OUT is not an action. `subtle` renders the same tile one step
     // down the hierarchy — a quieter fill and a lighter caption — so the dock
     // reads first and Cancel second. Only Cancel sets it.
@@ -50,15 +46,7 @@ QQC2.AbstractButton {
     // It must never sit underneath the glyph: unlike accentA, it has no paired
     // foreground role in the KDE colour scheme.
     readonly property color accentA: destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor
-    readonly property color accentB: {
-        const c = control.accentA;
-        if (c.hslSaturation < 0.08 || c.hslHue < 0) {
-            return Qt.lighter(c, 1.28);
-        }
-        let nh = c.hslHue + 0.09;
-        if (nh > 1) { nh -= 1; }
-        return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
-    }
+    readonly property color accentB: control.destructive ? control.accentA : design.sessionRim(control.accentA, Kirigami.Theme.linkColor)
     readonly property color ink: Kirigami.Theme.textColor
     // The tile fills with one contrast-gated role when emphasized, pressed, or
     // armed. Selection ink is paired with highlight; destructive ink is the
@@ -102,42 +90,7 @@ QQC2.AbstractButton {
     implicitWidth: fittedWidth
     implicitHeight: keyHeight
     padding: 0
-    opacity: control.motionEnabled ? 0 : 1
     scale: down ? design.pressScale : (lit ? design.hoverScale : 1.0)
-    transform: Translate {
-        id: revealShift
-        y: control.motionEnabled ? control.design.space3 : 0
-    }
-
-    Component.onCompleted: {
-        if (control.motionEnabled) { revealAnimation.start(); }
-    }
-    function settleReveal() {
-        revealAnimation.stop();
-        control.opacity = 1;
-        revealShift.y = 0;
-    }
-    onMotionEnabledChanged: if (!motionEnabled) { settleReveal(); }
-    onVisibleChanged: if (!visible) { settleReveal(); }
-    SequentialAnimation {
-        id: revealAnimation
-        PauseAnimation { duration: 70 + control.revealOrder * 34 }
-        ParallelAnimation {
-            NumberAnimation {
-                target: control; property: "opacity"; from: 0; to: 1
-                duration: control.design.duration(
-                    control.motionEnabled, control.design.motionGeometry)
-                easing.type: control.design.easeStandard
-            }
-            NumberAnimation {
-                target: revealShift; property: "y"
-                from: control.design.space3; to: 0
-                duration: control.design.duration(
-                    control.motionEnabled, control.design.motionGeometry)
-                easing.type: control.design.easeEmphasis
-            }
-        }
-    }
     Behavior on scale {
         NumberAnimation {
             duration: design.duration(control.motionEnabled, design.motionFast)
@@ -267,10 +220,10 @@ QQC2.AbstractButton {
                     color: control.filled ? control.filledInk
                         : (control.subtle ? Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.85)
                                           : control.ink)
-                    // Plex carries both scripts so focus never swaps typefaces.
+                    // Meyar carries both scripts across every button state.
                     font.family: design.interfaceFamily
                     font.weight: control.subtle ? Font.Normal : Font.DemiBold
-                    font.pointSize: Math.max(8, Math.round(Kirigami.Theme.defaultFont.pointSize
+                    font.pointSize: Math.max(8, Math.round((Kirigami.Theme.defaultFont.pointSize + 1)
                                                            * Math.min(1.3, control.sessionScale)))
                 }
             }

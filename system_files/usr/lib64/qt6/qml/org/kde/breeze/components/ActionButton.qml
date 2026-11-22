@@ -93,12 +93,9 @@ PlasmaComponents3.AbstractButton {
     readonly property bool destructive: root.icon.name === "system-shutdown"
     readonly property bool lit: root.activeFocus || root.hovered
 
-    // Plex Arabic, never Inter: Inter has no Arabic coverage, so its Arabic
-    // text silently falls back to Noto — a second Arabic face on the same
-    // screen as the Plex date. Plex Arabic carries a full Latin set. And
-    // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
+    // Meyar keeps both scripts on the same line metrics.
     font.family: design.interfaceFamily
-    font.pointSize: Math.max(8, Math.round((Kirigami.Theme.defaultFont.pointSize + 1)
+    font.pointSize: Math.max(8, Math.round((Kirigami.Theme.defaultFont.pointSize + 2)
                                            * Math.min(1.25, compactScale)))
     font.underline: root.activeFocus
 
@@ -118,7 +115,12 @@ PlasmaComponents3.AbstractButton {
     // raw string makes assistive clients announce the implementation marker;
     // MnemonicData is already the source of the visible label and provides the
     // same label as plain text with markup and ampersands removed.
-    Accessible.name: root.Kirigami.MnemonicData.plainTextLabel
+    // The caption and the spoken name are the same words: plasma_login's
+    // text, in the session's own Arabic where MoUI.SessionText knows a
+    // better one (presentation only; the action is upstream's).
+    readonly property string presentedLabel: MoUI.SessionText.present(root.Kirigami.MnemonicData.plainTextLabel,
+                                                                       MoUI.SessionText.isArabic(Qt.locale().name))
+    Accessible.name: root.presentedLabel
     Accessible.pressed: root.down
     Accessible.onPressAction: root.animateClick()
 
@@ -302,7 +304,8 @@ PlasmaComponents3.AbstractButton {
             // portal follows this content width above.  Elision remains only
             // as a last resort for genuinely exceptional translations.
             width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2 * Math.max(1, root.compactScale))
-            text: root.Kirigami.MnemonicData.richTextLabel
+            text: root.presentedLabel !== root.Kirigami.MnemonicData.plainTextLabel
+                ? root.presentedLabel : root.Kirigami.MnemonicData.richTextLabel
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline
             font.family: design.interfaceFamily

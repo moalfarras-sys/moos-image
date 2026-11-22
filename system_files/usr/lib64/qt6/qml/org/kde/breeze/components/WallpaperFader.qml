@@ -52,7 +52,7 @@ Item {
         NumberAnimation {
             target: wallpaperFader
             property: "factor"
-            duration: Kirigami.Units.veryLongDuration * 2
+            duration: wallpaperFader.design.motionGeometry
             easing.type: Easing.InOutQuad
         }
     }
@@ -174,7 +174,7 @@ Item {
             NumberAnimation {
                 targets: [wallpaperFader.mainStack, wallpaperFader.footer, wallpaperFader.clock]
                 property: "opacity"
-                duration: Kirigami.Units.veryLongDuration
+                duration: wallpaperFader.design.motionFast
                 easing.type: Easing.InOutQuad
             }
         },
@@ -184,7 +184,7 @@ Item {
             NumberAnimation {
                 targets: [wallpaperFader.mainStack, wallpaperFader.footer, wallpaperFader.clock]
                 property: "opacity"
-                duration: Kirigami.Units.veryLongDuration
+                duration: wallpaperFader.design.motionGeometry
                 easing.type: Easing.InOutQuad
             }
         }

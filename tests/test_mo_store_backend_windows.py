@@ -446,16 +446,18 @@ class WindowsPortable(WindowsFixture):
         source = RUNNER.read_text(encoding="utf-8")
         start = source.index("wine_display_dpi() {")
         function = source[start:source.index("\n}\n", start) + 3]
-        bindir = self.base / "dpi-bin"
-        bindir.mkdir()
-        (bindir / "xrdb").write_text('#!/bin/sh\nprintf "Xft.dpi:\\t%s\\n" "$XFT_DPI"\n', encoding="utf-8")
-        (bindir / "xrdb").chmod(0o755)
+        # The X resource reply is a shell function, not a freshly written
+        # executable: a full gate run once read the default 96 for 120-254 while
+        # the same file passed every standalone run. Executing a file written a
+        # moment earlier can meet ETXTBSY from any concurrent fork, and the
+        # function silences xrdb's error, so the parse under test never ran.
+        stub = 'xrdb() { printf "Xft.dpi:\\t%s\\n" "$XFT_DPI"; }\n'
         controller = self.controller(self.recipe(pe(), exe="tinyterm.exe"))
         for raw in ("72", "96", "120", "144", "168.4", "240", "254"):
             with self.subTest(dpi=raw):
-                shell = subprocess.run(["bash", "-c", function + "\nwine_display_dpi\n"], text=True,
+                shell = subprocess.run(["bash", "-c", stub + function + "\nwine_display_dpi\n"], text=True,
                                        capture_output=True, check=True,
-                                       env={"PATH": f"{bindir}:/usr/bin:/bin", "XFT_DPI": raw})
+                                       env={"PATH": "/usr/bin:/bin", "XFT_DPI": raw})
                 self.runtime.dpi = raw
                 self.assertEqual(controller._display_dpi(), int(shell.stdout.strip()))
 

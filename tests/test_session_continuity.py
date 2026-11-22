@@ -16,15 +16,24 @@ UI = ROOT / 'system_files/usr/lib64/qt6/qml'
 PROFILES = json.loads((ROOT/'artwork/moos-design/theme-profiles.json').read_text())['profiles']
 
 
-def check_glyph(button):
+def check_glyph(button, pixels):
+    from PySide6.QtQml import QQmlExpression, QQmlEngine
     from PySide6.QtQuick import QQuickItem
     glyph=button.findChild(QQuickItem,'moosSessionActionGlyph')
     assert glyph and glyph.isVisible(), 'missing shared session glyph'
     fill=glyph.findChild(QQuickItem,'moosSessionActionGlyphFill')
     icon=glyph.findChild(QQuickItem,'moosSessionActionGlyphInk')
     assert fill and icon
-    resolved = str(icon.property('source'))
-    assert resolved.startswith('moos-') and icon.property('valid'), ('session symbol did not resolve from MoOS', resolved)
+    raster = glyph.findChild(QQuickItem,'moosSessionRasterInk')
+    if glyph.property('rasterSymbol'):
+        assert raster and raster.isVisible()
+        resolved = raster.property('name')
+        loaded = QQmlExpression(QQmlEngine.contextForObject(raster), raster, 'status === Image.Ready')
+        assert loaded.evaluate()[0] is True, ('native icon did not load',resolved)
+    else:
+        resolved = str(icon.property('source'))
+        assert icon.isVisible() and icon.property('valid')
+    assert resolved.startswith('moos-'), ('session symbol did not resolve from MoOS',resolved)
     def luminance(color):
         values=[color.redF(),color.greenF(),color.blueF()]
         values=[v/12.92 if v<=0.04045 else ((v+0.055)/1.055)**2.4 for v in values]
@@ -37,6 +46,19 @@ def check_glyph(button):
         raise AssertionError(('session glyph ink/fill',background.name(),ink.name(),contrast))
     assert background==glyph.property('accentColor') and ink==glyph.property('inkColor')
     assert glyph.opacity()==1
+    # Kirigami can report the right colour while the software scene graph
+    # paints the original icon instead. Inspect the actual opaque stroke.
+    region = icon.mapRectToScene(icon.boundingRect())
+    ratio = button.window().devicePixelRatio()
+    match = 0
+    target = ink.getRgb()[:3]
+    for y in range(round(region.top()*ratio), round(region.bottom()*ratio)):
+        for x in range(round(region.left()*ratio), round(region.right()*ratio)):
+            pixel = pixels.pixelColor(x,y).getRgb()[:3]
+            if max(abs(channel-wanted) for channel,wanted in zip(pixel,target)) <= 12:
+                match += 1
+    assert match >= max(3,region.width()*region.height()*ratio**2*.035), ('painted glyph ink',resolved,target,match)
+
     return dict(accent=background.name(),ink=ink.name(),contrast=contrast,source=resolved)
 
 
@@ -47,7 +69,7 @@ def probe():
     from PySide6.QtQml import QQmlEngine, QQmlComponent, QQmlPropertyMap, QQmlExpression
     from PySide6.QtQuick import QQuickItem
     from PySide6.QtTest import QTest
-    app = QApplication([])
+    app = QApplication.instance()
     from PySide6.QtGui import QFont,QFontInfo
     assert QFontInfo(QFont("Meyar Sans")).family()=="Meyar Sans", "Missing actual Meyar native font"
     engine = QQmlEngine()
@@ -103,6 +125,12 @@ Window {
     component.setData(qml.encode(), QUrl('file:///session-proof.qml'))
     window = component.create()
     assert window, [error.toString() for error in component.errors()]
+    cancel = window.findChild(QQuickItem, 'cancelButton')
+    assert cancel and cancel.isVisible(), 'missing initial cancel action'
+    ancestor = cancel
+    while ancestor:
+        assert ancestor.opacity() == 1 and ancestor.scale() == 1, 'power action hidden or scaled on entry'
+        ancestor = ancestor.parentItem()
     assert QTest.qWaitForWindowExposed(window, 3000)
     QTest.qWait(900)
     view = window.findChild(QQuickItem, 'moosSessionPower')
@@ -118,12 +146,15 @@ Window {
     assert image
     ready = QQmlExpression(QQmlEngine.contextForObject(image), image, 'status === Image.Ready')
     assert ready.evaluate()[0] is True, ('wallpaper not rendered',view.property('sceneWallpaper'),ready.error().toString())
+    softwareBackdrop = QQmlExpression(QQmlEngine.contextForObject(image), image,
+        'GraphicsInfo.api !== GraphicsInfo.Software || !layer.enabled')
+    assert softwareBackdrop.evaluate()[0] is True, 'software wallpaper hidden behind a shader layer'
     assert view.property('motionEnabled') == (os.environ['PROBE_MOTION']=='1')
     def descendants(item):
         for child in item.childItems():
             yield child
             yield from descendants(child)
-    buttons = [x for x in descendants(view) if x.metaObject().indexOfProperty('revealOrder') >= 0 and x.isVisible()]
+    buttons = [x for x in descendants(view) if x.metaObject().indexOfSignal('navigate(int,int)') >= 0 and x.isVisible()]
     assert len(buttons) == (6 if os.environ.get('PROBE_FIVE_ACTIONS') == '1' else 9), ('missing capability/update actions', len(buttons))
     geometry = []
     card = view.findChild(QQuickItem, 'moosSessionCard')
@@ -138,6 +169,7 @@ Window {
             (ink.redF(),ink.greenF(),ink.blueF()),bg))
     def luminance(rgb):
         return sum(a*b for a,b in zip((v/12.92 if v<=0.04045 else ((v+0.055)/1.055)**2.4 for v in rgb),(.2126,.7152,.0722)))
+    pixels = window.grabWindow()
     for button in buttons:
         rect = button.mapRectToItem(view, button.boundingRect())
         assert rect.left() >= 0 and rect.right() <= view.width(), ('horizontal overflow', button.property('text'), rect)
@@ -157,16 +189,16 @@ Window {
             foreground=over(caption.property('color'),background)
             low,high=sorted((luminance(background),luminance(foreground)))
             assert (high+.05)/(low+.05)>=4.5, ('composed caption contrast',button.property('text'),(high+.05)/(low+.05))
-        if button.property('revealOrder') != 8: check_glyph(button)
+        if button.objectName() != 'cancelButton': check_glyph(button, pixels)
         geometry.append(dict(text=button.property('text'), x=rect.x(), y=rect.y(), width=rect.width(), height=rect.height()))
     if os.environ.get('PROBE_FIVE_ACTIONS') == '1':
-        actions = [g for b, g in zip(buttons, geometry) if b.property('revealOrder') != 8]
+        actions = [g for b, g in zip(buttons, geometry) if b.objectName() != 'cancelButton']
         if len(actions) != 5 or len({round(g['y'], 1) for g in actions}) != 1:
             print('MOOS_SESSION_POWER_LAYOUT_MISMATCH', flush=True)
             raise AssertionError('the ordinary five actions do not share one desktop row')
     # Actual callbacks from the production controls: a sensitive first click
     # only arms, the second reaches the existing native root's signal.
-    button = next(x for x in buttons if x.property('revealOrder') == 2)
+    button = next(x for x in buttons if x.objectName() == 'rebootButton')
     point = button.mapToScene(QPointF(button.width()/2, button.height()/2))
     at = QPoint(round(point.x()), round(point.y()))
     QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, at)
@@ -191,7 +223,7 @@ Window {
     QCoreApplication.sendEvent(window,QKeyEvent(QEvent.KeyPress,Qt.Key_Return,Qt.NoModifier,'',True,3))
     QTest.qWait(140)
     assert window.property('fired')==fired,'held Enter bypassed confirmation'
-    cancel = next(x for x in buttons if x.property('revealOrder') == 8)
+    cancel = next(x for x in buttons if x.objectName() == 'cancelButton')
     cancel.forceActiveFocus(); QTest.keyClick(window, Qt.Key_Space)
     assert window.property('action') == 'cancel'
     if os.environ.get('MOOS_SESSION_CAPTURE'):
@@ -205,7 +237,7 @@ def native_button_probe():
     from PySide6.QtQml import QQmlEngine,QQmlComponent
     from PySide6.QtQuick import QQuickItem
     from PySide6.QtTest import QTest
-    app=QApplication([]);
+    app=QApplication.instance()
     from PySide6.QtGui import QFont,QFontInfo
     assert QFontInfo(QFont("Meyar Sans")).family()=="Meyar Sans", "Missing actual Meyar native font"
     engine=QQmlEngine();engine.setProperty('_kirigamiTheme','org.kde.desktop')
@@ -244,7 +276,7 @@ Window {
         assert rect.left()>=0 and rect.right()<=window.width() and rect.top()>=0 and rect.bottom()<=window.height()
         caption=button.findChild(QQuickItem,'moosSessionActionCaption');assert caption
         assert not caption.property('truncated') and caption.property('paintedHeight')<=caption.height()+1
-        proof.append(check_glyph(button))
+        proof.append(check_glyph(button, window.grabWindow()))
         point=button.mapToScene(QPointF(button.width()/2,button.height()/2))
         before=window.property('activated');QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,QPoint(round(point.x()),round(point.y())))
         assert window.property('activated')==before+1
@@ -354,6 +386,20 @@ class SessionContinuity(unittest.TestCase):
 
 
 if __name__=='__main__':
-    if '--probe' in sys.argv: probe()
-    elif '--native-button' in sys.argv: native_button_probe()
-    else: unittest.main()
+    if '--probe' in sys.argv or '--native-button' in sys.argv:
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtCore import QCoreApplication, QEvent
+        app = QApplication([])
+        try:
+            if '--probe' in sys.argv:
+                probe()
+            else:
+                native_button_probe()
+        finally:
+            # Destroy the fixture windows while Qt can still release their cursors.
+            for window in app.topLevelWindows():
+                window.close()
+                window.deleteLater()
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    else:
+        unittest.main()

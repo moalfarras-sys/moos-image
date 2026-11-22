@@ -151,6 +151,68 @@ def rgb(value: str) -> str:
     return ",".join(str(int(value[i:i + 2], 16)) for i in (0, 2, 4))
 
 
+def _luminance(value: str) -> float:
+    value = value.lstrip("#")
+
+    def channel(c: int) -> float:
+        c /= 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (int(value[i:i + 2], 16) for i in (0, 2, 4))
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def contrast_ratio(a: str, b: str) -> float:
+    la, lb = _luminance(a), _luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def legible(value: str, against: tuple[str, ...], target: float) -> str:
+    """The same hue, moved in lightness until it reads on every background.
+
+    A palette role chosen as an ACCENT is not automatically usable as TEXT:
+    measured 2026-11-22, the light families drew links in their bright
+    secondary (Arena Light cyan 2.5:1, Daylight visited cyan 2.6:1, Forge Light
+    visited green 2.3:1) and Selection's alternate rows put selected ink at
+    3.0:1. KDE draws ForegroundLink/Visited/Active/Negative/Neutral/Positive as
+    text on the group's Normal AND Alternate backgrounds, so each must meet
+    WCAG there. A role that already passes is returned byte-identical; only a
+    failing one is darkened (light backgrounds) or lightened (dark ones) in
+    HLS, keeping hue and saturation, by the smallest step that passes.
+    """
+    import colorsys
+    if all(contrast_ratio(value, bg) >= target for bg in against):
+        return value
+    darker = sum(_luminance(bg) for bg in against) / len(against) > 0.18
+    v = value.lstrip("#")
+    r, g, b = (int(v[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    h, lightness, s = colorsys.rgb_to_hls(r, g, b)
+    for step in range(1, 101):
+        trial_l = max(0.0, lightness - step / 100) if darker else min(1.0, lightness + step / 100)
+        tr, tg, tb = colorsys.hls_to_rgb(h, trial_l, s)
+        candidate = "#{:02X}{:02X}{:02X}".format(*(round(c * 255) for c in (tr, tg, tb)))
+        if all(contrast_ratio(candidate, bg) >= target for bg in against):
+            return candidate
+    raise ValueError(f"no legible variant of {value} against {against} at {target}:1")
+
+
+def legible_ground(value: str, ink: str, target: float) -> str:
+    """A background role moved in lightness until `ink` reads on it."""
+    import colorsys
+    if contrast_ratio(ink, value) >= target:
+        return value
+    away_dark = _luminance(ink) > 0.18   # light ink wants a darker ground
+    v = value.lstrip("#")
+    r, g, b = (int(v[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    h, lightness, s = colorsys.rgb_to_hls(r, g, b)
+    for step in range(1, 101):
+        trial_l = max(0.0, lightness - step / 100) if away_dark else min(1.0, lightness + step / 100)
+        tr, tg, tb = colorsys.hls_to_rgb(h, trial_l, s)
+        candidate = "#{:02X}{:02X}{:02X}".format(*(round(c * 255) for c in (tr, tg, tb)))
+        if contrast_ratio(ink, candidate) >= target:
+            return candidate
+    raise ValueError(f"no ground under {ink} for {value} at {target}:1")
+
+
 def variant_roles(variant: str) -> dict[str, str]:
     return PALETTES[variant] | EXTRAS[variant]
 
@@ -374,19 +436,26 @@ def color_scheme(variant: str) -> str:
     def group_from(pp: dict, name: str, normal: str, alternate: str,
                    inactive: str | None = None) -> str:
         muted = inactive or pp["muted"]
+        grounds = (normal, alternate)
+
+        def ink(role: str) -> str:      # drawn as text on this group
+            return rgb(legible(role, grounds, 4.5))
+
+        def mark(role: str) -> str:     # focus/hover rings: non-text, 3:1
+            return rgb(legible(role, grounds, 3.0))
         return f"""[{name}]
 BackgroundAlternate={rgb(alternate)}
 BackgroundNormal={rgb(normal)}
-DecorationFocus={rgb(pp['primary'])}
-DecorationHover={rgb(pp['luminous'])}
-ForegroundActive={rgb(pp['primary'])}
-ForegroundInactive={rgb(muted)}
-ForegroundLink={rgb(pp['secondary'])}
-ForegroundNegative={rgb(pp['negative'])}
-ForegroundNeutral={rgb(pp['warning'])}
-ForegroundNormal={rgb(pp['text'])}
-ForegroundPositive={rgb(pp['positive'])}
-ForegroundVisited={rgb(pp['luminous'])}
+DecorationFocus={mark(pp['primary'])}
+DecorationHover={mark(pp['luminous'])}
+ForegroundActive={ink(pp['primary'])}
+ForegroundInactive={ink(muted)}
+ForegroundLink={ink(pp['secondary'])}
+ForegroundNegative={ink(pp['negative'])}
+ForegroundNeutral={ink(pp['warning'])}
+ForegroundNormal={ink(pp['text'])}
+ForegroundPositive={ink(pp['positive'])}
+ForegroundVisited={ink(pp['luminous'])}
 """
 
     def group(name: str, normal: str, alternate: str, inactive: str | None = None) -> str:
@@ -398,7 +467,7 @@ ForegroundVisited={rgb(pp['luminous'])}
     sp = variant_roles(session_sibling(variant))
 
     selection = f"""[Colors:Selection]
-BackgroundAlternate={rgb(p['secondary'])}
+BackgroundAlternate={rgb(legible_ground(p['secondary'], selected, 4.5))}
 BackgroundNormal={rgb(p['primary'])}
 DecorationFocus={rgb(p['luminous'])}
 DecorationHover={rgb(p['luminous'])}
@@ -486,6 +555,15 @@ def konsole_scheme(variant: str, light: bool | None = None) -> str:
         # so bold white came out near-invisible against the terminal background.
         7: (base7, p["muted"], base7),
     }
+    # ANSI 1-6 are TEXT in a terminal (ls directories, compiler errors, git
+    # diffs). Measured 2026-11-22: light families drew them in accent tones at
+    # 2.4-4.4:1 on the terminal's own background (Forge Light cyan 2.41:1,
+    # Arena Light blue 2.70:1). Normal and intense ink keep their hue and move
+    # in lightness only until they read at 4.5:1; faint stays faint on purpose.
+    for number in range(1, 7):
+        normal, faint, intense = terminal[number]
+        terminal[number] = (legible(normal, (background,), 4.5), faint,
+                            legible(intense, (background,), 4.5))
     blocks = []
     for number, values in terminal.items():
         blocks.append(f"""[Color{number}]

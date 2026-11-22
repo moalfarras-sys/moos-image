@@ -159,6 +159,15 @@ IDs such as `org.moos.nova.clock`, `MoOSUI2*` and `org.moos.ui2.*` remain stable
 Text contrast is judged against the effective fallback fill, not an ideal blur
 sample. Every important edge must remain legible with compositing disabled.
 
+An accent chosen for fills is not automatically text. The generators pass every
+text role (KDE Link/Visited/Active/Negative/Neutral/Positive/Inactive, Konsole
+ANSI 1–6, libadwaita `accent_color`) through `legible()`: a role that reads at
+4.5:1 on its group's Normal and Alternate grounds is kept byte-identical; a
+failing one keeps hue and saturation and moves in lightness only. Focus and
+hover marks need 3:1. libadwaita's accent ink is the scheme's selected ink.
+Corrected roles reach existing desktops through `moos-color-roles`, which
+rewrites only exact retired values (`tests/test_theme_role_contrast.py`).
+
 ## Geometry and rhythm
 
 - spacing rhythm: 4 / 8 / 12 / 16 / 24 / 32 logical px;
@@ -256,9 +265,12 @@ logic or replace the native executor. Session actions keep complete captions,
 44px minimum targets and two-step sensitive confirmation. Pointer/key navigation
 cancels the native countdown; hidden/reduced motion settles finite transitions.
 The native login/lock buttons and power tiles share `SessionActionGlyph`:
-selected-theme accent under its paired ink, negative-role shutdown, no independent
-fixed palette. Enabled ink stays opaque. The session backdrop uses one24px
-Qt image-blur token; KWin's distinct0–15 blur ceiling remains unchanged. Extra
+the short corner of each key mirrors with the reading direction. Each session
+action has its own Tidal Cut silhouette. Installation adds a downward arrow inside
+the restart or power outline. The flat key uses selection and its paired ink.
+Shutdown uses the negative role. The rim mixes selection and the scheme's link
+colour. Enabled ink stays opaque. The session backdrop uses one24px
+Qt image-blur token on GPU renderers. The power screen paints the original image on the software renderer; KWin's distinct0–15 blur ceiling remains unchanged. Extra
 expanded halo rectangles are removed from login/lock too; GlassSurface owns depth.
 
 The three session surfaces are one scene with one set of parts, and the parts are
@@ -286,26 +298,40 @@ Rules that follow from it:
 - **Two poses.** With nobody at the keyboard the screen is a cover: the clock is its
   headline, up to half as large again, standing low in its band. At the first key
   or movement the clock draws back and rises, and the island arrives under it: the
-  plate settles with a small overshoot, then the face, the prompts and the action
-  keys, as slices of one finite driver.
+  plate and face have a short entrance. Prompts and action keys keep their positions
+  as the parent becomes visible. The power sheet opens with its actions fully visible.
 - **The frame.** The selected face stands in a ring of the accent's two tones, a
   hair's width off the picture, over a still bloom. A photo sits in it like a stone
   in a bezel. A face without a photo is its initial on a two-tone disc.
-- **The orbit.** When the island arrives a light runs round its rim and round the
-  face's frame, twice; a typed character sends it round once more; then it docks
-  in the crest and is no longer drawn. It is always a counted number of turns,
-  never a loop: a machine left at a half-typed password keeps this screen up
-  indefinitely. Measured on the station (NVIDIA, 3840×2160@2.5): 0.3% of a core as
-  a cover, 6.5% while the orbit turns, 0.0% once it has docked.
+- **Arrival and input.** The card rim and selected face each make one short sweep
+  when login or lock opens on a GPU. The password field and submit key own typing
+  feedback. The power sheet keeps its rim still and uses the pressed, focus and
+  confirmation states of the action itself.
+- **One capsule.** The password field's plate reaches across the row's gap and
+  holds the key: field and key read as one control. The key is still upstream's
+  own button beside the field, drawn as an inset portal concentric with the
+  capsule; its 44 px hit area, focus and role are unchanged.
 - **The key answers.** The Unlock/Log In key is glass until its field holds
   something, then fills with the accent and its arrow leans forward. A refusal
   flashes the island's rim once in the negative role, with the notice.
+- **The greeting.** The notice line greets by the time of day read when the island
+  arrives («صباح الخير» / «طاب يومك» / «مساء الخير», "Sign in to MoOS" for the
+  user-name prompt). A notice takes the same line; nothing polls the clock.
+- **Arrives once.** The login greeter waits for the selected account's appearance
+  (`SessionAppearance.greeterSettled`, at most 900 ms, latched). Until then the
+  login scene is the splash's own ground (#0A101B) with no photograph, and the
+  clock, island and prompts are transparent; the field still holds the keyboard.
+  The V3 previously showed black, a light BloomLight plate, a Graphite-teal island
+  and then dark Bloom within one second.
+- Actions below the island and the clock stand on the scene: the action row takes
+  the Window set (dark ink in light families), because Complementary is dark in
+  all eighteen schemes.
 - Nothing shares the top-centre with the clock, and nothing sits on the island's
   top edge but its crest. The brand mark is in its corner and on the island's
   lower edge.
 - The island is sized from its content, never from outside.
-- Session surfaces wear the Complementary set in every family, light ones included:
-  the island is deliberate dark glass.
+- The working card uses the selected Window material in every family. Its paired
+  foreground and accent follow the account, including light profiles.
 - With animations off nothing moves: the clock keeps its working pose's size rules,
   the arrival driver rests at 1 and the orbit refuses to start.
 - MoOS replaces no file that carries authentication. The session design is drawn by
@@ -316,7 +342,11 @@ at the station's 1536×864@2.5 at least, in Arabic and one left-to-right languag
 with the password row idle, typed into and refused. `frames=` and `motion=6` capture an
 arrival as a sequence; a live look on the station's own GPU is one transient unit away
 (`kscreenlocker_greet --testing` with a private `QML_IMPORT_PATH`), and is where the
-orbit's cost is measured.
+cost of the session effects is measured. `scripts/review/login-greeter-native.py`
+runs the REAL plasma-login greeter and wallpaper (or `--surface lock`) from this
+tree on a private `kwin_wayland --virtual`, bubblewrap-overlaid, with private-EIS
+pointer/key input and KWin ScreenShot2 frames; `--real` draws the real UI against
+an absent daemon socket (no PAM), `--test` uses the vendor mock for refusals.
 
 ### Panel and launcher
 

@@ -95,6 +95,18 @@ var symbolNames = ({
     "pulse": true,
     "login": true,
     "logout": true,
+    "session-sleep": true,
+    "session-hibernate": true,
+    "session-restart": true,
+    "session-update-restart": true,
+    "session-poweroff": true,
+    "session-update-poweroff": true,
+    "session-logout": true,
+    "session-lock": true,
+    "session-show-keyboard": true,
+    "session-hide-keyboard": true,
+    "session-input-language": true,
+    "session-switch-user": true,
 })
 
 function resolve(name) {

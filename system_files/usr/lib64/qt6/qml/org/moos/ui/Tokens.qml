@@ -212,6 +212,12 @@ QtObject {
         return Math.max(1, Math.round(role * longDuration / 200))
     }
 
+    // The session rim borrows a little of the scheme's link ink. The opaque
+    // selection/foreground pair remains reserved for the controls themselves.
+    function sessionRim(accent, link) {
+        return Qt.tint(accent, Qt.alpha(link, 0.32))
+    }
+
     function isLight(color) {
         return color.hslLightness > 0.55
     }

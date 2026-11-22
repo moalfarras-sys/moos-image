@@ -3,6 +3,34 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "login-arrives-once",
+      "merged": "2026-11-21T23:30:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "شاشة دخول تظهر مرة واحدة بألوانك",
+        "en": "Sign-in appears once, in your colours"
+      },
+      "body": {
+        "ar": "تبقى الخلفية بلون الإقلاع حتى يُعرف مظهرك، ثم تظهر شاشة الدخول مرة واحدة بلا وميض. كلمة السر وزرّها كبسولة واحدة، مع تحية حسب الوقت، ورسائل البصمة والأزرار صارت بعربية سليمة.",
+        "en": "The boot colour holds until your look is known, then sign-in appears once with no flash. The password and its key form one capsule, with a greeting by time of day; fingerprint prompts and buttons now read in proper Arabic."
+      },
+      "route": "moos://settings/appearance"
+    },
+    {
+      "id": "readable-theme-colours",
+      "merged": "2026-11-21T23:30:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "ألوان أوضح للروابط والطرفية",
+        "en": "Clearer links and terminal colours"
+      },
+      "body": {
+        "ar": "الروابط والنصوص الملوّنة والتحديد في الثيمات الفاتحة صارت أوضح للقراءة، وألوان الطرفية كذلك. تتحدث ألوانك تلقائيًا ما لم تكن قد غيّرتها بنفسك.",
+        "en": "Links, coloured text and selections in the light themes read more clearly, as do terminal colours. Your colours update automatically unless you changed them yourself."
+      },
+      "route": "moos://settings/appearance"
+    },
+    {
       "id": "liquid-glass-boot",
       "merged": "2026-11-19T22:45:00Z",
       "glyph": "ui",
@@ -967,20 +995,6 @@
         "ar": "على جهاز لا يرسم التمويه، أو إذا أطفأتَه بنفسك، كانت أسطح MoOS تبقى شفّافة فيقرأ نصّ النافذة التي خلفها من خلالها. صارت الأسطح تقرأ إعداد جهازك كما يقرأه النظام، وتزداد كثافةً بلا تمويه، فيستقرّ النص فوق سطح.",
         "en": "On a machine that does not paint blur — or when you turn blur off — MoOS surfaces stayed translucent, and the window behind read straight through them. Surfaces now read your machine's setting the way the system reads it, and grow denser without blur, so text sits on a surface."
       }
-    },
-    {
-      "id": "free-brain-measured",
-      "merged": "2026-09-18T15:23:50Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "Mo AI يقيس أسرع عقل مجاني على جهازك",
-        "en": "Mo AI measures the fastest free brain on your machine"
-      },
-      "body": {
-        "ar": "قائمة النماذج في Mo AI صارت تبدأ بما قِيس على جهازك: كل نموذج ومعه ثوانيه — كم أخذ ليردّ وكم أخذ لينفّذ أمراً. وزرّ «قِس الآن» يعيد القياس في دقيقتين. ونموذج رفضه المزوّد أو لم يجب بالعربية يقول ذلك بصراحة.",
-        "en": "Mo AI's model list now starts with what was measured on your machine: each model with its seconds — to answer, and to run an action. \"Measure now\" repeats it in two minutes, and a model the provider refused, or that didn't answer in Arabic, says so."
-      },
-      "route": "moos://settings/assistant"
     }
   ]
 }

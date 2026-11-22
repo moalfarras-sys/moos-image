@@ -3145,7 +3145,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=171" in apply_theme_code,
+require("THEME_REV=174" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -4340,13 +4340,12 @@ require("TidalHorizon" not in _logout_code
         "Logout must centre on the Glass Island, never draw the retired arc, "
         "carry no hard-coded palette, and settle after finite entry motion")
 
-# An Animator is a QObject, not an Item, so `target: parent` resolves to NULL.
-# Every doorway animator pins a concrete Item and the portal reveal itself is a
-# finite NumberAnimation.
-require("target: wallpaper" in _logout_code
-        and "target: parent" not in _logout_code,
-        "logout entry motion must target concrete ids; target: parent inside an "
-        "Animator is null and silently leaves a doorway invisible")
+# The backdrop and the action sheet are visible as soon as Plasma opens the
+# window. In particular, an Animator's null parent must never hide the scene.
+require("target: parent" not in _logout_code
+        and "target: wallpaper" not in _logout_code
+        and "animateArrival: false" in _logout_code,
+        "logout must open on its selected backdrop with the actions in place")
 require(not (ROOT / "artwork/tidal-portal/TidalHorizon.qml").exists()
         and not list((ROOT / "system_files").rglob("TidalHorizon.qml")),
         "the retired Tidal arc must not ship anywhere (owner verdict 2026-08-02)")

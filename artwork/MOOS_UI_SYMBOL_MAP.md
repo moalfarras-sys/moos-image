@@ -2,7 +2,7 @@
 
 `Tidal Cut` is MoOS's owned action-icon language. Its single geometry source is
 [`generate_moos_symbolic_icons.py`](generate_moos_symbolic_icons.py), which
-generates all 93 SVGs and
+generates all 105 SVGs and
 [`moos_symbolic_manifest.js`](moos_symbolic_manifest.js). The visual harness
 imports that manifest; it does not carry a second hand-maintained name list.
 Application launch icons and the MoOS / Mo AI identity marks remain separate
@@ -134,6 +134,18 @@ one colour and in high-contrast GTK masking.
 | `pulse` | Activity | status |
 | `login` | Login | navigation |
 | `logout` | Logout | navigation |
+| `session-sleep` | Sleep | session |
+| `session-hibernate` | Hibernate | session |
+| `session-restart` | Restart | session |
+| `session-update-restart` | Install updates and restart | session |
+| `session-poweroff` | Shut down | session |
+| `session-update-poweroff` | Install updates and shut down | session |
+| `session-logout` | Leave session | session |
+| `session-lock` | Lock screen | session |
+| `session-show-keyboard` | Show keyboard | session |
+| `session-hide-keyboard` | Hide keyboard | session |
+| `session-input-language` | Change keyboard layout | session |
+| `session-switch-user` | Switch user | session |
 
 ## Verification
 
