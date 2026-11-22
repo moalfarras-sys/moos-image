@@ -538,6 +538,9 @@ Item {
             Layout.rightMargin: view.space1
             Layout.preferredHeight: 56
             radius: view.radiusL
+            // The MoOS corner: the top-trailing corner is square.
+            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
             color: Qt.alpha(Kirigami.Theme.backgroundColor,
                 searchInput.activeFocus ? 0.96 : 0.78)
             border.width: 1
@@ -2059,6 +2062,9 @@ Item {
                 anchors.fill: parent; anchors.margins: view.space1
                 visible: favoriteDragProxy.Drag.active
                 radius: view.radiusL
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                 color: Qt.alpha(Kirigami.Theme.backgroundColor, .94)
                 border.color: Qt.alpha(Kirigami.Theme.highlightColor, .8)
                 border.width: 1
@@ -2490,6 +2496,9 @@ Item {
         // one value works across all 16 themes; accent only on interaction.
         background: Rectangle {
             radius: view.radiusL
+            // The MoOS corner: the top-trailing corner is square.
+            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
             color: command.down
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
                 : command.hovered || command.activeFocus

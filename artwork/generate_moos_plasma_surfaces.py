@@ -16,6 +16,9 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Mapping
 
 
+# The MoOS corner's softening, in FrameSvg units: Design Core's radiusSquare.
+SQUARE_SOFTENING = 3
+
 POSITIONS = (
     "topleft", "top", "topright",
     "left", "center", "right",
@@ -98,12 +101,18 @@ def _frame(
     inner: int = 24,
     hints: bool = True,
     hint_margin: float | None = None,
+    square: bool = False,
 ) -> list[str]:
     """Return one rounded, scalable Plasma FrameSvg.
 
     Outlines are fill-only strips instead of strokes so fractional scaling
     cannot inflate them.  The 1 px optical rim stays crisp at 100–250% while
     the corner radius remains represented by unscaled corner pieces.
+
+    square=True gives a CARD the MoOS corner: its top-left piece (the
+    top-trailing corner of an Arabic-first surface; FrameSvg cannot mirror) is
+    square with only SQUARE_SOFTENING of rounding. _mask_frame takes the same
+    flag, and the two must always agree or KWin frosts outside the paint.
     """
     r = radius
     i = inner
@@ -114,14 +123,25 @@ def _frame(
     rop = f"{rim_opacity:.3f}"
     out: list[str] = []
 
-    out.append(
-        f'  <g id="{_id(prefix, "topleft")}">'
-        f'<path d="M{x0} {y1}A{r} {r} 0 0 1 {x1} {y0}V{y1}H{x0}Z" '
-        f'fill="{fill}" fill-opacity="{op}"/>'
-        f'<path d="M{x0} {y1}A{r} {r} 0 0 1 {x1} {y0}V{y0 + 1}'
-        f'A{r - 1} {r - 1} 0 0 0 {x0 + 1} {y1}Z" '
-        f'fill="{rim}" fill-opacity="{rop}"/></g>'
-    )
+    if square:
+        q = SQUARE_SOFTENING
+        out.append(
+            f'  <g id="{_id(prefix, "topleft")}">'
+            f'<path d="M{x0} {y0 + q}A{q} {q} 0 0 1 {x0 + q} {y0}H{x1}V{y1}H{x0}Z" '
+            f'fill="{fill}" fill-opacity="{op}"/>'
+            f'<path d="M{x0} {y1}V{y0 + q}A{q} {q} 0 0 1 {x0 + q} {y0}H{x1}V{y0 + 1}'
+            f'H{x0 + q}A{q - 1} {q - 1} 0 0 0 {x0 + 1} {y0 + q}V{y1}Z" '
+            f'fill="{rim}" fill-opacity="{rop}"/></g>'
+        )
+    else:
+        out.append(
+            f'  <g id="{_id(prefix, "topleft")}">'
+            f'<path d="M{x0} {y1}A{r} {r} 0 0 1 {x1} {y0}V{y1}H{x0}Z" '
+            f'fill="{fill}" fill-opacity="{op}"/>'
+            f'<path d="M{x0} {y1}A{r} {r} 0 0 1 {x1} {y0}V{y0 + 1}'
+            f'A{r - 1} {r - 1} 0 0 0 {x0 + 1} {y1}Z" '
+            f'fill="{rim}" fill-opacity="{rop}"/></g>'
+        )
     out.append(
         f'  <g id="{_id(prefix, "topright")}">'
         f'<path d="M{x2} {y0}A{r} {r} 0 0 1 {x3} {y1}H{x2}Z" '
@@ -178,12 +198,16 @@ def _frame(
     return out
 
 
-def _mask_frame(prefix: str, *, x: int, y: int, radius: int = 10, inner: int = 24) -> list[str]:
+def _mask_frame(prefix: str, *, x: int, y: int, radius: int = 10, inner: int = 24,
+                square: bool = False) -> list[str]:
     r, i = radius, inner
     x0, x1, x2, x3 = x, x + r, x + r + i, x + r + i + r
     y0, y1, y2, y3 = y, y + r, y + r + i, y + r + i + r
+    q = SQUARE_SOFTENING
+    topleft = (f'M{x0} {y0 + q}A{q} {q} 0 0 1 {x0 + q} {y0}H{x1}V{y1}H{x0}Z' if square
+               else f'M{x0} {y1}A{r} {r} 0 0 1 {x1} {y0}V{y1}Z')
     return [
-        f'  <path id="{_id(prefix, "topleft")}" d="M{x0} {y1}A{r} {r} 0 0 1 {x1} {y0}V{y1}Z" fill="#000"/>',
+        f'  <path id="{_id(prefix, "topleft")}" d="{topleft}" fill="#000"/>',
         f'  <rect id="{_id(prefix, "top")}" x="{x1}" y="{y0}" width="{i}" height="{r}" fill="#000"/>',
         f'  <path id="{_id(prefix, "topright")}" d="M{x2} {y0}A{r} {r} 0 0 1 {x3} {y1}H{x2}Z" fill="#000"/>',
         f'  <rect id="{_id(prefix, "left")}" x="{x0}" y="{y1}" width="{r}" height="{i}" fill="#000"/>',
@@ -268,12 +292,13 @@ def _background(
     rim_opacity: float,
     radius: int,
     comment: str,
+    square: bool = False,
 ) -> str:
     body = _frame(
         "", x=0, y=0, fill=fill, fill_opacity=opacity,
-        rim=rim, rim_opacity=rim_opacity, radius=radius,
+        rim=rim, rim_opacity=rim_opacity, radius=radius, square=square,
     )
-    body.extend(_mask_frame("mask", x=80, y=0, radius=radius))
+    body.extend(_mask_frame("mask", x=80, y=0, radius=radius, square=square))
     body.append('  <rect id="hint-stretch-borders" x="152" y="0" width="4" height="4" fill="none"/>')
     body.extend((
         '  <rect id="hint-top-inset" x="152" y="8" width="4" height="0.01" fill="none"/>',
@@ -592,15 +617,17 @@ def _busy(p: Mapping[str, str]) -> str:
 def render_surface_suite(target: pathlib.Path, p: Mapping[str, str]) -> None:
     """Write the MoOS-owned high-visibility Plasma SVG suite into *target*."""
     widgets = target / "widgets"
+    # Desktop widgets are MoOS cards: they wear the MoOS corner, as the popup
+    # frame (dialogs/background.svg.in) does. Tooltips are not cards.
     _write(widgets / "background.svg", _background(
         p, fill=p["card"], opacity=0.88, rim=p["luminous"],
-        rim_opacity=0.28, radius=16,
-        comment="MoOS glass desktop-widget background with a rounded blur mask.",
+        rim_opacity=0.28, radius=16, square=True,
+        comment="MoOS glass desktop-widget card: the MoOS corner and its matching blur mask.",
     ))
     _write(widgets / "translucentbackground.svg", _background(
         p, fill=p["surface"], opacity=0.66, rim=p["primary"],
-        rim_opacity=0.26, radius=16,
-        comment="MoOS low-density glass for large visual plasmoids.",
+        rim_opacity=0.26, radius=16, square=True,
+        comment="MoOS low-density glass card for large visual plasmoids, with the MoOS corner.",
     ))
     _write(widgets / "tooltip.svg", _background(
         p, fill=p["card"], opacity=0.92, rim=p["luminous"],

@@ -395,6 +395,9 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: discover.win.fs(112)
                             radius: discover.design.radiusCard
+                            // The MoOS corner: the top-trailing corner is square.
+                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, discover.design.radiusSquare) : radius
+                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, discover.design.radiusSquare)
                             color: discover.win.cardColor
                             border.width: 1
                             border.color: categoryHover.hovered ? discover.win.tint(categoryTile.tone, 0.7) : discover.win.cardBorder

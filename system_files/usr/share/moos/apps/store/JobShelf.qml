@@ -41,6 +41,9 @@ Item {
         id: shelf
         anchors.fill: parent
         radius: jobShelf.design.radiusPanel
+        // The MoOS corner: the top-trailing corner is square.
+        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, jobShelf.design.radiusSquare) : radius
+        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, jobShelf.design.radiusSquare)
         color: jobShelf.win.cardColor
         border.width: 1
         border.color: jobShelf.win.job.state === "failed" ? jobShelf.win.tint(jobShelf.win.dangerInk, 0.6)

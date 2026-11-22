@@ -35,15 +35,21 @@ Item {
         anchors.bottomMargin: rail.design.space3
         anchors.leftMargin: rail.design.space3
         radius: rail.design.radiusPanel
+        // The MoOS corner: the top-trailing corner is square.
+        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, rail.design.radiusSquare) : radius
+        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, rail.design.radiusSquare)
         color: rail.win.glassColor
         border.width: 1
         border.color: rail.win.design.glassEdge(rail.win.canvas, rail.win.design.glassLevelPanel)
         SoftShadow { win: rail.win; radius: pane.radius; strength: 0.8 }
         Rectangle {
+            // Stops short of each corner by that corner's own curve.
+            readonly property real roundInset: pane.radius * 0.8
+            readonly property real squareInset: Math.min(pane.radius, rail.design.radiusSquare) + 2
             anchors.top: parent.top
             anchors.topMargin: 1
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: parent.width - pane.radius * 1.6
+            x: LayoutMirroring.enabled ? squareInset : roundInset
+            width: Math.max(0, parent.width - roundInset - squareInset)
             height: 1
             color: rail.win.design.glassSpecular(rail.win.canvas, rail.win.design.glassLevelPanel)
         }

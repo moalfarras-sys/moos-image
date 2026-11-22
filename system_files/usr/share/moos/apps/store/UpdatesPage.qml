@@ -48,6 +48,9 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: statusRow.implicitHeight + updatesPage.design.space6 * 2
                 radius: updatesPage.design.radiusPanel
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, updatesPage.design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, updatesPage.design.radiusSquare)
                 color: updatesPage.win.cardColor
                 border.width: 1
                 border.color: updatesPage.win.cardBorder
@@ -56,6 +59,8 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 1
                     radius: parent.radius - 1
+                    topLeftRadius: Math.max(0, parent.topLeftRadius - 1)
+                    topRightRadius: Math.max(0, parent.topRightRadius - 1)
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
                         GradientStop { position: 0; color: updatesPage.win.tint(updatesPage.win.accent, updatesPage.win.rtl ? 0 : 0.14) }
@@ -222,6 +227,9 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: updatesPage.win.fs(72)
                         radius: updatesPage.design.radiusCard
+                        // The MoOS corner: the top-trailing corner is square.
+                        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, updatesPage.design.radiusSquare) : radius
+                        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, updatesPage.design.radiusSquare)
                         color: updatesPage.win.cardColor
                         border.width: 1
                         border.color: rowHover.hovered ? updatesPage.win.tint(updatesPage.win.accent, 0.45) : updatesPage.win.cardBorder

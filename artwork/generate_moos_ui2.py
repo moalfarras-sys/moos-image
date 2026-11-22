@@ -856,6 +856,11 @@ def generate_aurorae(variant: str, backup_root: pathlib.Path) -> None:
         raise SystemExit(f"{name} contains multiple Aurorae rc files")
     if source_rcs:
         source_rcs[0].rename(target_rc)
+    # The palette rewrite recolours the frame, not the button faces: copied from
+    # Graphite they stayed dark on the Light title bar whenever this generator
+    # ran. Re-render the suite from this variant's roles, as the family
+    # generator does; on the reviewed bytes it reproduces both packages exactly.
+    aurorae_art.render_aurorae_suite(target, variant_roles(variant), plugin_name=name)
     metadata = target / "metadata.desktop"
     text = metadata.read_text(encoding="utf-8")
     text = re.sub(r"^Name=.*$", f"Name={'MoOS UI Light' if light else 'MoOS UI'}", text, flags=re.M)

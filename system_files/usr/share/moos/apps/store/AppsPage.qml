@@ -375,6 +375,9 @@ Item {
                 anchors.rightMargin: appsPage.design.space2
                 anchors.bottomMargin: appsPage.design.space4
                 radius: appsPage.design.radiusPanel
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, appsPage.design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, appsPage.design.radiusSquare)
                 clip: true
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
@@ -454,6 +457,9 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: appsPage.win.fs(150)
                                 radius: appsPage.design.radiusCard
+                                // The MoOS corner: the top-trailing corner is square.
+                                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, appsPage.design.radiusSquare) : radius
+                                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, appsPage.design.radiusSquare)
                                 color: appsPage.win.tint(banner.ink, launcherHover.hovered ? 0.20 : 0.12)
                                 border.width: 1
                                 border.color: appsPage.win.tint(banner.ink, 0.22)

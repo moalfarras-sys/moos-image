@@ -111,10 +111,20 @@ Item {
         }
     }
 
+    // The MoOS corner: three round, the top-trailing one square (top-left in
+    // Arabic). The wallpaper is not inside a mirrored layout, so it reads the
+    // application's direction.
+    readonly property bool rightToLeft: Qt.application.layoutDirection === Qt.RightToLeft
+    readonly property real squareRadius: Math.min(card.design.radiusPanel, card.design.radiusSquare)
+
     Kirigami.ShadowedRectangle {
         visible: !card.integrated
         anchors.fill: parent
         radius: card.design.radiusPanel
+        corners.topLeftRadius: card.rightToLeft ? card.squareRadius : card.design.radiusPanel
+        corners.topRightRadius: card.rightToLeft ? card.design.radiusPanel : card.squareRadius
+        corners.bottomLeftRadius: card.design.radiusPanel
+        corners.bottomRightRadius: card.design.radiusPanel
         color: "transparent"
         shadow.size: card.design.space3
         shadow.color: Qt.alpha(Qt.darker(Kirigami.Theme.backgroundColor, 2.2),
@@ -130,6 +140,8 @@ Item {
         anchors.bottomMargin: card.integrated ? 0
             : Math.max(2, Kirigami.Units.smallSpacing / 2)
         radius: card.integrated ? 0 : card.design.radiusPanel
+        topLeftRadius: card.integrated ? 0 : (card.rightToLeft ? card.squareRadius : radius)
+        topRightRadius: card.integrated ? 0 : (card.rightToLeft ? radius : card.squareRadius)
         border.width: card.integrated ? 0 : card.design.borderHairline
         border.color: card.edgeColor
         clip: true
@@ -166,6 +178,8 @@ Item {
             anchors.fill: parent
             anchors.margins: 1
             radius: parent.radius - 1
+            topLeftRadius: Math.max(0, parent.topLeftRadius - 1)
+            topRightRadius: Math.max(0, parent.topRightRadius - 1)
             // Three pixels expressed as a fraction of the card's height, clamped
             // at both ends: during the first layout pass the height is 0, and an
             // unclamped 3/0 would hand Gradient an out-of-order stop.
@@ -185,11 +199,13 @@ Item {
         // body falls away from it. Inset by the corner so it lives on the straight
         // part of the edge, and one pixel tall at every scale.
         Rectangle {
+            readonly property real roundInset: parent.radius * 0.8
+            readonly property real squareInset: card.squareRadius + 2
             visible: !card.integrated && parent.width > parent.radius * 2
             anchors.top: parent.top
             anchors.topMargin: 1
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.max(0, parent.width - parent.radius * 1.6)
+            x: card.rightToLeft ? squareInset : roundInset
+            width: Math.max(0, parent.width - roundInset - squareInset)
             height: 1
             color: card.design.glassSpecular(Kirigami.Theme.backgroundColor,
                                              card.design.glassLevelScene)
