@@ -53,6 +53,10 @@ def contour(path, sharp):
         if sharp:
             # Fit a facet only while the original contour stays within a
             # subpixel error at text sizes. Preserve both extrema of each arc.
+            bounds = polygon.boundingRect()
+            # Long bowls can take a decisive cut. Scale the error budget
+            # down inside small counters so their enclosed space survives.
+            tolerance = min(2.50, .14 * min(bounds.width(), bounds.height()))
             def simplify(arc):
                 if len(arc) <= 2:
                     return arc
@@ -61,11 +65,13 @@ def contour(path, sharp):
                 errors = [abs(chord.x()*(v.y()-arc[0].y()) -
                               chord.y()*(v.x()-arc[0].x())) / length for v in arc]
                 split = max(range(len(arc)), key=errors.__getitem__)
-                if errors[split] <= 1.05:
+                if errors[split] <= tolerance:
                     return [arc[0], arc[-1]]
                 return simplify(arc[:split+1])[:-1] + simplify(arc[split:])
             far = max(range(len(points)), key=lambda k: (points[k]-points[0]).manhattanLength())
             corners = simplify(points[:far+1])[:-1] + simplify(points[far:] + points[:1])
+            if len(corners) < 4:
+                corners = points
             out.moveTo(corners[0])
             for point in corners[1:]:
                 out.lineTo(point)
@@ -75,7 +81,7 @@ def contour(path, sharp):
             def trim(a, b):
                 v = b-a
                 length = math.hypot(v.x(), v.y())
-                return a + v * min(.38, 2.2 / max(.001, length))
+                return a + v * min(.49, 4.8 / max(.001, length))
             out.moveTo(trim(points[0],points[-1]))
             for i, point in enumerate(points):
                 out.lineTo(trim(point,points[i-1]))
