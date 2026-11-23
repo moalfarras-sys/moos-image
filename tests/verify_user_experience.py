@@ -2064,7 +2064,11 @@ _skip_retired = _RETIRED_COMMAND_CENTER.exists() and not _launches_retired_comma
 
 def _emitter_sources():
     router_path = ROOT / "system_files/usr/bin/moos-open"
-    for base in (ROOT / "system_files", ROOT / "moos-settings-kcm"):
+    # The native Control Center's QML is compiled into the image from build_files (the
+    # Containerfile's control-center stage); its Settings key is the real emitter of
+    # settings/full. Until 2026-11-23 only a What's New entry happened to name that route.
+    for base in (ROOT / "system_files", ROOT / "moos-settings-kcm",
+                 ROOT / "build_files/plasma_logout/control-center"):
         for path in sorted(base.rglob("*")):
             if not path.is_file() or path == router_path or path.suffix not in _EMITTER_SUFFIXES:
                 continue
