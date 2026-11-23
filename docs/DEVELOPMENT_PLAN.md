@@ -28,6 +28,16 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+Nov23. PR320 (the MoOS corner on cards and commands, the Meyar Glass on-screen
+keyboard and the PR319 station repairs) merged as aa779022; its signed cycle is
+pinned to that revision. The follow-up batch advances the reviewed x86 base to
+44.20261123.1 (ced7919b). Only fzf and pipewire-libs-extra changed, and the
+vmlinuz differs only by the Universal Blue re-sign that refused the nightlies
+([kernel input review](reviews/2026-11-23-v3-kernel-input.json)). It also carries
+Codex's Meyar alef/lam caps with redrawn Plymouth captions and the Mova Home
+caption fit. Tier 1: the complete local image build and both PR image builds
+qualify it before the next signed cycle.
+
 PR318 contains the Arabic session keys from PR317, the selected-look handoff,
 and the light-theme contrast fixes. On V3, check the native fingerprint prompt,
 keyboard input, refusal and accessible action names after signed installation.
@@ -52,8 +62,9 @@ one password capsule with a time-of-day greeting. A warm QML disk cache made no
 measurable difference in the private harness (cold/warm first paint 0.41/0.42 s),
 so the boot-time greeter cache purge is unchanged. Acceptance: a cold boot of the
 signed successor on eDP-1 with the owner's observation; KWin's own first black
-frame is not removed by this change. whats-new.json is at 65,476/65,536 bytes:
-the next entry must retire an old one.
+frame is not removed by this change. whats-new.json reached 65,476/65,536 bytes;
+Nov23 retired the five entries merged before 2026-09-25 (62,502 bytes after two
+new entries). Keep retiring the oldest history rather than raising the cap.
 
 Nov20 P0.1. The owner assigned V3 the merge and signed rollout for PR316.
 Its full source checks passed at c157f126. The local x86 image refused the
@@ -499,7 +510,7 @@ M0 evidence as measured performance or require another local VM image.
 | --- | --- | --- | --- |
 | P2.1 | Native MoOS modules inside KDE System Settings | Implemented/delivered within recorded scope; wider acceptance remains | Installed native loader, every MoOS module and backend; readback and keyboard/locale/scale frames. |
 | P2.2 | One Settings entry and stable application identity | Native audit repaired the zero-entry account shadow. One real KDE entry, 52/0 source selfcheck, six launcher controls/seven isolated KCMs pass. Integrated PR228 at 4ee7f158 passes final local ARM/9 hashes and ARM/generic PR CI; signed .1034/.763 delivery passes. Oracle native boot/one entry pass; wider keyboard/scale entry acceptance remains | One actual System Settings identity/window and correct native destinations from all entry points. |
-| P2.3 | One qualified Arabic/English locale authority | Signed1162 includes the qualified Meyar defaults and existing native/Flatpak discovery controls. Nov18 source repairs native Chromium family-less Arabic fallback; after reboot the owner editor still paints Noto Sans Arabic through system-ui, whose proposed alias is withdrawn/unproven. Flatpak-browser policy and actual rendered Arabic pairing remain open. Codex's Meyar Arabic alef/lam stem caps (square right, round left) rebuild byte-identically (1ede1218), pass full family verification (275 shaping comparisons; the old Arabic negative fails its square-corner check) and leave the QTextEdit typing/undo journey and line bounds identical. They wait for regenerated Plymouth captions (initramfs) in the next Tier 1 image batch; lam-alef ligatures and isolated/final lam keep their previous tops. Preserved on `codex/meyar-integration-wip-20261123b`. Preserve named/personal/generic requests and the original discovery/painting refusals | KDE/QML/GTK/Mira/MoPlayer/Flatpak selection after relogin/reboot; Arabic first, English supported. |
+| P2.3 | One qualified Arabic/English locale authority | Signed1162 includes the qualified Meyar defaults and existing native/Flatpak discovery controls. Nov18 source repairs native Chromium family-less Arabic fallback; after reboot the owner editor still paints Noto Sans Arabic through system-ui, whose proposed alias is withdrawn/unproven. Flatpak-browser policy and actual rendered Arabic pairing remain open. Codex's Meyar Arabic alef/lam stem caps (square right, round left) rebuild byte-identically (1ede1218), pass full family verification (275 shaping comparisons; the old Arabic negative fails its square-corner check) and leave the QTextEdit typing/undo journey and line bounds identical. The Nov23 Tier 1 batch carries them with redrawn Plymouth captions (`generate_boot_glass.py --captions-only`, a byte-identical no-op on the old font); lam-alef ligatures and isolated/final lam keep their previous tops. Preserved on `codex/meyar-integration-wip-20261123b`. Preserve named/personal/generic requests and the original discovery/painting refusals | KDE/QML/GTK/Mira/MoPlayer/Flatpak selection after relogin/reboot; Arabic first, English supported. |
 | P2.4 | Keyboard and screen-reader operation | Source Island correction passes 48 native Qt configurations and original-source controls; full shell/Orca acceptance remains | Real keyboard traversal/focus and Orca Arabic/English on all primary flows. |
 | P2.5 | Visual, contrast, scale and reduced-motion matrix | Nov23 source batch: the MoOS corner (square top-trailing, mirrored) owns Design Core, shared surfaces, 46 app/plasmoid cards, shared and hand-drawn command buttons (17 in installer/Welcome), session surfaces and all 18 popup/desktop-card FrameSvgs with matching blur masks; plasma-keyboard 6.8.3 wears Meyar Glass with layout-following languages (private-compositor evidence, `tests/test_moos_corner.py`; signed delivery and physical touch remain open). Codex's unmerged wide-screen account-beside-prompt session card (same preserved branch) fails the maker's-mark gate and replaces the accent glyph tile with a bare glyph; it awaits an owner design decision, and its keyboard-rotation stale-key report is not yet reproduced here. Merged source includes Quiet Glass, native Control Center/Mova and PR307 frame centring; user-local copies and signed1162 remain distinct. Historical480 atomic material transitions and signed1034/763 proofs remain in receipts. Current full AR/EN/scale/contrast/reduced-motion and installed connected workspace acceptance remain open; window PR309/310 stay with their owner | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |

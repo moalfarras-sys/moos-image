@@ -102,7 +102,7 @@ jobs:
              build_files/plasma_stable/runtime_state.py build_files/plasma_stable/login_state.py \
              build_files/plasma_stable/runtime-rules.json "$out/"
           cat > "$out/Containerfile" <<'CONTAINERFILE'
-          FROM ghcr.io/ublue-os/kinoite-main@sha256:7c6683256540fae793676da33bb7a417016381a45c0fdddbe40dc4c1d238c359
+          FROM ghcr.io/ublue-os/kinoite-main@sha256:ced7919b83fa6b926d9e50ab7760da014719686d8588f8b66d6b3dd368b6e9aa
           COPY finalize_canary_base.py finalize_image_state.py finalize_root_home.py prepare_plasma_canary_base.py runtime_state.py login_state.py runtime-rules.json /canary-review/
           RUN python3 /canary-review/prepare_plasma_canary_base.py \
            && ostree container commit \

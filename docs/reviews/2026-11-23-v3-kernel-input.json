@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-23",
+  "scope": "x86 generic and NVIDIA stock-kernel admission when the reviewed base advances from 44.20261120.1 to 44.20261123.1",
+  "original_refusal": {
+    "nightly_run": 45028602917,
+    "error": "stock kernel/module drift: vendor_kernel_sha256 on the moving kinoite-main:44 tag",
+    "pinned_complete_kernel_sha256": "b5a7224a96a504a9d9e8ba716cc775c2fb83db202bf7e6ddccac5c850e301d66",
+    "pinned_release_input": "unchanged; release candidates keep building the reviewed digest"
+  },
+  "input": {
+    "upstream_repository": "ghcr.io/ublue-os/kinoite-main",
+    "version": "44.20261123.1",
+    "signed_oci_manifest_sha256": "ced7919b83fa6b926d9e50ab7760da014719686d8588f8b66d6b3dd368b6e9aa",
+    "upstream_image_signature": "cosign verify with /etc/pki/containers/ublue-os.pub exit 0; claims, offline transparency-log bundle and key signature verified",
+    "kernel_layer": "sha256:574e3a1728b52d9f2b750c8d2980be1c23801c12ae0b4656018bf6b470561c8e",
+    "compressed_layer_bytes": 805877668,
+    "kernel": "7.3.4-200.fc44.x86_64",
+    "kernel_core_rpm_sha256": "ceb2c1c16d5c280737eb49d53a6cf3b762f8f6b4746101dee7705baffadcb999",
+    "rpm_signature_fingerprint": "36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6",
+    "rpm_signature_and_payload": "verified with rpmkeys against a private rpmdb holding only RPM-GPG-KEY-fedora-44-primary"
+  },
+  "pe_review": {
+    "tool": "scripts/review/smocf05-kernel-input.py (exit 0)",
+    "rpm_kernel_sha256": "95b80a8cdecb42a0d94ae012bec5f8eeeb054ae97bd655ba1c5f9a41cdb0383d",
+    "final_kernel_sha256": "c6855064acbeadf86a524e1967446a901abd7b27014fd355d35f2c56655750ac",
+    "executable_body_sha256": "5e31a68d99838ab2ecf6691de2c810c58e0e9cc4230ae4893665e62df8bd913b",
+    "non_certificate_bytes_identical": true,
+    "original_vendor_signature": "exact original WIN_CERTIFICATE bytes retained (1 -> 2 certificates)",
+    "added_signer_der_sha256": "4e5c68474cb133fd8984d9599762cece9100c3e6cd8a9709aeaabd85dd9e70d1",
+    "added_signer_same_as_previous_review": true,
+    "changed_from_previous_final": "only the appended Universal Blue PKCS#7 (signingTime 2026-11-19T21:05:30Z -> 2026-11-20T06:04:50Z and its RSA value)",
+    "sbverify_tool": "sbsigntools-0.9.5-14.fc44 from its rpmkeys-verified RPM payload",
+    "vendor_and_ublue_verification_exit_codes": [
+      0,
+      0
+    ],
+    "original_rpm_checked_against_ublue_exit": 1,
+    "tampered_executable_verification_exit_codes": [
+      1,
+      1
+    ],
+    "exact_layer_and_contents_verified": true,
+    "local_pulled_image_kernel_sha256": "c6855064acbeadf86a524e1967446a901abd7b27014fd355d35f2c56655750ac",
+    "vendor_core_and_transport": "match the unchanged manifest pins"
+  },
+  "base_delta": {
+    "method": "sha256 of every /usr and /etc file and link target in both pulled images, plus package sets and per-layer file hashes of the eight changed layers",
+    "packages": {
+      "total": 1924,
+      "changed": {
+        "fzf": "0.74.5-1.fc44 -> 0.75.0-2.fc44",
+        "pipewire-libs-extra": "1.6.9-1.fc44 -> 1.6.11-2.fc44"
+      }
+    },
+    "files": {
+      "before": 183700,
+      "after": 183702,
+      "added": 7,
+      "removed": 5,
+      "changed": 63
+    },
+    "explained_changes": [
+      "fzf binary, documentation, man pages, vim/nvim plugins and its moved zsh completion",
+      "pipewire-libs-extra SPA plugins (bluez5 aptx/lc3plus, ffmpeg) and its new ffmpeg filter-graph plugin",
+      "build-id links of those binaries",
+      "vmlinuz: the Universal Blue re-sign above; initramfs.img: the base's own regeneration, replaced by the MoOS dracut run",
+      "regenerated rpm/dnf databases, fontconfig caches, SGML catalogs, Java cacerts, Python bytecode and the per-build brlapi.key",
+      "os-release version 44.20261123.1 and bootupd EFI.json timestamp (grub2 1:2.12-66.fc44 and shim 16.1-7 unchanged; no EFI binary changed)"
+    ],
+    "measurement_artifacts": "/etc/hostname and /etc/hosts differ only by the podman run container identity injected at measurement"
+  },
+  "machine_trust": "not tested",
+  "boot": "not tested",
+  "still_required": [
+    "complete local image build with the unchanged admission gate",
+    "PR x86 and native ARM image gates",
+    "signed candidate, three QCOW2 boots, ISO and promotion",
+    "V3 boot and physical readback after the owner's update"
+  ]
+}
