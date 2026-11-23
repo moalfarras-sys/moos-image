@@ -22,10 +22,10 @@ BorderRight=0
 BorderBottom=0
 TitleEdgeTop=0
 TitleEdgeBottom=0
-TitleEdgeLeft=4
-TitleEdgeRight=4
-TitleBorderLeft=6
-TitleBorderRight=6
+TitleEdgeLeft=1
+TitleEdgeRight=1
+TitleBorderLeft=1
+TitleBorderRight=1
 TitleHeight=44
 
 TitleEdgeTopMaximized=0
