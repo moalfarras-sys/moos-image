@@ -228,7 +228,10 @@ exists rather than from the plan.
   words include `host-commands`.
 - **updates.json** adds top-level `auto_updates`; pin rows count in `count` and `app_count`.
   `auto-updates on|off` is not a job (no lock, no job.json): read the state back with
-  `check-updates`.
+  `check-updates`. After the scheduled user Flatpak transaction, the same timer runs
+  `scheduled-catalogue-update` under the Store job lock. It respects the account switch,
+  defers to active jobs, and updates installed catalogue recipes. Numeric portable release
+  versions newer than the image catalogue survive a system rollback.
 - **Refusals** before a job starts are written to job.json with a message key, but never over
   another request's live job (starting/running, updated in the last 120 s); `busy` carries
   `message_key:"busy"`.
