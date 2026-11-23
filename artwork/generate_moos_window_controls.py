@@ -35,10 +35,9 @@ ET.register_namespace("", SVG)
 BUTTONS = ("close", "minimize", "maximize", "restore")
 STATES = ("active", "inactive", "hover", "hover-inactive", "pressed",
           "pressed-inactive", "deactivated", "deactivated-inactive")
-# The visible MoOS tile is 24px inside its native 44px target. Old 20px inputs
-# are also understood when reviewing a predecessor. Both source geometries are
-# cut to the same 24-unit square so every family has the same GTK footprint.
-CROPS = {"0 0 44 44": "10 10 24 24", "0 0 20 20": "-2 -2 24 24"}
+# Fit the whole 30x24 face inside the square GTK image, including its corners.
+# Older 20px artwork retains its original crop.
+CROPS = {"0 0 44 44": "7 7 30 30", "0 0 20 20": "-2 -2 24 24"}
 SIZE = 24
 # GTK pseudo-classes for each Aurorae state. :backdrop is GTK's unfocused window.
 PSEUDO = (
