@@ -52,6 +52,9 @@ Controls.AbstractButton {
 
     background: Rectangle {
         radius: MoUI.Tokens.radiusCard
+        // The MoOS corner: the top-trailing corner is square.
+        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, MoUI.Tokens.radiusSquare) : radius
+        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, MoUI.Tokens.radiusSquare)
         gradient: Gradient {
             GradientStop {
                 position: 0.0

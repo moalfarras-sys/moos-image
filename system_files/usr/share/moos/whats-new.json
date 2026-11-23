@@ -3,6 +3,34 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "meyar-glass-keyboard",
+      "merged": "2026-11-23T03:41:00Z",
+      "glyph": "keyboard",
+      "title": {
+        "ar": "لوحة مفاتيح زجاجية بلغاتك",
+        "en": "A glass on-screen keyboard in your languages"
+      },
+      "body": {
+        "ar": "لوحة المفاتيح على الشاشة صارت بزجاج MoOS: حروف أوضح وأكبر، وزر الإدخال بلون مظهرك، والضغط المطوّل يعرض الأحرف البديلة. تعرض لغات لوحة مفاتيحك بترتيبها، العربية أولًا، ولا تغيّر قائمة لغات اخترتها بنفسك.",
+        "en": "The on-screen keyboard now wears MoOS glass: larger, clearer letters, an Enter key in your accent, and long-press for alternate letters. It offers your keyboard's languages in their order, Arabic first, and never replaces a language list you chose yourself."
+      },
+      "route": "moos://settings/keyboard"
+    },
+    {
+      "id": "moos-corner-everywhere",
+      "merged": "2026-11-23T03:41:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "زاوية MoOS على كل بطاقة",
+        "en": "The MoOS corner on every card"
+      },
+      "body": {
+        "ar": "البطاقات والنوافذ المنبثقة وأزرار الأوامر صار لها شكل واحد: ثلاث زوايا منحنية وزاوية علوية مربعة في جهة نهاية السطر، يسارًا بالعربية ويمينًا بالإنجليزية. تراه في شاشة الدخول والمتجر والمساعد وبطاقات سطح المكتب، وحلقة التركيز تتبعه.",
+        "en": "Cards, pop-ups and command buttons now share one shape: three rounded corners and one square top corner on the side where a line ends, left in Arabic and right in English. You will see it at sign-in, in the Store, Mo AI and on desktop cards; the focus ring follows it."
+      },
+      "route": "moos://settings/appearance"
+    },
+    {
       "id": "login-arrives-once",
       "merged": "2026-11-21T23:30:00Z",
       "glyph": "ui",
@@ -956,45 +984,6 @@
         "en": "Choose Glass clarity in the Theme Picker: Clear, Balanced or Solid. MoOS applies it immediately to Search, the Island and its windows together, and keeps text readable when blur is unavailable."
       },
       "route": "moos://settings/themes"
-    },
-    {
-      "id": "island-native-search",
-      "merged": "2026-09-20T12:25:00Z",
-      "glyph": "search",
-      "title": {
-        "ar": "البحث يفتح البحث فعلًا",
-        "en": "Search now opens Search"
-      },
-      "body": {
-        "ar": "زر البحث في شريط MoOS يفتح الآن سطح بحث ثابتًا فوق مكانه بدل صفحة كل التطبيقات. ابحث في التطبيقات والإعدادات والملفات، احسب مباشرة، أو سلّم السؤال إلى Mo AI من المكان نفسه.",
-        "en": "The Search button in the MoOS Bar now opens an anchored search surface above its place instead of the All applications page. Find apps, settings and files, calculate inline, or hand the question to Mo AI from the same surface."
-      }
-    },
-    {
-      "id": "store-app-drop",
-      "merged": "2026-09-19T18:00:00Z",
-      "glyph": "install",
-      "title": {
-        "ar": "أضف تطبيقًا من ملف",
-        "en": "Add an app from a file"
-      },
-      "body": {
-        "ar": "يعرض Mo Store الآن ما يستطيع جهازك تشغيله — برامج ويندوز وتطبيقات أندرويد وتطبيقات لينكس — ويقبل ملفًا تسحبه إليه أو تختاره بـ«إضافة تطبيق». يفحصه MoOS ويسألك قبل أي إجراء. تطبيقات لينكس تُثبَّت وتظهر في قائمتك؛ الأنواع الأخرى تُفتح ولا تُضاف إلى قائمتك بعد.",
-        "en": "Mo Store now shows what your machine can run — Windows programs, Android apps and Linux apps — and takes a file you drag onto it or pick with Add app. MoOS checks it and asks before doing anything. Linux apps are installed and appear in your menu; other kinds open, and are not added to your menu yet."
-      }
-    },
-    {
-      "id": "glass-system-policy",
-      "merged": "2026-09-19T18:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "الأسطح تبقى مقروءة على كل جهاز",
-        "en": "Surfaces stay readable on every machine"
-      },
-      "body": {
-        "ar": "على جهاز لا يرسم التمويه، أو إذا أطفأتَه بنفسك، كانت أسطح MoOS تبقى شفّافة فيقرأ نصّ النافذة التي خلفها من خلالها. صارت الأسطح تقرأ إعداد جهازك كما يقرأه النظام، وتزداد كثافةً بلا تمويه، فيستقرّ النص فوق سطح.",
-        "en": "On a machine that does not paint blur — or when you turn blur off — MoOS surfaces stayed translucent, and the window behind read straight through them. Surfaces now read your machine's setting the way the system reads it, and grow denser without blur, so text sits on a surface."
-      }
     }
   ]
 }

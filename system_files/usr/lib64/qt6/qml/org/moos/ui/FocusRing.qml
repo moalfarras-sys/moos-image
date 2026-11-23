@@ -12,6 +12,12 @@ Rectangle {
     anchors.fill: parent
     anchors.margins: -Tokens.focusGap
     radius: controlRadius + Tokens.focusGap
+    // A control that carries the MoOS corner (a square top-trailing corner)
+    // gets a ring with the same corner; anything else keeps one radius.
+    readonly property bool followsCorners: parent !== null
+        && parent["topLeftRadius"] !== undefined && parent["topRightRadius"] !== undefined
+    topLeftRadius: followsCorners ? parent["topLeftRadius"] + Tokens.focusGap : radius
+    topRightRadius: followsCorners ? parent["topRightRadius"] + Tokens.focusGap : radius
     color: "transparent"
     border.width: Tokens.focusWidth
     border.color: Qt.alpha(accentColor, Tokens.focusOpacity)

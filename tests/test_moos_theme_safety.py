@@ -483,7 +483,6 @@ migrate_legacy_keyboard
         self.assertEqual(run_profile(customised), customised)
 
     @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
-    @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
     def test_onscreen_keyboard_follows_the_accounts_layouts(self) -> None:
         """plasma-keyboard's language list follows kxkbrc, and never overrides a chosen list."""
         migration = MIGRATE.read_text(encoding="utf-8")
@@ -589,6 +588,7 @@ sync_onscreen_keyboard_languages
         written, _, _ = run("ara,de", "[Layout]\n", "[General]\nenabledLocales=\n")
         self.assertEqual(locales(written), "ar_AR,de_DE")
 
+    @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
     def test_wallet_migration_disables_existing_profiles_once(self) -> None:
         migration = MIGRATE.read_text(encoding="utf-8")
         migrator = function(migration, "disable_wallet_v2")

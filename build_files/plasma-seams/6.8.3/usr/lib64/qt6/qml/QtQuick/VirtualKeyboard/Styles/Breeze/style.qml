@@ -713,6 +713,11 @@ KeyboardStyle {
     alternateKeysListHighlight: Rectangle {
         color: theme.popupHighlightColor
         radius: theme.buttonRadius
+        // The MoOS corner, following the language being typed.
+        topLeftRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.squareRadius : theme.buttonRadius
+        topRightRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.buttonRadius : theme.squareRadius
         border.color: theme.popupHighlightBorderColor
         border.width: 1
     }
@@ -1009,6 +1014,11 @@ KeyboardStyle {
     languageListHighlight: Rectangle {
         color: theme.popupHighlightColor
         radius: theme.buttonRadius
+        // The MoOS corner, following the language being typed.
+        topLeftRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.squareRadius : theme.buttonRadius
+        topRightRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.buttonRadius : theme.squareRadius
         border.color: theme.popupHighlightBorderColor
         border.width: 1
     }
@@ -1102,5 +1112,10 @@ KeyboardStyle {
     functionPopupListHighlight: Rectangle {
         color: theme.popupHighlightColor
         radius: theme.buttonRadius
+        // The MoOS corner, following the language being typed.
+        topLeftRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.squareRadius : theme.buttonRadius
+        topRightRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.buttonRadius : theme.squareRadius
     }
 }
