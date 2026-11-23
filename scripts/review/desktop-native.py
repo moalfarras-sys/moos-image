@@ -97,6 +97,8 @@ def main() -> int:
     ap.add_argument("--call", default="", help="a PlasmaShell method to call after the desktop frame")
     ap.add_argument("--script", default="", help="an extra evaluateScript file run after the scene")
     ap.add_argument("--gpu", action="store_true")
+    ap.add_argument("--source-fonts", action="store_true",
+                    help="bind this tree's Meyar fonts over the installed ones (fontconfig rescans privately)")
     args = ap.parse_args()
     if args.call and not args.call.replace("_", "").isalnum():
         ap.error("--call takes a bare PlasmaShell method name")
@@ -157,7 +159,8 @@ def main() -> int:
         env.update(LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe", LP_NUM_THREADS="4")
     procs: list[subprocess.Popen] = []
     result: dict = {"look": args.look, "lang": args.lang, "logical": [lw, lh], "scale": args.scale,
-                    "gpu": args.gpu, "seams": seam_set, "frames": [], "markers": {}}
+                    "gpu": args.gpu, "seams": seam_set, "sourceFonts": args.source_fonts,
+                    "frames": [], "markers": {}}
     sock = "wayland-desktop-review"
     try:
         procs.append(subprocess.Popen(["dbus-daemon", "--nofork", "--config-file=" + str(bus_conf)],
@@ -206,6 +209,10 @@ def main() -> int:
                     QT_LOGGING_RULES="*.debug=false;qml.info=true;qml.warning=true")
         wrap = ["bwrap", "--die-with-parent", "--unshare-net", "--ro-bind", "/", "/", "--dev-bind", "/dev", "/dev",
                 "--tmpfs", "/run/user", "--bind", str(base), str(base)] + module_overlays()
+        if args.source_fonts:
+            # The source directory's real mtime differs from the installed cache's, so
+            # fontconfig rescans it into the private XDG cache instead of trusting /usr's.
+            wrap += ["--ro-bind", str(FILES / "usr/share/fonts/meyar"), "/usr/share/fonts/meyar"]
         procs.append(subprocess.Popen(wrap + [KAMD], env=cenv, stdout=(base / "kamd.log").open("w"),
                                       stderr=subprocess.STDOUT, preexec_fn=no_core))
         result["markers"]["activity-manager"] = wait_for("org.kde.ActivityManager", 20)
