@@ -28,8 +28,27 @@ Item {
     readonly property int pulseInDuration:
         Math.round(Kirigami.Units.veryLongDuration * 0.62)
 
-    readonly property int clockSize: Math.round(Math.max(Kirigami.Units.gridUnit * 3.15,
-        Math.min(Kirigami.Units.gridUnit * 4.8, width * 0.22)))
+    // The face is laid out inside CardStack's viewport, above the page dots, and
+    // nothing in it may spill below. The clock used to be sized from the width
+    // alone; at 1766×1104 @1.45 the column outgrew the card and the compact week
+    // ran into the dots ("25" was drawn under them). The clock now takes what
+    // the height leaves, and the compact week shows only when it fits beneath:
+    // the card's second page is the full week, so nothing is lost.
+    readonly property real gu: Kirigami.Units.gridUnit
+    readonly property real weekBlock: gu * 0.55 + gu * 1.8 + Kirigami.Units.smallSpacing
+    readonly property real dateBlock: dateLabel.implicitHeight + gu * 0.75
+    readonly property real clockLine: Math.max(1, clockMetrics.height / 100)
+    readonly property real widthClock: Math.max(gu * 3.15, Math.min(gu * 4.8, width * 0.22))
+    readonly property bool showWeek: height - dateBlock - weekBlock >= gu * 3.15 * clockLine
+    readonly property int clockSize: Math.round(Math.max(gu * 2.2, Math.min(widthClock,
+        (height - dateBlock - (showWeek ? weekBlock : 0)) / clockLine)))
+
+    FontMetrics {
+        id: clockMetrics
+        font.family: "Meyar Sans"
+        font.weight: Font.Light
+        font.pixelSize: 100
+    }
     readonly property string timeText: Qt.formatTime(now, "HH:mm")
 
     onNowChanged: {
@@ -43,6 +62,7 @@ Item {
         spacing: 0
 
         Text {
+            id: dateLabel
             Layout.fillWidth: true
             objectName: "hubLocalDate"
             text: Qt.formatDate(face.now, Qt.locale(face.rtl ? "ar" : "en"), Locale.LongFormat)
@@ -145,9 +165,14 @@ Item {
             }
         }
 
-        Item { Layout.preferredHeight: Kirigami.Units.gridUnit * 0.55 }
+        Item {
+            visible: face.showWeek
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 0.55
+        }
 
         WeekStrip {
+            objectName: "hubClockWeek"
+            visible: face.showWeek
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit * 1.8
             Layout.topMargin: Kirigami.Units.smallSpacing

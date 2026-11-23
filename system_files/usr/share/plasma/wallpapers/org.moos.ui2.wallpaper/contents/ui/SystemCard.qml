@@ -13,6 +13,12 @@ import org.moos.ui as MoUI
 
 Item {
     id: systemCard
+    // Text a person reads is the theme's text colour at 0.72 — never the DISABLED role,
+    // which fades text 65% toward the background (1.6:1 as secondary text on the light
+    // schemes; tests/test_secondary_text_contrast.py does the arithmetic for the Hub too).
+    readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r,
+                                                  Kirigami.Theme.textColor.g,
+                                                  Kirigami.Theme.textColor.b, 0.72)
 
     required property bool motionEnabled
     // MotionMode 2 ("alive"). This card owns two of the three accents that make
@@ -20,6 +26,9 @@ Item {
     required property bool accentMotion
     property int entranceDelay: 0
     property bool integrated: false
+    // The wallpaper's art, frosted behind the card's glass (see GlassCard).
+    property Item backdrop: null
+    property url backdropFrost: ""
     // 0 the rings, 1 the network and what is left. Owned by HubSystemPage: the hub
     // is painted by the wallpaper, so the desktop's own menu turns the card.
     property int page: 0
@@ -46,7 +55,7 @@ Item {
     // load (CPU/RAM) does.
     readonly property real peakValue: Math.max(cpuValue, memoryValue)
     readonly property color healthColor: !coreSensorsReady
-        ? Kirigami.Theme.disabledTextColor
+        ? systemCard.secondaryInk
         : (peakValue >= 88
            ? Kirigami.Theme.negativeTextColor
            : (peakValue >= 65 ? Kirigami.Theme.neutralTextColor
@@ -91,6 +100,8 @@ Item {
         accentMotion: systemCard.accentMotion
         entranceDelay: systemCard.entranceDelay
         integrated: systemCard.integrated
+        backdrop: systemCard.backdrop
+        backdropFrost: systemCard.backdropFrost
 
         CardStack {
             anchors.fill: parent
@@ -202,7 +213,7 @@ Item {
                     }
                     Text {
                         text: systemCard.local("النظام", "SYSTEM")
-                        color: Kirigami.Theme.disabledTextColor
+                        color: systemCard.secondaryInk
                         font.family: systemCard.labelFamily
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.5)
                         font.weight: Font.DemiBold

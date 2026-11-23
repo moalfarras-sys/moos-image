@@ -269,7 +269,7 @@ Item {
             radius: height / 2
             x: scene.width * 0.23
             y: scene.height * (0.58 + index * 0.08)
-            color: Kirigami.Theme.disabledTextColor
+            color: Qt.alpha(Kirigami.Theme.textColor, 0.45)
             opacity: 0.38
             transform: Translate { id: fogShift }
 

@@ -14,6 +14,12 @@ import org.moos.ui as MoUI
 
 Item {
     id: strip
+    // Text a person reads is the theme's text colour at 0.72 — never the DISABLED role,
+    // which fades text 65% toward the background (1.6:1 as secondary text on the light
+    // schemes; tests/test_secondary_text_contrast.py does the arithmetic for the Hub too).
+    readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r,
+                                                  Kirigami.Theme.textColor.g,
+                                                  Kirigami.Theme.textColor.b, 0.72)
 
     // [{ hour: "16:00", temperature: 21, code: 3 }, …] — empty is a normal state:
     // a provider that omits the hourly block leaves this face saying so rather
@@ -50,7 +56,7 @@ Item {
             }
             Text {
                 text: strip.local("الساعات القادمة", "NEXT HOURS")
-                color: Kirigami.Theme.disabledTextColor
+                color: strip.secondaryInk
                 font.family: strip.labelFamily
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.55)
                 font.weight: Font.DemiBold
@@ -59,7 +65,7 @@ Item {
             Item { Layout.fillWidth: true }
             Text {
                 text: strip.city
-                color: Kirigami.Theme.disabledTextColor
+                color: strip.secondaryInk
                 font.family: "Meyar Sans"
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                 font.weight: Font.Medium
@@ -78,7 +84,7 @@ Item {
             text: strip.weatherReady
                 ? strip.local("لا توجد قراءة بالساعة الآن", "No hourly reading right now")
                 : strip.local("…", "…")
-            color: Kirigami.Theme.disabledTextColor
+            color: strip.secondaryInk
             font.family: strip.labelFamily
             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.62)
             horizontalAlignment: Text.AlignHCenter
@@ -109,7 +115,7 @@ Item {
                             // An hour is a technical token: it reads left to right in
                             // every session.
                             text: "⁦" + slot.modelData.hour + "⁩"
-                            color: Kirigami.Theme.disabledTextColor
+                            color: strip.secondaryInk
                             font.family: "Meyar Sans"
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.5)
                             font.weight: Font.Medium

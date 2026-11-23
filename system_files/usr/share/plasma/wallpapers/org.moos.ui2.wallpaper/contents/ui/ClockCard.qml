@@ -17,6 +17,9 @@ Item {
     required property bool accentMotion
     property int entranceDelay: 0
     property bool integrated: false
+    // The wallpaper's art, frosted behind the card's glass (see GlassCard).
+    property Item backdrop: null
+    property url backdropFrost: ""
     // Active MoOS look, e.g. "MIDNIGHT GLASS"; empty falls back to the half.
     property string themeLabel: ""
     // 0 the hour, 1 this week. The wallpaper owns the value; the stack shows it.
@@ -28,6 +31,8 @@ Item {
         accentMotion: clockCard.accentMotion
         entranceDelay: clockCard.entranceDelay
         integrated: clockCard.integrated
+        backdrop: clockCard.backdrop
+        backdropFrost: clockCard.backdropFrost
 
         CardStack {
             anchors.fill: parent

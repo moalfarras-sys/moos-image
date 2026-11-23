@@ -19,6 +19,12 @@ import org.moos.ui as MoUI
 
 Item {
     id: face
+    // Text a person reads is the theme's text colour at 0.72 — never the DISABLED role,
+    // which fades text 65% toward the background (1.6:1 as secondary text on the light
+    // schemes; tests/test_secondary_text_contrast.py does the arithmetic for the Hub too).
+    readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r,
+                                                  Kirigami.Theme.textColor.g,
+                                                  Kirigami.Theme.textColor.b, 0.72)
 
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property var design: MoUI.Tokens
@@ -74,7 +80,7 @@ Item {
             }
             Text {
                 text: face.local("الشبكة والمساحة", "NETWORK & SPACE")
-                color: Kirigami.Theme.disabledTextColor
+                color: face.secondaryInk
                 font.family: face.labelFamily
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.55)
                 font.weight: Font.DemiBold
@@ -118,7 +124,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: figure.modelData.label
-                        color: Kirigami.Theme.disabledTextColor
+                        color: face.secondaryInk
                         font.family: face.labelFamily
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.5)
                         font.weight: Font.Medium

@@ -7,6 +7,12 @@ import org.moos.ui as MoUI
 
 Item {
     id: weatherCard
+    // Text a person reads is the theme's text colour at 0.72 — never the DISABLED role,
+    // which fades text 65% toward the background (1.6:1 as secondary text on the light
+    // schemes; tests/test_secondary_text_contrast.py does the arithmetic for the Hub too).
+    readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r,
+                                                  Kirigami.Theme.textColor.g,
+                                                  Kirigami.Theme.textColor.b, 0.72)
 
     required property bool weatherReady
     required property string city
@@ -30,6 +36,9 @@ Item {
     required property bool accentMotion
     property int entranceDelay: 0
     property bool integrated: false
+    // The wallpaper's art, frosted behind the card's glass (see GlassCard).
+    property Item backdrop: null
+    property url backdropFrost: ""
 
     // One locale authority for every label on the hub. The cards used to hard-code a mix of
     // English eyebrows ("SYSTEM", "HIGH", "FEELS") and Arabic words ("الآن") whatever the session
@@ -49,6 +58,8 @@ Item {
         accentMotion: weatherCard.accentMotion
         entranceDelay: weatherCard.entranceDelay
         integrated: weatherCard.integrated
+        backdrop: weatherCard.backdrop
+        backdropFrost: weatherCard.backdropFrost
 
         CardStack {
             anchors.fill: parent
@@ -79,13 +90,17 @@ Item {
                         text: weatherCard.city.length > 0
                               ? weatherCard.city
                               : weatherCard.local("الطقس المحلي", "LOCAL FORECAST")
-                        color: Kirigami.Theme.disabledTextColor
+                        color: weatherCard.secondaryInk
                         font.family: weatherCard.city.length > 0 ? "Meyar Sans" : weatherCard.labelFamily
                         font.pixelSize: MoUI.Tokens.typeSecondary
                         font.weight: Font.DemiBold
                         font.letterSpacing: weatherCard.city.length > 0 ? 0.8 : (weatherCard.rtl ? 0 : 1.5)
                         elide: Text.ElideRight
-                        Layout.maximumWidth: Kirigami.Units.gridUnit * 7
+                        // Its own width, eliding only when the row really is too narrow:
+                        // a fixed 7 grid units cut the spaced English "LOCAL FORECAST"
+                        // to "LOCAL FORECA…" while the Arabic fitted.
+                        Layout.fillWidth: true
+                        Layout.maximumWidth: implicitWidth
                     }
                     Item { Layout.fillWidth: true }
                     Text {
@@ -132,7 +147,7 @@ Item {
                         }
                         Text {
                             text: weatherCard.local("المحسوسة ", "FEELS ") + weatherCard.degrees(weatherCard.feelsLike)
-                            color: Kirigami.Theme.disabledTextColor
+                            color: weatherCard.secondaryInk
                             font.family: weatherCard.labelFamily
                             font.pixelSize: MoUI.Tokens.typeCaption
                             font.weight: Font.Medium
@@ -141,16 +156,23 @@ Item {
                     }
                 }
 
+                // Waiting for a forecast: the sentence sits in the middle of its column,
+                // beside a still cloud, so the card reads as the weather card it is
+                // rather than a heading over an empty pane.
+                Item { visible: !weatherCard.weatherReady; Layout.fillHeight: true }
                 Text {
+                    objectName: "hubWeatherWaiting"
                     visible: !weatherCard.weatherReady
                     Layout.fillWidth: true
-                    Layout.topMargin: Kirigami.Units.largeSpacing
                     text: weatherCard.local("سيظهر الطقس المحلي تلقائياً",
                                             "Local weather appears automatically")
-                    color: Kirigami.Theme.disabledTextColor
+                    color: weatherCard.secondaryInk
                     font.family: weatherCard.labelFamily
-                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.75)
+                    font.pixelSize: MoUI.Tokens.typeBody
                     font.weight: Font.Medium
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
                 }
 
                 Item { Layout.fillHeight: true }
@@ -189,13 +211,11 @@ Item {
                                        Kirigami.Theme.alternateBackgroundColor.g,
                                        Kirigami.Theme.alternateBackgroundColor.b, 0.48)
                         border.width: 1
-                        border.color: Qt.rgba(Kirigami.Theme.disabledTextColor.r,
-                                              Kirigami.Theme.disabledTextColor.g,
-                                              Kirigami.Theme.disabledTextColor.b, 0.18)
+                        border.color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
                         Text {
                             anchors.centerIn: parent
                             text: weatherCard.local("الصغرى  ", "LOW  ") + weatherCard.degrees(weatherCard.low)
-                            color: Kirigami.Theme.disabledTextColor
+                            color: weatherCard.secondaryInk
                             font.family: weatherCard.labelFamily
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                             font.weight: Font.DemiBold
@@ -209,11 +229,12 @@ Item {
                 Layout.preferredWidth: Math.round(Math.max(Kirigami.Units.gridUnit * 4,
                     Math.min(Kirigami.Units.gridUnit * 6.2, weatherCard.width * 0.26)))
                 Layout.fillHeight: true
-                visible: weatherCard.weatherReady
-                opacity: weatherCard.weatherReady ? 1 : 0
-                kind: weatherCard.kind
-                motionEnabled: weatherCard.motionEnabled
-                accentMotion: weatherCard.accentMotion
+                // Before a forecast arrives the column keeps its place with a quiet,
+                // STILL cloud: no drift and no burst for a picture that means "soon".
+                opacity: weatherCard.weatherReady ? 1 : 0.32
+                kind: weatherCard.weatherReady ? weatherCard.kind : "cloudy"
+                motionEnabled: weatherCard.motionEnabled && weatherCard.weatherReady
+                accentMotion: weatherCard.accentMotion && weatherCard.weatherReady
 
                 // A one-shot value transition — the kind Plasma's animation-speed
                 // slider is meant to own. It could not, because 420 was a literal

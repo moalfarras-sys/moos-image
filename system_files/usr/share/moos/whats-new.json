@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "hub-frosted-glass",
+      "merged": "2026-11-23T14:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "زجاج مُضبَّب حقيقي في لوحة سطح المكتب",
+        "en": "Real frosted glass on the desktop Hub"
+      },
+      "body": {
+        "ar": "بطاقات الساعة والطقس والنظام على سطح المكتب صارت فوق زجاج مُضبَّب من خلفيتك نفسها، فلا تقطع خطوط الصورة الحادة النص. عناوينها الثانوية أوضح، وأيام الأسبوع لا تتداخل مع نقاط الصفحات، وبطاقة الطقس تعرض حالة انتظار مرتبة حتى يصل التوقّع.",
+        "en": "The clock, weather and system cards on your desktop now sit on frosted glass made from your own wallpaper, so its sharp lines no longer cut through text. Their secondary labels read more clearly, the week row no longer overlaps the page dots, and the weather card waits tidily for its forecast."
+      },
+      "route": "moos://settings/wallpaper"
+    },
+    {
       "id": "meyar-arabic-moos-corner",
       "merged": "2026-11-23T12:00:00Z",
       "glyph": "ui",
