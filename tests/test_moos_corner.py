@@ -15,10 +15,16 @@ in four places that drift independently:
      eighteen desktop themes. FrameSvg cannot mirror, so MoOS (Arabic-first) squares the
      top-left piece. Its mask-* twin is the KWin blur region: if paint and mask disagree, the
      frost spills past the square corner or a rounded notch of unfrosted wallpaper shows in it.
-  4. The hand-drawn card Rectangles of MoOS's apps and plasmoids that bind a card radius.
+  4. The hand-drawn card Rectangles of MoOS's apps and plasmoids that bind a card radius, and
+     the command pills apps draw for themselves (a Rectangle that is itself the button). The
+     installer and Welcome drew seventeen such commands — Begin, Next, Install, Restart — as
+     plain pills beside cornered cards and cornered shared Buttons, and the card scanner could
+     not see them: their radius is `height / 2`, not a card token.
 
 A card added later with a plain `radius:` would quietly be the one rounded card on a screen of
-MoOS cards. The scanner below is proven to bite on a synthetic card before it judges the tree.
+MoOS cards. Both scanners below are proven to bite on a synthetic case before they judge the tree.
+Circles, a model's delegates (chips, rows, choice cards) and a pill whose block declares
+`MoOS corner: round` (a link chip, say) stay round, as artwork/MOOS_UI2_DESIGN.md says.
 """
 
 from __future__ import annotations
@@ -104,6 +110,49 @@ def bare_card_rectangles(text: str) -> list[int]:
                 break
         own = "\n".join(body)
         if "topLeftRadius:" not in own or "topRightRadius:" not in own:
+            found.append(n + 1)
+    return found
+
+
+PILL_RADIUS = re.compile(r"^radius:\s*height\s*/\s*2$")
+ROUND_MARK = "MoOS corner: round"
+
+
+def direct_properties(lines: list[str], start: int) -> tuple[int, list[str]]:
+    """(last line, stripped direct-child lines) of the block opened on `start`."""
+    depth, end = 0, start
+    for k in range(start, len(lines)):
+        depth += lines[k].count("{") - lines[k].count("}")
+        if depth == 0:
+            end = k
+            break
+    inner = [k for k in range(start + 1, end) if lines[k].strip()]
+    if not inner:
+        return end, []
+    child = min(len(lines[k]) - len(lines[k].lstrip()) for k in inner)
+    return end, [lines[k].strip() for k in inner if len(lines[k]) - len(lines[k].lstrip()) == child]
+
+
+def bare_command_pills(text: str) -> list[int]:
+    """1-based lines of hand-drawn command pills that do not wear the MoOS corner."""
+    lines = text.splitlines()
+    found = []
+    for n, line in enumerate(lines):
+        if line.strip() != "Rectangle {":
+            continue  # `delegate: Rectangle {` is a model's choice (chip, row, card), not a command
+        end, props = direct_properties(lines, n)
+        if "Accessible.role: Accessible.Button" not in props or not any(PILL_RADIUS.match(p) for p in props):
+            continue
+        if ROUND_MARK in "\n".join(lines[n:end + 1]):
+            continue
+        widths = {p.split(":", 1)[1].strip() for p in props
+                  if p.startswith(("Layout.preferredWidth:", "width:", "implicitWidth:"))}
+        heights = {p.split(":", 1)[1].strip() for p in props
+                   if p.startswith(("Layout.preferredHeight:", "height:", "implicitHeight:"))}
+        if widths & heights or "height" in widths:
+            continue  # a circle stays round
+        if not any(p.startswith("topLeftRadius:") for p in props) \
+                or not any(p.startswith("topRightRadius:") for p in props):
             found.append(n + 1)
     return found
 
@@ -208,6 +257,38 @@ class EveryHandDrawnCardStatesTheCorner(unittest.TestCase):
         self.assertEqual(offenders, [], "these MoOS cards are the only rounded ones on their screen; "
                                         "give them the MoOS corner (topLeftRadius/topRightRadius by "
                                         "LayoutMirroring, Math.min(radius, design.radiusSquare))")
+
+    def test_the_command_scanner_bites_on_a_plain_command_pill(self):
+        command = ("Item {\n    Rectangle {\n        implicitWidth: row.implicitWidth + 48\n"
+                   "        radius: height / 2\n        activeFocusOnTab: true\n"
+                   "        Accessible.role: Accessible.Button\n        TapHandler { onTapped: go() }\n    }\n}\n")
+        self.assertEqual(bare_command_pills(command), [2])
+        cornered = command.replace("        activeFocusOnTab:",
+                                   "        topLeftRadius: 1\n        topRightRadius: 1\n        activeFocusOnTab:")
+        self.assertEqual(bare_command_pills(cornered), [])
+        # A choice in a model, a circle and a declared link chip stay round.
+        self.assertEqual(bare_command_pills(command.replace("    Rectangle {", "    delegate: Rectangle {")), [])
+        circle = command.replace("implicitWidth: row.implicitWidth + 48",
+                                 "Layout.preferredWidth: 36\n        Layout.preferredHeight: 36")
+        self.assertEqual(bare_command_pills(circle), [])
+        link = command.replace("        activeFocusOnTab:", "        // MoOS corner: round. A link chip.\n"
+                                                           "        activeFocusOnTab:")
+        self.assertEqual(bare_command_pills(link), [])
+        # A pill that only CONTAINS a button (its role is on a child) is not itself the command.
+        nested = command.replace("        Accessible.role: Accessible.Button\n",
+                                 "        Item { Accessible.role: Accessible.Button }\n")
+        self.assertEqual(bare_command_pills(nested), [])
+
+    def test_no_hand_drawn_command_pill_lacks_the_corner(self):
+        offenders = []
+        sources = [*(ROOT / "system_files/usr").rglob("*.qml"), *(ROOT / "moos-settings-kcm").rglob("*.qml"),
+                   *(ROOT / "mira/qml").rglob("*.qml")]
+        for path in sorted(sources):
+            for line in bare_command_pills(path.read_text(encoding="utf-8")):
+                offenders.append(f"{path.relative_to(ROOT)}:{line}")
+        self.assertEqual(offenders, [], "these hand-drawn commands are round pills beside cornered "
+                                        "cards and Buttons; give them the MoOS corner, or declare "
+                                        "'MoOS corner: round' in the block of a link chip")
 
 
 if __name__ == "__main__":
