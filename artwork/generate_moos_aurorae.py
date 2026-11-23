@@ -362,7 +362,7 @@ def _rect(x: float, y: float, w: float, h: float, fill: str, opacity: float | No
     return f'<rect x="{x:g}" y="{y:g}" width="{w:g}" height="{h:g}" fill="{fill}"{alpha}/>'
 
 
-def _frame(prefix: str, key: str, *, surface: str, hairline: tuple[str, float] | None,
+def _frame(prefix: str, key: str, *, surface: str | None, hairline: tuple[str, float] | None,
            catch: tuple[str, float] | None, shadow: bool) -> list[str]:
     L, LC, RC, RE = LEFT_EDGE, LEFT_COLUMN, RIGHT_COLUMN, RIGHT_EDGE
     T, A, TE, BE, r = TOP_EDGE, ARC_Y, TITLE_END, BOTTOM_EDGE, RADIUS
@@ -399,14 +399,15 @@ def _frame(prefix: str, key: str, *, surface: str, hairline: tuple[str, float] |
         paint["bottomleft"] += [line(L - 1, BE, r + 1, 1)]
         paint["bottom"] += [line(LC, BE, MIDDLE, 1)]
         paint["bottomright"] += [line(RC, BE, r + 1, 1)]
-    title = f"url(#{key}title)"
-    paint["topleft"].append(f'<path d="M{L} {TE}V{A}A{r} {r} 0 0 1 {LC} {T}V{TE}Z" fill="{title}"/>')
-    paint["top"].append(_rect(LC, T, MIDDLE, TITLE, title))
-    paint["topright"].append(f'<path d="M{RC} {T}A{r} {r} 0 0 1 {RE} {A}V{TE}H{RC}Z" fill="{title}"/>')
-    # Only a user-chosen border size reveals these; Aurorae clamps it to >= 4 px.
-    paint["left"].append(_rect(L, TE, r, MIDDLE, surface))
-    paint["center"].append(_rect(LC, TE, MIDDLE, MIDDLE, surface))
-    paint["right"].append(_rect(RC, TE, r, MIDDLE, surface))
+    if surface is not None:
+        title = f"url(#{key}title)"
+        paint["topleft"].append(f'<path d="M{L} {TE}V{A}A{r} {r} 0 0 1 {LC} {T}V{TE}Z" fill="{title}"/>')
+        paint["top"].append(_rect(LC, T, MIDDLE, TITLE, title))
+        paint["topright"].append(f'<path d="M{RC} {T}A{r} {r} 0 0 1 {RE} {A}V{TE}H{RC}Z" fill="{title}"/>')
+        # Only a user-chosen border size reveals these; Aurorae clamps it to >= 4 px.
+        paint["left"].append(_rect(L, TE, r, MIDDLE, surface))
+        paint["center"].append(_rect(LC, TE, MIDDLE, MIDDLE, surface))
+        paint["right"].append(_rect(RC, TE, r, MIDDLE, surface))
     if catch:
         colour, alpha = catch
         i = r - 1
@@ -461,6 +462,9 @@ def frame_svg(p: Mapping[str, str]) -> str:
                      catch=tone["catch"], shadow=True)
     pieces += _frame("decoration-inactive", "i-", surface=surface, hairline=inactive_line,
                      catch=None, shadow=True)
+    # Inner-border consumers draw the edge over the client, leaving its centre transparent.
+    for prefix, line in (("innerborder", active_line), ("innerborder-inactive", inactive_line)):
+        pieces += _frame(prefix, "", surface=None, hairline=line, catch=None, shadow=False)
     # Aurorae v1's names for a compositor without translucency: no shadow ring.
     pieces += _frame("decoration-opaque", "", surface=surface, hairline=None,
                      catch=tone["catch"], shadow=False)
@@ -596,6 +600,8 @@ def validate_aurorae_suite(
     for prefix in (
         "decoration",
         "decoration-inactive",
+        "innerborder",
+        "innerborder-inactive",
         "decoration-opaque",
         "decoration-opaque-inactive",
     ):
