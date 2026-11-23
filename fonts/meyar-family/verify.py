@@ -30,6 +30,26 @@ class Font:
         return lo,hi
 
 
+def verify_arabic_caps(font, control):
+    """Check the exported curves against the original stems at this weight."""
+    for name in ('alef-ar', 'alef-ar.fina', 'alef-ar.short', 'alef-ar.short.fina',
+                 'lam-ar.init', 'lam-ar.medi'):
+        base = control['glyf'][name]
+        stem = font['glyf'][name]
+        assert stem.yMax == base.yMax, (name, 'stem height changed')
+        source_edge = sorted(x for x, y in base.coordinates if y == base.yMax)
+        assert len(source_edge) == 2, (name, 'unreviewed control cap')
+        left, right = source_edge
+        top = [(x, flag & 1) for (x, y), flag in zip(stem.coordinates, stem.flags)
+               if y == stem.yMax]
+        endpoints = sorted(x for x, on_curve in top if on_curve)
+        assert len(endpoints) == 2 and endpoints[1] == right, (name, 'square corner')
+        radius = endpoints[0] - left
+        assert abs(radius - .60 * (right - left)) <= 1, (name, 'shoulder radius')
+        assert any(not on_curve and left < x < endpoints[0] for x, on_curve in top), (
+            name, 'missing rounded tangent')
+
+
 def main():
     p=argparse.ArgumentParser();p.add_argument('root',type=Path);p.add_argument('--output',type=Path,required=True);a=p.parse_args();rows=[];problems=[];comparisons=0;ink=[]
     for kind,stem in FAMILIES.items():
@@ -60,6 +80,7 @@ def main():
                     assert f.tt['hmtx'][n][0]==cells*700,(kind,w,cp,'native terminal width mismatch')
                     shaped=f.shape(chr(int(cp)))
                     assert ud.category(chr(int(cp)))=='Cf' or sum(q[1] for q in shaped)==cells*700,(kind,w,cp,'native shaped cell mismatch')
+            if kind=='arabic':verify_arabic_caps(f.tt,old.tt)
             if kind in ['sans','mono']:
                 c=f.tt.getBestCmap()
                 for low,high in [(0x250,0x2b0),(0x1d00,0x1dc0),(0x300,0x370),(0xa0,0x180)]:

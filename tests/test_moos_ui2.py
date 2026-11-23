@@ -861,13 +861,13 @@ class TestMoOSUI2(unittest.TestCase):
             "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
             source,
         )
-        self.assertEqual(source.count("duration:"), 14)
+        self.assertEqual(source.count("duration:"), 13)  # One password focus rim.
         guarded = re.findall(
             r"duration:\s*root\.design\.duration\(\s*root\.motionEnabled\s*,\s*"
             r"root\.design\.motion(?:Press|Fast|Geometry|Emphasis|Portal)\s*\)",
             source,
         )
-        self.assertEqual(len(guarded), 14)
+        self.assertEqual(len(guarded), source.count("duration:"))
         # One finite driver runs the arrival and rests at 1 with animations off; the
         # orbit refuses to start at all then, and is counted when it does run.
         self.assertIn("property real arrival: motionEnabled ? 0 : 1", source)
@@ -895,7 +895,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=176", apply,
+            "THEME_REV=177", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "

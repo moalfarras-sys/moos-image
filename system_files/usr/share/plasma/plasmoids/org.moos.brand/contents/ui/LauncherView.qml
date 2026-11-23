@@ -1023,9 +1023,9 @@ Item {
                             // Reserve room for the icon and the Arabic command on one line.
                             columns: width >= 4 * 224 + 3 * columnSpacing ? 4 : 2
                             Layout.fillWidth: true
-                            Layout.minimumHeight: columns === 4 ? 76 : 144
-                            Layout.preferredHeight: Layout.minimumHeight
-                            Layout.maximumHeight: Layout.minimumHeight
+                            // Lay out the shaped caption, title and their padding at native font metrics.
+                            Layout.minimumHeight: implicitHeight
+                            Layout.maximumHeight: implicitHeight
                             columnSpacing: view.space3
                             rowSpacing: view.space3
 
@@ -2477,6 +2477,7 @@ Item {
         rightPadding: view.space4
         topPadding: view.space2
         bottomPadding: view.space2
+        Layout.preferredHeight: Math.max(76, implicitContentHeight + topPadding + bottomPadding)
         Accessible.name: command.title
         Accessible.description: command.eyebrow
         Accessible.role: Accessible.Button
