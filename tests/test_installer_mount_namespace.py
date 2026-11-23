@@ -15,6 +15,7 @@ SOURCE = (ROOT / 'system_files/usr/bin/moos-install-to-disk').read_text()
 MATCH = re.search(r'^run_install\(\) \{\n.*?^\}\n', SOURCE, re.M | re.S)
 assert MATCH, 'installer lost run_install'
 FUNCTION = MATCH.group(0)
+V3_FUNCTION = re.search(r'^v3_splash_target\(\) \{\n.*?^\}\n', SOURCE, re.M | re.S).group(0)
 MOUNT_MATCH = re.search(r'^check_prepared_mount\(\) \{\n.*?^\}\n', SOURCE, re.M | re.S)
 assert MOUNT_MATCH, 'installer lost target mount readback'
 MOUNT_FUNCTION = MOUNT_MATCH.group(0)
@@ -63,7 +64,7 @@ class NamespaceInvocation(unittest.TestCase):
             script = ('set -u\nSRC=containers-storage:fixture\n'
                       'TARGET_IMGREF=ghcr.io/moalfarras-sys/moos:latest\n'
                       'TARGET_STAGE=/private-target-stage\nTARGET_ROOT=/private-target-root\n'
-                      + FUNCTION + '\nrun_install\n')
+                      + 'v3_splash_target() { return 1; }\n' + FUNCTION + '\nrun_install\n')
             result = subprocess.run(['bash'], input=script, text=True,
                                     env=environment, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -79,6 +80,30 @@ class NamespaceInvocation(unittest.TestCase):
             failed = subprocess.run(['bash'], input=script, text=True,
                                     env=environment, capture_output=True)
             self.assertEqual(failed.returncode, 23)
+
+    def test_v3_display_arguments_are_specific_to_the_generic_v3(self):
+        with tempfile.TemporaryDirectory() as directory:
+            dmi = Path(directory)
+            for name, value in [('sys_vendor', 'Micro Computer (HK) Tech Limited'),
+                                ('product_name', 'V3'), ('board_name', 'HPPAC')]:
+                (dmi / name).write_text(value + '\n')
+            def invocation(edition):
+                script = ('set -u\nTARGET_STAGE=/tmp TARGET_ROOT=/target SRC=fixture TARGET_IMGREF=$2\n'
+                          + V3_FUNCTION + FUNCTION.replace('v3_splash_target /sys/class/dmi/id',
+                                                           'v3_splash_target "$1"')
+                          + 'unshare() { printf "%s\\n" "$@"; }\nrun_install "$1"\n')
+                return subprocess.check_output(['bash', '-s', '--', directory,
+                                                'ghcr.io/moalfarras-sys/' + edition],
+                                               input=script, text=True).splitlines()
+            expected = ['--karg-delete=plymouth.use-simpledrm', '--karg=plymouth.use-simpledrm=2',
+                        '--karg=video=efifb:2560x1600']
+            self.assertEqual([a for a in invocation('moos:latest') if a.startswith('--karg')], expected)
+            for edition in ('moos-nvidia:latest', 'moos-arm:latest', 'moos-cloud:latest'):
+                self.assertFalse(any(a.startswith('--karg') for a in invocation(edition)))
+            (dmi / 'product_name').write_text('V3 SE\n')
+            self.assertFalse(any(a.startswith('--karg') for a in invocation('moos:latest')))
+            (dmi / 'sys_vendor').unlink()
+            self.assertFalse(any(a.startswith('--karg') for a in invocation('moos:latest')))
 
     def test_missing_namespace_tool_stops_before_target_preparation(self):
         admission = SOURCE[SOURCE.index('command -v unshare'):SOURCE.index('# Truncate')]
