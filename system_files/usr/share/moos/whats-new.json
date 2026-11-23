@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "mova-home-cards-fit",
+      "merged": "2026-11-23T12:00:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "بطاقات الرئيسية في Mova تُقرأ كاملة",
+        "en": "Mova's Home cards read in full"
+      },
+      "body": {
+        "ar": "بطاقات الأوامر في صفحة الرئيسية بقائمة Mova صارت تأخذ ارتفاع سطرها العربي كاملًا مع هامشه، فلا يلتصق العنوان بحافة البطاقة ولا تُقص أطراف حروفه السفلى.",
+        "en": "The command cards on Mova's Home page now take the full height of their Arabic caption and its padding, so a title no longer sits on the card's edge or loses the lower strokes of its letters."
+      }
+    },
+    {
       "id": "meyar-glass-keyboard",
       "merged": "2026-11-23T03:41:00Z",
       "glyph": "keyboard",

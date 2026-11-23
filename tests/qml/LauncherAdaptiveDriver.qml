@@ -288,6 +288,15 @@ Item {
                     const action = named(v, name);
                     driver.verify(action && action.width >= 44 && action.height >= 44,
                         "Home action keeps its input target: " + name);
+                    for (const caption of [action.title, action.eyebrow]) {
+                        const label = driver.textItem(action.contentItem, caption);
+                        driver.verify(!!label, "Home command has a native label: " + caption);
+                        const top = label.mapToItem(action, 0, 0).y;
+                        driver.verify(top >= action.topPadding - 1
+                            && top + label.implicitHeight <= action.height - action.bottomPadding + 1,
+                            "Home command reserves its full label and padding: " + caption
+                            + " top=" + top + " line=" + label.implicitHeight + " card=" + action.height);
+                    }
                     action.forceActiveFocus();check.wait(20);
                     const visiblePosition=action.mapToItem(driver.homeScroll,0,0);
                     driver.verify(visiblePosition.y>=-1 && visiblePosition.y+action.height<=driver.homeScroll.height+1,
@@ -337,13 +346,15 @@ Item {
                 // Real Qt pointer drag through production DragHandler/DropArea,
                 // committing to the native KAStats owner only on accepted drop.
                 l.expanded = true;
-                l.activePage = 0; l.editMode = true;
+                l.activePage = 0; l.editMode = false;
                 check.wait(100);
                 driver.homeScroll.contentY = 0;
                 driver.homeGrid.positionViewAtBeginning();
                 driver.verify(check.waitForPolish(driver.homeGrid), "favorite layout polished");
                 check.tryCompare(driver.pages,"pageAnimating",false,1500,"Home settles before review");
                 driver.captureSurface("home");
+                l.editMode = true;
+                check.wait(100);
                 console.info("MOOS_ADAPTIVE_STAGE before-native-drag");
                 function settledFavoriteRows() {
                     driver.homeGrid.forceLayout();
