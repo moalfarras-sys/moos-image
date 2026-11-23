@@ -1,30 +1,30 @@
 {
   "caption": "مرحبًا بك",
   "font": "Meyar Arabic Regular",
-  "fontSource": "system_files/usr/share/fonts/meyar/MeyarArabic[wght].ttf",
-  "fontSHA256": "1ede121874a7baade3f4e3d6d95a057710d7a69b4ec4165326c86f9277a3610a",
+  "fontSource": "system_files/usr/share/fonts/meyar/MeyarArabic-Regular.ttf",
+  "fontSHA256": "7d3f86fc6152a5c0fb376c15c2230fa374db686f244e7d8b1814bc610a898503",
   "shaping": "Pillow libraqm (HarfBuzz/FriBiDi), direction rtl, language ar",
   "size": [
-    402,
-    131
+    404,
+    129
   ],
-  "pixelSHA256": "36df584cd7ea82cf7ead9d51626aec0fec0edcc00ed57e27911c1b2de12220f2",
+  "pixelSHA256": "ce9ca166643b742738a69c51817380691320bc44776cd16b653060159f238879",
   "captions": {
     "welcome": {
       "caption": "مرحبًا بك",
       "size": [
-        402,
-        131
+        404,
+        129
       ],
-      "pixelSHA256": "36df584cd7ea82cf7ead9d51626aec0fec0edcc00ed57e27911c1b2de12220f2"
+      "pixelSHA256": "ce9ca166643b742738a69c51817380691320bc44776cd16b653060159f238879"
     },
     "farewell": {
       "caption": "إلى اللقاء",
       "size": [
-        399,
-        140
+        409,
+        123
       ],
-      "pixelSHA256": "0850dfa9853cacd56dbdd7f6a7fcaee50efda32e6c0fdffa71beca1805d4c759"
+      "pixelSHA256": "b04f8d1f384ceba4b5271b55eb742291f95dfa7b2e2c74cfb83946b1615d4f2f"
     }
   }
 }

@@ -51,7 +51,7 @@ LOGO_SVG = ROOT / "artwork/logo/MoOS_Logo_Vector_High_Detail.svg"
 PROVENANCE = ROOT / "artwork/moos-design/boot-glass.json"
 CAPTION_PROVENANCE = ROOT / "artwork/moos-design/boot-caption.json"
 LATIN = ROOT / "system_files/usr/share/fonts/meyar/MeyarSans[wght].ttf"
-ARABIC = ROOT / "system_files/usr/share/fonts/meyar/MeyarArabic[wght].ttf"
+ARABIC = ROOT / "system_files/usr/share/fonts/meyar/MeyarArabic-Regular.ttf"
 DEFAULT_BLENDER = "flatpak run --unshare=network --die-with-parent org.blender.Blender"
 
 HERO_SIZE = 640                  # intro1.png: the improved emblem
@@ -249,7 +249,6 @@ def letters() -> list[Image.Image]:
 
 def caption(text: str) -> Image.Image:
     font = ImageFont.truetype(str(ARABIC), CAPTION_FONT_PX, layout_engine=ImageFont.Layout.RAQM)
-    font.set_variation_by_name(b"Regular")
     probe = ImageDraw.Draw(Image.new("L", (1, 1)))
     # The shaped ink box includes stacked marks (tanween above alef, hamza
     # below); a margin keeps them clear of the image edge.

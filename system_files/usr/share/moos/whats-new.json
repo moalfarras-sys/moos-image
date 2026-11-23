@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "meyar-arabic-tajawal",
+      "merged": "2026-11-23T16:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "خط ميار العربي بتصميم تجوال",
+        "en": "Meyar Arabic in Tajawal's design"
+      },
+      "body": {
+        "ar": "صار خط ميار العربي في كل النظام مبنيًا على خط تجوال بأوزانه السبعة: حروف أنظف وأسطر أخف. تبقى الحروف الفارسية والأردية التي لا يحملها تجوال مكتملة بوزن يطابقه، وعبارتا الإقلاع رُسمتا به.",
+        "en": "Meyar Arabic, used across the whole system, is now built on Tajawal in its seven weights: cleaner letters and lighter lines. Persian and Urdu letters Tajawal lacks stay complete at a matching weight, and the boot captions are drawn in it."
+      },
+      "route": "moos://settings/fonts"
+    },
+    {
       "id": "hub-frosted-glass",
       "merged": "2026-11-23T14:00:00Z",
       "glyph": "ui",
@@ -15,20 +29,6 @@
         "en": "The clock, weather and system cards on your desktop now sit on frosted glass made from your own wallpaper, so its sharp lines no longer cut through text. Their secondary labels read more clearly, the week row no longer overlaps the page dots, and the weather card waits tidily for its forecast."
       },
       "route": "moos://settings/wallpaper"
-    },
-    {
-      "id": "meyar-arabic-moos-corner",
-      "merged": "2026-11-23T12:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "زاوية MoOS في حروف ميار العربية",
-        "en": "The MoOS corner in Meyar Arabic"
-      },
-      "body": {
-        "ar": "رأس الألف واللام في خط ميار العربي صار بزاوية MoOS: طرف أيمن مربع وكتف أيسر مستدير، في كل الأوزان. يظهر أوضح في العناوين والخط الكبير، وعبارتا الترحيب والوداع في شاشة الإقلاع رُسمتا من جديد بالخط نفسه، دون أن يتغيّر عرض أي سطر.",
-        "en": "The tops of alef and lam in Meyar Arabic now carry the MoOS corner: a square right edge and a rounded left shoulder, at every weight. It shows most in headings and large text, and the boot screen's welcome and farewell captions are redrawn in the same font; no line changes width."
-      },
-      "route": "moos://settings/fonts"
     },
     {
       "id": "mova-home-cards-fit",

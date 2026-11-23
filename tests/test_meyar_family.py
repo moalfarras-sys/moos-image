@@ -167,7 +167,11 @@ for x in ['Meyar Mono','Meyar Mono Arabic']}))'''
     def test_actual_overlay(self):
         result = gate.verify(FONTS)
         self.assertTrue(result['pass'])
-        self.assertEqual(len(result['families']), 5)
+        # Eleven faces in four families: Meyar Arabic ships Tajawal's seven weights.
+        self.assertEqual(len(result['families']), 11)
+        self.assertEqual({row['family'] for row in result['families']},
+                         {'Meyar Sans', 'Meyar Arabic', 'Meyar Mono', 'Meyar Mono Arabic'})
+        self.assertEqual(sum(row['family'] == 'Meyar Arabic' for row in result['families']), 7)
 
     def test_native_font_migration_precedes_discovery_and_native_failure_is_fatal(self):
         loader = importlib.machinery.SourceFileLoader('meyar_migrate_order', str(ROOT / 'system_files/usr/bin/moos-fonts-migrate'))

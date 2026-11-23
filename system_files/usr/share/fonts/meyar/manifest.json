@@ -1,12 +1,36 @@
 {
-  "version": "0.300",
+  "version": "0.400",
   "license": "OFL-1.1",
   "source": "fonts/meyar-family",
   "cellUnits": 700,
   "files": {
-    "MeyarArabic[wght].ttf": {
-      "bytes": 302356,
-      "sha256": "1ede121874a7baade3f4e3d6d95a057710d7a69b4ec4165326c86f9277a3610a"
+    "MeyarArabic-Black.ttf": {
+      "bytes": 170652,
+      "sha256": "be6e8fa87e588a1cfe68eeab202719fbf48f6d928213b1c72bf4032d29a7e723"
+    },
+    "MeyarArabic-Bold.ttf": {
+      "bytes": 171540,
+      "sha256": "eae03ea4d1cc9ddb880391b5aa4bef6f58d9c7c125cfc79e8da9640405293067"
+    },
+    "MeyarArabic-ExtraBold.ttf": {
+      "bytes": 171288,
+      "sha256": "1d32ecc9d62ec3f0624b535da660cd6d1cabc475649db332b767c9681265d791"
+    },
+    "MeyarArabic-ExtraLight.ttf": {
+      "bytes": 167388,
+      "sha256": "968934b11692ce8c74445b3e147de2712ff443e48ec1f00fc5afa014ff85b7a2"
+    },
+    "MeyarArabic-Light.ttf": {
+      "bytes": 172308,
+      "sha256": "3b5fd89e87dcbd907cc14233466d90b10f93fd2601f567aacc296ccdcd41cef4"
+    },
+    "MeyarArabic-Medium.ttf": {
+      "bytes": 172188,
+      "sha256": "2d83502c7099ea4535e2f756ab0fc4681a18035694d94a4f5eb54d51f99b48d3"
+    },
+    "MeyarArabic-Regular.ttf": {
+      "bytes": 171112,
+      "sha256": "7d3f86fc6152a5c0fb376c15c2230fa374db686f244e7d8b1814bc610a898503"
     },
     "MeyarMonoArabic-Bold.ttf": {
       "bytes": 187428,
@@ -36,9 +60,13 @@
       "bytes": 4592,
       "sha256": "d0bb837bd4b170f869602be4ce7164bd692ff77a9842ade72c7f09fa013f79db"
     },
+    "OFL-Tajawal.txt": {
+      "bytes": 4464,
+      "sha256": "9b584984f9db0ee30347391a76eff9c0a6b03dc450c3c6afe3757a2cb3a4db87"
+    },
     "README.md": {
-      "bytes": 5519,
-      "sha256": "8e7746d7d9cf898b87cf7b7625b24bc9f612375e3a22584df15aaf09fe37d579"
+      "bytes": 6312,
+      "sha256": "a188a644c6c4d7d4802b3e99345ab4f112a4beb3fccc66c611fd0071e7615d2a"
     },
     "terminal-cells.json": {
       "bytes": 106052,

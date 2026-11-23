@@ -140,7 +140,7 @@ try:
         mechanism_conf.write_text(generated)
     mechanism_generation('a')
     a = native(mechanism_config, mechanism_cache, 'fc-list', '-f', '%{family}|%{file}\n')
-    shutil.copyfile(fonts / 'MeyarArabic[wght].ttf', tree / 'second.ttf'); os.utime(tree, (0, 0))
+    shutil.copyfile(fonts / 'MeyarArabic-Regular.ttf', tree / 'second.ttf'); os.utime(tree, (0, 0))
     stale = native(mechanism_config, mechanism_cache, 'fc-list', '-f', '%{family}|%{file}\n')
     mechanism_generation('b')
     b = native(mechanism_config, mechanism_cache, 'fc-list', '-f', '%{family}|%{file}\n')

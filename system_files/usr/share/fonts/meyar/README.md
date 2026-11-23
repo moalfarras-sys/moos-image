@@ -11,7 +11,7 @@ The family has four native owners:
 | Family | Source | Purpose |
 | --- | --- | --- |
 | Meyar Sans | Noto Sans LGC | Latin, Greek, Cyrillic, IPA and extended phonetic text |
-| Meyar Arabic | Noto Sans Arabic | Arabic and its supported script extensions,100–900 |
+| Meyar Arabic | Tajawal, completed with Noto Sans Arabic | Arabic in Tajawal's own design, seven weights 200–900; Persian, Urdu and the extended blocks from the reviewed Noto derivative |
 | Meyar Mono | Noto Sans Mono LGC | Matching Latin/phonetic code face,700-unit cell |
 | Meyar Mono Arabic | Kawkab Mono | Actual Arabic fixed-cell joining, authored Regular/Bold |
 
@@ -21,6 +21,16 @@ The family has four native owners:
 `45630ed78bfdbc5c7cf1dc8aab15f6385a396aed`. Arabic reuses the single checked
 source under `../meyar-arabic/`, pinned to
 `f1ba474be91d6a5d2cfcc4374bb03cc5f1011088`.
+Meyar Arabic follows the owner's 2026-11-23 choice of Tajawal (Boutros
+International, OFL-1.1, no Reserved Font Name), pinned by
+`upstream-tajawal-lock.json` to google/fonts
+`20776328c5a501f52fe9553fc5997451b4667589`. `build_arabic_ui.py` keeps Tajawal's
+outlines, spacing, kerning, mark positioning and line metrics, renames the faces,
+and adds only the Arabic-script code points Tajawal lacks from the reviewed
+Noto-derived build at the weight whose stroke colour matches each Tajawal face.
+Its `--verify` requires shaping identical to Tajawal on an Arabic corpus and no
+character lost from the previous Meyar Arabic. Tajawal's notice ships as
+`OFL-Tajawal.txt`, Noto's as `OFL-Arabic.txt`.
 Every source byte and original OFL/author notice is retained. Builders refuse
 drift instead of silently downloading another input.
 

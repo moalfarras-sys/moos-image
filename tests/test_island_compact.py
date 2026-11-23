@@ -22,11 +22,12 @@ def fixture(source, old=False, broken_route=False, cramped=False):
     body=body.replace('id: compact','id: compact; objectName: "compact"',1)
     body=body.replace('id: compactAction','id: compactAction; objectName: "compactAction"',1)
     if cramped:
-        # The shipped142 layout left26px for Meyar Arabic's28px line.
-        body=body.replace('anchors.topMargin: 0','anchors.topMargin: 2',1)
-        body=body.replace('anchors.bottomMargin: 0','anchors.bottomMargin: 2',1)
+        # The shipped142 layout left 26px for the Noto-based Meyar Arabic's 28px line. The
+        # Tajawal-based Meyar Arabic (2026-11-23) paints a shorter line that fits there, so the
+        # control plants a box 4px shorter than the ACTUAL painted line: the probe must still
+        # report the overflow with whatever production face is installed.
         body=body.replace('Layout.maximumHeight: Math.max(0, compactShell.height)',
-                          'Layout.maximumHeight: Math.max(0, compactShell.height - 4)',1)
+                          'Layout.maximumHeight: Math.max(0, compactCaption.contentHeight - 4)',1)
     if broken_route:
         prefix, action=body.split('id: compactAction;',1)
         route='Qt.openUrlExternally("moos://app/remote")'
@@ -126,7 +127,7 @@ def probe():
             if os.environ.get('PROBE_CRAMPED')=='1':
                 assert height==34 and painted>caption.height()+1,'old Meyar margin did not reproduce'
                 print('OLD_MEYAR_ISLAND_OVERFLOW',flush=True)
-                raise AssertionError('shipped142 inset clips the actual Meyar line')
+                raise AssertionError('a box shorter than the actual Meyar line clips it')
             assert compact.width()==stable==171,('moving panel slot',compact.width())
             assert caption.property('maximumLineCount')==1
             assert painted<=caption.height()+.1,('caption ink',height,context,painted,caption.height())

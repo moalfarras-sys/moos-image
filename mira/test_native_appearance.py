@@ -83,7 +83,7 @@ def probe(root, family):
     import moai_tools
     app = QApplication([])
     source_fonts = OVERLAY / 'usr/share/fonts/meyar'
-    for name in ('MeyarSans[wght].ttf', 'MeyarArabic[wght].ttf'):
+    for name in ('MeyarSans[wght].ttf', *sorted(p.name for p in source_fonts.glob('MeyarArabic-*.ttf'))):
         font_id=QFontDatabase.addApplicationFont(str(source_fonts/name))
         assert font_id>=0, 'source font unavailable: '+name
     assert QFontInfo(QFont('Meyar Sans',10)).family()=='Meyar Sans', 'source Meyar family unavailable' 

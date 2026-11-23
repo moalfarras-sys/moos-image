@@ -31,6 +31,7 @@ bloom-art:
 meyar-build:
     python3 fonts/meyar-family/build.py sans --otf --output test-results/meyar-family/sans
     python3 fonts/meyar-family/build.py arabic --otf --output test-results/meyar-family/arabic
+    python3 fonts/meyar-family/build_arabic_ui.py --fill 'test-results/meyar-family/arabic/MeyarArabic[wght].ttf' --output test-results/meyar-family/arabic-ui --verify
     python3 fonts/meyar-family/build.py mono --otf --output test-results/meyar-family/mono
     python3 fonts/meyar-family/build.py mono-arabic --otf --output test-results/meyar-family/mono-arabic
 
