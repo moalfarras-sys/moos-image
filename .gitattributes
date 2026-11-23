@@ -10,3 +10,8 @@
 *.iso binary
 *.gz binary
 *.zst binary
+
+# Vendored upstream fonts and their notices keep their exact upstream bytes: the lock and the
+# shipped font manifest record those bytes (Tajawal's OFL.txt has CRLF line endings).
+fonts/meyar-family/upstream-tajawal/** -text
+system_files/usr/share/fonts/meyar/OFL-Tajawal.txt -text
