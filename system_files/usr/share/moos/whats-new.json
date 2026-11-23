@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "auto-arrange-windows",
+      "merged": "2026-11-23T18:00:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "الشاشة تنقسم وحدها للبرامج",
+        "en": "The screen splits itself for your programs"
+      },
+      "body": {
+        "ar": "افتح برنامجين فيأخذ كل منهما نصف الشاشة، وثلاثة فرئيسي واثنان، وأربعة فأرباع. تبقى كل نافذة في جهتها، والحوارات لا تتحرك، والبرنامج الذي لا يصغر لا يُضغط. أوقفه أو شغّله بـMeta+Alt+A أو من قائمة النافذة.",
+        "en": "Open two programs and each takes half the screen; three give one main and two, four take quarters. Windows keep their side, dialogs stay put and a program that cannot shrink is never squeezed. Toggle it with Meta+Alt+A or from the window menu."
+      }
+    },
+    {
       "id": "meyar-arabic-tajawal",
       "merged": "2026-11-23T16:00:00Z",
       "glyph": "ui",
