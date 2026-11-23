@@ -126,6 +126,9 @@ ColumnLayout {
                 width: parent.width
                 height: strip.frameHeight
                 radius: strip.design.radiusCard
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, strip.design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, strip.design.radiusSquare)
                 color: strip.win.tint(strip.win.txt, strip.win.lightScheme ? 0.06 : 0.07)
                 border.width: 1
                 border.color: shotList.activeFocus && shotList.currentIndex === shot.index

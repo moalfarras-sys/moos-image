@@ -59,6 +59,9 @@ esac
         "MOOS_SYSTEMCTL_BIN": str(fake),
         "MOOS_TEST_CALLS": str(calls),
         "MOOS_TEST_MODE": mode,
+        # The input path notifies KConfig watchers (the on-screen keyboard's languages): never
+        # on the owner's live session bus.
+        "DBUS_SESSION_BUS_ADDRESS": f"unix:path={root}/no-bus",
     }
     result = subprocess.run(
         [str(MIGRATE), "--input-only"], env=env, text=True, capture_output=True

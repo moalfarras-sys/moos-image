@@ -216,6 +216,120 @@ do
     [ -d "$xdg_dir" ] || mkdir -p "$xdg_dir" 2>/dev/null || true
 done
 
+# --- The on-screen keyboard speaks the account's keyboard languages ---------------------------
+#
+# plasma-keyboard (KWin's input method: the on-screen keyboard) keeps its own language list,
+# plasmakeyboardrc [General] enabledLocales. Empty means all of its ~40 layouts, so its language
+# key cycles through languages nobody here types; one stale entry (the V3 carried de_DE alone
+# since 2026-10-19) means Arabic never appears on an Arabic-first system.
+#
+# The languages a person types are the keyboard layouts they chose: kxkbrc LayoutList, read
+# through KConfig's own cascade (an account file holding only Model inherits /etc/xdg's ara,de),
+# in that order, Arabic first by default. So the on-screen keyboard follows them:
+#   - while its list is empty, or still exactly the list MoOS last wrote, it follows the
+#     layouts (the person has not chosen another list in System Settings > Virtual Keyboard);
+#   - once, on first reconciliation, a list that is a strict subset of those layouts gains
+#     the missing ones in layout order; nothing it had is removed;
+#   - any other list is the person's choice and stays theirs, recorded once as preserved.
+# Only languages plasma-keyboard actually ships are written. This runs before KWin starts
+# plasma-keyboard, and again after the layout migration below.
+onscreen_keyboard_layouts=/usr/share/plasma/keyboard/layouts
+
+onscreen_keyboard_locale() {
+    case "$1" in
+        ara) echo ar_AR ;; de|at) echo de_DE ;; us) echo en_US ;; gb) echo en_GB ;;
+        fr) echo fr_FR ;; ca) echo fr_CA ;; es) echo es_ES ;; latam) echo es_MX ;;
+        it) echo it_IT ;; pt) echo pt_PT ;; br) echo pt_BR ;; ru) echo ru_RU ;;
+        ua) echo uk_UA ;; tr) echo tr_TR ;; ir) echo fa_FA ;; il) echo he_IL ;;
+        gr) echo el_GR ;; pl) echo pl_PL ;; cz) echo cs_CZ ;; sk) echo sk_SK ;;
+        dk) echo da_DK ;; se) echo sv_SE ;; no) echo nb_NO ;; "fi") echo fi_FI ;;
+        nl) echo nl_NL ;; hu) echo hu_HU ;; ro) echo ro_RO ;; bg) echo bg_BG ;;
+        hr) echo hr_HR ;; si) echo sl_SI ;; rs) echo sr_SP ;; al) echo sq_AL ;;
+        ee) echo et_EE ;; lv) echo lv_LV ;; "in") echo hi_IN ;; th) echo th_TH ;;
+        vn) echo vi_VN ;; jp) echo ja_JP ;; kr) echo ko_KR ;; cn) echo zh_CN ;;
+        tw) echo zh_TW ;; id) echo id_ID ;; my) echo ms_MY ;; et) echo am_ET ;;
+        epo) echo eo ;;
+    esac
+}
+
+# True when every entry of the comma list $1 is in the comma list $2.
+locale_list_within() {
+    local item
+    local -a items=()
+    IFS=, read -r -a items <<<"$1"
+    for item in "${items[@]}"; do
+        case ",$2," in *",$item,"*) ;; *) return 1 ;; esac
+    done
+    return 0
+}
+
+sync_onscreen_keyboard_languages() {
+    local vk_conf="${XDG_CONFIG_HOME:-$HOME/.config}/plasmakeyboardrc"
+    local synced_file="$state_dir/onscreen-keyboard-languages.synced"
+    local vk_log="$log_dir/onscreen-keyboard-languages.log"
+    local layouts layout locale wanted="" current synced="" reason tmp readback
+    local -a layout_list=()
+
+    command -v kreadconfig6 >/dev/null 2>&1 || return 0
+    command -v kwriteconfig6 >/dev/null 2>&1 || return 0
+    [ -d "$onscreen_keyboard_layouts" ] || return 0   # no plasma-keyboard in this edition
+
+    layouts="$(kreadconfig6 --file kxkbrc --group Layout --key LayoutList 2>/dev/null || true)"
+    IFS=, read -r -a layout_list <<<"$layouts"
+    for layout in "${layout_list[@]}"; do
+        locale="$(onscreen_keyboard_locale "${layout//[[:space:]]/}")"
+        [ -n "$locale" ] && [ -d "$onscreen_keyboard_layouts/$locale" ] || continue
+        case ",$wanted," in *",$locale,"*) continue ;; esac
+        wanted="${wanted:+$wanted,}$locale"
+    done
+    [ -n "$wanted" ] || return 0
+
+    current="$(kreadconfig6 --file plasmakeyboardrc --group General --key enabledLocales 2>/dev/null || true)"
+    [ -f "$synced_file" ] && synced="$(cat -- "$synced_file" 2>/dev/null || true)"
+    if [ "$current" = "$wanted" ]; then
+        # Already the layouts: follow them from here on.
+        [ "$synced" = "$wanted" ] || printf '%s\n' "$wanted" >"$synced_file" 2>/dev/null || true
+        return 0
+    fi
+    if [ -z "$current" ]; then
+        reason="empty list"
+    elif [ "$current" = "$synced" ]; then
+        reason="layouts changed"
+    elif [ ! -e "$synced_file" ] && locale_list_within "$current" "$wanted"; then
+        reason="completed a partial list"
+    else
+        if [ "$synced" != "personal:$current" ]; then
+            printf 'personal:%s\n' "$current" >"$synced_file" 2>/dev/null || true
+            record_migration onscreen-keyboard-languages 1 preserved
+            echo "$(date -u '+%FT%TZ') kept the chosen on-screen keyboard languages: $current" \
+                >>"$vk_log" 2>/dev/null || true
+        fi
+        return 0
+    fi
+
+    tmp="$(mktemp "${vk_conf}.moos-languages.XXXXXX")" || return 0
+    if { [ ! -f "$vk_conf" ] || cp --preserve=mode -- "$vk_conf" "$tmp"; } \
+       && kwriteconfig6 --file "$tmp" --group General --key enabledLocales "$wanted" \
+       && readback="$(kreadconfig6 --file "$tmp" --group General --key enabledLocales 2>/dev/null)" \
+       && [ "$readback" = "$wanted" ] \
+       && mv -f -- "$tmp" "$vk_conf"; then
+        printf '%s\n' "$wanted" >"$synced_file" 2>/dev/null || true
+        record_migration onscreen-keyboard-languages 1 applied
+        echo "$(date -u '+%FT%TZ') on-screen keyboard languages ${current:-<all>} -> $wanted ($reason)" \
+            >>"$vk_log" 2>/dev/null || true
+        # A running plasma-keyboard follows KConfigWatcher; before KWin there is none to tell.
+        gdbus emit --session --object-path /plasmakeyboardrc \
+            --signal org.kde.kconfig.notify.ConfigChanged \
+            "{'General': @aay []}" >/dev/null 2>&1 || true
+    else
+        rm -f -- "$tmp"
+        record_migration onscreen-keyboard-languages 1 failed
+        echo "$(date -u '+%FT%TZ') could not write on-screen keyboard languages; will retry" \
+            >>"$vk_log" 2>/dev/null || true
+    fi
+}
+sync_onscreen_keyboard_languages
+
 # The early systemd user unit asks for only the input repair so it can finish
 # before either user-session KWin or the Plasma Login Manager's KWin starts.
 [ "${1:-}" = "--input-only" ] && exit 0
@@ -303,6 +417,8 @@ migrate_legacy_keyboard() {
     fi
 }
 migrate_legacy_keyboard
+# The layouts may have just changed: let the on-screen keyboard follow them this login.
+sync_onscreen_keyboard_languages
 
 # MoOS briefly enabled KWallet globally to support MoPlayer and Mo AI. That made
 # a password prompt part of login even for an owner who never opted into a

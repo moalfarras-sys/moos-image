@@ -237,7 +237,7 @@ class FlatpakFonts(unittest.TestCase):
                 saved = target.with_name(target.name + '-saved')
                 target.rename(saved); target.symlink_to(outside, target_is_directory=True)
                 try:
-                    with self.assertRaises(OSError): self.install(self.b)
+                    with self.assertRaises((OSError, ValueError)): self.install(self.b)
                 finally: target.unlink(); saved.rename(target)
                 with self.assertRaisesRegex(ValueError, 'mounted'):
                     self.install(self.b, mounts={str(target)})
@@ -248,6 +248,72 @@ class FlatpakFonts(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'mounted'):
                 self.install(self.b, mounts={str(target)})
         self.assertFalse((self.home / 'foreign').exists())
+
+    def test_native_persistent_home_config_alias_lifecycle(self):
+        app = self.home / '.var/app' / APP
+        target = app / '.config'
+        target.mkdir(parents=True)
+        (app / 'config').symlink_to('.config', target_is_directory=True)
+        personal = target / 'personal.ini'; personal.write_text('retain owner settings')
+        destination = target / 'fontconfig/conf.d' / policy.FILE
+        self.assertTrue(self.install())
+        self.assertEqual(destination.read_bytes(), self.a)
+        self.assertFalse(self.install())
+        self.assertTrue(self.install(self.b))
+        recovery = destination.parent / '.moos-host-font-cache-recovery'
+        self.assertEqual([p.read_bytes() for p in recovery.iterdir()], [self.a])
+        self.assertTrue(policy.install(self.home, APP, None))
+        self.assertFalse(destination.exists())
+        self.assertCountEqual([p.read_bytes() for p in recovery.iterdir()], [self.a, self.b])
+        self.assertFalse(policy.install(self.home, APP, None))
+        self.assertEqual(personal.read_text(), 'retain owner settings')
+        self.assertEqual(os.readlink(app / 'config'), '.config')
+
+    def test_persistent_home_alias_refuses_other_targets_and_unsafe_sibling(self):
+        for kind in ('absolute', 'parent', 'other', 'dangling', 'linked-target',
+                     'writable-target', 'target-mount', 'alias-mount', 'foreign-link',
+                     'foreign-target', 'hardlinked-alias', 'changed-alias'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as tmp:
+                home = Path(tmp); app = home / '.var/app' / APP
+                target = app / '.config'; target.mkdir(parents=True)
+                alias = app / 'config'
+                alias.symlink_to({'absolute': str(target), 'parent': '../.config',
+                                  'other': 'other'}.get(kind, '.config'))
+                if kind == 'dangling': target.rmdir()
+                if kind == 'linked-target':
+                    target.rmdir(); target.symlink_to(home, target_is_directory=True)
+                if kind == 'writable-target': target.chmod(0o777)
+                if kind == 'hardlinked-alias': os.link(alias, app / 'alias-copy', follow_symlinks=False)
+                mounts = {str(target)} if kind == 'target-mount' else {str(alias)} if kind == 'alias-mount' else set()
+                original_stat = policy.os.stat
+                def altered_stat(path, *args, **kwargs):
+                    info = original_stat(path, *args, **kwargs)
+                    foreign = ((kind == 'foreign-link' and str(path) == 'config')
+                               or (kind == 'foreign-target' and str(path).endswith('.config')))
+                    if foreign:
+                        values = list(info); values[4] = os.getuid() + 1
+                        return os.stat_result(values)
+                    return info
+                original_fstat = policy.os.fstat
+                def altered_fstat(fd):
+                    info = original_fstat(fd)
+                    if kind == 'foreign-target' and str(Path('/proc/self/fd', str(fd)).readlink()) == str(target):
+                        values = list(info); values[4] = os.getuid() + 1
+                        return os.stat_result(values)
+                    return info
+                original_directory = policy.directory
+                def changed_directory(parent, name, path, mounts, create=True):
+                    fd = original_directory(parent, name, path, mounts, create)
+                    if kind == 'changed-alias' and name == '.config':
+                        alias.unlink(); alias.symlink_to('other')
+                    return fd
+                with patch.object(policy.os, 'stat', side_effect=altered_stat), \
+                     patch.object(policy.os, 'fstat', side_effect=altered_fstat), \
+                     patch.object(policy, 'directory', side_effect=changed_directory), \
+                     self.assertRaises((OSError, ValueError)):
+                    policy.install(home, APP, self.a, mounts=mounts)
+                self.assertFalse((target / 'fontconfig').exists())
+                self.assertTrue(alias.is_symlink())
 
     def test_unknown_recovery_link_mount_lock_busy_and_permissions_refuse(self):
         self.install()

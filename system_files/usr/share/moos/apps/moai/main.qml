@@ -2603,6 +2603,9 @@ Kirigami.ApplicationWindow {
         default property alias content: inner.data
         property alias pad: inner.anchors.margins
         radius: design.radiusCard
+        // The MoOS corner: the top-trailing corner is square.
+        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
         color: root.surface1
         border.width: 1
         border.color: root.hairline
@@ -2686,6 +2689,9 @@ Kirigami.ApplicationWindow {
 
         color: root.surface1
         radius: design.radiusCard
+        // The MoOS corner: the top-trailing corner is square.
+        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
         border.width: 1
         border.color: isPrivileged ? root.warnColor : root.novaBlue
         implicitHeight: cardContent.implicitHeight + 28
@@ -3488,6 +3494,9 @@ Kirigami.ApplicationWindow {
                                 border.width: 2
                                 border.color: root.novaBlue
                                 radius: design.radiusCard
+                                // The MoOS corner: the top-trailing corner is square.
+                                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                 Text {
                                     anchors.centerIn: parent
                                     text: root.local("أفلت الصور أو الملفات هنا",
@@ -3809,6 +3818,9 @@ Kirigami.ApplicationWindow {
                                             width: heroCards.columns === 2 ? (heroCards.parent.width - 12) / 2 : heroCards.parent.width
                                             height: 74
                                             radius: design.radiusCard
+                                            // The MoOS corner: the top-trailing corner is square.
+                                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                             color: Qt.rgba(root.surface1.r, root.surface1.g, root.surface1.b, cardMA.containsMouse ? 0.94 : 0.66)
                                             border.width: 1
                                             border.color: cardMA.containsMouse
@@ -6130,6 +6142,9 @@ Kirigami.ApplicationWindow {
                 width: Math.min(parent.width - 40, 430)
                 height: Math.min(parent.height - 130, pickCol.implicitHeight + 32)
                 radius: design.radiusCard
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                 color: root.surface1
                 border.width: 1
                 border.color: root.hairline

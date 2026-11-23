@@ -419,6 +419,12 @@ FocusScope {
                 width: field.reachEnd - field.reachStart
                 height: parent.height
                 radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)
+                // The MoOS corner at control size: the top-trailing corner — the
+                // one over the key — is square, like the key's own and like the
+                // island's above it.
+                readonly property real shortCorner: Math.min(radius, root.design.radiusSquare)
+                topLeftRadius: capsule.LayoutMirroring.enabled ? shortCorner : radius
+                topRightRadius: capsule.LayoutMirroring.enabled ? radius : shortCorner
                 color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                                Kirigami.Theme.backgroundColor.g,
                                Kirigami.Theme.backgroundColor.b,
@@ -440,6 +446,8 @@ FocusScope {
                     anchors.margins: parent.border.width
                     height: parent.height * 0.5
                     radius: parent.radius - parent.border.width
+                    topLeftRadius: capsule.topLeftRadius - parent.border.width
+                    topRightRadius: capsule.topRightRadius - parent.border.width
                     gradient: Gradient {
                         GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
                             Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.07) }
@@ -454,6 +462,8 @@ FocusScope {
                     anchors.fill: parent
                     anchors.margins: -Kirigami.Units.smallSpacing
                     radius: parent.radius + Kirigami.Units.smallSpacing
+                    topLeftRadius: capsule.topLeftRadius + Kirigami.Units.smallSpacing
+                    topRightRadius: capsule.topRightRadius + Kirigami.Units.smallSpacing
                     color: "transparent"
                     border.width: Kirigami.Units.smallSpacing
                     border.color: Qt.rgba(root.accentA.r, root.accentA.g, root.accentA.b,
@@ -499,6 +509,9 @@ FocusScope {
                 anchors.margins: key.inset
                 // Concentric with the capsule: the family radius less the inset.
                 radius: Math.round((root.design.radiusControl + 2) * root.sessionScale) - key.inset
+                readonly property real shortCorner: Math.min(radius, root.design.radiusSquare)
+                topLeftRadius: keyPlate.LayoutMirroring.enabled ? shortCorner : radius
+                topRightRadius: keyPlate.LayoutMirroring.enabled ? radius : shortCorner
                 color: key.armed ? root.accentA
                                  : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                            Kirigami.Theme.textColor.b, root.design.surfaceRestingOpacity)
@@ -643,28 +656,22 @@ FocusScope {
         scale: 0.94 + 0.06 * root.spring(root.slice(0, 0.8))
         opacity: root.settledOpacity
         radius: Math.round(root.design.radiusDialog * Math.max(0.8, root.sessionScale))
+        // The MoOS corner comes with the surface (MoUI.Surface): three corners
+        // round, the top-trailing one square. The sheet is lit from above.
+        sheen: 0.07
         depth: root.design.glassLevelDialog
         surfaceColor: Kirigami.Theme.backgroundColor
-        fillOpacity: 0.94
+        // Glass, not a slab: behind the island both greeters have already
+        // blurred and dimmed the scene (WallpaperFader), so a 0.80 sheet lets
+        // that light through while text keeps its contrast. The software
+        // renderer has no blur behind it and keeps the near-opaque 0.94 sheet.
+        fillOpacity: root.softwareRendering ? 0.94 : 0.80
         inkColor: Kirigami.Theme.textColor
         accentColor: root.accentA
         border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                               Kirigami.Theme.textColor.g,
                               Kirigami.Theme.textColor.b, 0.16)
 
-        // Sheen — the catch-light across the plate's upper field.
-        Rectangle {
-            anchors { top: parent.top; left: parent.left; right: parent.right }
-            anchors.margins: 1
-            height: parent.height * 0.42
-            radius: parent.radius - 1
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
-                    Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06) }
-                GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
-                    Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.0) }
-            }
-        }
         // The crest: the two-tone mark every MoOS session surface carries on
         // its top edge.
         Rectangle {
@@ -693,6 +700,8 @@ FocusScope {
             Rectangle {
                 anchors.fill: parent
                 radius: island.radius
+                topLeftRadius: island.topLeftRadius
+                topRightRadius: island.topRightRadius
                 color: "transparent"
                 border.width: Math.max(2, Math.round(2 * root.sessionScale))
                 border.color: "black"
@@ -725,6 +734,8 @@ FocusScope {
             id: refusalRim
             anchors.fill: parent
             radius: island.radius
+            topLeftRadius: island.topLeftRadius
+            topRightRadius: island.topRightRadius
             color: "transparent"
             border.width: Math.max(2, Math.round(2 * root.sessionScale))
             border.color: Kirigami.Theme.negativeTextColor
@@ -1032,11 +1043,40 @@ FocusScope {
         }
 
         Item {
+            id: actionDockSlot
             Layout.alignment: Qt.AlignHCenter
-            implicitHeight: actionItemsLayout.implicitHeight
-            implicitWidth: actionItemsLayout.implicitWidth
+            // The session dock: one glass sheet in the island's silhouette holds
+            // every session action, the way the MoOS bar holds the desktop's,
+            // instead of a loose row of separate tiles. The actions and their
+            // wrapping rule stay upstream's; only what is painted behind them
+            // is MoOS's.
+            readonly property real dockPad: Math.round(Kirigami.Units.smallSpacing * 1.5 * root.sessionScale)
+            readonly property bool docked: actionItemsLayout.visible
+                && actionItemsLayout.visibleChildren.length > 0
+            implicitHeight: actionItemsLayout.implicitHeight + (docked ? dockPad * 2 : 0)
+            implicitWidth: actionItemsLayout.implicitWidth + (docked ? dockPad * 2 : 0)
+            MoUI.GlassSurface {
+                id: actionDock
+                objectName: "moosSessionActionDock"
+                anchors.fill: parent
+                visible: actionDockSlot.docked
+                Kirigami.Theme.inherit: false
+                Kirigami.Theme.colorSet: Kirigami.Theme.Window
+                animateArrival: false
+                radius: Math.round(root.design.radiusPanel * Math.max(0.8, root.sessionScale))
+                depth: root.design.glassLevelPanel
+                surfaceColor: Kirigami.Theme.backgroundColor
+                fillOpacity: root.softwareRendering ? 0.9 : 0.58
+                inkColor: Kirigami.Theme.textColor
+                accentColor: root.accentA
+                sheen: 0.06
+                border.color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
+            }
             GridLayout {
                 id: actionItemsLayout
+                // MoOS ActionButtons read this: inside the dock they are
+                // transparent at rest.
+                property bool moosDock: true
                 // The actions stand on the scene, outside the island. The
                 // Window set is the selected look's own pair — light ink in
                 // every dark family, dark ink in every light one. Complementary
@@ -1046,7 +1086,8 @@ FocusScope {
                 Kirigami.Theme.colorSet: Kirigami.Theme.Window
                 anchors.centerIn: parent
 
-                readonly property int spacing: Kirigami.Units.largeSpacing
+                // Docked keys sit as close as the MoOS bar's.
+                readonly property int spacing: moosDock ? Kirigami.Units.smallSpacing : Kirigami.Units.largeSpacing
                 rowSpacing: spacing
                 columnSpacing: spacing
 

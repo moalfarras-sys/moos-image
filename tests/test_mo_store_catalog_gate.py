@@ -333,9 +333,13 @@ class EveryNewCatalogueRuleBites(unittest.TestCase):
             item["url"] = "https://mirror.example.org/putty/0.85/w64/putty.exe"
         self.refused(mirror, "is not the publisher's x86_64 download for version 0.85")
 
+        # Keep the URL mismatch negative distinct after a routine recipe update.
+        current = app(SHIPPED, "notepad-plus-plus")["install"]["version"]
+        different = f"{int(current.split('.')[0]) + 1}.0"
         def new_version_old_url(c):
-            app(c, "notepad-plus-plus")["install"]["version"] = "8.9.9"
-        self.refused(new_version_old_url, "is not the publisher's x86_64 download for version 8.9.9")
+            app(c, "notepad-plus-plus")["install"]["version"] = different
+        self.refused(new_version_old_url,
+                     f"is not the publisher's x86_64 download for version {different}")
 
         def swapped_architectures(c):
             downloads = app(c, "photocraft")["install"]["downloads"]

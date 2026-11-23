@@ -824,6 +824,9 @@ ApplicationWindow {
                         Layout.preferredHeight: win.fs(52)
                         implicitWidth: beginRow.implicitWidth + 64
                         radius: height / 2
+                        // The MoOS corner: a command's top-trailing corner is square.
+                        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                         color: beginHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                         Behavior on color { ColorAnimation { duration: win.motionEnabled ? design.motionFast : 0 } }
                         HoverHandler { id: beginHover }
@@ -889,6 +892,9 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: win.fs(214)
                                 radius: design.radiusCard
+                                // The MoOS corner: the top-trailing corner is square.
+                                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                                 border.width: 1
                                 border.color: win.outline
@@ -899,6 +905,9 @@ ApplicationWindow {
                                     Rectangle {
                                         Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
                                         radius: design.radiusCard
+                                        // The MoOS corner: the top-trailing corner is square.
+                                        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                         color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                         Glyph {
                                             anchors.centerIn: parent
@@ -930,6 +939,9 @@ ApplicationWindow {
                         Layout.preferredHeight: win.fs(50)
                         implicitWidth: sellNextRow.implicitWidth + 60
                         radius: height / 2
+                        // The MoOS corner: a command's top-trailing corner is square.
+                        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                         color: sellNextHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                         Behavior on color { ColorAnimation { duration: win.motionEnabled ? design.motionFast : 0 } }
                         HoverHandler { id: sellNextHover }
@@ -1021,6 +1033,9 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.preferredHeight: win.fs(120)
                             radius: design.radiusCard
+                            // The MoOS corner: the top-trailing corner is square.
+                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                             color: win.dangerSoft
                             border.width: 1; border.color: win.danger
                             RowLayout {
@@ -1042,6 +1057,9 @@ ApplicationWindow {
                             Layout.preferredHeight: win.fs(44)
                             implicitWidth: rescanRow.implicitWidth + 44
                             radius: height / 2
+                            // The MoOS corner: a command's top-trailing corner is square.
+                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                             color: rescanHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
                                                        : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                             border.width: 1; border.color: win.outline
@@ -1094,6 +1112,9 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: win.fs(96)
                                     radius: design.radiusCard
+                                    // The MoOS corner: the top-trailing corner is square.
+                                    topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                    topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                     opacity: diskCard.disabled ? 0.5 : 1
                                     color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                                    diskHover.hovered || diskCard.selected ? 0.95 : 0.6)
@@ -1128,6 +1149,9 @@ ApplicationWindow {
                                         Rectangle {
                                             Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
                                             radius: design.radiusCard
+                                            // The MoOS corner: the top-trailing corner is square.
+                                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                             color: diskCard.selected
                                                    ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
                                                    : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
@@ -1223,6 +1247,9 @@ ApplicationWindow {
                                     return d && (d.hasOS === true || d.hasData === true)
                                 }
                                 radius: design.radiusCard
+                                // The MoOS corner: the top-trailing corner is square.
+                                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                 color: win.dangerSoft
                                 border.width: 1; border.color: win.danger
                                 RowLayout {
@@ -1251,6 +1278,9 @@ ApplicationWindow {
                                 Layout.preferredHeight: win.fs(64)
                                 visible: win.liveDisk() !== null
                                 radius: design.radiusCard
+                                // The MoOS corner: the top-trailing corner is square.
+                                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.35)
                                 border.width: 1
                                 border.color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.6)
@@ -1317,6 +1347,9 @@ ApplicationWindow {
                             Layout.preferredHeight: win.fs(118)
                             Layout.bottomMargin: 16
                             radius: design.radiusCard
+                            // The MoOS corner: the top-trailing corner is square.
+                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                             color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                            methodHover.hovered || methodCard.selected ? 0.95 : 0.6)
                             border.width: methodCard.selected ? 2 : 1
@@ -1340,6 +1373,9 @@ ApplicationWindow {
                                     Layout.preferredWidth: win.fs(56); Layout.preferredHeight: win.fs(56)
                                     Layout.alignment: Qt.AlignTop
                                     radius: design.radiusCard
+                                    // The MoOS corner: the top-trailing corner is square.
+                                    topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                    topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                     color: methodCard.selected
                                            ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
                                            : Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.9)
@@ -1857,6 +1893,9 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.preferredHeight: summaryCol.implicitHeight + 32
                         radius: design.radiusCard
+                        // The MoOS corner: the top-trailing corner is square.
+                        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                         color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
                         border.width: 1; border.color: win.outline
                         ColumnLayout {
@@ -1939,6 +1978,9 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.preferredHeight: win.fs(56)
                         radius: height / 2
+                        // The MoOS corner: a command's top-trailing corner is square.
+                        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                         opacity: holdBtn.armed ? 1 : 0.5
                         color: win.dangerSoft
                         border.width: 1.5; border.color: win.danger
@@ -2167,6 +2209,9 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.preferredHeight: failCol.implicitHeight + 28
                             radius: design.radiusCard
+                            // The MoOS corner: the top-trailing corner is square.
+                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                             color: win.dangerSoft
                             border.width: 1; border.color: win.danger
                             ColumnLayout {
@@ -2194,6 +2239,9 @@ ApplicationWindow {
                                 Layout.preferredHeight: win.fs(46)
                                 implicitWidth: retryRow.implicitWidth + 48
                                 radius: height / 2
+                                // The MoOS corner: a command's top-trailing corner is square.
+                                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                 color: retryHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                                 HoverHandler { id: retryHover }
                                 TapHandler { onTapped: win.startInstall() }
@@ -2219,6 +2267,9 @@ ApplicationWindow {
                                 Layout.preferredHeight: win.fs(46)
                                 implicitWidth: otherRow.implicitWidth + 44
                                 radius: height / 2
+                                // The MoOS corner: a command's top-trailing corner is square.
+                                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                                 color: otherHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
                                                           : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                                 border.width: 1; border.color: win.outline
@@ -2291,6 +2342,9 @@ ApplicationWindow {
                             Layout.preferredHeight: win.fs(50)
                             implicitWidth: rebootRow.implicitWidth + 52
                             radius: height / 2
+                            // The MoOS corner: a command's top-trailing corner is square.
+                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                             color: rebootHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
                             HoverHandler { id: rebootHover }
                             TapHandler { onTapped: Qt.openUrlExternally("moos://installer/reboot") }
@@ -2316,6 +2370,9 @@ ApplicationWindow {
                             Layout.preferredHeight: win.fs(50)
                             implicitWidth: poweroffRow.implicitWidth + 48
                             radius: height / 2
+                            // The MoOS corner: a command's top-trailing corner is square.
+                            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                             color: poweroffHover.hovered ? Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.95)
                                                          : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.6)
                             border.width: 1; border.color: win.outline
@@ -2391,6 +2448,7 @@ ApplicationWindow {
                                 Layout.preferredHeight: win.fs(30)
                                 implicitWidth: siteRow.implicitWidth + 24
                                 radius: height / 2
+                                // MoOS corner: round. The makers' link is a link chip, not a command.
                                 color: siteHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
                                                          : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.08)
                                 HoverHandler { id: siteHover }

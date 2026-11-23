@@ -483,7 +483,8 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
             ": primary ? accentForegroundColor",
             ": destructive ? dangerColor",
             "border.width: control.primary ? 0 : Tokens.borderHairline",
-            "implicitHeight: compact ? Tokens.targetCompact : Tokens.targetControl",
+            "implicitHeight: Math.max(compact ? Tokens.targetCompact : Tokens.targetControl,",
+            "contentRow.implicitHeight + topPadding + bottomPadding",
         ):
             self.assertIn(token, button)
         self.assertNotIn("primary || destructive", button)

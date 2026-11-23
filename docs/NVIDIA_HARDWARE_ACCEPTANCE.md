@@ -9,8 +9,10 @@ are installed, `nvidia*.ko` exists under the shipped kernel's module tree,
 `force_drivers` keeps `nvidia_drm` while `nvidia_peermem` is removed, the built
 initramfs is read back with `lsinitrd` and must contain an nvidia module, the
 initramfs is under the 300 MiB ceiling GRUB can allocate, and
-`plymouth.use-simpledrm` is withheld so Plymouth draws on the display nvidia
-actually owns.
+the NVIDIA command line explicitly disables the firmware renderer with
+`plymouth.use-simpledrm=0`. On station 1178 the owner still observed no motion
+with this setting. Inspect the Plymouth trace for the selected renderer,
+connector and theme, and verify visible frames at the monitor.
 
 A CI runner has no NVIDIA device, so it cannot replace this physical record.
 The rows marked PASS below were read from the installed machine after its first
@@ -33,7 +35,7 @@ evidence; the command output or the photograph is.
 | # | Step | What must be true | How to tell |
 |---|------|-------------------|-------------|
 | 1 | **Boot** | The machine reaches the bootloader and starts the new deployment | GRUB shows the MoOS entry; `rpm-ostree status` after boot shows the digest from "Before you start" as booted |
-| 2 | **Plymouth** | The MoOS splash is drawn on the real display, not a black screen | Photograph the screen during boot. This is the one that regresses silently: `plymouth.use-simpledrm` must be absent — `grep simpledrm /proc/cmdline` returns nothing |
+| 2 | **Plymouth** | The MoOS splash is drawn on the real display, not a black screen | Photograph the screen during boot. This is the one that regresses silently: verify the exact token `plymouth.use-simpledrm=0` in `/proc/cmdline`, then capture the changing frames at the monitor |
 | 3 | **Login** | Plasma Login Manager appears, themed, and accepts the password | The greeter is the MoOS look, not Breeze; a wrong password is rejected and the right one is accepted |
 | 4 | **Desktop** | A full Plasma session with the MoOS theme | `moos-selfcheck` runs clean; the panel, launcher and wallpaper are the MoOS ones |
 | 5 | **NVIDIA module** | The proprietary driver is loaded and bound to the GPU | `lsmod \| grep -E '^nvidia'` lists nvidia, nvidia_drm, nvidia_modeset; `nvidia-smi` prints the GPU; `dmesg \| grep -i nvrm` shows no fatal errors. `nvidia_peermem` must NOT be loaded |

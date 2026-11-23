@@ -131,7 +131,10 @@ class NativeAuthenticationMaterial(unittest.TestCase):
                 before = {p.name:p.read_bytes() for p in config.iterdir()}
                 for broken in (None,'material','role','type') if i == 0 else (None,):
                     text = REVIEWED.read_text()
-                    if broken == 'material': text=text.replace('fillOpacity: 0.94','fillOpacity: 0.58')
+                    if broken == 'material':
+                        broken_text=text.replace('root.softwareRendering ? 0.94 : 0.80','root.softwareRendering ? 0.58 : 0.58')
+                        assert broken_text != text, 'the material negative control no longer reaches the island'
+                        text=broken_text
                     if broken == 'role': text=text.replace('Kirigami.Theme.colorSet: Kirigami.Theme.Window','Kirigami.Theme.colorSet: Kirigami.Theme.Complementary',1)
                     if broken == 'type': text=text.replace('FocusScope {','MoOSBrokenAuthenticationType {',1)
                     target.write_text(text)

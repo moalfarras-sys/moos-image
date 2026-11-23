@@ -59,6 +59,11 @@ Rectangle {
     implicitWidth: Math.max(button.large ? win.fs(132) : win.fs(84),
                             content.implicitWidth + (button.large ? design.space5 : design.space4) * 2)
     radius: height / 2
+    // The MoOS corner, as every MoOS command button carries it: the
+    // top-trailing corner is square. The window's direction is read directly,
+    // because this button also sits in sheets outside the content's mirroring.
+    topLeftRadius: button.win.rtl ? Math.min(radius, design.radiusSquare) : radius
+    topRightRadius: button.win.rtl ? radius : Math.min(radius, design.radiusSquare)
     color: button.onColour
          ? (button.filled ? button.colourInk : win.tint(button.colourInk, buttonHover.hovered ? 0.30 : 0.18))
          : button.filled ? win.accent
@@ -107,6 +112,8 @@ Rectangle {
         Rectangle {
             anchors.fill: parent
             radius: button.radius
+            topLeftRadius: button.topLeftRadius
+            topRightRadius: button.topRightRadius
             color: button.win.tint(button.onColour ? button.colourInk : button.win.accent, 0.16)
         }
         Rectangle {

@@ -114,6 +114,9 @@ Popup {
                 Layout.fillWidth: true
                 Layout.preferredHeight: optionRow.implicitHeight + removeSheet.design.space4 * 2
                 radius: removeSheet.design.radiusCard
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, removeSheet.design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, removeSheet.design.radiusSquare)
                 color: option.chosen ? removeSheet.win.tint(option.modelData ? removeSheet.win.dangerInk : removeSheet.win.accent,
                                                             removeSheet.win.lightScheme ? 0.10 : 0.12)
                                      : removeSheet.win.tint(removeSheet.win.txt, removeSheet.win.lightScheme ? 0.03 : 0.04)

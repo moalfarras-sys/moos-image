@@ -108,6 +108,9 @@ Item {
         id: plate
         anchors.fill: parent
         radius: hero.design.radiusPanel
+        // The MoOS corner: the top-trailing corner is square.
+        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, hero.design.radiusSquare) : radius
+        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, hero.design.radiusSquare)
         clip: true
         gradient: Gradient {
             GradientStop { position: 0; color: hero.inkIsLight ? hero.paint : Qt.lighter(hero.paint, 1.08) }
@@ -336,6 +339,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: hero.design.radiusPanel
+        // The MoOS corner: the top-trailing corner is square.
+        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, hero.design.radiusSquare) : radius
+        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, hero.design.radiusSquare)
         color: "transparent"
         border.width: 1
         border.color: hero.win.tint(hero.ink, 0.14)

@@ -538,6 +538,9 @@ Item {
             Layout.rightMargin: view.space1
             Layout.preferredHeight: 56
             radius: view.radiusL
+            // The MoOS corner: the top-trailing corner is square.
+            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
             color: Qt.alpha(Kirigami.Theme.backgroundColor,
                 searchInput.activeFocus ? 0.96 : 0.78)
             border.width: 1
@@ -1016,11 +1019,13 @@ Item {
                         }
 
                         GridLayout {
-                            columns: view.narrow ? 2 : 4
+                            // Size from the command area's actual width after the rail.
+                            // Reserve room for the icon and the Arabic command on one line.
+                            columns: width >= 4 * 224 + 3 * columnSpacing ? 4 : 2
                             Layout.fillWidth: true
-                            Layout.minimumHeight: view.narrow ? 144 : 76
-                            Layout.preferredHeight: view.narrow ? 144 : 76
-                            Layout.maximumHeight: view.narrow ? 144 : 76
+                            Layout.minimumHeight: columns === 4 ? 76 : 144
+                            Layout.preferredHeight: Layout.minimumHeight
+                            Layout.maximumHeight: Layout.minimumHeight
                             columnSpacing: view.space3
                             rowSpacing: view.space3
 
@@ -1816,6 +1821,8 @@ Item {
         Layout.minimumWidth: view.touchTarget
         Layout.minimumHeight: view.touchTarget
         Layout.preferredHeight: view.touchTarget
+        leftPadding: view.narrow ? view.space1 : view.space3
+        rightPadding: leftPadding
         hoverEnabled: true
         // A keyboard user must be able to Tab to the sidebar and see where the
         // focus sits — the background already draws an activeFocus edge.
@@ -2059,6 +2066,9 @@ Item {
                 anchors.fill: parent; anchors.margins: view.space1
                 visible: favoriteDragProxy.Drag.active
                 radius: view.radiusL
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
                 color: Qt.alpha(Kirigami.Theme.backgroundColor, .94)
                 border.color: Qt.alpha(Kirigami.Theme.highlightColor, .8)
                 border.width: 1
@@ -2490,6 +2500,9 @@ Item {
         // one value works across all 16 themes; accent only on interaction.
         background: Rectangle {
             radius: view.radiusL
+            // The MoOS corner: the top-trailing corner is square.
+            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, design.radiusSquare) : radius
+            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
             color: command.down
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
                 : command.hovered || command.activeFocus
@@ -2540,13 +2553,10 @@ Item {
             scale: command.down ? view.design.pressScale : 1
             Behavior on scale { NumberAnimation { duration: view.motionFast; easing.type: Easing.OutCubic } }
 
-            Rectangle {
+            Item {
                 visible: !view.narrow
-                Layout.preferredWidth: 38
-                Layout.preferredHeight: 38
-                radius: view.radiusM
-                color: Qt.alpha(Kirigami.Theme.highlightColor,
-                    command.featured ? 0.22 : 0.14)
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
 
                 Kirigami.Icon {
                     anchors.centerIn: parent
@@ -2561,14 +2571,12 @@ Item {
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: -1
+                spacing: view.space1
 
                 Text {
                     Layout.fillWidth: true
                     text: command.eyebrow
-                    color: command.featured
-                        ? Kirigami.Theme.highlightColor
-                        : Kirigami.Theme.disabledTextColor
+                    color: view.secondaryInk
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
                     font.weight: Font.DemiBold
@@ -2580,7 +2588,7 @@ Item {
                     text: command.title
                     color: Kirigami.Theme.textColor
                     font.family: view.uiFontFamily
-                    font.pixelSize: view.typeSecondary
+                    font.pixelSize: view.typeBody
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }

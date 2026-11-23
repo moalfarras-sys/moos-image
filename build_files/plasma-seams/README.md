@@ -18,6 +18,22 @@ HOME/XDG and absent session/system buses. Older reviewed sets do not gain a
 fictional file or digest. A newly registered destination without a reviewed
 older copy is reported by the rederive tool for a fresh native-owner review.
 
+Plasma 6.8.3 also restyles Plasma's on-screen keyboard. `plasma-keyboard` draws its keys with
+a Qt Virtual Keyboard style (`QtQuick/VirtualKeyboard/Styles/Breeze/style.qml`) and three files of
+its own (`org/kde/plasma/keyboard/lib/BreezeConstants.qml`, `BreezeKeyPanel.qml`,
+`BreezePopup.qml`). Those four are seams scoped to the 6.8.3 set: upstream's property names,
+types, slots, sounds and vibration are kept, and MoOS owns only the values and the drawing (the
+Meyar Glass key, its MoOS corner following the language being typed, the accent Enter key with
+its paired ink). Both modules' qmldir says `prefer :/qt/qml/...`, which would load the copies
+compiled into their plugins and ignore MoOS's files, exactly the breeze components' trap. A seam
+therefore names its module `qmldir`; the set reviews that qmldir's upstream bytes (`qmldirs`), and
+the gate drops its one `prefer` line only for active seams and only from those bytes. It then
+starts the real `plasma-keyboard` offscreen (private HOME/XDG, unreachable buses): outside KWin it
+builds its whole QML scene and refuses to run standalone, so the gate requires that refusal, no
+QML error in the keyboard modules, and that a reference error planted in a shadow copy of the
+style is reported. `tests/test_plasma_seams.py` repeats that with this tree's files on a native
+6.8.3 host, including the first popup draft's measured null-`theme` failure.
+
 **No seam carries authentication.** Until 2026-10-05 two of them did: MoOS forked the lock screen's
 own `LockScreenUi.qml` and `MainBlock.qml` to draw a card, a clock and a brand mark around the
 password row. Those are the files that hold the authenticator wiring, upstream rewrites them every

@@ -145,6 +145,9 @@ Item {
                 width: libraryList.width
                 height: Math.max(library.win.fs(76), entryWords.implicitHeight + library.design.space3 * 2)
                 radius: library.design.radiusCard
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, library.design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, library.design.radiusSquare)
                 color: library.win.cardColor
                 border.width: 1
                 border.color: libraryList.activeFocus && libraryList.currentIndex === entry.index ? library.win.accent

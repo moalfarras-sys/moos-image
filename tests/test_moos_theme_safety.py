@@ -483,6 +483,112 @@ migrate_legacy_keyboard
         self.assertEqual(run_profile(customised), customised)
 
     @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
+    def test_onscreen_keyboard_follows_the_accounts_layouts(self) -> None:
+        """plasma-keyboard's language list follows kxkbrc, and never overrides a chosen list."""
+        migration = MIGRATE.read_text(encoding="utf-8")
+        functions = "\n".join(function(migration, name) for name in (
+            "onscreen_keyboard_locale", "locale_list_within", "sync_onscreen_keyboard_languages"))
+        gate = '[ "${1:-}" = "--input-only" ] && exit 0'
+        calls = [m.start() for m in re.finditer(r"(?m)^sync_onscreen_keyboard_languages$", migration)]
+        self.assertEqual(len(calls), 2, "runs before KWin, and again after the layout migration")
+        self.assertLess(calls[0], migration.index(gate), "plasma-keyboard starts with KWin")
+        self.assertGreater(calls[1], migration.index("\nmigrate_legacy_keyboard\n"))
+
+        import tempfile
+
+        def run(xdg_layouts: str | None, user_kxkb: str, keyboard: str | None,
+                synced: str | None = None, shipped=("ar_AR", "de_DE", "en_US")):
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                config, xdg, state = root / "config", root / "xdg", root / "state/moos"
+                layouts = root / "layouts"
+                for d in (config, xdg, state / "migrations", root / "home"):
+                    d.mkdir(parents=True)
+                for name in shipped:
+                    (layouts / name).mkdir(parents=True)
+                if xdg_layouts is not None:
+                    (xdg / "kxkbrc").write_text(f"[Layout]\nLayoutList={xdg_layouts}\n", encoding="utf-8")
+                (config / "kxkbrc").write_text(user_kxkb, encoding="utf-8")
+                rc = config / "plasmakeyboardrc"
+                if keyboard is not None:
+                    rc.write_text(keyboard, encoding="utf-8")
+                record = state / "onscreen-keyboard-languages.synced"
+                if synced is not None:
+                    record.write_text(synced + "\n", encoding="utf-8")
+                ledger = root / "ledger"
+                harness = f"""
+set -uo pipefail
+state_dir={shlex.quote(str(state))}
+log_dir={shlex.quote(str(state / "migrations"))}
+record_migration() {{ printf '%s %s\\n' "$1" "$3" >>{shlex.quote(str(ledger))}; }}
+{functions}
+onscreen_keyboard_layouts={shlex.quote(str(layouts))}
+sync_onscreen_keyboard_languages
+sync_onscreen_keyboard_languages
+"""
+                env = {"PATH": os.environ["PATH"], "HOME": str(root / "home"),
+                       "XDG_CONFIG_HOME": str(config), "XDG_CONFIG_DIRS": str(xdg),
+                       # Never the owner's bus: the notify must not reach a live keyboard.
+                       "DBUS_SESSION_BUS_ADDRESS": f"unix:path={root}/no-bus", "LANG": "C.UTF-8"}
+                subprocess.run([BASH, "-c", harness], check=True, text=True, env=env,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                written = rc.read_text(encoding="utf-8") if rc.exists() else None
+                return (written,
+                        record.read_text(encoding="utf-8").strip() if record.exists() else None,
+                        ledger.read_text(encoding="utf-8").splitlines() if ledger.exists() else [])
+
+        def locales(text: str | None) -> str | None:
+            if text is None:
+                return None
+            parser = configparser.ConfigParser(interpolation=None)
+            parser.optionxform = str
+            parser.read_string(text)
+            return parser.get("General", "enabledLocales", fallback=None)
+
+        # A fresh account inherits /etc/xdg's ara,de through KConfig (its own file holds only
+        # Model, as on the V3): Arabic first, in layout order. Twice is idempotent.
+        written, record, ledger = run("ara,de", "[Layout]\nModel=a4techKB21\n", None)
+        self.assertEqual(locales(written), "ar_AR,de_DE")
+        self.assertEqual(record, "ar_AR,de_DE")
+        self.assertEqual(ledger, ["onscreen-keyboard-languages applied"])
+
+        # The V3's stale single entry is completed once; nothing it had is removed and every
+        # other key of the account's file survives.
+        v3 = "[General]\nenabledLocales=de_DE\nsoundEnabled=true\n"
+        written, record, _ = run("ara,de", "[Layout]\nModel=a4techKB21\n", v3)
+        self.assertEqual(locales(written), "ar_AR,de_DE")
+        self.assertIn("soundEnabled=true", written)
+
+        # A list naming a language that is not one of the layouts is a choice: kept, recorded once.
+        chosen = "[General]\nenabledLocales=en_US\n"
+        written, record, ledger = run("ara,de", "[Layout]\n", chosen)
+        self.assertEqual(written, chosen)
+        self.assertEqual(record, "personal:en_US")
+        self.assertEqual(ledger, ["onscreen-keyboard-languages preserved"])
+
+        # After MoOS has followed once, a narrower list the person picks stays theirs ...
+        narrowed = "[General]\nenabledLocales=de_DE\n"
+        written, _, _ = run("ara,de", "[Layout]\n", narrowed, synced="ar_AR,de_DE")
+        self.assertEqual(written, narrowed)
+        # ... while an untouched list follows the layouts when they change, in their order.
+        followed = "[General]\nenabledLocales=ar_AR,de_DE\n"
+        written, record, _ = run(None, "[Layout]\nLayoutList=de,ara,us,us\n", followed,
+                                 synced="ar_AR,de_DE")
+        self.assertEqual(locales(written), "de_DE,ar_AR,en_US")
+        self.assertEqual(record, "de_DE,ar_AR,en_US")
+
+        # Only languages plasma-keyboard ships, and nothing at all for layouts it cannot type.
+        written, _, _ = run("ara,fr", "[Layout]\n", None)
+        self.assertEqual(locales(written), "ar_AR")
+        written, record, ledger = run("zz", "[Layout]\n", None)
+        self.assertIsNone(written)
+        self.assertIsNone(record)
+        self.assertEqual(ledger, [])
+        # An empty list means "every language": it follows the layouts.
+        written, _, _ = run("ara,de", "[Layout]\n", "[General]\nenabledLocales=\n")
+        self.assertEqual(locales(written), "ar_AR,de_DE")
+
+    @unittest.skipUnless(_HAS_KWRITECONFIG6, _KWRITE_REASON)
     def test_wallet_migration_disables_existing_profiles_once(self) -> None:
         migration = MIGRATE.read_text(encoding="utf-8")
         migrator = function(migration, "disable_wallet_v2")

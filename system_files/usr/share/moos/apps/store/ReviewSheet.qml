@@ -115,6 +115,9 @@ Popup {
                 width: ListView.view.width
                 height: Math.max(review.win.fs(68), reviewWords.implicitHeight + review.design.space3 * 2)
                 radius: review.design.radiusCard
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, review.design.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, review.design.radiusSquare)
                 color: review.win.tint(review.win.txt, review.win.lightScheme ? 0.04 : 0.05)
                 border.width: 1
                 border.color: review.win.cardBorder
@@ -174,6 +177,9 @@ Popup {
             Layout.fillWidth: true
             Layout.preferredHeight: promise.implicitHeight + review.design.space3 * 2
             radius: review.design.radiusCard
+            // The MoOS corner: the top-trailing corner is square.
+            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, review.design.radiusSquare) : radius
+            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, review.design.radiusSquare)
             color: review.win.tint(review.win.accent, review.win.lightScheme ? 0.09 : 0.11)
             RowLayout {
                 id: promise

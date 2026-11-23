@@ -174,6 +174,21 @@ rewrites only exact retired values (`tests/test_theme_role_contrast.py`).
 - minimum interactive target: 40×40 logical px; touch-first controls: 44×44;
 - nested radii: controls 8–12, cards 12–16, panels 16–20, dialogs 20–24;
 - a nested surface uses a smaller radius than its parent;
+- **the MoOS corner** (owner steering 2026-11-22: "one square corner and curved
+  ones, like the buttons, on every card"): cards, sheets, popups, panels,
+  desktop-widget cards, command buttons, the session capsule and on-screen
+  keyboard keys keep three rounded corners and square the **top-trailing**
+  one — top-right reading left to right, top-left in Arabic — softened only
+  by Design Core's `radiusSquare` (3). It follows `LayoutMirroring` (a popup
+  background or sheet reads its window's direction; the keyboard follows the
+  language being typed). Plasma's FrameSvg cannot mirror, so the generated
+  popup and desktop-card frames square their top-left piece, Arabic-first, and
+  their KWin blur mask carries the identical piece. Circles, pills that are not
+  commands, chips, toggles, sliders, avatars, tooltips, progress and plain text
+  fields stay round. A child that fills its card (state tint, rim, sheen)
+  follows the card's per-corner radii, a top catch-light stops short of the
+  square corner by the softening only, and the focus ring traces the same
+  corner. `tests/test_moos_corner.py` holds all four owners to this;
 - panel/dock stays one bottom floating capsule. Do not add a second bar;
 - the Tidal Horizon is physical geometry and does not mirror in RTL. Logical
   content, navigation and text do mirror;
@@ -352,7 +367,9 @@ an absent daemon socket (no PAM), `--test` uses the vendor mock for refusals.
 
 The configured floating bar remains a capsule beside maximized windows. Glass
 and solid density use the same 18 px SVG corner and mask geometry in every
-palette; solidity never inherits a different style. Icons remain fully opaque.
+palette; solidity never inherits a different style. Popup frames and
+desktop-widget cards carry the MoOS corner (square top-left, Arabic-first) in
+paint and blur mask alike; the floating bar stays a capsule. Icons remain fully opaque.
 The Hub owns one finite 220/320 ms reveal, including a setting-change preview;
 Still cancels it immediately. This is widget motion, not moving wallpaper.
 

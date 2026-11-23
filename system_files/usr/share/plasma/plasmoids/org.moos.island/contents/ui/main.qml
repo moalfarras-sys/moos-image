@@ -1530,6 +1530,9 @@ PlasmoidItem {
                     Layout.preferredWidth: 76
                     Layout.preferredHeight: 76
                     radius: root.design.radiusCard
+                    // The MoOS corner: the top-trailing corner is square.
+                    topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, root.design.radiusSquare) : radius
+                    topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, root.design.radiusSquare)
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
 
                     Kirigami.Icon {
@@ -1624,6 +1627,9 @@ PlasmoidItem {
                     Layout.preferredWidth: 76
                     Layout.preferredHeight: 76
                     radius: root.design.radiusCard
+                    // The MoOS corner: the top-trailing corner is square.
+                    topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, root.design.radiusSquare) : radius
+                    topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, root.design.radiusSquare)
                     color: Qt.alpha(root.privacyType === "camera"
                         ? Kirigami.Theme.positiveTextColor
                         : (root.privacyType === "screen" ? Kirigami.Theme.highlightColor : Kirigami.Theme.neutralTextColor), 0.16)
@@ -1725,6 +1731,9 @@ PlasmoidItem {
                     Layout.preferredWidth: 76
                     Layout.preferredHeight: 76
                     radius: root.design.radiusCard
+                    // The MoOS corner: the top-trailing corner is square.
+                    topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, root.design.radiusSquare) : radius
+                    topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, root.design.radiusSquare)
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
 
                     Kirigami.Icon {
@@ -1821,6 +1830,9 @@ PlasmoidItem {
                     Layout.preferredWidth: 76
                     Layout.preferredHeight: 76
                     radius: root.design.radiusCard
+                    // The MoOS corner: the top-trailing corner is square.
+                    topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, root.design.radiusSquare) : radius
+                    topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, root.design.radiusSquare)
                     color: Qt.alpha(root.moaiJobState === "failed"
                         ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor, 0.16)
 
@@ -1899,6 +1911,9 @@ PlasmoidItem {
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 104
                     radius: root.design.radiusCard
+                    // The MoOS corner: the top-trailing corner is square.
+                    topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, root.design.radiusSquare) : radius
+                    topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, root.design.radiusSquare)
                     color: Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
 
                     // Same rounded-texture reason as the compact cover above.

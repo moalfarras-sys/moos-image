@@ -73,12 +73,29 @@ Surface {
     fillOpacity: Tokens.glassFill(surfaceColor, depth,
                                   floating ? Tokens.floatingGlassOpacity
                                            : Tokens.glassRestingOpacity)
+    // Lit from above: how much lighter the top of the sheet is (0 = flat).
+    // The sheen follows the sheet's own corners, the square one included.
+    property real sheen: 0
     color: Qt.alpha(surfaceColor, fillOpacity)
     radius: Tokens.radiusPanel
     // A selected surface keeps the accent rim it always had; everything else
     // takes the palette's own shadow instead of a tint of the ink colour.
     border.color: selected ? Qt.alpha(accentColor, rimOpacity)
                            : Tokens.glassEdge(surfaceColor, depth)
+
+    Rectangle {
+        objectName: "moosGlassSheen"
+        anchors.fill: parent
+        anchors.margins: glass.border.width
+        visible: glass.sheen > 0
+        radius: Math.max(0, glass.radius - glass.border.width)
+        topLeftRadius: Math.max(0, glass.topLeftRadius - glass.border.width)
+        topRightRadius: Math.max(0, glass.topRightRadius - glass.border.width)
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, glass.sheen) }
+            GradientStop { position: 0.5; color: "transparent" }
+        }
+    }
 
     // The light on the top edge. Inset by the corner so it lives on the straight
     // part of the rim. The resting hairline holds the edge; a brighter, soft
@@ -88,8 +105,12 @@ Surface {
         id: specularTrack
         anchors.top: parent.top
         anchors.topMargin: 1
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: Math.max(0, parent.width - parent.radius * 1.6)
+        // Round corners keep the light off their curve; the square MoOS corner
+        // lets it run almost to the edge, as it does on the window actions.
+        readonly property real roundInset: parent.radius * 0.8
+        readonly property real squareInset: glass.cornerApplies ? glass.squareRadius + 2 : roundInset
+        x: glass.LayoutMirroring.enabled ? squareInset : roundInset
+        width: Math.max(0, parent.width - roundInset - squareInset)
         height: 2
         clip: true
         visible: parent.width > parent.radius * 2 && glass.opacity > 0

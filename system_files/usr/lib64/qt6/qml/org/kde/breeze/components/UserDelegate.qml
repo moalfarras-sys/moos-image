@@ -99,11 +99,14 @@ Item {
     // six-tenths of one back as air, which is what lets the session island
     // start below the clock's date instead of crowding it — and what the frame
     // stands in.
-    readonly property real faceInset: Math.round(Kirigami.Units.gridUnit * 0.6 * sessionScale)
+    // Meyar Glass: the face is a portrait, not the poster. A grid unit more of
+    // air above it makes it a grid unit smaller and lowers it onto its name and
+    // the field, and the island — which hugs the face — tightens with it.
+    readonly property real faceInset: Math.round(Kirigami.Units.gridUnit * 1.6 * sessionScale)
     property real faceSize: Kirigami.Units.gridUnit * 7 * sessionScale - faceInset
 
     // ── The frame ───────────────────────────────────────────────────────────
-    readonly property real ringGap: Math.max(2, Math.round(faceSize * 0.04))
+    readonly property real ringGap: Math.max(2, Math.round(faceSize * 0.035))
     readonly property real ringWidth: Math.max(2, Math.round(faceSize * 0.022))
     property real orbitAngle: 0
     property real framePop: 1
@@ -273,8 +276,8 @@ Item {
             visible: !wrapper.softwareRendering
             opacity: wrapper.isCurrent ? 1 : design.disabledOpacity
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.alpha(wrapper.accentB, 0.46) }
-                GradientStop { position: 1.0; color: Qt.alpha(Kirigami.Theme.highlightColor, 0.18) }
+                GradientStop { position: 0.0; color: Qt.alpha(Kirigami.Theme.highlightColor, 0.62) }
+                GradientStop { position: 1.0; color: Qt.alpha(wrapper.accentB, 0.30) }
             }
         }
     }
@@ -328,7 +331,7 @@ Item {
             // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
             font.family: design.interfaceFamily
             font.pixelSize: imageSource.width * 0.40
-            font.weight: Font.Medium
+            font.weight: Font.DemiBold
             renderType: Text.QtRendering
         }
         Kirigami.Icon {
@@ -370,9 +373,12 @@ Item {
         // silently — `qml: Did not load any objects` with no error line and no
         // avatar. On the login screen that is a greeter that cannot draw its
         // user. Caught by rendering it (2026-07-17); qmllint passed it.
+        // Meyar Glass: no dark bezel ring on the selected face — the frame
+        // already floats a hair off it, and a second dark circle read as a
+        // heavy disc on the island.
         readonly property color colorBorder: wrapper.isCurrent
             ? (wrapper.softwareRendering ? Kirigami.Theme.highlightColor
-                                         : Kirigami.Theme.backgroundColor)
+                                         : Qt.alpha(Kirigami.Theme.backgroundColor, 0.0))
             : Kirigami.Theme.textColor
 
         fragmentShader: "qrc:/qt/qml/org/kde/breeze/components/shaders/UserDelegate.frag.qsb"
@@ -385,9 +391,11 @@ Item {
         anchors.topMargin: Math.round(Kirigami.Units.gridUnit * 0.45 * wrapper.sessionScale)
         anchors.horizontalCenter: parent.horizontalCenter
 
-        // Make it bigger than other fonts to match the scale of the avatar better
+        // The name is the island's title: Meyar at the title step, semibold, so
+        // it — not the picture — is what the eye reads first.
         font.family: design.interfaceFamily
-        font.pointSize: Math.max(8, Math.round((wrapper.fontSize + 4) * wrapper.sessionScale))
+        font.pointSize: Math.max(8, Math.round((wrapper.fontSize + 5) * wrapper.sessionScale))
+        font.weight: wrapper.isCurrent ? Font.DemiBold : Font.Normal
 
         // A lone user is not boxed in by neighbours, but the name still has to
         // stay inside the island that frames it (sixteen grid units of prompts).

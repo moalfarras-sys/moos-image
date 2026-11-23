@@ -690,7 +690,11 @@ if [ "${MOOS_IMAGE_NAME:-moos}" = "moos-nvidia" ]; then
         exit 1
     }
     rm -f /usr/lib/bootc/kargs.d/20-moos-simpledrm.toml
-    echo "=== NVIDIA edition: plymouth.use-simpledrm withheld (nvidia owns the display) ==="
+    # Omitting the bare switch still inherits UseSimpledrmNoLuks=1 on
+    # unencrypted installs. The shipped daemon reads an explicit numeric
+    # command-line value before consulting either configuration default.
+    printf '%s\n' 'kargs = ["plymouth.use-simpledrm=0"]' > /usr/lib/bootc/kargs.d/21-moos-nvidia-splash.toml
+    echo "=== NVIDIA edition: Plymouth firmware renderer disabled ==="
 fi
 rm -f /tmp/moos-lsinitrd.txt /tmp/moos-lsinitrd.err
 
@@ -4797,6 +4801,9 @@ fi
 # Plasma file rpm reports that is not registered, then loads the real greeter offscreen with no
 # session bus. Runs after the last transaction that can touch Plasma; the survival gate below
 # then checks the installed bytes. Never widen a range or add a digest to get past it.
+# On 6.8.3 the same step restyles plasma-keyboard (the on-screen keyboard): it drops `prefer`
+# from that module's reviewed qmldirs and loads the real keyboard offscreen, with a planted-error
+# negative control (build_files/plasma-seams/README.md).
 python3 /ctx/plasma_seams.py build || {
     echo "GATE FAIL: MoOS's Plasma seams do not fit this Plasma (see the lines above)."
     exit 1

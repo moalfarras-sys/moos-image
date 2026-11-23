@@ -25,6 +25,7 @@ QtObject {
     readonly property int radiusCard: 16
     readonly property int radiusPanel: 24
     readonly property int radiusDialog: 28
+    readonly property int radiusSquare: 3
     readonly property int radiusPill: 999
 
     // target

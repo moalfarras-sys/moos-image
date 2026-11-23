@@ -15,7 +15,7 @@ from functools import lru_cache
 
 PREFIX = 'native.'
 ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,235}\.desktop$')
-MARKERS = ('X-Flatpak', 'X-MoOS-AppDrop', 'X-MoOS-WebApp', 'X-MoOS-Windows', 'X-MoOS-Vendor')
+MARKERS = ('X-Flatpak', 'X-MoOS-AppDrop', 'X-MoOS-WebApp', 'X-MoOS-Windows', 'X-MoOS-WindowsApp', 'X-MoOS-Vendor')
 
 def application_dirs() -> list[Path]:
     home = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')

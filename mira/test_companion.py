@@ -227,6 +227,8 @@ class Harness:
     def ready(self):
         assert self.server.wait_listening(5), self.statuses
         self.port = self.server.port
+        # A None port would silently become http.client's port 80 (a refused or foreign service).
+        assert isinstance(self.port, int) and self.port > 0, ('listening without its port', self.port)
         self.host = f'127.0.0.1:{self.port}'
         self.origin = 'http://' + self.host
         return self
@@ -669,6 +671,53 @@ class ServerTest(QtCase):
         address['ip'] = None
         self.assertTrue(pump(lambda: ('waiting', 'not_connected') in h.statuses, timeout=3))
         self.assertFalse(h.server.running)
+
+    def test_listening_is_published_only_with_its_endpoint(self):
+        # Native ARM run 45108875557: wait_listening() returned while port was still None, so the
+        # first request went to port 80 and was refused. getsockname() releases the GIL; hold the
+        # loop thread exactly there and read what another thread is told.
+        real_start_server = srv.asyncio.start_server
+        inside, release = threading.Event(), threading.Event()
+
+        class HeldSocket:
+            def __init__(self, sock):
+                self._sock = sock
+
+            def getsockname(self):
+                inside.set()
+                release.wait(5)
+                return self._sock.getsockname()
+
+        class HeldServer:
+            def __init__(self, server):
+                self._server = server
+
+            @property
+            def sockets(self):
+                return [HeldSocket(sock) for sock in self._server.sockets]
+
+            def close(self):
+                self._server.close()
+
+            async def wait_closed(self):
+                await self._server.wait_closed()
+
+        async def held_start_server(*args, **kwargs):
+            return HeldServer(await real_start_server(*args, **kwargs))
+
+        with patch.object(srv.asyncio, 'start_server', held_start_server):
+            h = Harness(posts_per_minute=1000, auth_failures_per_minute=1000)
+            self.addCleanup(h.close)
+            self.addCleanup(release.set)          # runs first: never leave the loop thread held
+            self.assertTrue(inside.wait(5), h.statuses)
+            seen = {'running': h.server.running, 'listening': h.server.wait_listening(0.05),
+                    'port': h.server.port}
+            release.set()
+            self.assertEqual((seen['running'], seen['listening']), (False, False),
+                             f'listening was published before its endpoint: {seen}')
+            h.ready()
+        self.assertIsInstance(h.port, int)
+        self.assertEqual(h.request('GET', '/api/state', headers=h.bearer())[0], 200)
 
     def test_tailscale_is_found_at_runtime(self):
         status = {'BackendState': 'Running', 'Self': {'DNSName': 'moos.example.ts.net.',

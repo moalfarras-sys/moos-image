@@ -222,6 +222,9 @@ Item {
                     id: band
                     anchors.fill: parent
                     radius: appPage.design.radiusPanel
+                    // The MoOS corner: the top-trailing corner is square.
+                    topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, appPage.design.radiusSquare) : radius
+                    topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, appPage.design.radiusSquare)
                     clip: true
                     gradient: Gradient {
                         GradientStop { position: 0; color: appPage.inkIsLight ? appPage.base : Qt.lighter(appPage.base, 1.08) }
@@ -244,6 +247,8 @@ Item {
                     Rectangle {
                         anchors.fill: parent
                         radius: parent.radius
+                        topLeftRadius: parent.topLeftRadius
+                        topRightRadius: parent.topRightRadius
                         color: "transparent"
                         border.width: 1
                         border.color: appPage.win.tint(appPage.ink, 0.14)

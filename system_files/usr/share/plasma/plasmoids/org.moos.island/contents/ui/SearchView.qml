@@ -297,6 +297,9 @@ FocusScope {
             visible: surface.hasInlineAnswer
             implicitHeight: answerContent.implicitHeight + root.design.space3 * 2
             radius: root.design.radiusCard
+            // The MoOS corner: the top-trailing corner is square.
+            topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, root.design.radiusSquare) : radius
+            topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, root.design.radiusSquare)
             color: Qt.alpha(Kirigami.Theme.highlightColor, 0.12)
             border.width: 1
             border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.35)
