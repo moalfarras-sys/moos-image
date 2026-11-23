@@ -86,9 +86,7 @@ ApplicationWindow {
     // Same focus ring as Mo Store, for the same reason: a control the keyboard can reach must
     // show that it has been reached (WCAG 2.4.7). Drawn outside the shape so it never covers
     // content, inheriting the parent's radius so a pill stays a pill.
-    component FocusRing: MoUI.FocusRing {
-        accentColor: win.accent
-    }
+    component FocusRing: MoUI.FocusRing { }
 
     // Static pages still need natural vertical flow on small outputs and
     // enlarged fonts. Keep the existing controls and native focus-reveal owner.

@@ -5,7 +5,7 @@ import org.kde.kirigami as Kirigami
 Rectangle {
     id: ring
 
-    property color accentColor: Kirigami.Theme.highlightColor
+    property color accentColor: Kirigami.Theme.focusColor
     property real controlRadius: parent && parent["radius"] !== undefined
                                  ? parent["radius"] : 0
 
@@ -20,7 +20,9 @@ Rectangle {
     topRightRadius: followsCorners ? parent["topRightRadius"] + Tokens.focusGap : radius
     color: "transparent"
     border.width: Tokens.focusWidth
-    border.color: Qt.alpha(accentColor, Tokens.focusOpacity)
+    // DecorationFocus is paired with the surrounding KDE surface. Fading it
+    // a second time erased the outline on light glass.
+    border.color: accentColor
     visible: parent ? parent.activeFocus : false
     z: 99
     Accessible.ignored: true

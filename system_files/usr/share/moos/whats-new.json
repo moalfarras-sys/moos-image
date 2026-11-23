@@ -57,6 +57,20 @@
       }
     },
     {
+      "id": "meyar-arabic-moos-corner",
+      "merged": "2026-11-23T12:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "زاوية MoOS في حروف ميار العربية",
+        "en": "The MoOS corner in Meyar Arabic"
+      },
+      "body": {
+        "ar": "رأس الألف واللام في خط ميار العربي صار بزاوية MoOS: طرف أيمن مربع وكتف أيسر مستدير، في كل الأوزان. يظهر أوضح في العناوين والخط الكبير، وعبارتا الترحيب والوداع في شاشة الإقلاع رُسمتا من جديد بالخط نفسه، دون أن يتغيّر عرض أي سطر.",
+        "en": "The tops of alef and lam in Meyar Arabic now carry the MoOS corner: a square right edge and a rounded left shoulder, at every weight. It shows most in headings and large text, and the boot screen's welcome and farewell captions are redrawn in the same font; no line changes width."
+      },
+      "route": "moos://settings/fonts"
+    },
+    {
       "id": "meyar-glass-keyboard",
       "merged": "2026-11-23T03:41:00Z",
       "glyph": "keyboard",
