@@ -38,13 +38,23 @@ def check_glyph(button, pixels):
         values=[color.redF(),color.greenF(),color.blueF()]
         values=[v/12.92 if v<=0.04045 else ((v+0.055)/1.055)**2.4 for v in values]
         return sum(a*b for a,b in zip(values,(0.2126,0.7152,0.0722)))
-    background=fill.property('color');ink=icon.property('color')
+    # A session symbol sits directly on its native command surface. An
+    # invisible accent marker cannot prove what was actually painted under it.
+    assert glyph.property('embeddedInAccent') and not fill.isVisible()
+    surface = button.findChild(QQuickItem,'moosPowerActionSurface') or button.findChild(QQuickItem,'moosSessionActionSurface')
+    assert surface and surface.isVisible()
+    background=surface.property('color');ink=icon.property('color')
     a,b=sorted((luminance(background),luminance(ink)))
     contrast=(b+0.05)/(a+0.05)
     if contrast < 4.5:
         print('MOOS_SESSION_GLYPH_CONTRAST_MISMATCH',flush=True)
         raise AssertionError(('session glyph ink/fill',background.name(),ink.name(),contrast))
     assert background==glyph.property('accentColor') and ink==glyph.property('inkColor')
+    from PySide6.QtCore import QPointF
+    sample=glyph.mapToScene(QPointF(glyph.width()*.06,glyph.height()*.5))
+    ratio=button.window().devicePixelRatio()
+    painted=pixels.pixelColor(round(sample.x()*ratio),round(sample.y()*ratio))
+    assert max(abs(a-b) for a,b in zip(background.getRgb()[:3],painted.getRgb()[:3]))<=12, ('command face pixel',painted.name(),background.name())
     assert glyph.opacity()==1
     # Kirigami can report the right colour while the software scene graph
     # paints the original icon instead. Inspect the actual opaque stroke.

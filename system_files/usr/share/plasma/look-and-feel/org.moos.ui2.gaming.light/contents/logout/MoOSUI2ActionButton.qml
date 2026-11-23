@@ -2,20 +2,9 @@
     SPDX-FileCopyrightText: 2026 Moalfarras
     SPDX-License-Identifier: GPL-2.0-or-later
 
-    MoOS UI2 — Tidal Portal key, second generation. Each action is now a real
-    TILE: one glass chip that carries its own glyph AND its caption inside the
-    same rounded surface, so the dock reads as a bank of substantial controls
-    instead of small discs with floating text. The public API is unchanged
-    (iconName, text, description, emphasized, destructive, armed, subtle,
-    clicked, navigate) so the logout logic drives it exactly as before.
-
-    Colour contract (measured across all 16 schemes in tests/test_moos_ui2.py):
-    the filled surface is accentA (highlight, or the negative role when
-    destructive) under its PAIRED foreground — highlightedTextColor, or the
-    active surface background for destructive fills (Window and Complementary
-    are independently contrast-gated). accentB exists for the rim
-    only; it has no paired foreground role and never sits under the glyph.
-    Armed is a still, high-contrast fill — confirmation never pulses.
+    The account's Window and Selection colour sets supply both parts of each
+    native command. Only an emphasized, pressed or armed command fills with
+    the semantic accent. The ordinary glyph and caption share a single face.
 */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -56,6 +45,11 @@ QQC2.AbstractButton {
         ? Kirigami.Theme.backgroundColor
         : Kirigami.Theme.highlightedTextColor
 
+    // Keep the destructive role on its measured Window background until the
+    // entire tile fills. The normal mark takes a quieter shade of the link ink.
+    readonly property color restingGlyphInk: destructive ? accentA
+        : Qt.tint(ink, Qt.alpha(Kirigami.Theme.linkColor, 0.65))
+
     signal navigate(int horizontalStep, int verticalStep)
     signal interacted()
     onPressed: interacted()
@@ -90,7 +84,7 @@ QQC2.AbstractButton {
     implicitWidth: fittedWidth
     implicitHeight: keyHeight
     padding: 0
-    scale: down ? design.pressScale : (lit ? design.hoverScale : 1.0)
+    scale: down ? design.pressScale : 1.0
     Behavior on scale {
         NumberAnimation {
             duration: design.duration(control.motionEnabled, design.motionFast)
@@ -116,75 +110,22 @@ QQC2.AbstractButton {
         implicitWidth: control.fittedWidth
         implicitHeight: control.keyHeight
 
-        // Accent bloom behind a lit or armed tile — still, never looping.
-        Rectangle {
-            anchors.centerIn: parent
-            width: parent.width * 1.10
-            height: parent.height * 1.16
-            radius: Math.min(width, height) * 0.30
-            visible: control.lit || control.armed
-            color: control.accentA
-            opacity: control.armed ? 0.10 : 0.025
-        }
-
         // One contrast-paired tile surface.
-        Rectangle {
+        MoUI.Surface {
             id: disc
+            LayoutMirroring.enabled: control.mirrored
             objectName: "moosPowerActionSurface"
             anchors.fill: parent
-            radius: control.subtle ? design.radiusControl : design.radiusPanel
+            radius: design.radiusControl
             color: control.filled
                 ? control.accentA
-                : Qt.rgba(control.ink.r, control.ink.g, control.ink.b,
-                          control.subtle
-                          ? (control.lit ? design.surfaceRestingOpacity
-                                         : design.surfaceRestingOpacity / 2)
-                          : (control.lit ? 0.07 : 0.025))
-            border.width: control.visualFocus
-                          ? design.focusWidth : design.borderHairline
+                : (control.destructive ? Kirigami.Theme.backgroundColor
+                    : Qt.tint(Kirigami.Theme.backgroundColor, Qt.alpha(control.ink, control.lit ? 0.07 : 0.025)))
+            border.width: control.visualFocus ? design.focusWidth : design.borderHairline
             border.color: control.filled
                 ? control.accentB
-                : (control.lit ? Qt.rgba(control.accentA.r, control.accentA.g, control.accentA.b, 0.8)
-                               : Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.06))
-
-            // Inner sheen: the glass catch-light along the tile's upper third.
-            // Painted from the scheme's own foreground at whisper opacity so it
-            // survives every palette without a literal colour.
-            Rectangle {
-                anchors { top: parent.top; left: parent.left; right: parent.right }
-                anchors.margins: 1
-                height: parent.height * 0.46
-                radius: parent.radius - 1
-                visible: !control.filled && control.lit
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.05) }
-                    GradientStop { position: 1.0; color: Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.0) }
-                }
-            }
-
-            // The same crest cut that seals the full-screen horizon.
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                anchors.topMargin: -height / 2
-                width: parent.width * 0.30
-                height: control.visualFocus ? 3 : 2
-                radius: height / 2
-                visible: !control.subtle && (control.lit || control.armed)
-                color: control.filled ? control.filledInk : control.accentB
-                opacity: control.filled ? 0.55 : (control.lit ? 0.95 : 0.62)
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Math.max(5, parent.height * 0.07)
-                width: parent.width * 0.42
-                height: 1
-                radius: height / 2
-                visible: !control.subtle && (control.lit || control.armed)
-                color: control.filled ? control.filledInk : control.accentA
-                opacity: control.filled ? 0.35 : (control.lit ? 0.55 : 0.22)
-            }
+                : (control.visualFocus ? control.accentA
+                    : Qt.alpha(control.ink, control.hovered ? 0.28 : 0.16))
 
             // Glyph above caption, both inside the tile.
             ColumnLayout {
@@ -202,9 +143,9 @@ QQC2.AbstractButton {
                     visible: !control.subtle
                     Layout.preferredWidth: Math.round(design.targetControl * control.sessionScale)
                     Layout.preferredHeight: Layout.preferredWidth
-                    accentColor: control.accentA
-                    inkColor: control.filledInk
-                    embeddedInAccent: control.filled
+                    accentColor: disc.color
+                    inkColor: control.filled ? control.filledInk : control.restingGlyphInk
+                    embeddedInAccent: true
                 }
                 QQC2.Label {
                     id: caption

@@ -120,14 +120,15 @@ class TidalPortalContractTests(unittest.TestCase):
             "sweepAngle: 360 * Math.max(0, Math.min(1, root.remainingTime / 30))",
             logout,
         )
-        # Second-generation tiles: caption INSIDE the key surface, sized as a
-        # real tile, with the crest/horizon cuts intact on dock tiles.
+        # Glyph and label share the same command face, including keyboard focus.
         self.assertIn("property real keyWidth", action)
         self.assertIn("property real keyHeight", action)
         self.assertIn("control.subtle ? 3.1 : 5.3", action)
         self.assertIn("control.subtle ? 10.4 : 8.6", action)
-        self.assertIn("width: parent.width * 0.30", action)
-        self.assertIn("width: parent.width * 0.42", action)
+        self.assertIn("MoUI.Surface {", action)
+        self.assertIn("LayoutMirroring.enabled: control.mirrored", action)
+        self.assertIn("embeddedInAccent: true", action)
+        self.assertIn("border.width: control.visualFocus ? design.focusWidth", action)
         self.assertNotIn("radius: width / 2", action)
 
     def test_login_and_lock_share_static_session_language(self) -> None:
@@ -146,12 +147,16 @@ class TidalPortalContractTests(unittest.TestCase):
         for forbidden in ("Timer {", "Animation.Infinite", "ShaderEffect"):
             self.assertNotIn(forbidden, login)
         self.assertIn("import org.moos.ui as MoUI", action)
-        self.assertIn("radius: design.radiusPanel", action)
+        self.assertIn("background: MoUI.Surface {", action)
+        self.assertIn("radius: design.radiusControl", action)
+        self.assertIn("LayoutMirroring.enabled: root.mirrored", action)
         self.assertNotIn("radius: width / 2", action)
         self.assertIn("font.family: design.interfaceFamily", action)
         self.assertIn("readonly property real compactScale", action)
-        self.assertIn("largeSpacing * 4 * compactScale", action)
-        self.assertIn("6.6 * Math.max(0.82, root.compactScale)", action)
+        self.assertIn("Math.max(design.targetControl, contents.implicitWidth + horizontalPadding * 2)", action)
+        self.assertIn("Math.max(design.targetControl, contents.implicitHeight + verticalPadding * 2)", action)
+        self.assertIn("layoutDirection: root.mirrored ? Qt.RightToLeft : Qt.LeftToRight", action)
+        self.assertIn("visible: !root.docked || root.lit || root.down", action)
         self.assertIn("trackSeconds: false", clock)
         self.assertIn("Locale.LongFormat", clock)
         self.assertIn("sessionLocale.dateFormat(Locale.LongFormat)", clock)

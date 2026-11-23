@@ -5249,7 +5249,7 @@ require('source: "file:///usr/share/pixmaps/moos-logo.png"' in _island_mark
         "absent, nothing on the password surface would say whose it is")
 require("moos-logo" not in code(user_delegate, style="slash"),
         "the MoOS emblem is pinned to the user's face again; the island carries the mark")
-require("wrapper.name.charAt(0).toUpperCase()" in user_delegate
+require("Kirigami.Avatar {" in user_delegate and "name: wrapper.name" in user_delegate
         and "visible: wrapper.placeholderFace && !wrapper.anonymous" in user_delegate
         and '.indexOf("/org/kde/plasma/login/") >= 0' in user_delegate,
         "accounts without a custom photo must use an intentional initial avatar on BOTH "
@@ -5266,15 +5266,16 @@ login_clock = read(
 )
 require("TidalHorizon {" not in login_wallpaper,
         "the login scene must not draw the retired arc")
-require("The Tidal Portal key" in login_action
-        and "radius: design.radiusPanel" in login_action
+require("background: MoUI.Surface {" in login_action
+        and "radius: design.radiusControl" in login_action
+        and "LayoutMirroring.enabled: root.mirrored" in login_action
+        and "embeddedInAccent: true" in login_action
         and "font.family: design.interfaceFamily" in login_action
         and "import org.moos.ui as MoUI" in login_action
         and "readonly property real compactScale: design.sessionScale(sceneWidth, sceneHeight)" in login_action
         and "Window.height > 0 ? Window.height : Screen.height" in login_action,
-        "the compiled plasma-login controls must use the shared MoOS portal-key "
-        "geometry, responsive low-resolution fit and typography instead of "
-        "generic circular Breeze actions")
+        "the compiled plasma-login controls must use the mirrored MoOS command "
+        "surface, a single embedded glyph, responsive low-resolution fit and Meyar typography")
 require("trackSeconds: false" in login_clock
         and "Animation.Infinite" not in login_clock
         and 'text: ":"' in login_clock

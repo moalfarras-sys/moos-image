@@ -6,37 +6,8 @@
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
 
-// MoOS: this IS Plasma's own ActionButton, wearing the MoOS identity.
-//
-// Why it is edited in place rather than wrapped, hidden, or duplicated: this one
-// file is where the login screen, the lock screen AND the logout screen all get
-// their action buttons. plasma-login-manager's greeter QML is compiled into the
-// binary (qrc:/qt/qml/org/kde/plasma/login/Main.qml), so the greeter itself can
-// never be replaced from the filesystem — but every button it draws comes from
-// HERE, on disk, and Plasma looks this module up by import path. Change this and
-// Plasma's own login screen becomes MoOS, with nothing layered over it and
-// nothing hidden. That is the whole point: MoOS is not a skin on top of Plasma,
-// it is Plasma.
-//
-// What changed from upstream, and why each one:
-//   1. FULL-COLOUR DISCS → the MoOS symbolic mark. The greeter asks for
-//      "system-shutdown"; Colloid answers with a red disc, and the login screen
-//      ended up wearing three primary-coloured buttons two seconds before the
-//      MoOS logout screen showed the same six actions as monochrome teal glyphs.
-//      Session F fixed exactly this class of bug on the logout screen ("isMask
-//      over full-colour disc icons"); the login screen was simply out of reach
-//      then. symbolicName() maps each name the greeter can ask for onto its
-//      -symbolic variant, and isMask paints it in the brand colour.
-//   2. SessionActionGlyph draws one selected-theme accent and its paired ink;
-//      Shut Down uses the scheme's negative role. No fixed icon palette.
-//   3. The control is a MoOS portal key — rounded threshold, crest cut and
-//      horizon line — instead of Plasma's generic circle.
-//   4. IBM Plex Sans, the family every other MoOS surface uses.
-//
-// The upstream contract is untouched: same id, same API (text, icon.name,
-// enabled, visible, clicked, animateClick), same mnemonic and key handling, same
-// softwareRendering fallback. A caller cannot tell the difference — which is why
-// the compiled greeter, the lock screen and the logout screen all keep working.
+// Plasma's native login and lock controls supply the action, mnemonic and text.
+// Keep them together as a single, touch-sized command on the session wallpaper.
 
 import QtQuick
 import QtQuick.Window
@@ -57,20 +28,7 @@ PlasmaComponents3.AbstractButton {
     readonly property real sceneHeight: Window.height > 0 ? Window.height : Screen.height
     readonly property real compactScale: design.sessionScale(sceneWidth, sceneHeight)
 
-    // MoOS: the greeter hands us a full-colour icon name. Map it to the symbolic
-    // glyph so isMask can paint it in the brand colour. Names already ending in
-    // -symbolic pass through, and anything unmapped keeps its own name rather
-    // than vanishing — an unknown action must still draw SOMETHING.
-    //
-    // system-user-prompt and system-user-list have no -symbolic variant in the
-    // icon theme (checked, 2026-07-17), so they borrow the closest ones that do:
-    // one person for "type a username", several for "show the user list".
-    //
-    // The substitutes were chosen by RENDERING every candidate under isMask and
-    // looking, not by the name reading well: user-identity-symbolic — the obvious
-    // pick — is a FILLED disc, so masking it produced a solid teal blob with no
-    // glyph at all. That is the same failure session F hit on the logout screen's
-    // nine icons. A name is not evidence; the picture is.
+    // The compiled greeter supplies these two legacy account icons.
     function symbolicName(name) {
         if (!name || name.endsWith("-symbolic")) {
             return name;
@@ -84,29 +42,24 @@ PlasmaComponents3.AbstractButton {
         return name + "-symbolic";
     }
 
-    // Shutting the machine down is the one action here you cannot take back, and
-    // MoOS's logout screen already says exactly that: Shut Down wears the negative
-    // colour and every other action — Restart included — stays brand teal. The
-    // login screen follows the screen the user already knows. (Restart WAS red
-    // here for one build; two red buttons side by side read as an alarm, and it
-    // disagreed with the logout screen. One system, one language.)
     readonly property bool destructive: root.icon.name === "system-shutdown"
-    // Set by the session screen's action dock (MoOS SessionManagementScreen).
+                                        || root.icon.name === "system-shutdown-update"
+    // The native dock paints the group's surface. A key paints over it only
+    // for feedback; standalone callers retain their own command surface.
     readonly property bool docked: root.parent !== null && root.parent.moosDock === true
-    readonly property bool lit: root.activeFocus || root.hovered
+    readonly property bool lit: root.hovered || root.visualFocus
+    readonly property color actionAccent: destructive ? Kirigami.Theme.negativeTextColor
+                                                     : Kirigami.Theme.highlightColor
+    readonly property color faceColor: down ? actionAccent
+        : Qt.tint(Kirigami.Theme.backgroundColor, Qt.alpha(Kirigami.Theme.textColor, lit ? 0.07 : 0.025))
+    readonly property color commandInk: down
+        ? (destructive ? Kirigami.Theme.backgroundColor : Kirigami.Theme.highlightedTextColor)
+        : Kirigami.Theme.textColor
 
-    // Meyar keeps both scripts on the same line metrics.
     font.family: design.interfaceFamily
     font.pointSize: Math.max(8, Math.round((Kirigami.Theme.defaultFont.pointSize + 2)
                                            * Math.min(1.25, compactScale)))
-    font.underline: root.activeFocus
-
-    // MoOS token: medium glyph inside the same portal key used by Logout, so
-    // the lock's session buttons and the power dock are
-    // the same control at the same size.
-    icon.width: Math.round(design.iconHero * compactScale)
-    icon.height: Math.round(design.iconHero * compactScale)
-
+    font.weight: Font.Medium
     hoverEnabled: true
 
     // The login manager loads this file from disk into an otherwise compiled
@@ -126,40 +79,19 @@ PlasmaComponents3.AbstractButton {
     Accessible.pressed: root.down
     Accessible.onPressAction: root.animateClick()
 
-    // Expand clickable area, keep background centered
-    // In the dock the keys sit close, like the MoOS bar's; alone they keep the
-    // wide threshold that separates them.
-    readonly property real dockFactor: root.docked ? 0.62 : 1
-    leftInset: Math.max(Kirigami.Units.largeSpacing * 4 * compactScale * (root.docked ? 0.2 : 1),
-                        (implicitContentWidth - implicitBackgroundWidth) / 2)
-    rightInset: leftInset
-
-    padding: Kirigami.Units.smallSpacing
-    // Labels wider than the background shouldn't be padded
-    horizontalPadding: 0
-    // No padding below label
-    bottomPadding: 0
-
-    // MoOS token: the same disc-to-label gap as the logout orb.
-    spacing: Kirigami.Units.smallSpacing
-
-    // Keep enabled glyph/ink pairs opaque; dim only genuinely disabled actions.
-    opacity: root.enabled ? 1 : design.disabledOpacity
-    Behavior on opacity {
-        PropertyAnimation { // OpacityAnimator makes it turn black at random intervals
-            duration: design.duration(root.motionEnabled, design.motionGeometry)
-            easing.type: design.easeStandard
-        }
-    }
-
-    // MoOS: the same answer-the-pointer lift the logout screen's buttons have.
-    scale: root.down ? design.pressScale
-                     : (root.hovered ? design.hoverScale : 1.0)
+    implicitWidth: Math.max(design.targetControl, contents.implicitWidth + horizontalPadding * 2)
+    implicitHeight: Math.max(design.targetControl, contents.implicitHeight + verticalPadding * 2)
+    horizontalPadding: Math.round(Kirigami.Units.gridUnit * Math.max(0.8, compactScale)
+                                  * (docked ? 0.65 : 1))
+    verticalPadding: Math.round(Kirigami.Units.smallSpacing * Math.max(1, compactScale))
+    leftInset: 0
+    rightInset: 0
+    topInset: 0
+    bottomInset: 0
+    opacity: enabled ? 1 : design.disabledOpacity
+    scale: down ? design.pressScale : 1
     Behavior on scale {
-        NumberAnimation {
-            duration: design.duration(root.motionEnabled, design.motionFast)
-            easing.type: design.easeStandard
-        }
+        NumberAnimation { duration: design.duration(root.motionEnabled, design.motionFast) }
     }
 
     Kirigami.MnemonicData.enabled: root.enabled && root.visible
@@ -173,163 +105,49 @@ PlasmaComponents3.AbstractButton {
         onActivated: root.animateClick()
     }
 
-    background: Rectangle {
-        // The Tidal Portal key: a wide, calm threshold instead of a generic
-        // circular icon button.
-        // Keep the compact MoOS portal on short labels, but let translated
-        // action names breathe.  A fixed 6.6-grid-unit key visibly truncated
-        // German "Benutzer wechseln" on the real 4K lock screen at 225%.
-        // `implicitContentWidth` is independent of the background, so this is
-        // one-way sizing (no binding loop), and the 9-unit ceiling keeps a
-        // single long translation from distorting the session layout.
-        implicitWidth: Math.max(
-            Kirigami.Units.gridUnit * 6.6 * Math.max(0.82, root.compactScale) * root.dockFactor,
-            Math.min(Kirigami.Units.gridUnit * 9 * Math.max(1, root.compactScale),
-                     root.implicitContentWidth + Kirigami.Units.gridUnit * 1.2))
-        implicitHeight: Kirigami.Units.gridUnit * 4.8 * root.compactScale * (root.docked ? 0.86 : 1)
-        // explicitly set size to keep it from expanding or shrinking
-        width: implicitWidth
-        height: implicitHeight
-        radius: design.radiusPanel
-        // The MoOS corner at key size: the top-trailing corner is square.
-        topLeftRadius: root.LayoutMirroring.enabled ? design.radiusSquare : design.radiusPanel
-        topRightRadius: root.LayoutMirroring.enabled ? design.radiusPanel : design.radiusSquare
-        // MoOS glass: the brand tint, warmed by the pointer. Software rendering
-        // keeps upstream's opaque fallback — a tint over an unblurred surface
-        // reads as dirt, and that path exists for machines with no GPU at all.
-        // MoOS UI2 — the SAME frosted disc as the logout dock's orbs: a neutral
-        // ink fill (not an accent-tinted blob), so the lock's session buttons and
-        // the power dock read as one control family. The accent lives on the
-        // border when lit, exactly like the orb.
-        color: root.softwareRendering
-             ? Kirigami.Theme.backgroundColor
-             : (root.destructive ? Kirigami.Theme.negativeTextColor
-                                 : Kirigami.Theme.textColor)
-        // In the session dock (SessionManagementScreen) the dock IS the glass:
-        // a key is transparent at rest and lights only under the pointer, the
-        // keyboard focus or a press, like the keys of the MoOS bar.
-        opacity: {
-            if (root.docked && !root.lit && !root.down) {
-                return 0
-            }
-            if (root.softwareRendering) {
-                return root.lit ? 0.8 : 0.6
-            }
-            return root.lit ? design.surfaceHoverOpacity
-                            : design.surfaceRestingOpacity
-        }
-        Behavior on opacity {
-            PropertyAnimation { // OpacityAnimator makes it turn black at random intervals
-                duration: design.duration(root.motionEnabled,
-                                          design.motionGeometry)
-                easing.type: design.easeStandard
-            }
-        }
-        // MoOS: a hairline that catches the light, the same one the dock, the
-        // lock card and the Hero Clock carry.
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            color: "transparent"
-            visible: !root.softwareRendering
-            border.width: design.borderHairline
-            // Accent border when lit (hover/focus), hairline ink when idle —
-            // matching the logout orb's border exactly.
-            border.color: root.lit
-                ? (root.destructive ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor)
-                : Kirigami.Theme.textColor
-            opacity: root.lit ? design.focusOpacity
-                              : design.surfaceRestingOpacity
-        }
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: -height / 2
-            width: parent.width * (root.lit ? 0.40 : 0.28)
-            height: root.activeFocus ? 3 : 2
-            radius: height / 2
-            color: root.destructive
-                ? Kirigami.Theme.negativeTextColor
-                : Kirigami.Theme.highlightColor
-            opacity: root.lit ? 0.96 : 0.62
-            Behavior on width {
-                NumberAnimation {
-                    duration: design.duration(root.motionEnabled,
-                                              design.motionGeometry)
-                    easing.type: design.easeEmphasis
-                }
-            }
-        }
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Math.max(4, parent.height * 0.10)
-            width: parent.width * (root.lit ? 0.58 : 0.42)
-            height: 1
-            radius: height / 2
-            color: root.destructive
-                ? Kirigami.Theme.negativeTextColor
-                : Kirigami.Theme.highlightColor
-            opacity: root.lit ? 0.55 : 0.22
-            Behavior on width {
-                NumberAnimation {
-                    duration: design.duration(root.motionEnabled,
-                                              design.motionGeometry)
-                    easing.type: design.easeEmphasis
-                }
-            }
-        }
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            color: Kirigami.Theme.textColor
-            opacity: design.surfaceRestingOpacity
-            scale: root.down ? 1 : 0
-            Behavior on scale {
-                PropertyAnimation {
-                    duration: design.duration(root.motionEnabled,
-                                              design.motionFast)
-                    easing.type: design.easeEmphasis
-                }
-            }
-        }
+    background: MoUI.Surface {
+        LayoutMirroring.enabled: root.mirrored
+        objectName: "moosSessionActionSurface"
+        radius: design.radiusControl
+        visible: !root.docked || root.lit || root.down
+        color: root.faceColor
+        border.width: root.visualFocus ? design.focusWidth : design.borderHairline
+        border.color: root.visualFocus ? root.actionAccent
+            : Qt.alpha(Kirigami.Theme.textColor, root.hovered ? 0.28 : 0.16)
     }
 
-    contentItem: Column {
-        spacing: root.spacing
-        MoUI.SessionActionGlyph {
-            anchors.horizontalCenter: parent.horizontalCenter
-            // MoOS: the symbolic glyph, painted in the brand colour.
-            source: root.symbolicName(root.icon.name)
-            // The same selected-theme accent and paired ink as the power dock.
-            accentColor: root.destructive ? Kirigami.Theme.negativeTextColor
-                                         : Kirigami.Theme.highlightColor
-            inkColor: root.destructive ? Kirigami.Theme.backgroundColor
-                                      : Kirigami.Theme.highlightedTextColor
-            implicitWidth: Math.round(design.targetControl * root.compactScale * (root.docked ? 0.84 : 1))
-            implicitHeight: implicitWidth
-            active: root.lit
-        }
-        PlasmaComponents3.Label {
-            objectName: "moosSessionActionCaption"
-            anchors.horizontalCenter: parent.horizontalCenter
-            // Session actions are localized by Plasma.  Size from the real
-            // label up to a generous language-safe ceiling; the surrounding
-            // portal follows this content width above.  Elision remains only
-            // as a last resort for genuinely exceptional translations.
-            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2 * Math.max(1, root.compactScale))
-            text: root.presentedLabel !== root.Kirigami.MnemonicData.plainTextLabel
-                ? root.presentedLabel : root.Kirigami.MnemonicData.richTextLabel
-            style: root.softwareRendering ? Text.Outline : Text.Normal
-            styleColor: Kirigami.Theme.backgroundColor // Unused without outline
-            font.family: design.interfaceFamily
-            font.weight: Font.DemiBold
-            color: Kirigami.Theme.textColor
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            textFormat: Text.StyledText
-            elide: Text.ElideRight
-            maximumLineCount: 1
+    contentItem: Item {
+        implicitWidth: contents.implicitWidth
+        implicitHeight: contents.implicitHeight
+        Row {
+            id: contents
+            anchors.centerIn: parent
+            LayoutMirroring.enabled: false
+            layoutDirection: root.mirrored ? Qt.RightToLeft : Qt.LeftToRight
+            spacing: Math.round(Kirigami.Units.smallSpacing * 1.5 * root.compactScale)
+
+            MoUI.SessionActionGlyph {
+                anchors.verticalCenter: parent.verticalCenter
+                source: root.symbolicName(root.icon.name)
+                accentColor: root.faceColor
+                inkColor: root.commandInk
+                embeddedInAccent: true
+                implicitWidth: Math.round(root.design.targetControl * Math.min(1.22, root.compactScale))
+                implicitHeight: implicitWidth
+                active: root.lit
+            }
+            PlasmaComponents3.Label {
+                objectName: "moosSessionActionCaption"
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, root.sceneWidth * 0.42)
+                text: root.presentedLabel !== root.Kirigami.MnemonicData.plainTextLabel
+                    ? root.presentedLabel : root.Kirigami.MnemonicData.richTextLabel
+                textFormat: Text.StyledText
+                font: root.font
+                color: root.commandInk
+                elide: Text.ElideRight
+                maximumLineCount: 1
+            }
         }
     }
 

@@ -99,15 +99,14 @@ Item {
     // six-tenths of one back as air, which is what lets the session island
     // start below the clock's date instead of crowding it — and what the frame
     // stands in.
-    // Meyar Glass: the face is a portrait, not the poster. A grid unit more of
-    // air above it makes it a grid unit smaller and lowers it onto its name and
-    // the field, and the island — which hugs the face — tightens with it.
-    readonly property real faceInset: Math.round(Kirigami.Units.gridUnit * 1.6 * sessionScale)
-    property real faceSize: Kirigami.Units.gridUnit * 7 * sessionScale - faceInset
+    readonly property bool besidePrompt: sessionScreen !== null && sessionScreen.accountBesidePrompt === true
+    readonly property real faceInset: Math.round(Kirigami.Units.gridUnit
+        * (besidePrompt ? 1.1 : 1.6) * sessionScale)
+    property real faceSize: Kirigami.Units.gridUnit * (besidePrompt ? 6.2 : 7) * sessionScale - faceInset
 
     // ── The frame ───────────────────────────────────────────────────────────
-    readonly property real ringGap: Math.max(2, Math.round(faceSize * 0.035))
-    readonly property real ringWidth: Math.max(2, Math.round(faceSize * 0.022))
+    readonly property real ringGap: Math.max(1, Math.round(faceSize * 0.018))
+    readonly property real ringWidth: Math.max(1, Math.round(faceSize * 0.012))
     property real orbitAngle: 0
     property real framePop: 1
 
@@ -182,28 +181,6 @@ Item {
         || String(wrapper.avatarPath).indexOf("/org/kde/plasma/login/") >= 0
     // The "type a user name" entry has no account behind it yet.
     readonly property bool anonymous: wrapper.userName === ""
-
-    // The bloom: two still discs of the accent behind the selected face. Three,
-    // reaching half a face out, read as a grey disc on the dark island.
-    // Plain rectangles — no effect layer, nothing animated.
-    Repeater {
-        // Sized as a share of the face, so the small portrait on the power
-        // screen wears the same bloom in proportion.
-        model: [
-            { grow: 0.36, glow: 0.045 },
-            { grow: 0.14, glow: 0.09 },
-        ]
-        Rectangle {
-            required property var modelData
-            anchors.centerIn: imageSource
-            width: Math.round(imageSource.width * (1 + modelData.grow))
-            height: width
-            radius: width / 2
-            color: Kirigami.Theme.highlightColor
-            opacity: modelData.glow
-            visible: wrapper.isCurrent && !wrapper.softwareRendering
-        }
-    }
 
     // The frame itself: a conical sweep of the accent's two tones, cut to a ring.
     // Two stock effects and two small textures; it repaints only while it turns.
@@ -320,19 +297,15 @@ Item {
         // An account without a photo is its initial; the username prompt, which
         // is nobody yet, is a person glyph. The name itself stays immediately
         // below and remains the accessible identity.
-        Text {
-            anchors.centerIn: parent
+        // Kirigami handles initials, including names for which a person icon is clearer.
+        Kirigami.Avatar {
+            anchors.fill: parent
             visible: wrapper.placeholderFace && !wrapper.anonymous
-            text: wrapper.name.length > 0 ? wrapper.name.charAt(0).toUpperCase() : "M"
-            color: Kirigami.Theme.textColor
-            // Plex Arabic, never Inter: Inter has no Arabic coverage, so its Arabic
-            // text silently falls back to Noto — a second Arabic face on the same
-            // screen as the Plex date. Plex Arabic carries a full Latin set. And
-            // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
+            name: wrapper.name
             font.family: design.interfaceFamily
-            font.pixelSize: imageSource.width * 0.40
-            font.weight: Font.DemiBold
-            renderType: Text.QtRendering
+            color: Kirigami.Theme.textColor
+            background: null
+            Accessible.ignored: true
         }
         Kirigami.Icon {
             anchors.centerIn: parent
@@ -399,7 +372,7 @@ Item {
 
         // A lone user is not boxed in by neighbours, but the name still has to
         // stay inside the island that frames it (sixteen grid units of prompts).
-        width: wrapper.constrainText
+        width: wrapper.constrainText || wrapper.besidePrompt
             ? parent.width
             : Math.min(implicitWidth, Kirigami.Units.gridUnit * 16 * wrapper.sessionScale)
         // The "type a user name" entry's caption comes from plasma_login's

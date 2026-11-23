@@ -35,10 +35,11 @@ KeyPanel {
     readonly property bool functionKey: control !== null && control.functionKey === true
 
     property color color: {
-        if (control && control.pressed) {
-            return BreezeConstants.normalKeyPressedBackgroundColor;
-        } else if (enterKey) {
+        if (enterKey) {
+            // Keep the accent/ink pair while the pressed scale confirms contact.
             return Kirigami.Theme.highlightColor;
+        } else if (control && control.pressed) {
+            return BreezeConstants.normalKeyPressedBackgroundColor;
         } else if (control && control.highlighted) {
             return BreezeConstants.highlightedKeyBackgroundColor;
         } else if (functionKey) {

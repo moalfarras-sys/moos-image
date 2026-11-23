@@ -43,16 +43,18 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 app = QGuiApplication(sys.argv)
 engine = QQmlApplicationEngine()
-engine.loadData(b"""
+engine.loadData("""
 import QtQuick
 import QtQuick.Controls
 ApplicationWindow {
     visible: true; visibility: Window.Maximized; title: "MoOS keyboard review"
     color: "#202024"
-    TextField { id: field; anchors.centerIn: parent; width: 520; placeholderText: "اكتب هنا"
-        focus: true; Component.onCompleted: forceActiveFocus() }
+    TextField { id: field; anchors.horizontalCenter: parent.horizontalCenter; y: parent.height * 0.15; width: Math.min(parent.width - 32, 520); placeholderText: "اكتب هنا"
+        onTextChanged: console.info("MOOS_REVIEW_INPUT", JSON.stringify(text)); focus: true; Component.onCompleted: forceActiveFocus() }
 }
-""")
+""".encode("utf-8"))
+if not engine.rootObjects():
+    sys.exit("Cannot create private text client")
 print("MOOS_KEYBOARD_CLIENT_READY", flush=True)
 sys.exit(app.exec())
 '''
@@ -72,6 +74,7 @@ def main() -> int:
     ap.add_argument("--scale", type=float, default=1.45)
     ap.add_argument("--stock", action="store_true")
     ap.add_argument("--gpu", action="store_true")
+    ap.add_argument("--exercise-arabic", action="store_true", help="verify native Arabic input and long-press selection")
     args = ap.parse_args()
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -110,7 +113,7 @@ def main() -> int:
                DBUS_SESSION_BUS_ADDRESS="unix:path=" + str(run / "bus"),
                DBUS_SYSTEM_BUS_ADDRESS="unix:path=" + str(base / "absent"),
                KWIN_WAYLAND_NO_PERMISSION_CHECKS="1", LANG="ar_SA.UTF-8", LC_ALL="ar_SA.UTF-8",
-               LANGUAGE="ar", QML_DISABLE_DISK_CACHE="1", QT_QPA_PLATFORMTHEME="kde")
+               LANGUAGE="ar", QML_DISABLE_DISK_CACHE="1", QT_QPA_PLATFORMTHEME="kde", QT_FORCE_STDERR_LOGGING="1")
     env["XDG_DATA_DIRS"] = str(ROOT / "system_files/usr/share") + ":/usr/share"
     if not args.gpu:
         env.update(LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe")
@@ -154,13 +157,19 @@ def main() -> int:
             time.sleep(0.1)
         time.sleep(1.5)
         (base / "client.py").write_text(CLIENT, encoding="utf-8")
-        cenv = dict(env, WAYLAND_DISPLAY=sock, QT_QPA_PLATFORM="wayland", QT_IM_MODULE="qtvirtualkeyboard"
-                    if False else "wayland")
+        cenv = dict(env, WAYLAND_DISPLAY=sock, QT_QPA_PLATFORM="wayland", QT_QPA_PLATFORMTHEME="", QT_IM_MODULE="wayland")
         client = subprocess.Popen([sys.executable, "-s", "-B", str(base / "client.py")], env=cenv,
                                   stdout=(base / "client.log").open("w"), stderr=subprocess.STDOUT,
                                   preexec_fn=no_core)
         procs.append(client)
-        time.sleep(3.0)
+        for _ in range(400):
+            if "MOOS_KEYBOARD_CLIENT_READY" in (base / "client.log").read_text():
+                break
+            if client.poll() is not None:
+                raise RuntimeError("private text client failed to start")
+            time.sleep(0.1)
+        else:
+            raise RuntimeError("private text client readiness timed out")
         for _ in range(3):
             subprocess.run([QDBUS, "org.kde.KWin", "/VirtualKeyboard", "org.kde.kwin.VirtualKeyboard.forceActivate"],
                            env=env, capture_output=True, timeout=10)
@@ -168,20 +177,69 @@ def main() -> int:
         import dbus
         from PySide6.QtGui import QImage
         session = dbus.bus.BusConnection("unix:path=" + str(run / "bus"))
+        vk = dbus.Interface(session.get_object("org.kde.KWin", "/VirtualKeyboard"),
+                            "org.freedesktop.DBus.Properties")
+        state = vk.GetAll("org.kde.kwin.VirtualKeyboard")
+        result["keyboard"] = {str(k): bool(v) for k, v in state.items() if isinstance(v, dbus.Boolean)}
+        if not (state.get("active") and state.get("visible")):
+            raise RuntimeError("KWin did not activate and show the input method")
         shot = dbus.Interface(session.get_object("org.kde.KWin", "/org/kde/KWin/ScreenShot2"),
                               "org.kde.KWin.ScreenShot2")
-        rd, wr = os.pipe()
-        try:
-            meta = shot.CaptureActiveScreen({"native-resolution": True, "include-cursor": False},
-                                            dbus.types.UnixFd(wr))
-        finally:
-            os.close(wr)
-        data = bytearray()
-        with os.fdopen(rd, "rb") as fh:
-            while chunk := fh.read(1 << 20):
-                data += chunk
-        w, h, stride, fmt = (int(meta[k]) for k in ("width", "height", "stride", "format"))
-        QImage(bytes(data), w, h, stride, QImage.Format(fmt)).copy().save(str(out / "keyboard.png"))
+        def capture(name: str):
+            rd, wr = os.pipe()
+            try:
+                meta = shot.CaptureActiveScreen({"native-resolution": True, "include-cursor": False},
+                                                dbus.types.UnixFd(wr))
+            finally:
+                os.close(wr)
+            data = bytearray()
+            with os.fdopen(rd, "rb") as fh:
+                while chunk := fh.read(1 << 20):
+                    data += chunk
+            w, h, stride, fmt = (int(meta[k]) for k in ("width", "height", "stride", "format"))
+            if len(data) != h * stride or not QImage(bytes(data), w, h, stride, QImage.Format(fmt)).copy().save(str(out / name)):
+                raise RuntimeError("incomplete native screen capture")
+        capture("keyboard.png")
+        if args.exercise_arabic:
+            from gi.repository import Gio, GLib
+            sys.path.insert(0, str(ROOT / "moremote/agent-linux"))
+            from mo_remote_eis import EisInput
+            private = Gio.DBusConnection.new_for_address_sync(
+                env["DBUS_SESSION_BUS_ADDRESS"],
+                Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+                None, None)
+            eis = EisInput(private, Gio, GLib)
+            try:
+                # The native Arabic layout has twelve columns and four rows.
+                # The second row is offset by half a letter key.
+                row_y = 1 - max(0.3, 150 / lh) * 2.5 / 4
+                def button(down):
+                    eis.send("NotifyPointerButton", (272, int(down)), None)
+                eis.absolute(2/12, row_y)
+                time.sleep(0.15)
+                button(True)
+                time.sleep(0.12)
+                button(False)
+                time.sleep(0.4)
+                eis.absolute(6/12, row_y)
+                time.sleep(0.15)
+                button(True)
+                time.sleep(1.2)
+                capture("alternate.png")
+                eis.absolute(6/12 + 0.035, row_y - 0.08)
+                time.sleep(0.3)
+                button(False)
+                time.sleep(0.6)
+                capture("typed.png")
+            finally:
+                eis.close()
+                private.close_sync(None)
+            lines = (base / "client.log").read_text().splitlines()
+            typed = [json.loads(line.partition("MOOS_REVIEW_INPUT ")[2]) for line in lines
+                     if "MOOS_REVIEW_INPUT " in line]
+            result["typed"] = typed
+            if not typed or typed[0] != "س" or typed[-1] not in ("سأ", "سإ", "سآ", "سٱ"):
+                raise RuntimeError("Arabic key and held alternate did not reach the private editor")
         result["result"] = "CAPTURED"
     except Exception as exc:  # evidence, not a verdict
         result["result"] = "ERROR"

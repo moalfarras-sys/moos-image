@@ -798,9 +798,9 @@ class TestMoOSUI2(unittest.TestCase):
         # screen at 3840x2160 / 225%.  Keep the compact minimum, but require
         # the portal to grow from the translated content up to a safe ceiling.
         for contract in (
-            "root.implicitContentWidth + Kirigami.Units.gridUnit * 1.2",
-            "Math.min(Kirigami.Units.gridUnit * 9",
-            "width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2 * Math.max(1, root.compactScale))",
+            "Math.max(design.targetControl, contents.implicitWidth + horizontalPadding * 2)",
+            "Math.max(design.targetControl, contents.implicitHeight + verticalPadding * 2)",
+            "width: Math.min(implicitWidth, root.sceneWidth * 0.42)",
         ):
             self.assertIn(contract, action)
 
@@ -836,7 +836,7 @@ class TestMoOSUI2(unittest.TestCase):
     def test_login_greeter_reduced_motion_is_a_true_static_state(self) -> None:
         components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
         for filename, owner, expected_durations in (
-            ("ActionButton.qml", "root", 6),
+            ("ActionButton.qml", "root", 1),
             ("UserDelegate.qml", "wrapper", 4),
         ):
             with self.subTest(filename=filename):
@@ -991,9 +991,9 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("? control.accentA", disc)
         self.assertIn("? control.accentB", disc)
         self.assertIn("MoUI.SessionActionGlyph {", disc)
-        self.assertIn("accentColor: control.accentA", disc)
-        self.assertIn("inkColor: control.filledInk", disc)
-        self.assertIn("embeddedInAccent: control.filled", disc)
+        self.assertIn("accentColor: disc.color", disc)
+        self.assertIn("inkColor: control.filled ? control.filledInk : control.restingGlyphInk", disc)
+        self.assertIn("embeddedInAccent: true", disc)
         self.assertNotIn(
             "filledGrad",
             disc,
