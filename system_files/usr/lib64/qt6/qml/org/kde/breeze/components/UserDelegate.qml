@@ -320,19 +320,18 @@ Item {
         // An account without a photo is its initial; the username prompt, which
         // is nobody yet, is a person glyph. The name itself stays immediately
         // below and remains the accessible identity.
-        Text {
-            anchors.centerIn: parent
+        Kirigami.Avatar {
+            anchors.fill: parent
             visible: wrapper.placeholderFace && !wrapper.anonymous
-            text: wrapper.name.length > 0 ? wrapper.name.charAt(0).toUpperCase() : "M"
-            color: Kirigami.Theme.textColor
-            // Plex Arabic, never Inter: Inter has no Arabic coverage, so its Arabic
-            // text silently falls back to Noto — a second Arabic face on the same
-            // screen as the Plex date. Plex Arabic carries a full Latin set. And
-            // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
+            name: wrapper.name
+            sourceSize: Qt.size(width, height)
+            icon.name: "user-symbolic"
             font.family: design.interfaceFamily
-            font.pixelSize: imageSource.width * 0.40
-            font.weight: Font.DemiBold
-            renderType: Text.QtRendering
+            font.pixelSize: Math.round(wrapper.faceSize * 0.40)
+            font.weight: Font.Medium
+            color: Kirigami.Theme.textColor
+            background: null
+            Accessible.ignored: true
         }
         Kirigami.Icon {
             anchors.centerIn: parent

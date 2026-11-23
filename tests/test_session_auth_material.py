@@ -27,6 +27,7 @@ def probe():
     from PySide6.QtQml import QQmlEngine, QQmlComponent, QQmlExpression
     from PySide6.QtTest import QTest
     app = QGuiApplication([])
+    app.setLayoutDirection(Qt.RightToLeft if os.environ["AUTH_DIRECTION"] == "rtl" else Qt.LeftToRight)
     engine = QQmlEngine(); engine.setProperty('_kirigamiTheme','org.kde.desktop')
     engine.addImportPath(str(ROOT/'system_files/usr/lib64/qt6/qml'))
     engine.addImportPath(os.environ['AUTH_IMPORTS'])
@@ -37,6 +38,8 @@ import QtQuick.Controls as C
 import org.kde.kirigami as Kirigami
 import org.kde.breeze.components as Native
 Window { id: window; width: '''+os.environ['AUTH_WIDTH']+'''; height: 640; visible: true
+ LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+ LayoutMirroring.childrenInherit: true
  Kirigami.Theme.inherit: false
  Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
  property int submitted: 0
@@ -125,6 +128,7 @@ class NativeAuthenticationMaterial(unittest.TestCase):
                     XDG_DATA_DIRS=str(ROOT/'system_files/usr/share')+':/usr/share',
                     DBUS_SESSION_BUS_ADDRESS='unix:path='+td+'/absent',QT_QPA_PLATFORM='offscreen',
                     QT_QUICK_BACKEND='software',QML_DISABLE_DISK_CACHE='1',AUTH_IMPORTS=str(imports),
+                    AUTH_DIRECTION='rtl' if i%4 < 2 else 'ltr',
                     AUTH_SOURCE=str(target),AUTH_WIDTH='360' if i%2 else '1280',
                     AUTH_BG='#'+''.join(f'{int(v):02x}' for v in palette['Colors:Window']['BackgroundNormal'].split(',')))
                 env.pop('DISPLAY',None);env.pop('WAYLAND_DISPLAY',None)

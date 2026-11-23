@@ -5253,7 +5253,7 @@ require('source: "file:///usr/share/pixmaps/moos-logo.png"' in _island_mark
         "absent, nothing on the password surface would say whose it is")
 require("moos-logo" not in code(user_delegate, style="slash"),
         "the MoOS emblem is pinned to the user's face again; the island carries the mark")
-require("wrapper.name.charAt(0).toUpperCase()" in user_delegate
+require("Kirigami.Avatar {" in user_delegate and "name: wrapper.name" in user_delegate
         and "visible: wrapper.placeholderFace && !wrapper.anonymous" in user_delegate
         and '.indexOf("/org/kde/plasma/login/") >= 0' in user_delegate,
         "accounts without a custom photo must use an intentional initial avatar on BOTH "
