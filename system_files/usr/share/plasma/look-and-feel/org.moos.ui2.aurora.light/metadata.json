@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.aurora.light",
-        "Name": "MoOS UI · Aurora Light",
+        "Name": "MoOS · Marjan",
         "Description": "ضوء أزرق معدني وحبر عميق وشفافية مقروءة | Mineral blue daylight, deep ink and readable transparency",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS UI · Aurora Light"
+        "Name[ar]": "مرجان · MoOS"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

@@ -229,8 +229,8 @@ def main() -> None:
                 if source.is_file():
                     write(lnf / "contents" / directory / source.relative_to(original / "contents" / directory), source.read_bytes())
         metadata = json.loads((original / "metadata.json").read_text())
-        metadata["KPlugin"].update(Id=profile["id"], Name=title,
-            **{"Name[ar]": "MoOS · بلوم"+(' الفاتح' if light else ' الداكن'),
+        metadata["KPlugin"].update(Id=profile["id"], Name=profile["displayName"],
+            **{"Name[ar]": profile["displayNameAr"],
                "Description": "إطارات ناعمة وألوان حيوية | Soft frames and lively MoOS colour",
                "Description[ar]": "إطارات ناعمة وألوان حيوية لهوية MoOS"})
         write(lnf / "metadata.json", json.dumps(metadata, ensure_ascii=False, indent=2)+'\n')

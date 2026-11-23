@@ -57,6 +57,10 @@ def load_profiles() -> dict:
                 raise SystemExit("MoOS theme profiles: tabs/newlines are forbidden")
     if any(modes != {"light", "dark"} for modes in families.values()):
         raise SystemExit("MoOS theme profiles: every family needs light and dark")
+    for field, prefix in (("displayName", "MoOS · M"), ("displayNameAr", "م")):
+        names = [profile.get(field, "") for profile in profiles]
+        if len(set(names)) != len(profiles) or not all(name.startswith(prefix) for name in names):
+            raise SystemExit(f"MoOS theme profiles: each {field} must be distinct and start with {prefix}")
     return document
 
 

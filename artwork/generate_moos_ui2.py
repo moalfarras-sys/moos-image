@@ -713,12 +713,19 @@ cursorTheme={cursor}
 """
 
 
+def look_names(package: str) -> dict:
+    source = pathlib.Path(__file__).resolve().parent / "moos-design/theme-profiles.json"
+    for profile in json.loads(source.read_text(encoding="utf-8"))["profiles"]:
+        if profile["id"] == package:
+            return {"Name": profile["displayName"], "Name[ar]": profile["displayNameAr"]}
+    raise ValueError(f"Unknown MoOS global theme {package}")
+
+
 def lnf_metadata(package: str, light: bool) -> str:
     return json.dumps({
         "KPlugin": {
             "Id": package,
-            "Name": "MoOS UI Light" if light else "MoOS UI",
-            "Name[ar]": "MoOS UI الفاتح" if light else "MoOS UI",
+            **look_names(package),
             "Description": ("سمة MoOS UI التركواز الفاتحة | MoOS UI tidal light global theme"
                             if light else
                             "سمة MoOS UI الغرافيتية الداكنة | MoOS UI graphite dark global theme"),
