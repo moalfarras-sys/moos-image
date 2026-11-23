@@ -97,6 +97,8 @@ def main() -> int:
                     help="keep a private QML disk cache and start twice (warm second start)")
     ap.add_argument("--surface", choices=("login", "lock"), default="login",
                     help="lock: kscreenlocker_greet --testing (the same shared island)")
+    ap.add_argument("--source-fonts", action="store_true",
+                    help="bind this tree's Meyar fonts over the installed ones (fontconfig rescans privately)")
     ap.add_argument("--poll", type=float, default=0.0,
                     help="sample the screen every N seconds until the last frame time")
     args = ap.parse_args()
@@ -196,6 +198,8 @@ def main() -> int:
         wrap += ["--ro-bind", str(cfg / "plasmalogin.conf"), "/etc/plasmalogin.conf"]
         if not args.stock:
             wrap += overlays()
+        if args.source_fonts:
+            wrap += ["--ro-bind", str(FILES / "usr/share/fonts/meyar"), "/usr/share/fonts/meyar"]
         greeter_cmd = ["/usr/libexec/plasma-login-greeter"] + ([] if args.real else ["--test"])
         if args.surface == "lock":
             greeter_cmd = ["/usr/libexec/kscreenlocker_greet", "--testing"]
