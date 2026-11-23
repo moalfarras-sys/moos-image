@@ -10,6 +10,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory', type=Path)
     parser.add_argument('--capture', type=Path)
+    parser.add_argument('--size', type=int, choices=(16,24,42), default=42)
     args = parser.parse_args()
     app = QApplication([])
     reviewed = {}
@@ -26,6 +27,7 @@ def main():
     sizes = QComboBox()
     for size in (42, 24, 16):
         sizes.addItem(f'{size} px', size)
+    sizes.setCurrentIndex(sizes.findData(args.size))
     layout.addWidget(sizes)
     editor = QTextEdit()
     editor.setAcceptRichText(False)
