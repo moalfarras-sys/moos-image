@@ -66,6 +66,9 @@ MoUI.GlassSurface {
                 anchors.fill: parent
                 visible: logo.status !== Image.Ready
                 radius: MoUI.Tokens.radiusPanel
+                // The MoOS corner: the top-trailing corner is square.
+                topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, MoUI.Tokens.radiusSquare) : radius
+                topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, MoUI.Tokens.radiusSquare)
                 color: Kirigami.Theme.highlightColor
 
                 MoUI.SymbolIcon {

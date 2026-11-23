@@ -94,6 +94,9 @@ QtObject {
     readonly property int rSmall: 10
     readonly property int rControl: 14
     readonly property int rPanel: 22
+    // The MoOS corner's softening (Design Core radiusSquare): Mira's panels
+    // square their top-trailing corner like every MoOS card.
+    readonly property int rSquare: 3
     readonly property int rDock: 30
 
     // motion (ms); Reduced Motion multiplies to exactly zero

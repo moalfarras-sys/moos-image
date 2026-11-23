@@ -183,6 +183,14 @@ class ThePlasmaFramesWearItAndFrostIt(unittest.TestCase):
 
 
 class EveryHandDrawnCardStatesTheCorner(unittest.TestCase):
+    def test_mira_s_glass_wears_it(self):
+        mira = ROOT / "mira/qml/Mira"
+        self.assertIn("readonly property int rSquare: 3", (mira / "Theme.qml").read_text(encoding="utf-8"))
+        glass = (mira / "Glass.qml").read_text(encoding="utf-8")
+        self.assertIn("topLeftRadius: cornerApplies && LayoutMirroring.enabled ? squareRadius : radius", glass)
+        self.assertIn("topRightRadius: cornerApplies && !LayoutMirroring.enabled ? squareRadius : radius", glass)
+        self.assertIn("topLeftRadius: Math.max(0, parent.topLeftRadius - 1)", glass)
+
     def test_the_scanner_bites_on_a_plain_card(self):
         plain = ("Item {\n    Rectangle {\n        radius: design.radiusCard\n        color: \"red\"\n    }\n}\n")
         self.assertEqual(bare_card_rectangles(plain), [3])
@@ -193,7 +201,8 @@ class EveryHandDrawnCardStatesTheCorner(unittest.TestCase):
 
     def test_no_moos_card_rectangle_lacks_the_corner(self):
         offenders = []
-        for path in sorted((ROOT / "system_files/usr").rglob("*.qml")):
+        sources = [*(ROOT / "system_files/usr").rglob("*.qml"), *(ROOT / "moos-settings-kcm").rglob("*.qml")]
+        for path in sorted(sources):
             for line in bare_card_rectangles(path.read_text(encoding="utf-8")):
                 offenders.append(f"{path.relative_to(ROOT)}:{line}")
         self.assertEqual(offenders, [], "these MoOS cards are the only rounded ones on their screen; "

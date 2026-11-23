@@ -8,6 +8,12 @@ Rectangle {
     property color tint: Theme.glass
     property color edge: lit ? Qt.alpha(Theme.accent, 0.45) : Theme.hairline
     radius: Theme.rPanel
+    // The MoOS corner (owner steering 2026-11-22): three round corners and a
+    // square top-trailing one, top-left in Arabic. Pills stay round.
+    readonly property bool cornerApplies: radius * 2 < Math.min(width, height) - 1
+    readonly property real squareRadius: Math.min(radius, Theme.rSquare)
+    topLeftRadius: cornerApplies && LayoutMirroring.enabled ? squareRadius : radius
+    topRightRadius: cornerApplies && !LayoutMirroring.enabled ? squareRadius : radius
     color: tint
     border.width: 1
     border.color: edge
@@ -18,6 +24,8 @@ Rectangle {
         anchors.fill: parent
         anchors.margins: 1
         radius: parent.radius - 1
+        topLeftRadius: Math.max(0, parent.topLeftRadius - 1)
+        topRightRadius: Math.max(0, parent.topRightRadius - 1)
         color: "transparent"
         border.width: 1
         border.color: Theme.innerLight
