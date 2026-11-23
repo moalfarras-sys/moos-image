@@ -434,7 +434,8 @@ set -uo pipefail
 # 178: the Hub's cards sit on baked frost, read in secondary ink and fit their clock.
 # 179: MoOS Arrange splits the screen by itself as programs open and close.
 # 180: the Hub's weather eyebrow keeps a city name whole.
-THEME_REV=180
+# 181: keep automatic quarters inside exact work-area bounds and the active activity.
+THEME_REV=181
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

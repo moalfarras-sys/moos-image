@@ -107,7 +107,7 @@ function desk(area) {
     const context = {console: {info() {}}, KWin: {MaximizeArea: 1},
         callDBus(...a) { osd.push(a.join(" ")); },
         registerShortcut(n, t, k, f) { shortcuts[n] = f; }, registerUserActionsMenu(f) { menu = f; },
-        workspace: {currentDesktop: "current", stackingOrder: stack, activeWindow: null,
+        workspace: {currentDesktop: "current", currentActivity: "here", stackingOrder: stack, activeWindow: null,
             windowAdded: added, windowRemoved: removed, windowList() { return stack.slice(); },
             clientArea() { return area; }}};
     vm.runInNewContext(SOURCE, context);
@@ -149,6 +149,23 @@ assert.equal(t1.frameGeometry.x, t2.frameGeometry.x, "portrait stacks the two wi
 assert.notEqual(t1.frameGeometry.y, t2.frameGeometry.y, "portrait rows differ");
 const wideApp = desk(wide); const w1 = wideApp.open(); const w2 = wideApp.open({minSize: {width: 900, height: 200}});
 assert.equal(w1.writes + w2.writes, 0, "a program that cannot shrink to its half refuses the layout");
+const capped = desk(wide); const cap1 = capped.open();
+const cap2 = capped.open({maxSize: {width: 380, height: 800}});
+assert.equal(cap1.writes + cap2.writes, 0, "refuse a split a size-capped window cannot fill");
+const odd = desk({x: 17, y: 54, width: 1281, height: 721});
+const fourOdd = [odd.open(), odd.open(), odd.open(), odd.open()].map(w => w.frameGeometry);
+assert.equal(Math.max(...fourOdd.map(g => g.x+g.width)), 17+1281-8, "exact trailing margin");
+assert.equal(Math.max(...fourOdd.map(g => g.y+g.height)), 54+721-8, "exact bottom margin");
+const separate = desk(wide); const visible = separate.open();
+separate.open({activities: ["other"]});
+assert.equal(visible.writes, 0, "a different activity cannot trigger a split here");
+const unrelated = separate.open({normalWindow:false});
+separate.close(unrelated);
+assert.equal(visible.writes,0,"closing a dialog should not retile the current windows");
+const real = separate.open();
+const prior = real.writes;
+separate.close(separate.open({normalWindow:false}));
+assert.equal(real.writes, prior, "closing a transient should preserve manual placement");
 const off = desk(wide); off.shortcuts["MoOS Arrange: auto"]();
 assert.ok(off.osd.some(s => s.includes("Auto arrange: off")), "toggling shows the notice");
 const o1 = off.open(); const o2 = off.open();

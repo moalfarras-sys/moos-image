@@ -64,18 +64,22 @@ function isOnCurrentDesktop(window) {
     return desktops.indexOf(workspace.currentDesktop) !== -1;
 }
 
-function isArrangeable(window) {
+function eligibleWindow(window) {
     return !!window
         && window.normalWindow
-        && !window.minimized
         && !window.skipTaskbar
         && !window.skipSwitcher
         && !window.fullScreen
+        && (!window.activities || !window.activities.length || window.activities.indexOf(workspace.currentActivity) !== -1)
         && isOnCurrentDesktop(window)
         // `moveable` and `resizeable`, both with the e: `movable`/`resizable`
         // read as undefined here. Confirmed on the live window object.
         && window.moveable
         && window.resizeable;
+}
+
+function isArrangeable(window) {
+    return eligibleWindow(window) && !window.minimized;
 }
 
 // Top-most first. stackingOrder runs bottom to top, and "the windows in front of
@@ -112,24 +116,10 @@ function place(window, x, y, width, height) {
 // Lay windows out over `area` using a list of fractional rectangles.
 // Each cell is [x, y, width, height] as a fraction of the usable area.
 function layout(windows, cells, area) {
-    const usableX = area.x + MARGIN;
-    const usableY = area.y + MARGIN;
-    const usableWidth = area.width - MARGIN * 2;
-    const usableHeight = area.height - MARGIN * 2;
     const count = Math.min(windows.length, cells.length);
     for (let i = 0; i < count; ++i) {
-        const cell = cells[i];
-        // Half a gap is taken off each side of every shared edge, which is the
-        // same as a full gap between neighbours and no gap at the outer edges.
-        const left = cell[0] > 0 ? GAP / 2 : 0;
-        const top = cell[1] > 0 ? GAP / 2 : 0;
-        const right = cell[0] + cell[2] < 1 ? GAP / 2 : 0;
-        const bottom = cell[1] + cell[3] < 1 ? GAP / 2 : 0;
-        place(windows[i],
-              usableX + usableWidth * cell[0] + left,
-              usableY + usableHeight * cell[1] + top,
-              usableWidth * cell[2] - left - right,
-              usableHeight * cell[3] - top - bottom);
+        const rect = cellRect(cells[i], area);
+        place(windows[i], rect.x, rect.y, rect.width, rect.height);
     }
     return count;
 }
@@ -216,7 +206,6 @@ function arrange(kind, startFrom) {
 // MoOS Arrange sets the default.
 
 const AUTO_LIMIT = 4;
-const ROW_TOLERANCE = 48;   // logical px: windows whose centres differ less share a row
 let autoArrange = setting("AutoArrange", true);
 const arranged = {};        // internalId -> true, for windows the automatic mode placed
 
@@ -243,25 +232,31 @@ function centre(window) {
 
 function byX(a, b) { return centre(a).x - centre(b).x; }
 function byY(a, b) { return centre(a).y - centre(b).y; }
-function byRowThenX(a, b) {
-    const dy = centre(a).y - centre(b).y;
-    return Math.abs(dy) > ROW_TOLERANCE ? dy : centre(a).x - centre(b).x;
+// Resolve the rows first. A tolerance-based pairwise sort can form cycles
+// when three centres straddle the tolerance, moving a window across both axes.
+function inQuarterOrder(windows) {
+    const ordered = windows.slice().sort(byY);
+    return ordered.slice(0, 2).sort(byX).concat(ordered.slice(2).sort(byX));
 }
 
 // The pixel size layout() gives each cell, so a window's minimum can be checked first.
-function cellSize(cell, area) {
-    const usableWidth = area.width - MARGIN * 2;
-    const usableHeight = area.height - MARGIN * 2;
-    const gapsX = (cell[0] > 0 ? GAP / 2 : 0) + (cell[0] + cell[2] < 1 ? GAP / 2 : 0);
-    const gapsY = (cell[1] > 0 ? GAP / 2 : 0) + (cell[1] + cell[3] < 1 ? GAP / 2 : 0);
-    return {width: usableWidth * cell[2] - gapsX, height: usableHeight * cell[3] - gapsY};
+function cellRect(cell, area) {
+    const width = area.width - 2 * MARGIN, height = area.height - 2 * MARGIN;
+    const x = Math.round(cell[0] * width) + (cell[0] > 0 ? GAP / 2 : 0);
+    const y = Math.round(cell[1] * height) + (cell[1] > 0 ? GAP / 2 : 0);
+    const endX = cell[0] + cell[2], endY = cell[1] + cell[3];
+    const right = Math.round(endX * width) - (endX < 1 ? GAP / 2 : 0);
+    const bottom = Math.round(endY * height) - (endY < 1 ? GAP / 2 : 0);
+    return {x: area.x + MARGIN + x, y: area.y + MARGIN + y, width: right - x, height: bottom - y};
 }
 
 function fits(windows, cells, area) {
     for (let i = 0; i < windows.length; ++i) {
         const minimum = windows[i].minSize;
-        const size = cellSize(cells[i], area);
-        if (minimum && (minimum.width > size.width + 1 || minimum.height > size.height + 1)) {
+        const size = cellRect(cells[i], area);
+        const maximum = windows[i].maxSize;
+        if (maximum && (maximum.width < size.width || maximum.height < size.height)) return false;
+        if (minimum && (minimum.width > size.width || minimum.height > size.height)) {
             return false;
         }
     }
@@ -292,7 +287,7 @@ function autoArrangeOn(output, hint, leaving) {
     let ordered;
     if (windows.length === 4) {
         cells = QUARTERS;
-        ordered = windows.slice().sort(byRowThenX);
+        ordered = inQuarterOrder(windows);
     } else if (portrait) {
         cells = rows(windows.length);
         ordered = windows.slice().sort(byY);
@@ -333,7 +328,7 @@ function setAutoArrange(on) {
 function watch(window) {
     if (window && window.minimizedChanged && window.minimizedChanged.connect) {
         window.minimizedChanged.connect(function () {
-            autoArrangeOn(window.output, window.minimized ? null : window);
+            if (eligibleWindow(window)) autoArrangeOn(window.output, window.minimized ? null : window);
         });
     }
 }
@@ -349,7 +344,7 @@ if (workspace.windowAdded && workspace.windowAdded.connect) {
 if (workspace.windowRemoved && workspace.windowRemoved.connect) {
     workspace.windowRemoved.connect(function (window) {
         delete arranged[idOf(window)];
-        autoArrangeOn(window.output, null, window);
+        if (isArrangeable(window)) autoArrangeOn(window.output, null, window);
     });
 }
 if (typeof workspace.windowList === "function") {

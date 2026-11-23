@@ -12,13 +12,14 @@ off is the negative: its windows must stay where KWin put them.
 
 All writable state and sockets stay under a unique /tmp directory, retained as
 evidence. The private bus has no service activation directories. Software
-compositor evidence only: no physical display, panel or input acceptance.
+compositor evidence only: virtual 48px layer-shell panel; no physical display or input acceptance.
 
     python3 scripts/review/arrange-auto-native.py
 """
 import json
 import os
 import pathlib
+import sys
 import subprocess
 import tempfile
 import time
@@ -99,6 +100,13 @@ def run(variant):
     for index in range(1, 5):
         opened.append(open_window(f"MOOS_AUTO_{variant}_{index}"))
         load(f"read_{variant}_{index}", READ.replace("{tag}", f"{variant.upper()}_{index}"))
+    if variant == "panel":
+        for remaining in (3, 2):
+            closed = opened.pop()
+            closed.terminate()
+            closed.wait(timeout=5)
+            time.sleep(.5)
+            load(f"close_{remaining}", READ.replace("{tag}", f"CLOSE_{remaining}"))
     load(f"unload_{variant}", 'console.info("unload");')
     qdbus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "arrange_" + variant)
     for proc in opened:
@@ -128,6 +136,33 @@ try:
         raise RuntimeError("no private Wayland socket")
     time.sleep(0.6)
     timing = {"on": run("on"), "off": run("off")}
+    # Exercise the work-area exclusion through the real layer-shell protocol.
+    panel_qml = r / "panel.qml"
+    panel_qml.write_text("""import QtQuick
+import org.kde.layershell as LS
+Window {
+    width: 1280; height: 48; visible: true
+    LS.Window.anchors: LS.Window.AnchorTop | LS.Window.AnchorLeft | LS.Window.AnchorRight
+    LS.Window.layer: LS.Window.LayerTop
+    LS.Window.exclusionZone: 48
+    LS.Window.scope: "moos-arrange-private-panel"
+}""")
+    client = r / "panel.py"
+    client.write_text("""import sys
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QUrl
+from PySide6.QtQml import QQmlApplicationEngine
+app = QGuiApplication([])
+engine = QQmlApplicationEngine()
+engine.load(QUrl.fromLocalFile(sys.argv[1]))
+assert engine.rootObjects()
+app.exec()
+""")
+    panel = subprocess.Popen([sys.executable, str(client), str(panel_qml)],
+                             env=env | {"QT_WAYLAND_SHELL_INTEGRATION": "layer-shell"},
+                             stdout=(r / "panel.log").open("w"), stderr=subprocess.STDOUT)
+    procs.append(panel)
+    timing["panel"] = run("panel")
     found = {}
     for line in (r / "kwin.log").read_text(errors="replace").splitlines():
         if "ARRANGE_AUTO_" in line:
@@ -144,11 +179,17 @@ try:
     assert all(abs(g["width"] - 628) <= 2 for g in two) and len({g["x"] for g in two}) == 2, two
     assert all(abs(g["width"] - 628) <= 2 and abs(g["height"] - 348) <= 2 for g in four), four
     assert len({(g["x"], g["y"]) for g in four}) == 4, four
+    panel_four = geoms("PANEL_4")
+    assert sorted((g["x"],g["y"],g["width"],g["height"]) for g in panel_four) == [
+        (8,56,628,324),(8,388,628,324),(644,56,628,324),(644,388,628,324)], panel_four
+    closed_two = geoms("CLOSE_2")
+    assert sorted((g["x"],g["y"],g["width"],g["height"]) for g in closed_two) == [
+        (8,56,628,656),(644,56,628,656)], closed_two
     off_four = geoms("OFF_4")
     assert not any(abs(g["width"] - 628) <= 2 and abs(g["height"] - 348) <= 2 for g in off_four), off_four
-    receipt = {"result": "PASS", "two": two, "four": four, "offFour": off_four, "seconds": timing,
+    receipt = {"result": "PASS", "two": two, "four": four, "offFour": off_four, "panelFour": panel_four, "afterClosingTwo": closed_two, "seconds": timing,
                "api": {"internalId": api["windows"][0]["id"], "minSize": api["windows"][0]["min"]},
-               "scope": "private virtual KWin, native Wayland clients; no physical display, panel or input"}
+               "scope": "private virtual KWin, native Wayland clients; virtual 48px layer-shell panel; no physical display or input"}
     (r / "result.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(json.dumps(receipt, indent=2), flush=True)
 finally:
