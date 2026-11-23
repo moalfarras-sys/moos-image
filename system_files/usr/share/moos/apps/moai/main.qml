@@ -104,9 +104,7 @@ Kirigami.ApplicationWindow {
     readonly property color accentText:   Kirigami.Theme.highlightedTextColor
 
     // Same focus ring as Mo Store, Welcome and the Installer. One focus treatment across MoOS.
-    component FocusRing: MoUI.FocusRing {
-        accentColor: root.novaBlue
-    }
+    component FocusRing: MoUI.FocusRing { }
     // Mo AI is theme-adaptive (its palette comes from the active KDE scheme), so
     // the hero's baked aurora must follow suit: light themes (Tidal/Daylight) get
     // the pale variant, dark themes the deep one.

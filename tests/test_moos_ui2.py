@@ -895,7 +895,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=178", apply,
+            "THEME_REV=179", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -2901,9 +2901,11 @@ assert.equal(columns(100, 180), 1);
         self.assertRegex(
             system_card,
             r"healthColor\s*:\s*!coreSensorsReady\s*\n\s*"
-            r"\?\s*Kirigami\.Theme\.disabledTextColor",
+            r"\?\s*systemCard\.secondaryInk",
             "missing core sensors must use a non-healthy neutral colour",
         )
+        self.assertRegex(system_card, r"secondaryInk: Qt\.rgba\(Kirigami\.Theme\.textColor\.r,\s*"
+                         r"Kirigami\.Theme\.textColor\.g,\s*Kirigami\.Theme\.textColor\.b, 0\.72\)")
         self.assertRegex(
             system_card,
             r"healthLabel\s*:\s*!coreSensorsReady\s*\n\s*\?\s*"

@@ -432,7 +432,8 @@ set -uo pipefail
 # 176: the MoOS Button's press answers on its content item again.
 # 177: Home commands in the launcher reserve their full Arabic caption height.
 # 178: the Hub's cards sit on baked frost, read in secondary ink and fit their clock.
-THEME_REV=178
+# 179: draw keyboard focus with the active palette’s dedicated outline.
+THEME_REV=179
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
