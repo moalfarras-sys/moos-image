@@ -40,15 +40,8 @@ OVERLAY_DIRS = ("org/moos/ui", "org/kde/breeze/components")
 WALLPAPER_PLUGIN = Path("/usr/share/plasma/wallpapers/org.moos.ui2.greeter")
 
 LOOKS = {
-    # look -> (colour scheme, icon theme, wallpaper package, plasma style)
-    "org.moos.ui2.bloom": ("MoOSUI2Bloom", "MoOSUI2Bloom", "MoOSUI2Bloom", "MoOSUI2Bloom"),
-    "org.moos.ui2.bloom.light": ("MoOSUI2BloomLight", "MoOSUI2BloomLight", "MoOSUI2BloomLight", "MoOSUI2BloomLight"),
-    "org.moos.ui2": ("MoOSUI2Dark", "MoOSUI2", "MoOSUI2Graphite", "MoOSUI2"),
-    "org.moos.ui2.light": ("MoOSUI2Light", "MoOSUI2Light", "MoOSUI2Tide", "MoOSUI2Light"),
-    "org.moos.ui2.aurora": ("MoOSUI2Aurora", "MoOSUI2Aurora", "MoOSUI2Aurora", "MoOSUI2Aurora"),
-    "org.moos.ui2.aurora.light": ("MoOSUI2AuroraLight", "MoOSUI2AuroraLight", "MoOSUI2AuroraLight", "MoOSUI2AuroraLight"),
-    "org.moos.ui2.gaming": ("MoOSUI2Arena", "MoOSUI2Arena", "MoOSUI2Arena", "MoOSUI2Arena"),
-    "org.moos.ui2.study.light": ("MoOSUI2ScholarLight", "MoOSUI2ScholarLight", "MoOSUI2ScholarLight", "MoOSUI2ScholarLight"),
+    profile["id"]: (profile["scheme"], profile["icons"], profile["wallpaper"], profile["style"])
+    for profile in json.loads((FILES / "usr/share/moos/theme-profiles.json").read_text())["profiles"]
 }
 
 
@@ -82,7 +75,7 @@ def overlays() -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
-    ap.add_argument("--look", default="org.moos.ui2.bloom")
+    ap.add_argument("--look", choices=sorted(LOOKS), default="org.moos.ui2.bloom")
     ap.add_argument("--lang", default="ar")
     ap.add_argument("--logical", default="1766x1104")
     ap.add_argument("--scale", type=float, default=1.45)
@@ -112,9 +105,7 @@ def main() -> int:
     for d in ("home", "config", "cache", "data", "xdg", "run"):
         (base / d).mkdir(mode=0o700)
     cfg = base / "config"
-    colors = Path(f"/usr/share/color-schemes/{scheme}.colors")
-    if not colors.is_file():
-        colors = FILES / f"usr/share/color-schemes/{scheme}.colors"
+    colors = (Path("/") if args.stock else FILES) / f"usr/share/color-schemes/{scheme}.colors"
     (cfg / "kdeglobals").write_text(
         colors.read_text(encoding="utf-8")
         + f"\n[General]\nColorScheme={scheme}\nfont=Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\n"
