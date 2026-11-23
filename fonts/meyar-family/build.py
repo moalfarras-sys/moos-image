@@ -9,7 +9,7 @@ from fontTools.otlLib.builder import buildStatTable
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.t2CharStringPen import T2CharStringPen
 from fontTools.ttLib.tables import otTables
-from design import latin_design,mono_grid,soften_glyph,kawkab_lexical_source,master_layers,fillet_path,compact_mono_marks,terminal_cells,arabic_terminal_cells
+from design import latin_design,mono_grid,sculpt_arabic_caps,kawkab_lexical_source,master_layers,fillet_path,compact_mono_marks,terminal_cells,arabic_terminal_cells
 
 ROOT=Path(__file__).resolve().parent
 STYLES={100:'Thin',200:'ExtraLight',300:'Light',400:'Regular',500:'Medium',600:'SemiBold',700:'Bold',800:'ExtraBold',900:'Black'}
@@ -99,8 +99,7 @@ def main():
         tmp=out/'source/ArabicBase.glyphs';changes+=base.prepare(tmp,a.control);f=glyphsLib.GSFont(tmp)
         glyph_data=ROOT.parent/'meyar-arabic/upstream/sources/GlyphData.xml'
         if not a.control:
-            for name in ['alef-ar','alef-ar.fina','alef-ar.short','alef-ar.short.fina','lam-ar.init','lam-ar.medi','kafDotless-ar.init']:
-                changes+=soften_glyph(f,name,minimum_y=300)
+            changes+=sculpt_arabic_caps(f)
     elif a.kind=='mono-arabic':
         lock=locked('upstream-kawkab','upstream-kawkab-lock.json')
         text,lexical=kawkab_lexical_source((ROOT/'upstream-kawkab/src/Kawkab Mono.glyphs').read_text())

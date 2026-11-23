@@ -28,9 +28,9 @@
         140
       ],
       "mode": "RGBA",
-      "bytes": 5353,
+      "bytes": 5433,
       "decodedBytes": 223440,
-      "sha256": "efec8706057c3f62b6390c864d656806066e4fec3b01371307f092af7ea98627"
+      "sha256": "0db55d10b28832690effbd5b470dc54dd099bbcbac56932672fe3e1782ebbb40"
     },
     "glass-bezel.png": {
       "size": [
@@ -158,9 +158,9 @@
         131
       ],
       "mode": "RGBA",
-      "bytes": 5796,
+      "bytes": 5840,
       "decodedBytes": 210648,
-      "sha256": "fb6055803ea4aadf15068334916b41926fc620872566962c5027e5cccdf39b2b"
+      "sha256": "02a1a3ca8e5c8dcb9c12c084a55da296ec01c6291cc28124f2f00d352d7e67f6"
     }
   }
 }

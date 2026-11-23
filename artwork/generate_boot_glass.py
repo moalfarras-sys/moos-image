@@ -19,6 +19,11 @@ Usage:
     python3 artwork/generate_boot_glass.py --work test-results/blender-boot/glass
     python3 artwork/generate_boot_glass.py --work DIR --compose-only
     MOOS_BLENDER="blender" python3 artwork/generate_boot_glass.py --work DIR
+    python3 artwork/generate_boot_glass.py --captions-only
+
+--captions-only rewrites just the Meyar Arabic captions and their provenance:
+an Arabic outline change reaches only the shaped captions, while every rendered
+layer and the rest of the provenance stay byte-identical.
 
 Output is source artwork. Native Plymouth pixels, image gates and a signed boot
 remain separate proofs.
@@ -261,14 +266,52 @@ def caption(text: str) -> Image.Image:
     return Image.fromarray(np.dstack([rgb, a]).round().astype(np.uint8), "RGBA")
 
 
+def write_captions() -> None:
+    caption_records = {}
+    for key, (text, name) in CAPTIONS.items():
+        image = caption(text)
+        image.save(THEME / name, optimize=True)
+        caption_records[key] = dict(caption=text, size=list(image.size),
+                                    pixelSHA256=sha256(image.tobytes()))
+
+    welcome = caption_records["welcome"]
+    CAPTION_PROVENANCE.write_text(json.dumps(dict(
+        caption=welcome["caption"], font="Meyar Arabic Regular",
+        fontSource=str(ARABIC.relative_to(ROOT)), fontSHA256=sha256(ARABIC.read_bytes()),
+        shaping="Pillow libraqm (HarfBuzz/FriBiDi), direction rtl, language ar",
+        size=welcome["size"], pixelSHA256=welcome["pixelSHA256"], captions=caption_records,
+    ), ensure_ascii=False, indent=2) + "\n")
+
+
+def theme_assets() -> dict:
+    assets = {}
+    for path in sorted(THEME.glob("*.png")):
+        with Image.open(path) as image:
+            assets[path.name] = dict(size=list(image.size), mode=image.mode,
+                                     bytes=path.stat().st_size,
+                                     decodedBytes=image.width * image.height * 4,
+                                     sha256=sha256(path.read_bytes()))
+    return assets
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--work", required=True, type=Path,
+    parser.add_argument("--work", type=Path,
                         help="private real-disk directory, never the theme or /tmp")
     parser.add_argument("--samples", type=int, default=160)
     parser.add_argument("--compose-only", action="store_true")
     parser.add_argument("--save-blend", action="store_true")
+    parser.add_argument("--captions-only", action="store_true",
+                        help="rewrite only the Arabic captions and refresh the asset records")
     args = parser.parse_args()
+    if args.captions_only:
+        write_captions()
+        record = json.loads(PROVENANCE.read_text())
+        record["assets"] = theme_assets()
+        PROVENANCE.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n")
+        return
+    if args.work is None:
+        parser.error("--work is required unless --captions-only is given")
     work = args.work.resolve()
     if THEME.resolve() in (work, *work.parents) or work == ROOT.resolve():
         raise SystemExit("refusing a work directory inside the theme or at the repository root")
@@ -295,28 +338,8 @@ def main() -> None:
     glint().save(THEME / "glass-glint.png", optimize=True)
     for image, name in zip(letters(), LETTER_FILES):
         image.save(THEME / name, optimize=True)
-    caption_records = {}
-    for key, (text, name) in CAPTIONS.items():
-        image = caption(text)
-        image.save(THEME / name, optimize=True)
-        caption_records[key] = dict(caption=text, size=list(image.size),
-                                    pixelSHA256=sha256(image.tobytes()))
-
-    welcome = caption_records["welcome"]
-    CAPTION_PROVENANCE.write_text(json.dumps(dict(
-        caption=welcome["caption"], font="Meyar Arabic Regular",
-        fontSource=str(ARABIC.relative_to(ROOT)), fontSHA256=sha256(ARABIC.read_bytes()),
-        shaping="Pillow libraqm (HarfBuzz/FriBiDi), direction rtl, language ar",
-        size=welcome["size"], pixelSHA256=welcome["pixelSHA256"], captions=caption_records,
-    ), ensure_ascii=False, indent=2) + "\n")
-
-    assets = {}
-    for path in sorted(THEME.glob("*.png")):
-        with Image.open(path) as image:
-            assets[path.name] = dict(size=list(image.size), mode=image.mode,
-                                     bytes=path.stat().st_size,
-                                     decodedBytes=image.width * image.height * 4,
-                                     sha256=sha256(path.read_bytes()))
+    write_captions()
+    assets = theme_assets()
     PROVENANCE.write_text(json.dumps(dict(
         schema=1,
         concept="MoOS Liquid Glass: droplets gather into a glass lens and the mark resolves",
