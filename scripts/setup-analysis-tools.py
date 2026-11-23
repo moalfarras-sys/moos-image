@@ -90,18 +90,21 @@ def require_rea_integrity(archive,manifest):
     if actual!=expected:raise RuntimeError('official REA archive integrity differs')
 
 
-def normalized_lock(data):
+def normalized_lock(data,version):
+    if not re.fullmatch(r"[0-9]+(?:\.[0-9]+){2}",version):raise RuntimeError("invalid REA version")
+    archive=f"rea-agents-{version}.tgz"
+    url="https://registry.npmjs.org/rea-agents/-/"+archive
     data=json.loads(json.dumps(data));data['name']='moos-analysis-rea';data['version']='1.0.0'
     root=data['packages'][''];dependencies=root.get('dependencies',{})
     if set(dependencies)!= {'rea-agents'}:raise RuntimeError('unexpected REA root dependencies')
     dependency=dependencies['rea-agents']
-    if dependency!='6.7.0' and not (dependency.startswith('file:') and dependency.endswith('/rea-agents-6.7.0.tgz')):
+    if dependency!=version and not (dependency.startswith('file:') and dependency.endswith('/'+archive)):
         raise RuntimeError('unexpected REA root dependency source')
     source=data['packages']['node_modules/rea-agents']['resolved']
-    if source!='https://registry.npmjs.org/rea-agents/-/rea-agents-6.7.0.tgz' and not (source.startswith('file:') and source.endswith('/rea-agents-6.7.0.tgz')):
+    if source!=url and not (source.startswith('file:') and source.endswith('/'+archive)):
         raise RuntimeError('unexpected REA archive source')
-    root.update({'name':data['name'],'version':data['version'],'dependencies':{'rea-agents':'6.7.0'}})
-    data['packages']['node_modules/rea-agents']['resolved']='https://registry.npmjs.org/rea-agents/-/rea-agents-6.7.0.tgz'
+    root.update({'name':data['name'],'version':data['version'],'dependencies':{'rea-agents':version}})
+    data['packages']['node_modules/rea-agents']['resolved']=url
     return data
 
 
@@ -181,7 +184,7 @@ def check_rea(target,manifest):
     if not package.is_file() or json.loads(package.read_text())['version']!=manifest['rea']['version']:
         raise RuntimeError('REA version missing/drifted')
     expected=reviewed_lock(manifest)
-    if normalized_lock(json.loads((target/'package-lock.json').read_text()))!=expected:
+    if normalized_lock(json.loads((target/'package-lock.json').read_text()),manifest['rea']['version'])!=expected:
         raise RuntimeError('REA transitive lock differs')
     for name,record in expected['packages'].items():
         if not name:continue

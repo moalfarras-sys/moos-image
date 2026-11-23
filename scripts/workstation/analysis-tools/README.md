@@ -1,7 +1,7 @@
 # Optional MoOS analysis workstation profile
 
-REA6.7.0 and Ghidra12.2 are user applications. This profile reuses the existing
-Node26.12.0 runtime and `moos-dev` Toolbx JDK25; it installs no host RPM or kernel
+REA6.10.1 and Ghidra12.2 are user applications. This profile reuses the existing
+Node24.22.2 runtime and `moos-dev` Toolbx JDK25; it installs no host RPM or kernel
 and changes no provider account or MCP client configuration. It supports this
 x86_64 workstation profile, not every architecture.
 
@@ -12,7 +12,7 @@ then run from the repository:
 ```sh
 python3 scripts/setup-analysis-tools.py --install \
   --ghidra-archive /path/to/ghidra_12.2_PUBLIC_20261016.zip \
-  --rea-tarball /path/to/rea-agents-6.7.0.tgz
+  --rea-tarball /path/to/rea-agents-6.10.1.tgz
 python3 scripts/setup-analysis-tools.py --check
 ```
 
@@ -23,7 +23,7 @@ remain refusals. npm lifecycle scripts are disabled. Optional native providers
 such as Frida are not qualified by installing their package metadata.
 
 Dependency updates at the same REA version use a separate directory named
-`rea-6.7.0-sha256-<full reviewed lock SHA256>`. The installer renders the
+`rea-<version>-sha256-<full reviewed lock SHA256>`. The installer renders the
 `moos-rea` template to that exact generation and records both its identity and
 lock in the profile receipt. An existing generation needs its own matching
 receipt and must still pass the package/lock/archive checks; unknown directories
@@ -117,3 +117,5 @@ launcher/receipt recovery is retained. Existing MCP readers adopt new code only
 after their normal client restart; no engineering session is killed. This is
 a local tool update, not a signed OS update or a new provider/Ghidra GUI journey.
 [Bounded native evidence](../../../docs/reviews/2026-11-04-analysis-profile-generations.json).
+
+The November 23 V3 update uses REA 6.10.1 with the existing compatible Node 24.22.2 and Ghidra 12.2. The installed launcher completed MCP initialization and listed 263 tools. The publisher shrinkwrap installs Minimatch 10.2.5 under the optional Frida dependency despite the root override. The registry audit reports a moderate advisory there. A lock-only replacement did not change the installed dependency version.

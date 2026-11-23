@@ -89,13 +89,14 @@ class ProfileFileControls(unittest.TestCase):
 
     def test_legacy_local_tar_lock_keeps_all_reviewed_transitive_pins_and_refuses_extra_dependencies(self):
         lock=json.loads((M.INPUTS/'package-lock.json').read_text());old=json.loads(json.dumps(lock))
-        old['packages']['']['dependencies']['rea-agents']='file:../downloads/rea-agents-6.7.0.tgz'
-        old['packages']['node_modules/rea-agents']['resolved']='file:../downloads/rea-agents-6.7.0.tgz'
-        self.assertEqual(M.normalized_lock(old),lock)
+        version=lock['packages']['node_modules/rea-agents']['version']
+        old['packages']['']['dependencies']['rea-agents']=f'file:../downloads/rea-agents-{version}.tgz'
+        old['packages']['node_modules/rea-agents']['resolved']=f'file:../downloads/rea-agents-{version}.tgz'
+        self.assertEqual(M.normalized_lock(old,version),lock)
         old['packages']['']['dependencies']['other']='1'
-        with self.assertRaisesRegex(RuntimeError,'root dependencies'):M.normalized_lock(old)
+        with self.assertRaisesRegex(RuntimeError,'root dependencies'):M.normalized_lock(old,version)
         old=json.loads(json.dumps(lock));old['packages']['node_modules/rea-agents']['resolved']='https://example.invalid/rea.tgz'
-        with self.assertRaisesRegex(RuntimeError,'archive source'):M.normalized_lock(old)
+        with self.assertRaisesRegex(RuntimeError,'archive source'):M.normalized_lock(old,version)
 
 
 class ProfileGenerations(unittest.TestCase):
