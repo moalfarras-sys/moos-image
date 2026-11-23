@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the optional Bloom finish above the existing MoOS/Plasma owners.
 
-Curated GPL artwork supplies the Colloid frame and Fluent file vocabulary.
-MoOS supplies the palette, complete native window actions and their ink.
+Curated GPL artwork supplies the Fluent file vocabulary. MoOS supplies the
+palette, the shared slim window frame, its native window actions and their ink.
 The sixteen existing profiles are untouched.
 """
 from __future__ import annotations
@@ -56,86 +56,32 @@ def contrast(one: str, other: str) -> float:
     return (hi+.05)/(lo+.05)
 
 
-def readable_pair(background: str) -> tuple[str, str]:
-    candidates = ("#14202D", "#F1F5F4")
-    # Mid-luminance accents can fall between both ink choices. Move the fill
-    # the smallest amount, rather than weakening the contrast requirement.
-    for amount in range(26):
-        fills = [background] if amount == 0 else [mix(end, background, amount/100) for end in candidates]
-        pairs = [(fill, ink) for fill in fills for ink in candidates if contrast(ink, fill) >= 4.5]
-        if pairs:
-            return min(pairs, key=lambda pair: sum(abs(a-b) for a, b in zip(rgb(background), rgb(pair[0]))))
-    raise ValueError("Bloom window action has no readable paired ink")
-
-
-def button(name: str, background: str, accent: str, text: str, negative: str) -> str:
-    return glyphs._button_svg(name, {"surface": background, "text": text,
-                                   "muted": text, "negative": negative,
-                                   "secondary": accent, "primary": accent})
-
-
-def frame(light: bool, profile: dict) -> None:
-    name = profile["decoration"]
-    mode = "light" if light else "dark"
-    source = VENDOR / "colloid" / mode
-    target = SHARE / "aurorae/themes" / name
+def frame_roles(profile: dict) -> dict[str, str]:
+    """The frame roles of one Bloom finish, read from its own colour scheme."""
     colors = configparser.ConfigParser(interpolation=None)
     colors.read(SHARE / "color-schemes" / (profile["scheme"] + ".colors"))
     background = hex_color(rgb(colors["Colors:Window"]["BackgroundNormal"]))
     text = hex_color(rgb(colors["Colors:Window"]["ForegroundNormal"]))
     negative = hex_color(rgb(colors["Colors:Window"]["ForegroundNegative"]))
-    secondary = next(mix(text, background, n/100) for n in range(70, 101)
-                     if contrast(mix(text, background, n/100), background) >= 4.5)
-    svg = (source / "decoration.svg").read_text()
-    # Keep the vendor geometry, but bake the matched MoOS palette into every
-    # currentColor shape. Plain QSvgRenderer and Aurorae must agree, including
-    # after a maximized/restored transition and with no colour-scheme extension.
-    for role, color in (("Text", text), ("Background", background),
-                        ("HeaderBackground", background), ("Highlight", profile["accent"])):
-        svg = re.sub(r'class="ColorScheme-'+role+r'"\s+fill="currentColor"',
-                     'fill="'+color+'"', svg)
-    extra = []
-    for prefix, original in (("decoration-opaque", "decoration"),
-                             ("decoration-opaque-inactive", "decoration-inactive")):
-        for position in glyphs.FRAME_POSITIONS:
-            extra.append(f'<use id="{prefix}-{position}" xlink:href="#{original}-{position}"/>')
-    for prefix in ("decoration-maximized", "decoration-maximized-inactive",
-                   "decoration-maximized-opaque", "decoration-maximized-opaque-inactive"):
-        extra.append(f'<rect id="{prefix}-center" width="24" height="24" fill="{background}"/>')
-    write(target / "decoration.svg", svg.replace("</svg>", '\n'.join(extra) + '\n</svg>'))
-    rc = (source / "theme.rc").read_text()
-    # Aurorae v2 centres the caption between the two button groups, so every
-    # px reserved here is caption room lost on both sides. The earlier 140 px
-    # TitleBorderLeft/Right left a 388 px window with no caption at all and
-    # elided "Open File — Documents" to two letters (native capture, 75 %).
-    # The three 44 px actions stay on one side (kwinrc XIA, mirrored for RTL);
-    # kwinrc's one explicit spacer on the other side is the action group's
-    # exact width, so the caption is centred on the window in both directions.
-    # Maximized edges are 0: the outermost action reaches the screen corner.
-    target_px, spacing, actions = 44, 2, 3
-    settings = {"ActiveTextColor": ','.join(map(str, rgb(text))),
-                "InactiveTextColor": ','.join(map(str, rgb(secondary))),
-                "UseTextShadow": "false", "Animation": "140", "Shadow": "true",
-                "TitleHeight": "44", "TitleEdgeTop": "0", "TitleEdgeBottom": "0",
-                "TitleEdgeTopMaximized": "0", "TitleEdgeBottomMaximized": "0",
-                "TitleEdgeLeft": "4", "TitleEdgeRight": "4",
-                "TitleEdgeLeftMaximized": "0", "TitleEdgeRightMaximized": "0",
-                "TitleBorderLeft": "6", "TitleBorderRight": "6",
-                "ButtonWidth": str(target_px), "ButtonHeight": str(target_px), "ButtonSpacing": str(spacing),
-                "ButtonMarginTop": "0",
-                "ExplicitButtonSpacer": str(actions * target_px + (actions - 1) * spacing)}
-    for key, value in settings.items():
-        rc, count = re.subn(r'^'+key+r'=.*$', key+'='+value, rc, flags=re.M)
-        if count != 1:
-            raise ValueError(f"Unexpected upstream Aurorae key {key}")
-    rc += '\n# 44px target and title match in restored and maximized states.\nButtonMarginTopMaximized=0\n'
-    write(target / (name+"rc"), rc)
-    for action in glyphs.BUTTONS:
-        write(target / (action+".svg"), button(action, background, profile["accent"], text, negative))
+    return {"surface": background, "text": text, "muted": text, "negative": negative,
+            "secondary": profile["accent"], "primary": profile["accent"]}
+
+
+def frame(light: bool, profile: dict) -> None:
+    """Bloom's window frame is the shared slim MoOS frame in Bloom's palette.
+
+    artwork/generate_moos_aurorae.py owns one frame geometry for every MoOS
+    look (owner steering 2026-11-23: slim, application-matched frames). The
+    reviewed Colloid round frame this finish first used is archived with its
+    notices; Bloom keeps its own title surface, ink and action accent.
+    """
+    name = profile["decoration"]
+    target = SHARE / "aurorae/themes" / name
+    glyphs.render_aurorae_suite(target, frame_roles(profile), plugin_name=name)
     write(target / "metadata.desktop", '[Desktop Entry]\nName=MoOS UI · Bloom'+(' Light' if light else '')+'\n'
-          'Comment=Soft native MoOS window frame\nX-KDE-PluginInfo-Author=MoOS; Vince Liuice\n'
-          f'X-KDE-PluginInfo-Name={name}\nX-KDE-PluginInfo-Version=1.0\n'
-          'X-KDE-PluginInfo-License=GPL-3.0\nX-KDE-ServiceTypes=KWin/Decoration\nType=Service\n')
+          'Comment=Slim native MoOS window frame\nX-KDE-PluginInfo-Author=Moalfarras\n'
+          f'X-KDE-PluginInfo-Name={name}\nX-KDE-PluginInfo-Version=2.0\n'
+          'X-KDE-PluginInfo-License=GPL-3.0-or-later\nX-KDE-ServiceTypes=KWin/Decoration\nType=Service\n')
     write(target / "COPYING", (VENDOR / "colloid/COPYING").read_bytes())
     write(target / "UPSTREAM.json", (VENDOR / "UPSTREAM.json").read_bytes())
 

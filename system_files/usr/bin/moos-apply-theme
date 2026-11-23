@@ -436,7 +436,8 @@ set -uo pipefail
 # 180: the Hub's weather eyebrow keeps a city name whole.
 # 181: keep automatic quarters inside exact work-area bounds and the active activity.
 # 182: refresh native focus outlines alongside automatic quarters.
-THEME_REV=182
+# 183: refresh the shared window frame and the inset action glyphs.
+THEME_REV=183
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
