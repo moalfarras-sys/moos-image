@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.dev.light",
-        "Name": "MoOS · Misbar",
+        "Name": "MoOS · Meadow Sage",
         "Description": "للتطوير نهاراً: سليت فاتح مركّز | Forge by day: a light, focused slate",
         "Authors": [
             {
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "مسبار · MoOS"
+        "Name[ar]": "مرج المريمية · MoOS"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

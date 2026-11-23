@@ -60,8 +60,8 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
 
   moos-theme            الحالي | show the active theme
   moos-theme list       القائمة | list all MoOS themes
-  moos-theme dark       مداد | Midad (default)
-  moos-theme light      مدى | Mada
+  moos-theme dark       مداد الفيروز | Midad Turquoise (default)
+  moos-theme light      موج النعناع | Mint Tide
   moos-theme toggle     بدّل   | flip the current family light <-> dark
   moos-theme undo       تراجع  | revert to the previously applied theme
   moos-theme auto       تلقائي | follow sunrise/sunset in the selected family
