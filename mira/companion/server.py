@@ -707,15 +707,22 @@ class CompanionServer:
             else:
                 self._status('error', 'failed')
             return False
-        self._listener = listener
-        self._host = host
-        self._port = listener.sockets[0].getsockname()[1]
+        try:
+            port = listener.sockets[0].getsockname()[1]
+        except BaseException:
+            listener.close()             # not yet published: nothing else would close it
+            raise
         names = tuple(n.lower() for n in found.names if isinstance(n, str) and NAME_RE.fullmatch(n))
-        hosts = {f'{host}:{self._port}'} | {f'{name}:{self._port}' for name in names}
+        hosts = {f'{host}:{port}'} | {f'{name}:{port}' for name in names}
+        self._host = host
+        self._port = port
         self._allowed_hosts = frozenset(hosts)
         self._allowed_origins = frozenset('http://' + h for h in hosts)
-        self._log(f'listening on {host}:{self._port}')
-        self._status('running', {'host': host, 'port': self._port, 'names': list(names)})
+        # The listener is published last. Other threads read running/wait_listening/port, and
+        # getsockname() above releases the GIL: whoever sees the listener must see its endpoint.
+        self._listener = listener
+        self._log(f'listening on {host}:{port}')
+        self._status('running', {'host': host, 'port': port, 'names': list(names)})
         return True
 
     async def _close_listener(self):
