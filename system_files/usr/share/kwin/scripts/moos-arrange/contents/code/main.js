@@ -64,18 +64,22 @@ function isOnCurrentDesktop(window) {
     return desktops.indexOf(workspace.currentDesktop) !== -1;
 }
 
-function isArrangeable(window) {
+function eligibleWindow(window) {
     return !!window
         && window.normalWindow
-        && !window.minimized
         && !window.skipTaskbar
         && !window.skipSwitcher
         && !window.fullScreen
+        && (!window.activities || !window.activities.length || window.activities.indexOf(workspace.currentActivity) !== -1)
         && isOnCurrentDesktop(window)
         // `moveable` and `resizeable`, both with the e: `movable`/`resizable`
         // read as undefined here. Confirmed on the live window object.
         && window.moveable
         && window.resizeable;
+}
+
+function isArrangeable(window) {
+    return eligibleWindow(window) && !window.minimized;
 }
 
 // Top-most first. stackingOrder runs bottom to top, and "the windows in front of
@@ -112,24 +116,10 @@ function place(window, x, y, width, height) {
 // Lay windows out over `area` using a list of fractional rectangles.
 // Each cell is [x, y, width, height] as a fraction of the usable area.
 function layout(windows, cells, area) {
-    const usableX = area.x + MARGIN;
-    const usableY = area.y + MARGIN;
-    const usableWidth = area.width - MARGIN * 2;
-    const usableHeight = area.height - MARGIN * 2;
     const count = Math.min(windows.length, cells.length);
     for (let i = 0; i < count; ++i) {
-        const cell = cells[i];
-        // Half a gap is taken off each side of every shared edge, which is the
-        // same as a full gap between neighbours and no gap at the outer edges.
-        const left = cell[0] > 0 ? GAP / 2 : 0;
-        const top = cell[1] > 0 ? GAP / 2 : 0;
-        const right = cell[0] + cell[2] < 1 ? GAP / 2 : 0;
-        const bottom = cell[1] + cell[3] < 1 ? GAP / 2 : 0;
-        place(windows[i],
-              usableX + usableWidth * cell[0] + left,
-              usableY + usableHeight * cell[1] + top,
-              usableWidth * cell[2] - left - right,
-              usableHeight * cell[3] - top - bottom);
+        const rect = cellRect(cells[i], area);
+        place(windows[i], rect.x, rect.y, rect.width, rect.height);
     }
     return count;
 }
@@ -193,6 +183,179 @@ function arrange(kind, startFrom) {
     log("arranged " + placed + " window(s) as " + kind);
 }
 
+// ── Automatic arrangement ─────────────────────────────────────────────────────────
+//
+// Owner steering, 2026-11-23: opening two programs should split the screen, and four
+// should take a quarter each. KWin tiles at a screen edge and has a custom tile editor,
+// but nothing splits the screen by itself (KDE bug 467583), so the arrangements above
+// also run on their own when a normal window opens, closes, is minimised or returns:
+//
+//     1 window   kept as it is, unless it was arranged: then it takes the whole area
+//     2 windows  halves, or stacked on a portrait screen (a tablet held upright)
+//     3 windows  one main pane and two, or three rows on a portrait screen
+//     4 windows  quarters
+//     5 or more  left alone: a fifth window floats rather than shrinking four others
+//
+// Windows keep their places. Cells are handed out in the order the windows already sit
+// on screen, so the one on the right stays on the right and a new window takes the cell
+// nearest where it appeared; no reading direction is assumed. A window whose minimum size
+// cannot fit its cell (a program that cannot shrink to a quarter of a laptop panel) stops
+// the arrangement instead of being overdrawn. Dialogs, utilities, fullscreen and kept-out
+// windows are never touched (isArrangeable). On by default: Meta+Alt+A or the window menu
+// turn it off for the session, and System Settings → Window Management → KWin Scripts →
+// MoOS Arrange sets the default.
+
+const AUTO_LIMIT = 4;
+let autoArrange = setting("AutoArrange", true);
+const arranged = {};        // internalId -> true, for windows the automatic mode placed
+
+function setting(key, fallback) {
+    return typeof readConfig === "function" ? readConfig(key, fallback) : fallback;
+}
+
+function idOf(window) {
+    return String(window.internalId);
+}
+
+function rows(number) {
+    const cells = [];
+    for (let i = 0; i < number; ++i) {
+        cells.push([0, i / number, 1, 1 / number]);
+    }
+    return cells;
+}
+
+function centre(window) {
+    const g = window.frameGeometry;
+    return {x: g.x + g.width / 2, y: g.y + g.height / 2};
+}
+
+function byX(a, b) { return centre(a).x - centre(b).x; }
+function byY(a, b) { return centre(a).y - centre(b).y; }
+// Resolve the rows first. A tolerance-based pairwise sort can form cycles
+// when three centres straddle the tolerance, moving a window across both axes.
+function inQuarterOrder(windows) {
+    const ordered = windows.slice().sort(byY);
+    return ordered.slice(0, 2).sort(byX).concat(ordered.slice(2).sort(byX));
+}
+
+// The pixel size layout() gives each cell, so a window's minimum can be checked first.
+function cellRect(cell, area) {
+    const width = area.width - 2 * MARGIN, height = area.height - 2 * MARGIN;
+    const x = Math.round(cell[0] * width) + (cell[0] > 0 ? GAP / 2 : 0);
+    const y = Math.round(cell[1] * height) + (cell[1] > 0 ? GAP / 2 : 0);
+    const endX = cell[0] + cell[2], endY = cell[1] + cell[3];
+    const right = Math.round(endX * width) - (endX < 1 ? GAP / 2 : 0);
+    const bottom = Math.round(endY * height) - (endY < 1 ? GAP / 2 : 0);
+    return {x: area.x + MARGIN + x, y: area.y + MARGIN + y, width: right - x, height: bottom - y};
+}
+
+function fits(windows, cells, area) {
+    for (let i = 0; i < windows.length; ++i) {
+        const minimum = windows[i].minSize;
+        const size = cellRect(cells[i], area);
+        const maximum = windows[i].maxSize;
+        if (maximum && (maximum.width < size.width || maximum.height < size.height)) return false;
+        if (minimum && (minimum.width > size.width || minimum.height > size.height)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function autoArrangeOn(output, hint, leaving) {
+    if (!autoArrange) {
+        return;
+    }
+    const windows = windowsOn(output).filter(function (w) { return w !== leaving; });
+    if (windows.length === 0 || windows.length > AUTO_LIMIT) {
+        if (windows.length > AUTO_LIMIT) {
+            log("more than " + AUTO_LIMIT + " windows: the new one floats");
+        }
+        return;
+    }
+    const leader = hint && windows.indexOf(hint) !== -1 ? hint : windows[0];
+    const area = anchor(leader);
+    if (windows.length === 1) {
+        if (arranged[idOf(leader)]) {
+            layout([leader], [[0, 0, 1, 1]], area);
+        }
+        return;
+    }
+    const portrait = area.height > area.width;
+    let cells;
+    let ordered;
+    if (windows.length === 4) {
+        cells = QUARTERS;
+        ordered = inQuarterOrder(windows);
+    } else if (portrait) {
+        cells = rows(windows.length);
+        ordered = windows.slice().sort(byY);
+    } else if (windows.length === 2) {
+        cells = columns(2);
+        ordered = windows.slice().sort(byX);
+    } else {
+        cells = mainAndTwoCells(leader, area);
+        ordered = [leader].concat(windows.filter(function (w) { return w !== leader; }).sort(byY));
+    }
+    if (!fits(ordered, cells, area)) {
+        log("a window cannot shrink to its cell; the arrangement is left as it is");
+        return;
+    }
+    layout(ordered, cells, area);
+    for (const window of ordered) {
+        arranged[idOf(window)] = true;
+    }
+    log("automatically arranged " + ordered.length + " window(s)");
+}
+
+function osd(text) {
+    if (typeof callDBus === "function") {
+        callDBus("org.kde.plasmashell", "/org/kde/osdService", "org.kde.osdService",
+                 "showText", "view-grid-symbolic", text);
+    }
+}
+
+function setAutoArrange(on) {
+    autoArrange = on;
+    osd(on ? "ترتيب تلقائي: مفعّل | Auto arrange: on" : "ترتيب تلقائي: متوقف | Auto arrange: off");
+    const active = workspace.activeWindow;
+    if (on && isArrangeable(active)) {
+        autoArrangeOn(active.output, active);
+    }
+}
+
+function watch(window) {
+    if (window && window.minimizedChanged && window.minimizedChanged.connect) {
+        window.minimizedChanged.connect(function () {
+            if (eligibleWindow(window)) autoArrangeOn(window.output, window.minimized ? null : window);
+        });
+    }
+}
+
+if (workspace.windowAdded && workspace.windowAdded.connect) {
+    workspace.windowAdded.connect(function (window) {
+        watch(window);
+        if (isArrangeable(window)) {
+            autoArrangeOn(window.output, window);
+        }
+    });
+}
+if (workspace.windowRemoved && workspace.windowRemoved.connect) {
+    workspace.windowRemoved.connect(function (window) {
+        delete arranged[idOf(window)];
+        if (isArrangeable(window)) autoArrangeOn(window.output, null, window);
+    });
+}
+if (typeof workspace.windowList === "function") {
+    for (const window of workspace.windowList()) {
+        watch(window);
+    }
+}
+if (typeof options !== "undefined" && options.configChanged && options.configChanged.connect) {
+    options.configChanged.connect(function () { autoArrange = setting("AutoArrange", true); });
+}
+
 // Bilingual, because MoOS ships its strings rather than Qt catalogues. The menu
 // shows both so one desk reads correctly in either language.
 const ACTIONS = [
@@ -208,6 +371,8 @@ for (const action of ACTIONS) {
     registerShortcut("MoOS Arrange: " + kind, "MoOS Arrange: " + action[1],
                      action[2], function () { arrange(kind); });
 }
+registerShortcut("MoOS Arrange: auto", "MoOS Arrange: ترتيب تلقائي | Auto arrange",
+                 "Meta+Alt+A", function () { setAutoArrange(!autoArrange); });
 
 registerUserActionsMenu(function (window) {
     if (!isArrangeable(window)) {
@@ -221,6 +386,12 @@ registerUserActionsMenu(function (window) {
             triggered: function () { arrange(kind, window); },
         });
     }
+    items.push({
+        text: "ترتيب تلقائي | Auto arrange",
+        checkable: true,
+        checked: autoArrange,
+        triggered: function () { setAutoArrange(!autoArrange); },
+    });
     return { text: "رتّب النوافذ | Arrange windows", items: items };
 });
 

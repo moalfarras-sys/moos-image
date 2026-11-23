@@ -255,8 +255,22 @@ LayoutName=org.moos.ui2.switcher
 # renderer has no feGaussianBlur, so it is built from linear + radial gradients.
 # A decoration with no shadow would have looked FLATTER than the Breeze it
 # replaces, which is why the shadow is part of the art and not an afterthought.
+#
+# --- Slim frames: no painted side or bottom border (owner, 2026-11-23) -----
+# KWin 6.8.3 (src/decorations/settings.cpp) uses the decoration plugin's own
+# recommendation while BorderSizeAuto is true; Breeze recommends None, but
+# Aurorae v2 recommends nothing, so KWin fell back to Normal and Aurorae
+# (v2/decorationtheme.cpp borders()) clamped it to a painted 4 px band on three
+# sides of every MoOS window. BorderSize=None keeps the client edge-to-edge and
+# gives KWin's invisible resize-only borders (largeSpacing wide) to the drag,
+# exactly Breeze's Plasma 6 default. The frame draws a 1 px hairline and the
+# shadow outside the window instead. A look-and-feel cannot write
+# BorderSizeAuto, so this system default owns it; a size chosen in System
+# Settings is written to the user's kwinrc and still wins.
 [org.kde.kdecoration2]
 library=org.kde.kwin.aurorae.v2
 theme=__aurorae__svg__MoOSUI2
 ButtonsOnLeft=XIA
 ButtonsOnRight=_
+BorderSize=None
+BorderSizeAuto=false

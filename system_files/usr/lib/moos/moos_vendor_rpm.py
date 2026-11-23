@@ -483,6 +483,15 @@ def _alpha(char: str) -> bool:
     return "a" <= char <= "z" or "A" <= char <= "Z"
 
 
+def portable_pin_is_older(offered: object, installed: object) -> bool:
+    """Compare numeric desktop release labels, including Notepad4's dated r-revisions."""
+    pattern = r"[0-9]+(?:[.][0-9]+)*(?:r[0-9]+)?"
+    return (isinstance(offered, str) and isinstance(installed, str)
+            and re.fullmatch(pattern, offered) is not None
+            and re.fullmatch(pattern, installed) is not None
+            and rpmvercmp(offered, installed) < 0)
+
+
 def rpmvercmp(a: str, b: str) -> int:
     """rpm's rpmvercmp(), segment for segment: ASCII letters and digits only, `~` sorts before
     everything (even the end of the string), `^` after the end of the string but before any other

@@ -262,6 +262,14 @@ WallpaperItem {
         return v
     }
 
+    // The baked frost of the master being painted (artwork/generate_scene_frost.py). The
+    // Hub's glass cards crop it, because nothing can blur behind a wallpaper; a personal
+    // image has none, and its cards keep the plain glass.
+    readonly property url sceneFrost: {
+        const m = String(art.source).match(/^(.*\/contents)\/(images|images_dark)\/([^/]+)\.(png|jpe?g|webp)$/i)
+        return m ? m[1] + "/frost/" + m[2] + "/" + m[3] + ".jpg" : ""
+    }
+
     // Delay ksplash until the scene is actually painted (org.kde.image does the
     // same) — but never forever: Image.onStatusChanged clears it on ANY outcome.
     Component.onCompleted: root.loading = true
@@ -353,6 +361,8 @@ WallpaperItem {
         id: bentoComponent
         DashboardBento {
             compact: bentoFrame.compact
+            sceneBackdrop: art
+            sceneFrost: root.sceneFrost
             resolvedMotionMode: root.resolvedMotionMode
             themeLabel: root.themeLabel
             showClock: root.hubClock

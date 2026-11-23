@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MoOSArrangeConfigForm</class>
+ <widget class="QWidget" name="MoOSArrangeConfigForm">
+  <property name="windowTitle">
+   <string>MoOS Arrange</string>
+  </property>
+  <layout class="QVBoxLayout" name="layout">
+   <item>
+    <widget class="QCheckBox" name="kcfg_AutoArrange">
+     <property name="text">
+      <string>رتّب النوافذ تلقائيًا عند فتحها وإغلاقها | Arrange windows automatically as they open and close</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="explain">
+     <property name="text">
+      <string>نافذتان: نصفان. ثلاث: رئيسية واثنتان. أربع: أرباع. Meta+Alt+A يبدّل الوضع | Two windows: halves. Three: main and two. Four: quarters. Meta+Alt+A toggles it.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

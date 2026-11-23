@@ -1,0 +1,64 @@
+{
+  "repository": "https://github.com/google/fonts",
+  "path": "ofl/tajawal",
+  "commit": "20776328c5a501f52fe9553fc5997451b4667589",
+  "license": "OFL-1.1",
+  "copyright": "Copyright 2018 Boutros International. (http://www.boutrosfonts.com)",
+  "files": {
+    "DESCRIPTION.en_us.html": {
+      "sha256": "5886cdaf30fc51dda4ebb95d7378e02d1f9fdcbb440cc0ad5866c12dacbc2e0f",
+      "bytes": 485,
+      "gitBlob": "5492e312bd25bee2eabfd6e2356f09ef57e0063f"
+    },
+    "METADATA.pb": {
+      "sha256": "3d3fd314884c894a85e91476faf1067f52d6d0ae59e92ab2269ac34f01bff2ef",
+      "bytes": 1956,
+      "gitBlob": "f2108a399bd2b9088890e4a2bcca701acd902208"
+    },
+    "OFL.txt": {
+      "sha256": "9b584984f9db0ee30347391a76eff9c0a6b03dc450c3c6afe3757a2cb3a4db87",
+      "bytes": 4464,
+      "gitBlob": "76c01b50a1da8b3ae44a6f05c2e0d6ccb1cac5b9"
+    },
+    "Tajawal-Black.ttf": {
+      "sha256": "da582a579d3200869535dc994d2349608a8582042f8776b3679b157015db287c",
+      "bytes": 59028,
+      "gitBlob": "eed4f4f37391e7b4833ead4aeac5245c305c9225"
+    },
+    "Tajawal-Bold.ttf": {
+      "sha256": "0342ab6b74b6bd1b4b5bf7beda45a9734a2b3147a31e8a3a45b6a3417a52d9d7",
+      "bytes": 59988,
+      "gitBlob": "71e1488e90215abcc8aedc541d94a2bcbec574f3"
+    },
+    "Tajawal-ExtraBold.ttf": {
+      "sha256": "3d1298b747c22579f9e1bdeb0d4165064cb17f7e66145e2f43f9deb12ad7a2cf",
+      "bytes": 59648,
+      "gitBlob": "e5abae9001cbfb8e9ec90e95ca669ef50bc3b138"
+    },
+    "Tajawal-ExtraLight.ttf": {
+      "sha256": "a12ffbfaaec30ab8142edc60fa4727b104a90eb54c6a200a76988a1ec2ec11dc",
+      "bytes": 55784,
+      "gitBlob": "ae6cba8a304fa2f2ff87b7b29096a4f88a432138"
+    },
+    "Tajawal-Light.ttf": {
+      "sha256": "ab26ed3e0c5af2c71b469b5780decff8088d290ab91aa29b07321580136e813a",
+      "bytes": 61864,
+      "gitBlob": "a3daa165de91c30fb649e41e82120ed52a7fb44a"
+    },
+    "Tajawal-Medium.ttf": {
+      "sha256": "1ff8bd943a261c9dd7906bdb1993cab87b6d925a7fb5f848cdb51ed301531090",
+      "bytes": 62280,
+      "gitBlob": "96dee5410d185adfa57475bb02695c11f8836208"
+    },
+    "Tajawal-Regular.ttf": {
+      "sha256": "6882892da3e03527d5db2bbab3b48bde6ef2e878a43f522d1a4eebda90010a19",
+      "bytes": 60364,
+      "gitBlob": "d23d25b8b68db86d5b727d181c2008fd874216eb"
+    },
+    "upstream_info.md": {
+      "sha256": "2e9cf6945d67853e639cfbbf4a98d3e32eefc347dc8bec0707182a265034da84",
+      "bytes": 1996,
+      "gitBlob": "6526afd60f53f7996cc9687b0d5dbf3622a48488"
+    }
+  }
+}

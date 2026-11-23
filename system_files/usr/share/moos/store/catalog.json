@@ -2042,22 +2042,121 @@
       "install": {
         "kind": "appdrop",
         "artifact": "archive",
-        "version": "2.23.1",
+        "version": "2.34.0",
         "downloads": {
           "aarch64": {
-            "url": "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.23.1-6348059836284928/linux-arm/Antigravity.tar.gz",
-            "sha256": "296fa18f972a185b46eb79ea3fa1484e4818a49464bbed764abecdd64a2ffb34",
-            "size": 179177200
+            "url": "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.34.0-5887025308631040/linux-arm/Antigravity.tar.gz",
+            "sha256": "91f31ce50c795e0571e7922511119ff3e7afc2ee4f640a97d69dbad2063c1866",
+            "size": 204360600
           },
           "x86_64": {
-            "url": "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.23.1-6348059836284928/linux-x64/Antigravity.tar.gz",
-            "sha256": "5a86f35091d2276df9c763db2279b1809e8d26b142680a4db0b059b9aa5539ac",
-            "size": 181083164
+            "url": "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.34.0-5887025308631040/linux-x64/Antigravity.tar.gz",
+            "sha256": "478c68f86c9ef61a502185a39e9ceec66b1276a6a53b191a19b0d9ce869836db",
+            "size": 211201084
           }
         },
         "exec": "antigravity",
         "wm_class": "Antigravity",
         "categories": ["Development"],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "vscode-native",
+      "source": "moos",
+      "cat": "dev",
+      "glyph": "code",
+      "en": "Visual Studio Code",
+      "ar": "فيجوال ستوديو كود",
+      "desc_en": "Microsoft’s native code editor for Linux.",
+      "desc_ar": "محرّر الشيفرة الأصلي من مايكروسوفت لنظام لينكس.",
+      "developer": "Microsoft",
+      "accent": "#0078d4",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "keywords_en": [
+        "editor",
+        "development"
+      ],
+      "keywords_ar": [
+        "محرر",
+        "تطوير"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "archive",
+        "version": "1.147.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://update.code.visualstudio.com/1.147.0/linux-x64/stable",
+            "sha256": "6fd8b14600f2a8ddb8b4833d8bf288f3dc4c34b2878d2c6c3fec7e16c81023bc",
+            "size": 414438586
+          },
+          "aarch64": {
+            "url": "https://update.code.visualstudio.com/1.147.0/linux-arm64/stable",
+            "sha256": "b137f53a29a1debf9fc30027823556863202f94c10d924dd70f2d2370795412d",
+            "size": 387756351
+          }
+        },
+        "exec": "code",
+        "icon": "resources/app/resources/linux/code.png",
+        "wm_class": "Code",
+        "categories": [
+          "Development"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "opencode-desktop",
+      "source": "moos",
+      "cat": "dev",
+      "glyph": "code",
+      "en": "OpenCode Desktop",
+      "ar": "أوبن كود لسطح المكتب",
+      "desc_en": "The publisher’s desktop application for working on code with AI.",
+      "desc_ar": "تطبيق الناشر لكتابة الشيفرة ومراجعتها بمساعدة الذكاء الاصطناعي.",
+      "developer": "anomalyco",
+      "accent": "#625982",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "keywords_en": [
+        "coding",
+        "development"
+      ],
+      "keywords_ar": [
+        "برمجة",
+        "تطوير"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "2.4.1",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/anomalyco/opencode/releases/download/v2.4.1/opencode-desktop-linux-arm64.AppImage",
+            "sha256": "55f1d2de1415c913ad82c46c269ae57f22462ce341928e00bfbc2b2540887fc9",
+            "size": 325195268
+          },
+          "x86_64": {
+            "url": "https://github.com/anomalyco/opencode/releases/download/v2.4.1/opencode-desktop-linux-x86_64.AppImage",
+            "sha256": "0b68c8f5a6d1ad992815c026bb90a56e43d9e3db37c7fba5ea3f6094080b9a33",
+            "size": 325645884
+          }
+        },
+        "desktop_id": "ai.opencode.desktop",
+        "wm_class": "ai.opencode.desktop",
+        "categories": [
+          "Development"
+        ],
         "risk": "downloaded-executable",
         "requires_review": true,
         "external": true
@@ -2080,17 +2179,17 @@
       "install": {
         "kind": "appdrop",
         "artifact": "archive",
-        "version": "2.5.5",
+        "version": "2.8.0",
         "downloads": {
           "aarch64": {
-            "url": "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-arm/Antigravity%20IDE.tar.gz",
-            "sha256": "88c167108980c33a223a8d7f0aa6aaf4dec61f0cc3950235a2698e9ffc38a49e",
-            "size": 236865493
+            "url": "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.8.0-6733682917113856/linux-arm/Antigravity%20IDE.tar.gz",
+            "sha256": "d8f85ce40306587a80a7478af4de85cb10b83cf26dd9179b902afa9933fcf9f2",
+            "size": 193704263
           },
           "x86_64": {
-            "url": "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/linux-x64/Antigravity%20IDE.tar.gz",
-            "sha256": "0c5233b297d2b3aebb61af49f8944012c2953d361a5ebb16978490636917f831",
-            "size": 240837095
+            "url": "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.8.0-6733682917113856/linux-x64/Antigravity%20IDE.tar.gz",
+            "sha256": "7baa36baab285cb46101af958b8f7be6305458db9a44d8b3d0938d61f38597d7",
+            "size": 195291447
           }
         },
         "exec": "antigravity-ide",
@@ -6242,12 +6341,12 @@
       ],
       "install": {
         "kind": "windows-portable",
-        "version": "26.08r6282",
+        "version": "26.10r6392",
         "downloads": {
           "x86_64": {
-            "url": "https://github.com/zufuliu/notepad4/releases/download/v26.08r6282/Notepad4_i18n_x64_v26.08r6282.zip",
-            "sha256": "fe202ddbbb6a295d6a771ecce918b8b63874287f0e33e43a50aa910afe270573",
-            "size": 1638259
+            "url": "https://github.com/zufuliu/notepad4/releases/download/v26.10r6392/Notepad4_i18n_x64_v26.10r6392.zip",
+            "sha256": "ef5eac2dd3c6fea142bf972c144e8efa47ebad3ba691c83a80f5623007d6cb41",
+            "size": 1627245
           }
         },
         "exe": "Notepad4.exe",

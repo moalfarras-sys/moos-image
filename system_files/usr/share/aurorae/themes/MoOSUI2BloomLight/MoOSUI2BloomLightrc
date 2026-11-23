@@ -1,47 +1,57 @@
 [General]
-ActiveFocusedTabColor=78,78,78
-ActiveTextColor=23,48,46
-ActiveTextShadowColor=0,0,0,255
-ActiveUnfocusedTabColor=120,120,120
+# A centred title remains balanced for both LTR and RTL window captions.
 TitleAlignment=Center
 TitleVerticalAlignment=Center
-UseTextShadow=false
-InactiveFocusedTabColor=120,120,120
-InactiveTextColor=80,99,104
-InactiveTextShadowColor=0,0,0,255
-InactiveUnfocusedTabColor=120,120,120
-TextShadowOffsetX=0
-TextShadowOffsetY=1
-LeftButtons=XIA
-Shadow=true
 Animation=140
+ActiveTextColor=23,48,46,255
+InactiveTextColor=80,99,104,255
+UseTextShadow=false
+HaloActive=false
+HaloInactive=false
+Shadow=true
+LeftButtons=M
+RightButtons=HIAX
 
 [Layout]
+# The slim MoOS frame (owner steering 2026-11-23). etc/xdg/kwinrc ships KWin's
+# BorderSize=None, so no side or bottom band is painted and KWin's invisible
+# resize-only borders take the drag. A border size the user chooses is clamped
+# by Aurorae to at least 4 px and painted in the title colour.
 BorderLeft=0
 BorderRight=0
 BorderBottom=0
 TitleEdgeTop=0
 TitleEdgeBottom=0
-TitleEdgeLeft=4
-TitleEdgeRight=4
-TitleBorderLeft=6
-TitleBorderRight=6
+TitleEdgeLeft=1
+TitleEdgeRight=1
+TitleBorderLeft=1
+TitleBorderRight=1
 TitleHeight=44
-ButtonWidth=44
-ButtonHeight=44
-ButtonSpacing=2
-ButtonMarginTop=0
-ButtonMarginLeft=4
-ButtonMarginRight=4
-ExplicitButtonSpacer=136
-PaddingTop=22
-PaddingBottom=85
-PaddingRight=42
-PaddingLeft=42
+
 TitleEdgeTopMaximized=0
 TitleEdgeBottomMaximized=0
 TitleEdgeLeftMaximized=0
 TitleEdgeRightMaximized=0
 
-# 44px target and title match in restored and maximized states.
+# Each action's native input spans the whole bar: 44 px wide and
+# 44 px tall around its 30x24 tile; maximized targets reach the screen
+# edges. Aurorae's ButtonSize factor (auroraerc) scales bar and targets together.
+ButtonWidth=44
+ButtonHeight=44
+ButtonSpacing=2
+ButtonMarginTop=0
 ButtonMarginTopMaximized=0
+# Aurorae v2 centres the caption between the two button groups, not in the
+# window. MoOS keeps all three actions on one side (kwinrc XIA, mirrored by
+# KDecoration for RTL) and puts one explicit spacer `_` on the other side. The
+# spacer is exactly the action group (3 x 44 + 2 x 2 = 136), so the caption is
+# centred on the window in both directions. KDecoration disables spacer input,
+# so the title bar still drags and double-clicks through it. Measured in a
+# private native KWin (scripts/review/window-frames-native.py).
+ExplicitButtonSpacer=136
+
+# The shadow and hairline ring outside the window.
+PaddingLeft=24
+PaddingRight=24
+PaddingTop=24
+PaddingBottom=34

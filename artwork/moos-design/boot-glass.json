@@ -24,13 +24,13 @@
     },
     "farewell-ar.png": {
       "size": [
-        399,
-        140
+        409,
+        123
       ],
       "mode": "RGBA",
-      "bytes": 5353,
-      "decodedBytes": 223440,
-      "sha256": "efec8706057c3f62b6390c864d656806066e4fec3b01371307f092af7ea98627"
+      "bytes": 4362,
+      "decodedBytes": 201228,
+      "sha256": "2eda368533926e9bf114be5b818f7ad5d55e1b04591fa2dc1614ed95f83a23af"
     },
     "glass-bezel.png": {
       "size": [
@@ -154,13 +154,13 @@
     },
     "welcome-ar.png": {
       "size": [
-        402,
-        131
+        404,
+        129
       ],
       "mode": "RGBA",
-      "bytes": 5796,
-      "decodedBytes": 210648,
-      "sha256": "fb6055803ea4aadf15068334916b41926fc620872566962c5027e5cccdf39b2b"
+      "bytes": 4764,
+      "decodedBytes": 208464,
+      "sha256": "66816afcf739a33eeed32386629cea366593b99efbd8726ec026477c437b12f6"
     }
   }
 }

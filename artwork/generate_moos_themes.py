@@ -627,11 +627,10 @@ def build_lnf(key: str, meta: dict) -> None:
     # metadata.json
     write(dst / "metadata.json", json.dumps({
         "KPlugin": {
-            "Id": meta["lnf"], "Name": meta["name"], "Description": meta["desc"],
+            "Id": meta["lnf"], **gen.look_names(meta["lnf"]), "Description": meta["desc"],
             "Authors": [{"Name": "Moalfarras"}], "Version": "2.0.0",
             "License": "GPL-3.0-or-later",
             "Website": "https://github.com/moalfarras-sys/moos-image",
-            "Name[ar]": meta["name"],
         },
         "KPackageStructure": "Plasma/LookAndFeel", "X-Plasma-APIVersion": "2",
     }, ensure_ascii=False, indent=4))

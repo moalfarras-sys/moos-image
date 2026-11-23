@@ -2064,7 +2064,11 @@ _skip_retired = _RETIRED_COMMAND_CENTER.exists() and not _launches_retired_comma
 
 def _emitter_sources():
     router_path = ROOT / "system_files/usr/bin/moos-open"
-    for base in (ROOT / "system_files", ROOT / "moos-settings-kcm"):
+    # The native Control Center's QML is compiled into the image from build_files (the
+    # Containerfile's control-center stage); its Settings key is the real emitter of
+    # settings/full. Until 2026-11-23 only a What's New entry happened to name that route.
+    for base in (ROOT / "system_files", ROOT / "moos-settings-kcm",
+                 ROOT / "build_files/plasma_logout/control-center"):
         for path in sorted(base.rglob("*")):
             if not path.is_file() or path == router_path or path.suffix not in _EMITTER_SUFFIXES:
                 continue
@@ -3145,7 +3149,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=176" in apply_theme_code,
+require("THEME_REV=185" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -5249,7 +5253,7 @@ require('source: "file:///usr/share/pixmaps/moos-logo.png"' in _island_mark
         "absent, nothing on the password surface would say whose it is")
 require("moos-logo" not in code(user_delegate, style="slash"),
         "the MoOS emblem is pinned to the user's face again; the island carries the mark")
-require("wrapper.name.charAt(0).toUpperCase()" in user_delegate
+require("Kirigami.Avatar {" in user_delegate and "name: wrapper.name" in user_delegate
         and "visible: wrapper.placeholderFace && !wrapper.anonymous" in user_delegate
         and '.indexOf("/org/kde/plasma/login/") >= 0' in user_delegate,
         "accounts without a custom photo must use an intentional initial avatar on BOTH "

@@ -14,6 +14,12 @@ import org.moos.ui as MoUI
 
 Item {
     id: strip
+    // Text a person reads is the theme's text colour at 0.72 — never the DISABLED role,
+    // which fades text 65% toward the background (1.6:1 as secondary text on the light
+    // schemes; tests/test_secondary_text_contrast.py does the arithmetic for the Hub too).
+    readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r,
+                                                  Kirigami.Theme.textColor.g,
+                                                  Kirigami.Theme.textColor.b, 0.72)
 
     required property date now
     // The clock face reuses this same calendar as a quiet inline week. One date
@@ -57,7 +63,7 @@ Item {
             }
             Text {
                 text: strip.local("هذا الأسبوع", "THIS WEEK")
-                color: Kirigami.Theme.disabledTextColor
+                color: strip.secondaryInk
                 font.family: strip.labelFamily
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.55)
                 font.weight: Font.DemiBold
@@ -68,7 +74,7 @@ Item {
                 // The month the week belongs to, so a week that straddles two
                 // months still says which one today is in.
                 text: Qt.formatDate(strip.now, Qt.locale(strip.rtl ? "ar" : "en"), "MMMM yyyy")
-                color: Kirigami.Theme.disabledTextColor
+                color: strip.secondaryInk
                 font.family: strip.labelFamily
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                 font.weight: Font.Medium
@@ -130,7 +136,7 @@ Item {
                                 text: Qt.locale(strip.rtl ? "ar" : "en").standaloneDayName(
                                           cell.day.getDay(), Locale.ShortFormat)
                                 color: cell.today ? Kirigami.Theme.highlightedTextColor
-                                                  : Kirigami.Theme.disabledTextColor
+                                                  : strip.secondaryInk
                                 font.family: strip.labelFamily
                                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.5)
                                 font.weight: Font.Medium
@@ -193,7 +199,7 @@ Item {
                     // person asks "how far into the year are we".
                     text: strip.local("اليوم " + strip.dayOfYear + " من السنة",
                                       "DAY " + strip.dayOfYear + " OF THE YEAR")
-                    color: Kirigami.Theme.disabledTextColor
+                    color: strip.secondaryInk
                     font.family: strip.labelFamily
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.49)
                     font.weight: Font.Medium

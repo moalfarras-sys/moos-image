@@ -86,9 +86,7 @@ ApplicationWindow {
     // Same focus ring as Mo Store, for the same reason: a control the keyboard can reach must
     // show that it has been reached (WCAG 2.4.7). Drawn outside the shape so it never covers
     // content, inheriting the parent's radius so a pill stays a pill.
-    component FocusRing: MoUI.FocusRing {
-        accentColor: win.accent
-    }
+    component FocusRing: MoUI.FocusRing { }
 
     // Static pages still need natural vertical flow on small outputs and
     // enlarged fonts. Keep the existing controls and native focus-reveal owner.
@@ -1351,17 +1349,17 @@ ApplicationWindow {
                         Repeater {
                             // WELCOME_QUICK_THEME_IDS_BEGIN
                             model: [
-                                { id: "dark",  glyph: "moon", en: "Graphite",    ar: "غرافيت داكن",
+                                { id: "dark",  glyph: "moon", en: "Midad Turquoise",    ar: "مداد الفيروز",
                                   canvasC: "#14191C", chromeC: "#1C2226", accentC: "#4ED7C8", txtC: "#E8F1EF" },
-                                { id: "light", glyph: "sun",  en: "Tidal Light", ar: "تايدل فاتح",
+                                { id: "light", glyph: "sun",  en: "Mint Tide", ar: "موج النعناع",
                                   canvasC: "#D8EBE7", chromeC: "#C7E0DA", accentC: "#006D67", txtC: "#17272B" },
-                                { id: "nova",  glyph: "moon", en: "Nova",        ar: "نوفا",
+                                { id: "nova",  glyph: "moon", en: "Midnight Indigo",        ar: "مدار النيلة",
                                   canvasC: "#0A1120", chromeC: "#111A2E", accentC: "#6366F1", txtC: "#EAF2FF" },
-                                { id: "amethyst", glyph: "moon", en: "Amethyst", ar: "أميثيست",
+                                { id: "amethyst", glyph: "moon", en: "Mulberry Amethyst", ar: "مغيب الجمشت",
                                   canvasC: "#17121F", chromeC: "#201829", accentC: "#C084FC", txtC: "#F1E9F5" },
-                                { id: "midnight", glyph: "moon", en: "Midnight", ar: "منتصف الليل",
+                                { id: "midnight", glyph: "moon", en: "Midnight Cyan", ar: "مسك قطبي",
                                   canvasC: "#000000", chromeC: "#0A0A0C", accentC: "#22D3EE", txtC: "#F5F7FA" },
-                                { id: "aurora", glyph: "moon", en: "Quiet Glass", ar: "زجاج هادئ",
+                                { id: "aurora", glyph: "moon", en: "Marine Aurora", ar: "محيط الشفق",
                                   canvasC: "#101723", chromeC: "#192436", accentC: "#20D6F8", txtC: "#EDF3FC" }
                             ]
                             // WELCOME_QUICK_THEME_IDS_END

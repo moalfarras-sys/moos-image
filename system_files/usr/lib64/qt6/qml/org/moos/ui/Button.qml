@@ -136,7 +136,6 @@ QQC2.AbstractButton {
 
     FocusRing {
         anchors.fill: control
-        accentColor: control.actionColor
         controlRadius: control.cornerRadius
         topLeftRadius: plate.topLeftRadius + Tokens.focusGap
         topRightRadius: plate.topRightRadius + Tokens.focusGap

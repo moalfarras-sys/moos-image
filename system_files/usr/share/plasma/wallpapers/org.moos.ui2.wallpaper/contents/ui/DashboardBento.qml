@@ -15,6 +15,9 @@ import org.moos.ui as MoUI
 
 Item {
     id: root
+    // The wallpaper's own art item. Each card frosts its slice of it (GlassCard).
+    property Item sceneBackdrop: null
+    property url sceneFrost: ""
 
     readonly property var design: MoUI.Tokens
     property bool compact: false
@@ -358,6 +361,8 @@ Item {
             motionEnabled: root.motionEnabled
             accentMotion: root.accentMotion
             integrated: false
+            backdrop: root.sceneBackdrop
+            backdropFrost: root.sceneFrost
             themeLabel: root.themeLabel
         }
 
@@ -393,6 +398,8 @@ Item {
             motionEnabled: root.motionEnabled
             accentMotion: root.accentMotion
             integrated: false
+            backdrop: root.sceneBackdrop
+            backdropFrost: root.sceneFrost
         }
 
         SystemCard {
@@ -409,6 +416,8 @@ Item {
             motionEnabled: root.motionEnabled
             accentMotion: root.accentMotion
             integrated: false
+            backdrop: root.sceneBackdrop
+            backdropFrost: root.sceneFrost
         }
     }
 }

@@ -4,7 +4,7 @@ TitleAlignment=Center
 TitleVerticalAlignment=Center
 Animation=140
 ActiveTextColor=23,48,46,255
-InactiveTextColor=61,88,84,255
+InactiveTextColor=80,99,104,255
 UseTextShadow=false
 HaloActive=false
 HaloInactive=false
@@ -13,15 +13,19 @@ LeftButtons=M
 RightButtons=HIAX
 
 [Layout]
-BorderLeft=1
-BorderRight=1
-BorderBottom=1
+# The slim MoOS frame (owner steering 2026-11-23). etc/xdg/kwinrc ships KWin's
+# BorderSize=None, so no side or bottom band is painted and KWin's invisible
+# resize-only borders take the drag. A border size the user chooses is clamped
+# by Aurorae to at least 4 px and painted in the title colour.
+BorderLeft=0
+BorderRight=0
+BorderBottom=0
 TitleEdgeTop=0
 TitleEdgeBottom=0
-TitleEdgeLeft=4
-TitleEdgeRight=4
-TitleBorderLeft=6
-TitleBorderRight=6
+TitleEdgeLeft=1
+TitleEdgeRight=1
+TitleBorderLeft=1
+TitleBorderRight=1
 TitleHeight=44
 
 TitleEdgeTopMaximized=0
@@ -29,11 +33,12 @@ TitleEdgeBottomMaximized=0
 TitleEdgeLeftMaximized=0
 TitleEdgeRightMaximized=0
 
+# Each action's native input spans the whole bar: 44 px wide and
+# 44 px tall around its 30x24 tile; maximized targets reach the screen
+# edges. Aurorae's ButtonSize factor (auroraerc) scales bar and targets together.
 ButtonWidth=44
 ButtonHeight=44
 ButtonSpacing=2
-# Native input remains 44px in both states; only the 24px artwork is inset.
-# Maximized targets reach the screen edge. No client content enters this bar.
 ButtonMarginTop=0
 ButtonMarginTopMaximized=0
 # Aurorae v2 centres the caption between the two button groups, not in the
@@ -42,11 +47,11 @@ ButtonMarginTopMaximized=0
 # spacer is exactly the action group (3 x 44 + 2 x 2 = 136), so the caption is
 # centred on the window in both directions. KDecoration disables spacer input,
 # so the title bar still drags and double-clicks through it. Measured in a
-# private native KWin (scripts/review/window-frames-native.py): +-36.5 px off
-# centre with nothing opposite the actions, within 1.3 px with this spacer.
+# private native KWin (scripts/review/window-frames-native.py).
 ExplicitButtonSpacer=136
 
-PaddingLeft=18
-PaddingRight=18
-PaddingTop=12
-PaddingBottom=24
+# The shadow and hairline ring outside the window.
+PaddingLeft=24
+PaddingRight=24
+PaddingTop=24
+PaddingBottom=34

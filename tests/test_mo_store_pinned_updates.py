@@ -284,6 +284,25 @@ class AdoptedAppDrop(Backend):
         self.assertEqual(appdrop.read_record("noteforge"), before)
         self.assertTrue(self.program().endswith(b"2.1"))
 
+    def test_older_catalogue_cannot_offer_or_apply_a_downgrade(self):
+        self.controller([self.recipe("2.10")]).install(["noteforge"])
+        older = self.controller([self.recipe("2.9")])
+        self.assertEqual(older.check_updates()[1]["items"], [])
+        self.assertEqual(older.update()[1]["items"], [])
+        self.assertTrue(self.program().endswith(b"2.10"))
+
+    def test_scheduled_catalogue_update_honours_preference_and_skips_flatpak(self):
+        self.controller([self.recipe("2.1")]).install(["noteforge"])
+        controller = self.controller([self.recipe("2.2")])
+        controller.set_auto_updates(False)
+        self.assertEqual(controller.update(scheduled_catalogue=True)[1]["state"], "skipped")
+        self.assertTrue(self.program().endswith(b"2.1"))
+        controller.set_auto_updates(True)
+        with mock.patch.object(type(controller.adapter), "update_refs", side_effect=AssertionError):
+            code, result = controller.update(scheduled_catalogue=True)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertTrue(self.program().endswith(b"2.2"))
+
     def test_update_all_never_puts_the_pin_over_a_file_the_person_dropped(self):
         self.controller([self.recipe("2.1")]).install(["noteforge"])
         self.drop("2.3")

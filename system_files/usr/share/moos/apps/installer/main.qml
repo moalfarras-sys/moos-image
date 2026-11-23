@@ -56,9 +56,7 @@ ApplicationWindow {
 
     // ── semantic palette (KDE colour scheme owns every structural colour) ──────
     // The same focus ring as Mo Store and Welcome. One focus treatment across MoOS, not three.
-    component FocusRing: MoUI.FocusRing {
-        accentColor: win.accent
-    }
+    component FocusRing: MoUI.FocusRing { }
 
     // Keep the keyboard cursor and the viewport together. The disk, account and timezone
     // pages all clip overflowing content; previously Tab could focus an off-screen control and

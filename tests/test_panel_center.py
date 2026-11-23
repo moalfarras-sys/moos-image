@@ -23,7 +23,7 @@ def native():
     app=QApplication([])
     from PySide6.QtGui import QPalette,QColor,QFontDatabase,QFont
     import configparser
-    for filename in ('MeyarSans[wght].ttf','MeyarArabic[wght].ttf'):
+    for filename in ('MeyarSans[wght].ttf',*sorted(p.name for p in (ROOT/'system_files/usr/share/fonts/meyar').glob('MeyarArabic-*.ttf'))):
         assert QFontDatabase.addApplicationFont(str(ROOT/'system_files/usr/share/fonts/meyar'/filename))>=0
     app.setFont(QFont('Meyar Sans'))
     ini=configparser.ConfigParser();scheme=os.environ.get('MOOS_CENTER_SCHEME') or ('MoOSUI2AuroraLight' if '--light' in sys.argv else 'MoOSUI2Aurora')
@@ -317,8 +317,15 @@ Item {
     power=item.findChild(QObject,'centerPower')
     assert power is not None and power.height()>=44,'power profiles require a native destination'
     if '--rtl' in sys.argv:
-        power.setProperty('implicitHeight',44);QTest.qWait(60)
-        assert clipped_text(power),'original Arabic compact footer must retain its inner-line refusal'
+        # The original 44px footer clipped the Noto-based Meyar Arabic line. The Tajawal-based
+        # face (2026-11-23) paints a shorter line that fits there, so the refusal is proved by
+        # shrinking the footer until the actual Arabic line no longer fits.
+        clipped_at=None
+        for height in range(44,15,-2):
+            power.setProperty('implicitHeight',height);QTest.qWait(40)
+            if clipped_text(power):
+                clipped_at=height;break
+        assert clipped_at is not None,'the footer probe never refused a too-short Arabic line'
         power.setProperty('implicitHeight',48);QTest.qWait(60)
         assert not clipped_text(power),'Arabic footer still clips after reserving native line room'
     settings=item.findChild(QObject,'centerSettings')

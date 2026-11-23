@@ -60,16 +60,11 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
 
   moos-theme            الحالي | show the active theme
   moos-theme list       القائمة | list all MoOS themes
-  moos-theme dark       داكن   | MoOS Graphite (the default)
-  moos-theme light      فاتح   | MoOS Tidal Light
-  moos-theme nova       MoOS Nova     — cosmic navy   (+ nova-light)
-  moos-theme amethyst   MoOS Amethyst — warm aubergine (+ amethyst-light)
-  moos-theme midnight   MoOS Midnight — true-black OLED (+ daylight)
-  moos-theme aurora     MoOS Quiet Glass — mineral/cyan (+ aurora-light)
-  moos-theme bloom      MoOS Bloom    — soft native frames (+ bloom-light)
+  moos-theme dark       مداد الفيروز | Midad Turquoise (default)
+  moos-theme light      موج النعناع | Mint Tide
   moos-theme toggle     بدّل   | flip the current family light <-> dark
   moos-theme undo       تراجع  | revert to the previously applied theme
-  moos-theme auto       تلقائي | follow sunrise/sunset (Graphite/Tidal)
+  moos-theme auto       تلقائي | follow sunrise/sunset in the selected family
   moos-theme wallpaper-token <encoded-local-image>
                          خلفية مخصّصة | set a custom local desktop image safely
   moos-theme wallpaper-reset
@@ -2430,18 +2425,21 @@ case "$command_name" in
         fi
         ;;
     list)
-        cat <<'EOF'
-Every family has a light + dark sibling. `moos-theme toggle` flips the current one.
+        python3 - "${MOOS_THEME_PROFILE_DB:-/usr/share/moos/theme-profiles.tsv}" <<'PYLIST'
+import json
+import sys
+from pathlib import Path
 
-  dark            MoOS Graphite     ·  light           MoOS Tidal
-  nova            MoOS Nova         ·  nova-light       MoOS Nova Light
-  amethyst        MoOS Amethyst     ·  amethyst-light   MoOS Amethyst Light
-  aurora          MoOS Aurora       ·  aurora-light     MoOS Aurora Light
-  midnight        MoOS Midnight     ·  daylight         MoOS Daylight
-  gaming          MoOS Arena        ·  gaming-light     MoOS Arena Light
-  dev             MoOS Forge        ·  dev-light        MoOS Forge Light
-  study           MoOS Scholar      ·  study-light      MoOS Scholar Light
-EOF
+profiles = json.loads(Path(sys.argv[1]).with_suffix(".json").read_text())["profiles"]
+for profile in profiles:
+    family, mode = profile["family"], profile["mode"]
+    command = family if mode == "dark" else family + "-light"
+    if family == "graphite":
+        command = mode
+    elif family == "midnight" and mode == "light":
+        command = "daylight"
+    print(f"{command:<16} {profile['displayNameAr']}   /   {profile['displayName']} ({mode})")
+PYLIST
         ;;
     toggle)
         # Flip the CURRENT family between its light and dark sibling. Every MoOS

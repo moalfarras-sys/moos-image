@@ -4546,7 +4546,8 @@ class Controller:
             # What Android keeps is the version installed, whoever put it there.
             installed = (display_text(kept.version_name, 64) if kept is not None else "") \
                 or installed
-        elif str(record.get("sha256", "")).lower() == pin.sha256:
+        elif (str(record.get("sha256", "")).lower() == pin.sha256
+              or self._vendor().portable_pin_is_older(install.get("version"), installed)):
             return None
         version = install.get("version") if isinstance(install.get("version"), str) else None
         return {"id": app_id, "kind": "pin", "name": display_text(recipe.get("en"), 80) or app_id,
@@ -4642,17 +4643,21 @@ class Controller:
         self.store.write_updates(document)
         return 0, document
 
-    def update(self, app_id: str | None = None) -> tuple[int, dict[str, Any]]:
+    def update(self, app_id: str | None = None, *, scheduled_catalogue: bool = False) -> tuple[int, dict[str, Any]]:
+        if scheduled_catalogue and not auto_updates_enabled():
+            return 0, {"action": "update", "state": "skipped", "reason": "auto_updates_off"}
         if app_id is not None:
             return self._update_one(app_id)
         try:
             lock, job = self._begin("update", [])
         except BusyError:
+            if scheduled_catalogue:
+                return 0, {"action": "update", "state": "deferred", "reason": "busy"}
             return self._refuse_busy("update", [])
         with lock:
             try:
                 self._refresh_vendor_launchers()
-                refs = self.adapter.update_refs()
+                refs = [] if scheduled_catalogue else self.adapter.update_refs()
                 pins = self._pin_update_rows()
                 if not refs and not pins:
                     job.update(
@@ -5230,6 +5235,7 @@ def parser() -> argparse.ArgumentParser:
     update = commands.add_parser(
         "update", help="update user Flatpaks and catalogue apps, or one app by id")
     update.add_argument("id", nargs="?")
+    commands.add_parser("scheduled-catalogue-update", help="update installed publisher recipes after the user Flatpak timer")
     commands.add_parser(
         "check-updates", help="report pending updates without changing anything"
     )
@@ -5288,6 +5294,8 @@ def main(
             code, document = controller.run(options.id, start_android=not options.no_android_start)
         elif options.command == "update":
             code, document = controller.update(options.id)
+        elif options.command == "scheduled-catalogue-update":
+            code, document = controller.update(scheduled_catalogue=True)
         elif options.command == "permissions":
             code, document = controller.permissions(options.id)
         elif options.command == "set-permission":

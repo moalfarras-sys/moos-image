@@ -3,6 +3,74 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "auto-arrange-windows",
+      "merged": "2026-11-23T18:00:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "الشاشة تنقسم وحدها للبرامج",
+        "en": "The screen splits itself for your programs"
+      },
+      "body": {
+        "ar": "افتح برنامجين فيأخذ كل منهما نصف الشاشة، وثلاثة فرئيسي واثنان، وأربعة فأرباع. تبقى كل نافذة في جهتها، والحوارات لا تتحرك، والبرنامج الذي لا يصغر لا يُضغط. أوقفه أو شغّله بـMeta+Alt+A أو من قائمة النافذة.",
+        "en": "Open two programs and each takes half the screen; three give one main and two, four take quarters. Windows keep their side, dialogs stay put and a program that cannot shrink is never squeezed. Toggle it with Meta+Alt+A or from the window menu."
+      }
+    },
+    {
+      "id": "meyar-arabic-tajawal",
+      "merged": "2026-11-23T16:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "خط ميار العربي بتصميم تجوال",
+        "en": "Meyar Arabic in Tajawal's design"
+      },
+      "body": {
+        "ar": "صار خط ميار العربي في كل النظام مبنيًا على خط تجوال بأوزانه السبعة: حروف أنظف وأسطر أخف. تبقى الحروف الفارسية والأردية التي لا يحملها تجوال مكتملة بوزن يطابقه، وعبارتا الإقلاع رُسمتا به.",
+        "en": "Meyar Arabic, used across the whole system, is now built on Tajawal in its seven weights: cleaner letters and lighter lines. Persian and Urdu letters Tajawal lacks stay complete at a matching weight, and the boot captions are drawn in it."
+      },
+      "route": "moos://settings/fonts"
+    },
+    {
+      "id": "hub-frosted-glass",
+      "merged": "2026-11-23T14:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "زجاج مُضبَّب حقيقي في لوحة سطح المكتب",
+        "en": "Real frosted glass on the desktop Hub"
+      },
+      "body": {
+        "ar": "بطاقات الساعة والطقس والنظام على سطح المكتب صارت فوق زجاج مُضبَّب من خلفيتك نفسها، فلا تقطع خطوط الصورة الحادة النص. عناوينها الثانوية أوضح، وأيام الأسبوع لا تتداخل مع نقاط الصفحات، وبطاقة الطقس تعرض حالة انتظار مرتبة حتى يصل التوقّع.",
+        "en": "The clock, weather and system cards on your desktop now sit on frosted glass made from your own wallpaper, so its sharp lines no longer cut through text. Their secondary labels read more clearly, the week row no longer overlaps the page dots, and the weather card waits tidily for its forecast."
+      },
+      "route": "moos://settings/wallpaper"
+    },
+    {
+      "id": "mova-home-cards-fit",
+      "merged": "2026-11-23T12:00:00Z",
+      "glyph": "grid",
+      "title": {
+        "ar": "بطاقات الرئيسية في Mova تُقرأ كاملة",
+        "en": "Mova's Home cards read in full"
+      },
+      "body": {
+        "ar": "بطاقات الأوامر في صفحة الرئيسية بقائمة Mova صارت تأخذ ارتفاع سطرها العربي كاملًا مع هامشه، فلا يلتصق العنوان بحافة البطاقة ولا تُقص أطراف حروفه السفلى.",
+        "en": "The command cards on Mova's Home page now take the full height of their Arabic caption and its padding, so a title no longer sits on the card's edge or loses the lower strokes of its letters."
+      }
+    },
+    {
+      "id": "meyar-arabic-moos-corner",
+      "merged": "2026-11-23T12:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "زاوية MoOS في حروف ميار العربية",
+        "en": "The MoOS corner in Meyar Arabic"
+      },
+      "body": {
+        "ar": "رأس الألف واللام في خط ميار العربي صار بزاوية MoOS: طرف أيمن مربع وكتف أيسر مستدير، في كل الأوزان. يظهر أوضح في العناوين والخط الكبير، وعبارتا الترحيب والوداع في شاشة الإقلاع رُسمتا من جديد بالخط نفسه، دون أن يتغيّر عرض أي سطر.",
+        "en": "The tops of alef and lam in Meyar Arabic now carry the MoOS corner: a square right edge and a rounded left shoulder, at every weight. It shows most in headings and large text, and the boot screen's welcome and farewell captions are redrawn in the same font; no line changes width."
+      },
+      "route": "moos://settings/fonts"
+    },
+    {
       "id": "meyar-glass-keyboard",
       "merged": "2026-11-23T03:41:00Z",
       "glyph": "keyboard",
@@ -912,78 +980,6 @@
         "en": "The app menu is tidier: no duplicate tools and no second settings app. MoOS notifications are filed under their own app on the Notifications page, so you can mute each one on its own."
       },
       "route": "moos://settings/notifications"
-    },
-    {
-      "id": "unified-settings",
-      "merged": "2026-09-24T16:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "إعدادات واحدة لـ MoOS",
-        "en": "One Settings app for MoOS"
-      },
-      "body": {
-        "ar": "تفتح إعدادات MoOS الآن في النافذة نفسها مع إعدادات الشاشة والصوت والشبكة. تجد حالة النظام والتحديث والاستعادة والتحكم عن بُعد بجانب إعدادات جهازك المعتادة.",
-        "en": "MoOS Settings now opens in the same window as display, sound and network settings. Find system status, updates, recovery and remote access alongside your usual device controls."
-      },
-      "route": "moos://settings/full"
-    },
-    {
-      "id": "arm-desktop-parity",
-      "merged": "2026-09-24T13:30:00Z",
-      "glyph": "ui",
-      "arch": [
-        "aarch64"
-      ],
-      "title": {
-        "ar": "العربية من اليمين وتطبيقاتك بألوان MoOS",
-        "en": "Arabic reads right to left, apps wear MoOS"
-      },
-      "body": {
-        "ar": "على أجهزة ARM يُقرأ سطح المكتب الآن من اليمين إلى اليسار بالعربية، وتأخذ تطبيقات GTK ألوان MoOS، ويعود تثبيت التطبيق حين تفلته أو تنقر عليه لأن نافذة الموافقة صارت موجودة.",
-        "en": "On ARM machines the desktop now reads right to left in Arabic, GTK apps wear the MoOS colours, and an app you drop or double-click can install again because its consent dialog is there."
-      }
-    },
-    {
-      "id": "system-centre",
-      "merged": "2026-09-23T13:30:00Z",
-      "glyph": "safe-update",
-      "title": {
-        "ar": "حالة النظام في مكان واحد",
-        "en": "System status in one place"
-      },
-      "body": {
-        "ar": "تعرض الإعدادات الآن حالة التحديث والاستعادة واتصال Mo PC Remote في صفحات واضحة. راجع التحديث أو الرجوع المجدول فيها، ثم تابع الإجراء من أداة النظام المحمية.",
-        "en": "Settings now shows update, recovery and Mo PC Remote status in clear pages. Review a pending update or rollback there, then continue in the protected system control."
-      },
-      "route": "moos://settings/update"
-    },
-    {
-      "id": "glass-arrival",
-      "merged": "2026-09-23T13:29:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "الزجاج يظهر ويستقر",
-        "en": "Glass arrives and settles"
-      },
-      "body": {
-        "ar": "تظهر لمعة قصيرة وحركة استقرار واحدة عند فتح أسطح MoOS الزجاجية، ثم تتوقف تمامًا. يتجاوزها خيار تقليل الحركة.",
-        "en": "MoOS glass has one brief glint and a small settling motion when it appears, then stays still. Reduced Motion skips it."
-      },
-      "route": "moos://settings/themes"
-    },
-    {
-      "id": "glass-clarity",
-      "merged": "2026-09-20T19:16:32Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "وضوح واحد لكل أسطح MoOS",
-        "en": "One clarity setting for every MoOS surface"
-      },
-      "body": {
-        "ar": "من منتقي السمات اختر وضوح الزجاج: صافٍ أو متوازن أو مصمت. يطبّق MoOS الاختيار فورًا على البحث والجزيرة ونوافذه معًا، ويحافظ على قراءة النص إذا لم يكن التمويه متاحًا.",
-        "en": "Choose Glass clarity in the Theme Picker: Clear, Balanced or Solid. MoOS applies it immediately to Search, the Island and its windows together, and keeps text readable when blur is unavailable."
-      },
-      "route": "moos://settings/themes"
     }
   ]
 }

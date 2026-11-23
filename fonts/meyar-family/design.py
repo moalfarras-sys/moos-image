@@ -77,6 +77,57 @@ def soften_glyph(font,name,minimum_y=None):
     return changes
 
 
+# The pinned Arabic source has a single upward stem in each of these forms.
+# Node indices name the left end of its straight, right-to-left top edge.
+ARABIC_STEM_CAPS = {
+    'alef-ar': 2, 'alef-ar.fina': 10,
+    'alef-ar.short': 2, 'alef-ar.short.fina': 10,
+    'lam-ar.init': 4, 'lam-ar.medi': 17,
+}
+
+
+def sculpt_arabic_caps(font):
+    """Leave the right arris square and give the opposite shoulder a round cut."""
+    changes = []
+    # A circular quadrant connects the horizontal slab to a vertical tangent.
+    handle = 4 * (math.sqrt(2) - 1) / 3
+    for name, index in ARABIC_STEM_CAPS.items():
+        glyph = font.glyphs[name]
+        for master in font.masters:
+            layer = glyph.layers[master.id]
+            if len(layer.paths) != 1:
+                raise ValueError('Unreviewed Arabic cap contour: ' + name)
+            path = layer.paths[0]
+            nodes = list(path.nodes)
+            right, left = nodes[index - 1:index + 1]
+            following = nodes[(index + 1) % len(nodes)]
+            x, y = left.position
+            width = right.position.x - x
+            dx, dy = following.position.x - x, following.position.y - y
+            if (not path.closed or any(n.type != 'line' for n in (right, left, following))
+                    or right.position.y != y or y != max(n.position.y for n in nodes)
+                    or width <= 0 or dy >= -2 * width or not 0 <= dx <= -dy / 8):
+                raise ValueError('Unreviewed Arabic stem geometry: ' + name)
+            radius = width * .60
+            # Recover the original stem tangent locally. The vertical tangent at
+            # x keeps the old left bearing even after converting to quadratics.
+            lean = dx / -dy
+            shoulder = [
+                GSNode((x + radius, y), type='line', smooth=True),
+                GSNode((x + radius * (1 - handle), y), type='offcurve'),
+                GSNode((x, y - radius * (1 - handle)), type='offcurve'),
+                GSNode((x, y - radius), type='curve', smooth=True),
+                GSNode((x, y - radius * 4 / 3), type='offcurve'),
+                GSNode((x + lean * radius * 5 / 3, y - radius * 5 / 3), type='offcurve'),
+                GSNode((x + lean * radius * 2, y - radius * 2), type='curve', smooth=True),
+            ]
+            path.nodes = nodes[:index] + shoulder + nodes[index + 1:]
+            changes.append({'glyph': name, 'layer': master.id,
+                            'change': 'square right cap and round left shoulder',
+                            'radius': round(radius, 2)})
+    return changes
+
+
 def square_circle(path):
     points=[n.position for n in path.nodes if n.type!='offcurve']
     if len(path.nodes)!=12 or len(points)!=4:return None

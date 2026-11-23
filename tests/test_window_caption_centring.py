@@ -39,8 +39,8 @@ KWINRC = REPO / "system_files/etc/xdg/kwinrc"
 
 # Logical widths: a compact message box, a file dialog, an editor, a maximized desk.
 WIDTHS = (380, 480, 720, 1707)
-# The shortest caption room any MoOS frame may leave in a 380 px window.
-MIN_ROOM_AT_380 = 80
+# Native Qt measured 97.1 logical px for “Display Settings” at 380 px.
+MIN_ROOM_AT_380 = 98
 WIDTH_KEYS = {"X": "ButtonWidthClose", "I": "ButtonWidthMinimize", "A": "ButtonWidthMaximizeRestore",
               "S": "ButtonWidthAlldesktops", "F": "ButtonWidthKeepabove", "B": "ButtonWidthKeepbelow",
               "L": "ButtonWidthShade", "H": "ButtonWidthHelp", "M": "ButtonWidthMenu", "N": "ButtonWidthAppMenu"}

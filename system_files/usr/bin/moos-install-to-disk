@@ -410,7 +410,22 @@ trap 'stop_ticker; cleanup_target; wipe_recipe' EXIT
 
 phase partition; prog 4; raise 18
 
+# V3 firmware can hand Plymouth an 800x600 framebuffer before AMD takes over.
+# Keep the proven override local to installations on this exact desktop model.
+v3_splash_target() {
+    local dmi=$1 image=$2
+    [[ "$image" =~ ^ghcr\.io/moalfarras-sys/moos(:[a-zA-Z0-9_.-]+|@sha256:[0-9a-f]{64})$ ]] &&
+        [[ -r "$dmi/sys_vendor" && -r "$dmi/product_name" && -r "$dmi/board_name" ]] &&
+        [[ "$(<"$dmi/sys_vendor")" == 'Micro Computer (HK) Tech Limited' &&
+           "$(<"$dmi/product_name")" == V3 && "$(<"$dmi/board_name")" == HPPAC ]]
+}
+
 run_install() {
+    local -a display_args=()
+    if v3_splash_target /sys/class/dmi/id "$TARGET_IMGREF"; then
+        display_args=(--karg-delete=plymouth.use-simpledrm --karg=plymouth.use-simpledrm=2
+                      --karg=video=efifb:2560x1600)
+    fi
     # The filesystem and ESP are already mounted. TMPDIR and /var/tmp both resolve
     # to a disposable Btrfs sibling on the target, so containers/image can
     # materialize large local-store blobs without touching the LiveOS overlay.
@@ -427,7 +442,7 @@ run_install() {
         --skip-fetch-check \
         --skip-finalize \
         --generic-image \
-        "$TARGET_ROOT" 2>&1
+        "${display_args[@]}" "$TARGET_ROOT" 2>&1
 }
 
 attempt_install() {

@@ -921,7 +921,13 @@ def desktop_entry(launcher: dict[str, str], slug: str) -> str:
         lines.append(f"Name[ar]={launcher['name_ar']}")
     if launcher["comment"]:
         lines.append(f"Comment={launcher['comment']}")
-    lines += [f"Exec={_quote_exec(launcher['exec'])} %U", f"TryExec={launcher['exec']}",
+    command = _quote_exec(launcher["exec"])
+    # Keep the native editor font cache that renders Arabic in these two launchers.
+    native_cache = {"opencode-desktop": "moos-native-opencode", "vscode-native": "moos-native-code"}.get(slug)
+    if native_cache:
+        cache_path = Path.home() / ".cache" / native_cache
+        command = "/usr/bin/env " + _quote_exec("XDG_CACHE_HOME=" + str(cache_path)) + " " + command
+    lines += [f"Exec={command} %U", f"TryExec={launcher['exec']}",
               f"Icon={launcher['icon'] or 'application-x-executable'}",
               f"Terminal={launcher['terminal']}", f"Categories={launcher['categories']}"]
     if launcher["wm_class"]:

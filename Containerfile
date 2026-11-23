@@ -46,7 +46,7 @@
 # nothing, and buildah fails with "no FROM statement found".
 ARG AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-x86_64
 
-FROM ghcr.io/ublue-os/kinoite-main@sha256:7c6683256540fae793676da33bb7a417016381a45c0fdddbe40dc4c1d238c359 AS base
+FROM ghcr.io/ublue-os/kinoite-main@sha256:ced7919b83fa6b926d9e50ab7760da014719686d8588f8b66d6b3dd368b6e9aa AS base
 
 # Reviewed native stable Plasma for the three x86 editions. The source/key/NVR
 # checks and later seam/logout/identity gates refuse drift; ARM keeps its own

@@ -47,6 +47,65 @@ Item {
                          design.glassLevelScene, 0.18))
     readonly property color edgeColor: design.glassEdge(
         Kirigami.Theme.backgroundColor, design.glassLevelScene)
+
+    // ── The frost behind the card ─────────────────────────────────────────
+    //
+    // Every density above assumes a blur pass behind the surface, and the Hub
+    // is the one surface no compositor can blur: it is painted INSIDE the
+    // wallpaper, so with KWin's blur on there is still nothing under it but
+    // the artwork's own sharp ribbons. Measured at 1766×1104 @1.45 in Bloom:
+    // a ribbon's black edge ran straight through the system card's verdict,
+    // which read as clipped text. The wallpaper knows its own pixels, so the
+    // card paints the slice of a BAKED frost beneath itself: the Gaussian blur is
+    // done once, offline, by artwork/generate_scene_frost.py, because a card may
+    // not carry a shader (tests/test_moos_ui2.py). At runtime the card only crops
+    // that already-smooth image to its settled rectangle — never to its entrance
+    // offset — and draws it with Kirigami's rounded texture: no blur pass and no
+    // per-frame cost. Without GPU compositing (the essential tier) Tokens.glassFill
+    // paints the dense readable body instead. null keeps the plain glass.
+    property Item backdrop: null
+    // The frost of the picture the backdrop paints, or "" when it has none (a
+    // personal image): then the card keeps the plain glass.
+    property url backdropFrost: ""
+    readonly property bool frosted: backdrop !== null && String(backdropFrost) !== ""
+                                    && !integrated && design.blurActive
+    property rect backdropRect: Qt.rect(0, 0, 0, 0)
+    function updateBackdropRect() {
+        if (!card.frosted || !card.parent || shell.width <= 0 || shell.height <= 0) {
+            return
+        }
+        const area = card.parent.mapToItem(card.backdrop, card.x + shell.x, card.y + shell.y,
+                                           shell.width, shell.height)
+        card.backdropRect = Qt.rect(area.x, area.y, area.width, area.height)
+    }
+    // The art is painted PreserveAspectCrop and centred; the frost is the same
+    // picture at its own width. Map the card's rectangle into frost pixels.
+    readonly property rect frostClip: {
+        const art = card.backdrop
+        if (!card.frosted || !art || art.implicitWidth <= 0 || art.implicitHeight <= 0
+                || frostProbe.implicitWidth <= 0 || card.backdropRect.width <= 0) {
+            return Qt.rect(0, 0, 0, 0)
+        }
+        const scale = Math.max(art.width / art.implicitWidth, art.height / art.implicitHeight)
+        const paintedWidth = art.implicitWidth * scale
+        const paintedHeight = art.implicitHeight * scale
+        const k = frostProbe.implicitWidth / paintedWidth
+        const r = card.backdropRect
+        return Qt.rect(Math.max(0, Math.round((r.x + (paintedWidth - art.width) / 2) * k)),
+                       Math.max(0, Math.round((r.y + (paintedHeight - art.height) / 2) * k)),
+                       Math.max(1, Math.round(r.width * k)),
+                       Math.max(1, Math.round(r.height * k)))
+    }
+    onFrostedChanged: Qt.callLater(card.updateBackdropRect)
+    onXChanged: card.updateBackdropRect()
+    onYChanged: card.updateBackdropRect()
+    onWidthChanged: card.updateBackdropRect()
+    onHeightChanged: card.updateBackdropRect()
+    Connections {
+        target: card.backdrop
+        function onWidthChanged() { card.updateBackdropRect() }
+        function onHeightChanged() { card.updateBackdropRect() }
+    }
     // The shade under the top edge. Derived from the active background, not from
     // pure black: no MoOS runtime surface uses pure black or pure white, and a
     // palette-derived shade also keeps the card looking like the same object in
@@ -70,6 +129,7 @@ Item {
         if (!card || !entrance || !entranceShift) {
             return
         }
+        card.updateBackdropRect()
         if (card.motionEnabled && !card.integrated) {
             entrance.restart()
         } else {
@@ -129,6 +189,36 @@ Item {
         shadow.size: card.design.space3
         shadow.color: Qt.alpha(Qt.darker(Kirigami.Theme.backgroundColor, 2.2),
                               card.lightSurface ? 0.12 : 0.2)
+    }
+
+    Image {
+        id: frostProbe
+        visible: false
+        source: card.frosted ? card.backdropFrost : ""
+        asynchronous: true
+    }
+
+    Image {
+        id: frostSlice
+        visible: false
+        source: card.frosted && card.frostClip.width > 1 ? card.backdropFrost : ""
+        sourceClipRect: card.frostClip
+        asynchronous: true
+        cache: false
+        smooth: true
+    }
+
+    Kirigami.ShadowedTexture {
+        objectName: "hubCardFrost"
+        visible: card.frosted && frostSlice.status === Image.Ready
+        anchors.fill: shell
+        source: frostSlice
+        color: "transparent"
+        radius: shell.radius
+        corners.topLeftRadius: shell.topLeftRadius
+        corners.topRightRadius: shell.topRightRadius
+        corners.bottomLeftRadius: shell.radius
+        corners.bottomRightRadius: shell.radius
     }
 
     Rectangle {

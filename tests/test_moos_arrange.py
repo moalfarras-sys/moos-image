@@ -23,7 +23,12 @@ make the feature real rather than shipped:
 2.  it uses the `moveable`/`resizeable` spellings KWin actually answers to;
 3.  it arranges into `MaximizeArea`, so windows clear the MoOS Bar instead of sliding under it;
 4.  kwinrc enables it — a script nothing enables is a file, not a feature;
-5.  every menu entry it offers has a handler, because `AGENTS.md` forbids a dead action.
+5.  every menu entry it offers has a handler, because `AGENTS.md` forbids a dead action;
+6.  the automatic arrangement (owner steering 2026-11-23: two programs split the screen,
+    four take a quarter each) runs from real add/remove/minimise signals: halves, main and
+    two, quarters, a fifth window floating, a lone survivor taking the area, portrait rows,
+    a window that cannot shrink refusing the layout, dialogs ignored, and the Meta+Alt+A
+    toggle with its on-screen notice. The previous script, which had none of it, must fail.
 """
 
 from __future__ import annotations
@@ -85,6 +90,89 @@ for (const kind of ["centre", "halves", "thirds", "quarters", "main"]) {
 assert.equal(run({fullScreen: true}, "centre", true), 0, "menu must revalidate its anchor");
 assert.equal(run({resizeable: false}, "halves", true), 0, "stale menu must not rearrange other windows");
 '''
+    return subprocess.run([shutil.which("node") or "node", "-e",
+                           "const SOURCE = " + json.dumps(source) + ";\n" + harness],
+                          text=True, capture_output=True, timeout=15)
+
+
+def auto_contract(source: str) -> subprocess.CompletedProcess[str]:
+    """Drive the automatic arrangement through private signals; never contact KWin."""
+    harness = r"""
+const vm = require("node:vm");
+const assert = require("node:assert/strict");
+function signal() { const slots = []; return {connect(f) { slots.push(f); }, emit(...a) { for (const f of slots) f(...a); }}; }
+function desk(area) {
+    const output = {}; const stack = []; const added = signal(); const removed = signal();
+    const shortcuts = {}; const osd = []; let menu; let serial = 0;
+    const context = {console: {info() {}}, KWin: {MaximizeArea: 1},
+        callDBus(...a) { osd.push(a.join(" ")); },
+        registerShortcut(n, t, k, f) { shortcuts[n] = f; }, registerUserActionsMenu(f) { menu = f; },
+        workspace: {currentDesktop: "current", currentActivity: "here", stackingOrder: stack, activeWindow: null,
+            windowAdded: added, windowRemoved: removed, windowList() { return stack.slice(); },
+            clientArea() { return area; }}};
+    vm.runInNewContext(SOURCE, context);
+    function open(extra = {}) {
+        let g = {x: 300 + 40 * serial, y: 200, width: 400, height: 300};
+        const w = Object.assign({internalId: "w" + (++serial), normalWindow: true, minimized: false,
+            skipTaskbar: false, skipSwitcher: false, fullScreen: false, desktops: [], output,
+            moveable: true, resizeable: true, writes: 0, minimizedChanged: signal(),
+            get frameGeometry() { return g; }, set frameGeometry(v) { ++w.writes; g = v; }}, extra);
+        stack.push(w); context.workspace.activeWindow = w; added.emit(w); return w;
+    }
+    function close(w) { stack.splice(stack.indexOf(w), 1); removed.emit(w); }
+    return {open, close, shortcuts, osd, menu: () => menu, ctx: context};
+}
+const wide = {x: 0, y: 0, width: 1280, height: 720};
+const d = desk(wide);
+const a = d.open();
+assert.equal(a.writes, 0, "a lone window keeps its size");
+const b = d.open();
+assert.ok(a.writes > 0 && b.writes > 0, "two programs must split the screen");
+assert.equal(a.frameGeometry.width, b.frameGeometry.width, "halves are equal");
+assert.notEqual(a.frameGeometry.x, b.frameGeometry.x, "halves sit side by side");
+assert.ok(Math.abs(a.frameGeometry.width - 628) <= 1, "half of the Bar-aware area: " + a.frameGeometry.width);
+const c = d.open();
+assert.equal(new Set([a, b, c].map(w => w.frameGeometry.x + ":" + w.frameGeometry.y)).size, 3, "three distinct cells");
+const e = d.open();
+const quarters = [a, b, c, e].map(w => w.frameGeometry);
+assert.ok(quarters.every(g => Math.abs(g.width - 628) <= 1 && Math.abs(g.height - 348) <= 1), "four programs take quarters: " + JSON.stringify(quarters));
+assert.equal(new Set(quarters.map(g => g.x + ":" + g.y)).size, 4, "four distinct quarters");
+const f = d.open();
+assert.equal(f.writes, 0, "a fifth window floats");
+d.close(f); d.close(e); d.close(c); d.close(b);
+assert.equal(JSON.stringify(a.frameGeometry), JSON.stringify({x: 8, y: 8, width: 1264, height: 704}), "the last arranged window takes the area");
+const dialog = desk(wide); dialog.open(); const sheet = dialog.open({normalWindow: false});
+assert.equal(sheet.writes, 0, "dialogs are never arranged");
+const tall = desk({x: 0, y: 0, width: 720, height: 1280});
+const t1 = tall.open(); const t2 = tall.open();
+assert.equal(t1.frameGeometry.x, t2.frameGeometry.x, "portrait stacks the two windows");
+assert.notEqual(t1.frameGeometry.y, t2.frameGeometry.y, "portrait rows differ");
+const wideApp = desk(wide); const w1 = wideApp.open(); const w2 = wideApp.open({minSize: {width: 900, height: 200}});
+assert.equal(w1.writes + w2.writes, 0, "a program that cannot shrink to its half refuses the layout");
+const capped = desk(wide); const cap1 = capped.open();
+const cap2 = capped.open({maxSize: {width: 380, height: 800}});
+assert.equal(cap1.writes + cap2.writes, 0, "refuse a split a size-capped window cannot fill");
+const odd = desk({x: 17, y: 54, width: 1281, height: 721});
+const fourOdd = [odd.open(), odd.open(), odd.open(), odd.open()].map(w => w.frameGeometry);
+assert.equal(Math.max(...fourOdd.map(g => g.x+g.width)), 17+1281-8, "exact trailing margin");
+assert.equal(Math.max(...fourOdd.map(g => g.y+g.height)), 54+721-8, "exact bottom margin");
+const separate = desk(wide); const visible = separate.open();
+separate.open({activities: ["other"]});
+assert.equal(visible.writes, 0, "a different activity cannot trigger a split here");
+const unrelated = separate.open({normalWindow:false});
+separate.close(unrelated);
+assert.equal(visible.writes,0,"closing a dialog should not retile the current windows");
+const real = separate.open();
+const prior = real.writes;
+separate.close(separate.open({normalWindow:false}));
+assert.equal(real.writes, prior, "closing a transient should preserve manual placement");
+const off = desk(wide); off.shortcuts["MoOS Arrange: auto"]();
+assert.ok(off.osd.some(s => s.includes("Auto arrange: off")), "toggling shows the notice");
+const o1 = off.open(); const o2 = off.open();
+assert.equal(o1.writes + o2.writes, 0, "turned off, nothing moves");
+const item = off.menu()(o1).items.find(i => i.checkable);
+assert.ok(item && typeof item.triggered === "function" && item.checked === false, "the menu shows the checkable state");
+"""
     return subprocess.run([shutil.which("node") or "node", "-e",
                            "const SOURCE = " + json.dumps(source) + ";\n" + harness],
                           text=True, capture_output=True, timeout=15)
@@ -183,6 +271,15 @@ def main() -> int:
         negative = runtime_contract(old)
         if old == source or negative.returncode == 0:
             errors.append("old unfiltered-anchor negative did not fail the callback contract")
+        automatic = auto_contract(source)
+        if automatic.returncode:
+            errors.append("automatic arrangement contract failed: " + automatic.stderr[-2500:])
+        # A script that never arranges by itself (the mode forced off, as before
+        # 2026-11-23) must fail the same contract, or the contract proves nothing.
+        disabled = source.replace('let autoArrange = setting("AutoArrange", true);',
+                                  'let autoArrange = false;')
+        if disabled == source or auto_contract(disabled).returncode == 0:
+            errors.append("a script with the automatic arrangement switched off passed its contract")
 
     if errors:
         print("GATE FAIL: tests/test_moos_arrange.py")

@@ -25,5 +25,4 @@ import org.moos.ui as MoUI
 MoUI.FocusRing {
     id: ring
     required property var win
-    accentColor: win.accent
 }

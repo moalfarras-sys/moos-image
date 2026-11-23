@@ -65,13 +65,25 @@ PLACES = {"narrow": (40, 60), "dialog": (470, 60), "medium": (40, 380), "wide": 
 CLIENT = r'''
 import json, sys
 from PySide6.QtCore import QTimer, Qt
-from PySide6.QtGui import QFont, QFontMetricsF
+from PySide6.QtGui import QFont, QFontMetricsF, QPixmap
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 spec = json.loads(sys.argv[1])
 app = QApplication(sys.argv[:1])
 keep = []
 widths = {}
 title = QFont("Meyar Sans", 10)
+if len(sys.argv) > 3 and sys.argv[3]:
+    # A desktop picture under the restored windows, so shadows and hairlines
+    # are reviewed against real artwork instead of the compositor's black.
+    size = app.primaryScreen().size()
+    backdrop = QLabel()
+    backdrop.setWindowTitle("MOOS_BACKDROP")
+    backdrop.setWindowFlag(Qt.FramelessWindowHint)
+    backdrop.setPixmap(QPixmap(sys.argv[3]).scaled(size, Qt.KeepAspectRatioByExpanding,
+                                                   Qt.SmoothTransformation))
+    backdrop.resize(size)
+    backdrop.show()
+    keep.append(backdrop)
 for key, w, h, caption in spec:
     win = QWidget()
     win.setWindowTitle(caption)
@@ -88,13 +100,22 @@ app.exec()
 '''
 
 
-def kwin_buttons(path: pathlib.Path) -> tuple[str, str]:
-    """The ButtonsOnLeft/Right a kwinrc ships (KWin's own HIAX default if absent)."""
+def kwin_decoration(path: pathlib.Path) -> dict[str, str]:
+    """The decoration keys a kwinrc ships, with KWin's own defaults if absent."""
     cfg = configparser.ConfigParser(interpolation=None, strict=False)
     cfg.optionxform = str
     cfg.read(path, encoding="utf-8")
     group = cfg["org.kde.kdecoration2"] if cfg.has_section("org.kde.kdecoration2") else {}
-    return group.get("ButtonsOnLeft", "MS"), group.get("ButtonsOnRight", "HIAX")
+    return {"ButtonsOnLeft": group.get("ButtonsOnLeft", "MS"),
+            "ButtonsOnRight": group.get("ButtonsOnRight", "HIAX"),
+            "BorderSize": group.get("BorderSize", "Normal"),
+            "BorderSizeAuto": group.get("BorderSizeAuto", "true")}
+
+
+def kwin_buttons(path: pathlib.Path) -> tuple[str, str]:
+    """The ButtonsOnLeft/Right a kwinrc ships (KWin's own HIAX default if absent)."""
+    shipped = kwin_decoration(path)
+    return shipped["ButtonsOnLeft"], shipped["ButtonsOnRight"]
 
 
 def no_core() -> None:
@@ -139,6 +160,7 @@ def run_one(args, theme: str, root: pathlib.Path) -> dict:
     (r / "config/kwinrc").write_text(
         "[org.kde.kdecoration2]\nlibrary=org.kde.kwin.aurorae.v2\n"
         f"theme=__aurorae__svg__{theme}\nButtonsOnLeft={args.left}\nButtonsOnRight={args.right}\n"
+        f"BorderSize={args.border_size}\nBorderSizeAuto={args.border_size_auto}\n"
         "[Plugins]\nscaleEnabled=false\nmagiclampEnabled=false\nslideEnabled=false\n"
         "blurEnabled=false\nslidingpopupsEnabled=false\nfadingpopupsEnabled=false\n",
         encoding="utf-8")
@@ -181,7 +203,8 @@ def run_one(args, theme: str, root: pathlib.Path) -> dict:
                LANG=lang, LC_ALL=lang, LANGUAGE=args.lang)
     procs = []
     result = {"theme": theme, "scale": args.scale, "lang": args.lang, "compose": args.compose,
-              "buttons": {"left": args.left, "right": args.right}, "layout": lay, "windows": {},
+              "buttons": {"left": args.left, "right": args.right},
+              "border": {"size": args.border_size, "auto": args.border_size_auto}, "layout": lay, "windows": {},
               "source_files": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                                for p in sorted((r / "data/aurorae/themes" / theme).iterdir()) if p.is_file()}}
     try:
@@ -212,7 +235,8 @@ def run_one(args, theme: str, root: pathlib.Path) -> dict:
         cenv = dict(env, WAYLAND_DISPLAY=sock, QT_QPA_PLATFORM="wayland", PYTHONDONTWRITEBYTECODE="1")
         (r / "client.py").write_text(CLIENT, encoding="utf-8")
         client = subprocess.Popen([sys.executable, "-s", "-B", str(r / "client.py"),
-                                   json.dumps(spec, ensure_ascii=False), "90"],
+                                   json.dumps(spec, ensure_ascii=False), "90",
+                                   str(args.backdrop or "")],
                                   env=cenv, stdout=(r / "client.log").open("w"), stderr=subprocess.STDOUT)
         procs.append(client)
         widths = None
@@ -256,24 +280,6 @@ def run_one(args, theme: str, root: pathlib.Path) -> dict:
         else:
             raise RuntimeError("native window publication did not become ready")
 
-        places = {c: PLACES.get(k) for k, _w, _h, c in spec}
-        maxed = [c for k, _w, _h, c in spec if k == "maximized"]
-        script("place", "const places=" + json.dumps(places, ensure_ascii=False) + ";const maxed=" +
-               json.dumps(maxed, ensure_ascii=False) + ";for (const w of workspace.windowList()){"
-               "if(!w.normalWindow) continue; if(maxed.includes(w.caption)){w.setMaximize(true,true);continue;}"
-               "const p=places[w.caption]; if(p){const g=w.frameGeometry;"
-               "w.frameGeometry={x:p[0],y:p[1],width:g.width,height:g.height};}}")
-        time.sleep(1.5)
-        script("read", "const out=[];for (const w of workspace.windowList()){if(!w.normalWindow) continue;"
-               "const f=w.frameGeometry,c=w.clientGeometry;out.push({caption:w.caption,id:String(w.internalId),"
-               "frame:{x:f.x,y:f.y,width:f.width,height:f.height},client:{x:c.x,y:c.y,width:c.width,height:c.height}});}"
-               "console.warn('MOOS_FRAMES_GEOMETRY '+JSON.stringify(out));")
-        log = (r / "kwin.log").read_text(encoding="utf-8", errors="replace")
-        line = [ln for ln in log.splitlines() if "MOOS_FRAMES_GEOMETRY " in ln]
-        if not line:
-            raise RuntimeError("KWin script reported no geometry; log tail: " + log[-1500:])
-        geometry = {g["caption"]: g for g in json.loads(line[-1].split("MOOS_FRAMES_GEOMETRY ", 1)[1])}
-
         session = dbus.bus.BusConnection("unix:path=" + str(run / "bus"))
         shot = dbus.Interface(session.get_object("org.kde.KWin", "/org/kde/KWin/ScreenShot2"),
                               "org.kde.KWin.ScreenShot2")
@@ -292,6 +298,35 @@ def run_one(args, theme: str, root: pathlib.Path) -> dict:
                     data += chunk
             w, h, stride, fmt = int(meta["width"]), int(meta["height"]), int(meta["stride"]), int(meta["format"])
             return QImage(bytes(data), w, h, stride, QImage.Format(fmt)).copy()
+
+        places = {c: PLACES.get(k) for k, _w, _h, c in spec}
+        maxed = [c for k, _w, _h, c in spec if k == "maximized"]
+        # Restored windows first, over the backdrop, with the future maximized
+        # window out of the way: desk.png shows shadows and hairlines in place.
+        script("place", "const places=" + json.dumps(places, ensure_ascii=False) + ";const maxed=" +
+               json.dumps(maxed, ensure_ascii=False) + ";for (const w of workspace.windowList()){"
+               "if(w.caption==='MOOS_BACKDROP'){w.keepBelow=true;w.noBorder=true;"
+               "w.frameGeometry={x:0,y:0,width:" + str(args.logical[0]) + ",height:" +
+               str(args.logical[1]) + "};continue;}"
+               "if(!w.normalWindow) continue; if(maxed.includes(w.caption)){w.minimized=true;continue;}"
+               "const p=places[w.caption]; if(p){const g=w.frameGeometry;"
+               "w.frameGeometry={x:p[0],y:p[1],width:g.width,height:g.height};}}")
+        time.sleep(1.5)
+        capture("CaptureActiveScreen").save(str(r / "desk.png"))
+        script("maximize", "const maxed=" + json.dumps(maxed, ensure_ascii=False) + ";"
+               "for (const w of workspace.windowList()){"
+               "if(w.normalWindow && maxed.includes(w.caption)){w.minimized=false;w.setMaximize(true,true);"
+               "workspace.activeWindow=w;}}")
+        time.sleep(1.5)
+        script("read", "const out=[];for (const w of workspace.windowList()){if(!w.normalWindow) continue;"
+               "const f=w.frameGeometry,c=w.clientGeometry;out.push({caption:w.caption,id:String(w.internalId),"
+               "frame:{x:f.x,y:f.y,width:f.width,height:f.height},client:{x:c.x,y:c.y,width:c.width,height:c.height}});}"
+               "console.warn('MOOS_FRAMES_GEOMETRY '+JSON.stringify(out));")
+        log = (r / "kwin.log").read_text(encoding="utf-8", errors="replace")
+        line = [ln for ln in log.splitlines() if "MOOS_FRAMES_GEOMETRY " in ln]
+        if not line:
+            raise RuntimeError("KWin script reported no geometry; log tail: " + log[-1500:])
+        geometry = {g["caption"]: g for g in json.loads(line[-1].split("MOOS_FRAMES_GEOMETRY ", 1)[1])}
 
         capture("CaptureActiveScreen").save(str(r / "screen.png"))
         for key, _w, _h, caption in spec:
@@ -411,6 +446,9 @@ def main() -> int:
                          "shipped file for --theme-root inside it, else /etc/xdg/kwinrc)")
     ap.add_argument("--left", help="override ButtonsOnLeft")
     ap.add_argument("--right", help="override ButtonsOnRight")
+    ap.add_argument("--border-size", help="override the shipped KWin BorderSize (None, Normal, ...)")
+    ap.add_argument("--backdrop", type=pathlib.Path,
+                    help="a picture shown under the restored windows (desk.png review frame)")
     ap.add_argument("--out", type=pathlib.Path)
     ap.add_argument("--check", action="store_true",
                     help="exit 1 unless every caption is present, complete and within 2 logical px "
@@ -419,6 +457,8 @@ def main() -> int:
     # Qt ignores relative HOME/XDG paths and then silently loads installed
     # decoration bytes. Resolve before creating any private session inputs.
     args.theme_root = args.theme_root.resolve()
+    if args.backdrop is not None:
+        args.backdrop = args.backdrop.resolve()
     if args.out is not None:
         args.out = args.out.resolve()
     args.logical = (1600, 1040)
@@ -426,9 +466,11 @@ def main() -> int:
     if args.kwinrc is None:
         inside = args.theme_root.resolve().is_relative_to(repo)
         args.kwinrc = repo / "system_files/etc/xdg/kwinrc" if inside else pathlib.Path("/etc/xdg/kwinrc")
-    shipped = kwin_buttons(args.kwinrc)
-    args.left = shipped[0] if args.left is None else args.left
-    args.right = shipped[1] if args.right is None else args.right
+    shipped = kwin_decoration(args.kwinrc)
+    args.left = shipped["ButtonsOnLeft"] if args.left is None else args.left
+    args.right = shipped["ButtonsOnRight"] if args.right is None else args.right
+    args.border_size = shipped["BorderSize"] if args.border_size is None else args.border_size
+    args.border_size_auto = "false" if args.border_size != shipped["BorderSize"] else shipped["BorderSizeAuto"]
     themes = args.theme or sorted(p.name for p in args.theme_root.iterdir() if (p / "decoration.svg").exists())
     base = args.out or pathlib.Path(tempfile.mkdtemp(prefix="moos-window-frames-"))
     base.mkdir(parents=True, exist_ok=True)

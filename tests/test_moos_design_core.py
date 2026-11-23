@@ -203,6 +203,10 @@ class DesignCoreTests(unittest.TestCase):
         for profile in profiles:
             families.setdefault(profile["family"], set()).add(profile["mode"])
             with self.subTest(profile=profile["id"]):
+                metadata = ROOT / "system_files/usr/share/plasma/look-and-feel" / profile["id"] / "metadata.json"
+                plugin = json.loads(metadata.read_text(encoding="utf-8"))["KPlugin"]
+                self.assertEqual(plugin["Name"], profile["displayName"])
+                self.assertEqual(plugin["Name[ar]"], profile["displayNameAr"])
                 self.assertRegex(profile["accent"], r"^#[0-9A-F]{6}$")
                 colors = configparser.ConfigParser()
                 colors.read(ROOT / "system_files/usr/share/color-schemes" / (profile["scheme"]+".colors"))

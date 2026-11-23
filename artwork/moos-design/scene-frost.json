@@ -1,0 +1,927 @@
+{
+  "schema": 1,
+  "about": "Gaussian frost under the desktop Hub's glass cards (generate_scene_frost.py)",
+  "width": 640,
+  "gaussianRadius": 11,
+  "jpegQuality": 82,
+  "files": {
+    "system_files/usr/share/wallpapers/MoOSPrismDawn/contents/frost/images/1672x941.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSPrismDawn/contents/images/1672x941.png",
+      "masterSHA256": "29f817fc245adec2fa6fa205f1f39717e2c10789954673b85212d023bb8e811d",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "37f76c3a4d2a55bb82b6beec342dcd9186b62c9f2f58ec2e158da34b4f3c2769"
+    },
+    "system_files/usr/share/wallpapers/MoOSPrismNight/contents/frost/images/1672x941.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSPrismNight/contents/images/1672x941.png",
+      "masterSHA256": "fa76d229b81d4454686809faa60483187a5c20dc216a136e5134a409ae4bbf90",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "3dc16986dabab1eccd5786473a004f634fb349a720e5a9b23cfec027bf6b9054"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/images/2560x1600.jpg",
+      "masterSHA256": "2177bcb08bccce72f38f8c5e41c1b02a25be9af9e0b75c9f1195d49dcca3f2ca",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "cf90afcbf1083eb1f7776db682b376076dbda0c1a0067f1a0e72406e8b338c29"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/images/3440x1440.jpg",
+      "masterSHA256": "411fed7201b28cade38ea5e09de71e25f77331c3ea5828ce713cc519b8dec54e",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "92091bab5aabd9de71d41997773dabe802a934c2a638be45567c49ca3b130b6c"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/images/3840x2160.jpg",
+      "masterSHA256": "96cc51a8ae1e2bf74fa961acc624a13709f3c2c095c059eed98f562a1e0e7beb",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "d1cf486a3d57d4c0c8bc499300e9fea7995c5afbd02ab95ff9a321c7d60cecf9"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "2177bcb08bccce72f38f8c5e41c1b02a25be9af9e0b75c9f1195d49dcca3f2ca",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "cf90afcbf1083eb1f7776db682b376076dbda0c1a0067f1a0e72406e8b338c29"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "411fed7201b28cade38ea5e09de71e25f77331c3ea5828ce713cc519b8dec54e",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "92091bab5aabd9de71d41997773dabe802a934c2a638be45567c49ca3b130b6c"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Amethyst/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "96cc51a8ae1e2bf74fa961acc624a13709f3c2c095c059eed98f562a1e0e7beb",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "d1cf486a3d57d4c0c8bc499300e9fea7995c5afbd02ab95ff9a321c7d60cecf9"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/images/2560x1600.jpg",
+      "masterSHA256": "4b9dec731b14565781e9afd12b8c78310a56e6c8505eb083804d21ad318868a7",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "6f57cd92b70b2941a8d36674b9d7ac6005df40059b4665af43050869f703d608"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/images/3440x1440.jpg",
+      "masterSHA256": "3ae4f68fa82987e88db64d707ea8ad51760d371a0ef1bb0fb0eb1e55c2357d39",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "526b72ca880f955e2c840ee66f75d2ba87598a39685bce64c4de7de4802e660d"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/images/3840x2160.jpg",
+      "masterSHA256": "bac36b17e3ea549b36c9db00cc25952696f2a6e911fc8bf551467477c472e5be",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "aef32a540674239cf1badb3bba935eb502c223cb0647051a499ccce1e62003e6"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "4b9dec731b14565781e9afd12b8c78310a56e6c8505eb083804d21ad318868a7",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "6f57cd92b70b2941a8d36674b9d7ac6005df40059b4665af43050869f703d608"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "3ae4f68fa82987e88db64d707ea8ad51760d371a0ef1bb0fb0eb1e55c2357d39",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "526b72ca880f955e2c840ee66f75d2ba87598a39685bce64c4de7de4802e660d"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AmethystLight/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "bac36b17e3ea549b36c9db00cc25952696f2a6e911fc8bf551467477c472e5be",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "aef32a540674239cf1badb3bba935eb502c223cb0647051a499ccce1e62003e6"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/images/2560x1600.jpg",
+      "masterSHA256": "7f03eea2f8979c3753f01220cde1b131f92a805fa3a4ae8d80291826ac25840e",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "24f49f68371a74e9e28f29a89f446b10cac89b9c6ecc448a439f8f8a67375a1b"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/images/3440x1440.jpg",
+      "masterSHA256": "11949cd85333eb0e7a605ddfc74e5bd3b9d238ae812d7e118b17958aa99331b2",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "8d04c8c06a93055fd136fe371667588bb6b69dc9a5c8cdd48607fedb4bf5c142"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/images/3840x2160.jpg",
+      "masterSHA256": "8f2e8688296439a5a61c58279d5aefd03f6ac546a0283d83d2f1b91901f7e429",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "07d715e285ba0cac0ddced3c1f3100afc1f31e2204caedbcd74a0a3c03a445e6"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "7f03eea2f8979c3753f01220cde1b131f92a805fa3a4ae8d80291826ac25840e",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "24f49f68371a74e9e28f29a89f446b10cac89b9c6ecc448a439f8f8a67375a1b"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "11949cd85333eb0e7a605ddfc74e5bd3b9d238ae812d7e118b17958aa99331b2",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "8d04c8c06a93055fd136fe371667588bb6b69dc9a5c8cdd48607fedb4bf5c142"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Arena/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "8f2e8688296439a5a61c58279d5aefd03f6ac546a0283d83d2f1b91901f7e429",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "07d715e285ba0cac0ddced3c1f3100afc1f31e2204caedbcd74a0a3c03a445e6"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/images/2560x1600.jpg",
+      "masterSHA256": "ce02a69805a7ecb52eab1c1b47d4032d386ca30715ed15fe881866101c28c97a",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "2f1ddf92f600edfa842163b93edba853429e245500a0a0f9045d2d2c093f960e"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/images/3440x1440.jpg",
+      "masterSHA256": "c8295934368a951389216d804054a01f4507d2594081d0297bbd4d2c16954f86",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "8d7ea68dc47b20937b8ff4cfb060c23c4acc32cc828cc3ca10e6d586091b8d7b"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/images/3840x2160.jpg",
+      "masterSHA256": "214437ac19bc2325ccd91bcfc07188ccfefe7bc4f6b473baec807a54103e3657",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "cd89661b8107f82f4754dfc1a489b071e7ba84823570d2137b345fd0ed9e527a"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "ce02a69805a7ecb52eab1c1b47d4032d386ca30715ed15fe881866101c28c97a",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "2f1ddf92f600edfa842163b93edba853429e245500a0a0f9045d2d2c093f960e"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "c8295934368a951389216d804054a01f4507d2594081d0297bbd4d2c16954f86",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "8d7ea68dc47b20937b8ff4cfb060c23c4acc32cc828cc3ca10e6d586091b8d7b"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ArenaLight/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "214437ac19bc2325ccd91bcfc07188ccfefe7bc4f6b473baec807a54103e3657",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "cd89661b8107f82f4754dfc1a489b071e7ba84823570d2137b345fd0ed9e527a"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/images/2560x1600.jpg",
+      "masterSHA256": "f62a723a652dab8a23681a293c41b0ae5b3890d69b6b51725f37e88350ea32f7",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "ceeb5c31a6a408e68c3ffc2099721f1cbc41ead14c583f0a9865870f97b3fe3e"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/images/3440x1440.jpg",
+      "masterSHA256": "c8c876ad31d553233f7c6965cf6b543162233c895f7fbb6fa0202113ffa3d614",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "50b56591fcfe7a61407d6155eb4518b442877c90e796ba4b187e5c8c9a426b37"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/images/3840x2160.jpg",
+      "masterSHA256": "d9c355faabaf1840d81201a97918b102e808de9d199c0be971c4334fd215baae",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "c03d8082d907bf0b1175e1eb76b2c83a955ef0e8b152c82dc2c00d8f0f7dd7d9"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "f62a723a652dab8a23681a293c41b0ae5b3890d69b6b51725f37e88350ea32f7",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "ceeb5c31a6a408e68c3ffc2099721f1cbc41ead14c583f0a9865870f97b3fe3e"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "c8c876ad31d553233f7c6965cf6b543162233c895f7fbb6fa0202113ffa3d614",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "50b56591fcfe7a61407d6155eb4518b442877c90e796ba4b187e5c8c9a426b37"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Aurora/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "d9c355faabaf1840d81201a97918b102e808de9d199c0be971c4334fd215baae",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "c03d8082d907bf0b1175e1eb76b2c83a955ef0e8b152c82dc2c00d8f0f7dd7d9"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/images/2560x1600.jpg",
+      "masterSHA256": "260add96a6955c286a32d0e42ce5519959e77e57aa9cdcb4229403b8d5113a4c",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "537eb3a9f746fcffeddc941bda9448d86f9115b52d99c6e3100a67eec6bae3fc"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/images/3440x1440.jpg",
+      "masterSHA256": "bba49dbf64d7a358d6cd85e04a1450fbd5cb239ebfc4f197234d268c517ea9c4",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "f16df038273df72540d00891bf80594961841a2219cd44d4af9a7a5d91a9bb0a"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/images/3840x2160.jpg",
+      "masterSHA256": "798df2587b9a117c41a3a7ab545009026ba517a80aa3e7cd5dcd0e542a7fefce",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "2761d2ed52375dc54ed861c5fdbc630a1be3027b3627263bba9f07c19ede7203"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "260add96a6955c286a32d0e42ce5519959e77e57aa9cdcb4229403b8d5113a4c",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "537eb3a9f746fcffeddc941bda9448d86f9115b52d99c6e3100a67eec6bae3fc"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "bba49dbf64d7a358d6cd85e04a1450fbd5cb239ebfc4f197234d268c517ea9c4",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "f16df038273df72540d00891bf80594961841a2219cd44d4af9a7a5d91a9bb0a"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2AuroraLight/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "798df2587b9a117c41a3a7ab545009026ba517a80aa3e7cd5dcd0e542a7fefce",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "2761d2ed52375dc54ed861c5fdbc630a1be3027b3627263bba9f07c19ede7203"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Bloom/contents/frost/images/1672x941.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Bloom/contents/images/1672x941.png",
+      "masterSHA256": "fa76d229b81d4454686809faa60483187a5c20dc216a136e5134a409ae4bbf90",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "3dc16986dabab1eccd5786473a004f634fb349a720e5a9b23cfec027bf6b9054"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Bloom/contents/frost/images_dark/1672x941.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Bloom/contents/images_dark/1672x941.png",
+      "masterSHA256": "fa76d229b81d4454686809faa60483187a5c20dc216a136e5134a409ae4bbf90",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "3dc16986dabab1eccd5786473a004f634fb349a720e5a9b23cfec027bf6b9054"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2BloomLight/contents/frost/images/1672x941.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2BloomLight/contents/images/1672x941.png",
+      "masterSHA256": "16976673ec0641842a42babf32a3151a33190f3fc7e0dda5b533e6aa4775e45a",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "25d57d0f718afec1b21dec18c12d2c1924641ee86e0e957251cf4d0d2f6ce5ce"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2BloomLight/contents/frost/images_dark/1672x941.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2BloomLight/contents/images_dark/1672x941.png",
+      "masterSHA256": "16976673ec0641842a42babf32a3151a33190f3fc7e0dda5b533e6aa4775e45a",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "25d57d0f718afec1b21dec18c12d2c1924641ee86e0e957251cf4d0d2f6ce5ce"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/images/2560x1600.jpg",
+      "masterSHA256": "ef0a489cbb394d260af6627f15325663448ad1f142baad0c70c7f134da5448fe",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "f640c2854d4ff031979e9c8e80896e4c3efa3a10d580f7b6479687b6ccf2033c"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/images/3440x1440.jpg",
+      "masterSHA256": "23815329c68c8ba8c0422751efcb0f3ebe92e9daf754544d2e25d454cc1c0be2",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "8fd31e3865af530343bf0fa98649c39f3dc77adb91852840923580d344f98b29"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/images/3840x2160.jpg",
+      "masterSHA256": "58a05d93b1382735add7a2e78441784b7699ad89f70dba2f2353028f74ff00d1",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "e42255cd93a1d02ef46f950bbcd6c47cd1a912df033b78781d2014f90bbad763"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "ef0a489cbb394d260af6627f15325663448ad1f142baad0c70c7f134da5448fe",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "f640c2854d4ff031979e9c8e80896e4c3efa3a10d580f7b6479687b6ccf2033c"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "23815329c68c8ba8c0422751efcb0f3ebe92e9daf754544d2e25d454cc1c0be2",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "8fd31e3865af530343bf0fa98649c39f3dc77adb91852840923580d344f98b29"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Daylight/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "58a05d93b1382735add7a2e78441784b7699ad89f70dba2f2353028f74ff00d1",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "e42255cd93a1d02ef46f950bbcd6c47cd1a912df033b78781d2014f90bbad763"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/images/2560x1600.jpg",
+      "masterSHA256": "a653def11626c091757ea64d3ee128584631b705c794aeb62b3433af6e11d860",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "4ed2557cbcdda7b47075b4a3e5c22ce00c4b42dfb4fed7dc3c7c8f1275ad2039"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/images/3440x1440.jpg",
+      "masterSHA256": "93145ceb756d8628ff2ec44449c83c9b6f53b4b4ce86bc5aad29bd75f2a5cb95",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "faa92629df2dd1746ccfce3f53f2d6504b0c813d9d752300d04b8dfe66692393"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/images/3840x2160.jpg",
+      "masterSHA256": "5ab82e16e675d509a2a7dad28d0ee2195eb22adf71253886a977444cded9f4b1",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "bf345a14db979ee48e65593282ab267c27874c8c4ce757f42cae4f328264fc4b"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "a653def11626c091757ea64d3ee128584631b705c794aeb62b3433af6e11d860",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "4ed2557cbcdda7b47075b4a3e5c22ce00c4b42dfb4fed7dc3c7c8f1275ad2039"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "93145ceb756d8628ff2ec44449c83c9b6f53b4b4ce86bc5aad29bd75f2a5cb95",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "faa92629df2dd1746ccfce3f53f2d6504b0c813d9d752300d04b8dfe66692393"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Forge/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "5ab82e16e675d509a2a7dad28d0ee2195eb22adf71253886a977444cded9f4b1",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "bf345a14db979ee48e65593282ab267c27874c8c4ce757f42cae4f328264fc4b"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/images/2560x1600.jpg",
+      "masterSHA256": "d496202d42331e2077bdfe4b68e84e698236ae357c8323098667e9dd6ecd3033",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "8342c2700101017289d4fa9bf13f19941ea66b68b74588fb10c1cf66962d1842"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/images/3440x1440.jpg",
+      "masterSHA256": "6b6f1be7669c4bc169382baa3a8ebaffcb29c341f9e8656702903ed5db846acf",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "4164716e6777a261512ccbe272effc1d69cec09dc2dfe5203285682ed403d7a0"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/images/3840x2160.jpg",
+      "masterSHA256": "f09ce940cf8c0911c25dbfd5b31dd92d45a3847c8625a3fc8591d9b8823224b7",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "474d5b51472dc6f9d58cbddbb4c5dd8fa2944200748f3f7710a9e15baba3dfdf"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "d496202d42331e2077bdfe4b68e84e698236ae357c8323098667e9dd6ecd3033",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "8342c2700101017289d4fa9bf13f19941ea66b68b74588fb10c1cf66962d1842"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "6b6f1be7669c4bc169382baa3a8ebaffcb29c341f9e8656702903ed5db846acf",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "4164716e6777a261512ccbe272effc1d69cec09dc2dfe5203285682ed403d7a0"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ForgeLight/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "f09ce940cf8c0911c25dbfd5b31dd92d45a3847c8625a3fc8591d9b8823224b7",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "474d5b51472dc6f9d58cbddbb4c5dd8fa2944200748f3f7710a9e15baba3dfdf"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/images/2560x1600.jpg",
+      "masterSHA256": "58c4f8c19089d184398cd49950505eab5a8f8b5c085e611b9a12aea2324626a0",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "15baa6bd2bbfd498e21ac77831aeee16576afb2fde3463268101eec586fb9c69"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/images/3440x1440.jpg",
+      "masterSHA256": "700c764bb0b3b90f48a0f83f45d8570cfc2691de1f215cf7c1b60d8c71b36ccf",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "65f187b4f7c58dc64171ae73b059a47573b19f146e9dbd03145a0872ccccb1fd"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/images/3840x2160.jpg",
+      "masterSHA256": "bd4c17a40684e71b03441694119d82ff6abe78a85ebbfe573fecf4a615dd4892",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "f384d088b7f7d0cf9be9180563564c9f9b270f3feac72e7dfb37f91e18e0cf4f"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "58c4f8c19089d184398cd49950505eab5a8f8b5c085e611b9a12aea2324626a0",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "15baa6bd2bbfd498e21ac77831aeee16576afb2fde3463268101eec586fb9c69"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "700c764bb0b3b90f48a0f83f45d8570cfc2691de1f215cf7c1b60d8c71b36ccf",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "65f187b4f7c58dc64171ae73b059a47573b19f146e9dbd03145a0872ccccb1fd"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "bd4c17a40684e71b03441694119d82ff6abe78a85ebbfe573fecf4a615dd4892",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "f384d088b7f7d0cf9be9180563564c9f9b270f3feac72e7dfb37f91e18e0cf4f"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/images/2560x1600.jpg",
+      "masterSHA256": "4e8ff24b2cc50f66154b497f416dcdc990b018a7abfd079c07b0afbd1620437b",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "d164cb6fed14d60ebcc9c2d3c8263dba4cceb819bfdd8625eb69e129f6670187"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/images/3440x1440.jpg",
+      "masterSHA256": "bc2a85354369ab656cb5117d6f90f794184d251f95986d449f8b9e1ca5867be7",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "b1122d2c1bbfbbccae9a20777dbf78b63cb9426647092b2ca9aee5835a6514ef"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/images/3840x2160.jpg",
+      "masterSHA256": "f6eb9d2a201e74a17a676c53b46b4011bcf023118a0b6583be2a638a74975b54",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "810ac41ab1bc39ddc36e0e0e8354773010aa6fe1fc059fc1fccae91c95f676c9"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "4e8ff24b2cc50f66154b497f416dcdc990b018a7abfd079c07b0afbd1620437b",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "d164cb6fed14d60ebcc9c2d3c8263dba4cceb819bfdd8625eb69e129f6670187"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "bc2a85354369ab656cb5117d6f90f794184d251f95986d449f8b9e1ca5867be7",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "b1122d2c1bbfbbccae9a20777dbf78b63cb9426647092b2ca9aee5835a6514ef"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Midnight/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "f6eb9d2a201e74a17a676c53b46b4011bcf023118a0b6583be2a638a74975b54",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "810ac41ab1bc39ddc36e0e0e8354773010aa6fe1fc059fc1fccae91c95f676c9"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/images/2560x1600.jpg",
+      "masterSHA256": "3d0b9d309af05bd54e50e0a0abf2722b20afd45371456b36b1ca6edfe84bd70f",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "6efa64293d8bf41750a8a88f35171c20c5ff9fe368f8c33feab3709c2704798e"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/images/3440x1440.jpg",
+      "masterSHA256": "bea3e6203fdb8461839bd22a25e2754fa7952537c224f441d6fdd3c3e3082e0f",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "b04b221305c7e4a014c9db03228ef588bc922cfca51db94b115a0ec60a1e4fc5"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/images/3840x2160.jpg",
+      "masterSHA256": "e30835f1e24564f5370786124d98a21a5438858e3ef0fcb480bc04af3a0d8000",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "0017ccb6735a0c5456690d3b03d1917f5a1f5785f44753c2fffdc1c3f90500c5"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "3d0b9d309af05bd54e50e0a0abf2722b20afd45371456b36b1ca6edfe84bd70f",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "6efa64293d8bf41750a8a88f35171c20c5ff9fe368f8c33feab3709c2704798e"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "bea3e6203fdb8461839bd22a25e2754fa7952537c224f441d6fdd3c3e3082e0f",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "b04b221305c7e4a014c9db03228ef588bc922cfca51db94b115a0ec60a1e4fc5"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Nova/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "e30835f1e24564f5370786124d98a21a5438858e3ef0fcb480bc04af3a0d8000",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "0017ccb6735a0c5456690d3b03d1917f5a1f5785f44753c2fffdc1c3f90500c5"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/images/2560x1600.jpg",
+      "masterSHA256": "b8fb448017045b6cd30a74ba8a4da45625e4d73d5f943a45b47ff5c109fb0f87",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "47f0055873cbc2dc1838289cd10d970f0bb24e5df24bdb4cb9786fcc033a6087"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/images/3440x1440.jpg",
+      "masterSHA256": "b73a138a8dba1d08890a096dde1a064a5ec52a1eb78fd9dc036c87a7eb24898c",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "7dec2a31e3aa48a259388941c06b38c5e9bfc4ac1d2fa0a8c05adf98cf73aef3"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/images/3840x2160.jpg",
+      "masterSHA256": "0e20bd88b962bcf3e3cfb214c417280a5b7f336a985f2d3f151f912d2c02cce7",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "dce91998f6c0c2da29751ab8c385c13ee122655ee462e95868fb477bda728157"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "b8fb448017045b6cd30a74ba8a4da45625e4d73d5f943a45b47ff5c109fb0f87",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "47f0055873cbc2dc1838289cd10d970f0bb24e5df24bdb4cb9786fcc033a6087"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "b73a138a8dba1d08890a096dde1a064a5ec52a1eb78fd9dc036c87a7eb24898c",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "7dec2a31e3aa48a259388941c06b38c5e9bfc4ac1d2fa0a8c05adf98cf73aef3"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2NovaLight/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "0e20bd88b962bcf3e3cfb214c417280a5b7f336a985f2d3f151f912d2c02cce7",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "dce91998f6c0c2da29751ab8c385c13ee122655ee462e95868fb477bda728157"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/images/2560x1600.jpg",
+      "masterSHA256": "72fb8f0b0f4edd6cfbff9acf9535a95375d2814b7b319b0a987c8b518b792b7d",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "9d4b976274f23fae0f6d26f3e3b62e9ec02fe5b0249bda7de6da85c277b9f415"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/images/3440x1440.jpg",
+      "masterSHA256": "1daaff04aa46dc8ced3c74133502e01d3656fc712bf1d3c452fb9f782e6fe1be",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "b1bf9984ebaf1c8d492ef2a594d25da816824d77466d09d5841caa0cfdd40c5c"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/images/3840x2160.jpg",
+      "masterSHA256": "b01f0b318f6ef5aad0b04cf6e2a26f7006c9a8198674626d78dad71f2e9b302b",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "c207b6bc573050ee48496b2e52adf7963d7b8eb636e78aa9128afc5a3b7f544c"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "72fb8f0b0f4edd6cfbff9acf9535a95375d2814b7b319b0a987c8b518b792b7d",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "9d4b976274f23fae0f6d26f3e3b62e9ec02fe5b0249bda7de6da85c277b9f415"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "1daaff04aa46dc8ced3c74133502e01d3656fc712bf1d3c452fb9f782e6fe1be",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "b1bf9984ebaf1c8d492ef2a594d25da816824d77466d09d5841caa0cfdd40c5c"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Scholar/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "b01f0b318f6ef5aad0b04cf6e2a26f7006c9a8198674626d78dad71f2e9b302b",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "c207b6bc573050ee48496b2e52adf7963d7b8eb636e78aa9128afc5a3b7f544c"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/images/2560x1600.jpg",
+      "masterSHA256": "e13e7e951f7e9296468a8d44411e8705589303210c794014564b97a109977b14",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "c40d21f26c35787f208a19f79740af93a9840ac976985823e4a7fee64c0d3d98"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/images/3440x1440.jpg",
+      "masterSHA256": "477f81087da17053baba3701a4557f66061d5e1817bc622a98a58e479eb1ae15",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "917df85e7e325a95367a082dcc1722b91c2d73dd1566f01847fd11fe42daf05d"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/images/3840x2160.jpg",
+      "masterSHA256": "d9dbf35a446028238bd1674b4dcb47a719b13d03b4f650e6bfd0d4f92b47c6e6",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "60643dcd6b137be139c924e9b2230fd1c31cb7dfdf9f3f6af397d4c9933758a7"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "e13e7e951f7e9296468a8d44411e8705589303210c794014564b97a109977b14",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "c40d21f26c35787f208a19f79740af93a9840ac976985823e4a7fee64c0d3d98"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "477f81087da17053baba3701a4557f66061d5e1817bc622a98a58e479eb1ae15",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "917df85e7e325a95367a082dcc1722b91c2d73dd1566f01847fd11fe42daf05d"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2ScholarLight/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "d9dbf35a446028238bd1674b4dcb47a719b13d03b4f650e6bfd0d4f92b47c6e6",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "60643dcd6b137be139c924e9b2230fd1c31cb7dfdf9f3f6af397d4c9933758a7"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/frost/images/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/images/2560x1600.jpg",
+      "masterSHA256": "ac31d3bde5e8c6e71f4273bfe5ee5d91ab672794147cbc5f5946e6a861b66caa",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "3d868c36369ffa72992156dfc94f0eece61feb2a566443449913f9a901fdf99d"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/frost/images/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/images/3440x1440.jpg",
+      "masterSHA256": "80f7bca553de3441140fbc8332f4e53b4c1f3a30c4070bd32141da0a933becf9",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "67ebe2a6f4a9464d515796e306c066663c6dce4fb931a3833146da6dcfd8346d"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/frost/images/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/images/3840x2160.jpg",
+      "masterSHA256": "85668188f084c000144c3d3a4a066681731eb0caeae0bce619747ae58631178f",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "95b51ebcd369382da6384181dc82e82e3c71ceaab0276f11cd1ba32c47667f9b"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/frost/images_dark/2560x1600.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/images_dark/2560x1600.jpg",
+      "masterSHA256": "ac31d3bde5e8c6e71f4273bfe5ee5d91ab672794147cbc5f5946e6a861b66caa",
+      "size": [
+        640,
+        400
+      ],
+      "sha256": "3d868c36369ffa72992156dfc94f0eece61feb2a566443449913f9a901fdf99d"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/frost/images_dark/3440x1440.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/images_dark/3440x1440.jpg",
+      "masterSHA256": "80f7bca553de3441140fbc8332f4e53b4c1f3a30c4070bd32141da0a933becf9",
+      "size": [
+        640,
+        268
+      ],
+      "sha256": "67ebe2a6f4a9464d515796e306c066663c6dce4fb931a3833146da6dcfd8346d"
+    },
+    "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/frost/images_dark/3840x2160.jpg": {
+      "master": "system_files/usr/share/wallpapers/MoOSUI2Tide/contents/images_dark/3840x2160.jpg",
+      "masterSHA256": "85668188f084c000144c3d3a4a066681731eb0caeae0bce619747ae58631178f",
+      "size": [
+        640,
+        360
+      ],
+      "sha256": "95b51ebcd369382da6384181dc82e82e3c71ceaab0276f11cd1ba32c47667f9b"
+    }
+  }
+}

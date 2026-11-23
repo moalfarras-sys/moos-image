@@ -80,7 +80,8 @@ def verify(root: Path):
     if root.is_symlink() or not root.is_dir():
         raise ValueError('Font directory must be a real installed directory')
     manifest = json.loads((root / 'manifest.json').read_text())
-    if manifest['version'] != '0.300' or manifest['license'] != 'OFL-1.1':
+    # 0.400: Meyar Arabic became the seven Tajawal-derived faces (2026-11-23).
+    if manifest['version'] != '0.400' or manifest['license'] != 'OFL-1.1':
         raise ValueError('Unexpected font delivery version/license')
     files = manifest['files']
     if {p.name for p in root.iterdir()} != set(files) | {'manifest.json'}:
@@ -92,7 +93,10 @@ def verify(root: Path):
         if path.is_symlink() or not path.is_file() or path.stat().st_size != receipt['bytes'] or hashlib.sha256(path.read_bytes()).hexdigest() != receipt['sha256']:
             raise ValueError('Font delivery byte mismatch: ' + name)
     policy = json.loads((root / 'terminal-cells.json').read_text())
-    expected = {'MeyarSans[wght].ttf': 'Meyar Sans', 'MeyarArabic[wght].ttf': 'Meyar Arabic',
+    # Meyar Arabic ships as the seven static faces derived from Tajawal (fonts/meyar-family/build_arabic_ui.py).
+    expected = {'MeyarSans[wght].ttf': 'Meyar Sans',
+                **{f'MeyarArabic-{s}.ttf': 'Meyar Arabic' for s in ('ExtraLight', 'Light', 'Regular', 'Medium',
+                                                                   'Bold', 'ExtraBold', 'Black')},
                 'MeyarMono[wght].ttf': 'Meyar Mono', 'MeyarMonoArabic-Regular.ttf': 'Meyar Mono Arabic',
                 'MeyarMonoArabic-Bold.ttf': 'Meyar Mono Arabic'}
     if {n for n in files if n.endswith('.ttf')} != set(expected):

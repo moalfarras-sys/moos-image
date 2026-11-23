@@ -9,7 +9,7 @@
       "id": "org.moos.ui2",
       "family": "graphite",
       "mode": "dark",
-      "displayName": "MoOS Graphite",
+      "displayName": "MoOS · Midad Turquoise",
       "scheme": "MoOSUI2Dark",
       "style": "MoOSUI2",
       "konsole": "MoOSUI2.profile",
@@ -20,13 +20,14 @@
       "wallpaper": "MoOSUI2Graphite",
       "wallpaperBranch": "images_dark",
       "accent": "#4ED7C8",
-      "surfaceTreatment": "graphite-frost"
+      "surfaceTreatment": "graphite-frost",
+      "displayNameAr": "مداد الفيروز · MoOS"
     },
     {
       "id": "org.moos.ui2.light",
       "family": "graphite",
       "mode": "light",
-      "displayName": "MoOS Tidal",
+      "displayName": "MoOS · Mint Tide",
       "scheme": "MoOSUI2Light",
       "style": "MoOSUI2Light",
       "konsole": "MoOSUI2Light.profile",
@@ -37,13 +38,14 @@
       "wallpaper": "MoOSUI2Tide",
       "wallpaperBranch": "images",
       "accent": "#006D67",
-      "surfaceTreatment": "tidal-frost"
+      "surfaceTreatment": "tidal-frost",
+      "displayNameAr": "موج النعناع · MoOS"
     },
     {
       "id": "org.moos.ui2.nova",
       "family": "nova",
       "mode": "dark",
-      "displayName": "MoOS Nova",
+      "displayName": "MoOS · Midnight Indigo",
       "scheme": "MoOSUI2Nova",
       "style": "MoOSUI2Nova",
       "konsole": "MoOSUI2Nova.profile",
@@ -54,13 +56,14 @@
       "wallpaper": "MoOSUI2Nova",
       "wallpaperBranch": "images_dark",
       "accent": "#6366F1",
-      "surfaceTreatment": "cosmic-frost"
+      "surfaceTreatment": "cosmic-frost",
+      "displayNameAr": "مدار النيلة · MoOS"
     },
     {
       "id": "org.moos.ui2.nova.light",
       "family": "nova",
       "mode": "light",
-      "displayName": "MoOS Nova Light",
+      "displayName": "MoOS · Misty Azure",
       "scheme": "MoOSUI2NovaLight",
       "style": "MoOSUI2NovaLight",
       "konsole": "MoOSUI2NovaLight.profile",
@@ -71,13 +74,14 @@
       "wallpaper": "MoOSUI2NovaLight",
       "wallpaperBranch": "images",
       "accent": "#0E63C4",
-      "surfaceTreatment": "cosmic-frost"
+      "surfaceTreatment": "cosmic-frost",
+      "displayNameAr": "مزن لازوردية · MoOS"
     },
     {
       "id": "org.moos.ui2.amethyst",
       "family": "amethyst",
       "mode": "dark",
-      "displayName": "MoOS Amethyst",
+      "displayName": "MoOS · Mulberry Amethyst",
       "scheme": "MoOSUI2Amethyst",
       "style": "MoOSUI2Amethyst",
       "konsole": "MoOSUI2Amethyst.profile",
@@ -88,13 +92,14 @@
       "wallpaper": "MoOSUI2Amethyst",
       "wallpaperBranch": "images_dark",
       "accent": "#C084FC",
-      "surfaceTreatment": "warm-frost"
+      "surfaceTreatment": "warm-frost",
+      "displayNameAr": "مغيب الجمشت · MoOS"
     },
     {
       "id": "org.moos.ui2.amethyst.light",
       "family": "amethyst",
       "mode": "light",
-      "displayName": "MoOS Amethyst Light",
+      "displayName": "MoOS · Misty Lilac",
       "scheme": "MoOSUI2AmethystLight",
       "style": "MoOSUI2AmethystLight",
       "konsole": "MoOSUI2AmethystLight.profile",
@@ -105,13 +110,14 @@
       "wallpaper": "MoOSUI2AmethystLight",
       "wallpaperBranch": "images",
       "accent": "#7C3AED",
-      "surfaceTreatment": "warm-frost"
+      "surfaceTreatment": "warm-frost",
+      "displayNameAr": "ميسم الليلك · MoOS"
     },
     {
       "id": "org.moos.ui2.midnight",
       "family": "midnight",
       "mode": "dark",
-      "displayName": "MoOS Midnight",
+      "displayName": "MoOS · Midnight Cyan",
       "scheme": "MoOSUI2Midnight",
       "style": "MoOSUI2Midnight",
       "konsole": "MoOSUI2Midnight.profile",
@@ -122,13 +128,14 @@
       "wallpaper": "MoOSUI2Midnight",
       "wallpaperBranch": "images_dark",
       "accent": "#22D3EE",
-      "surfaceTreatment": "oled-glass"
+      "surfaceTreatment": "oled-glass",
+      "displayNameAr": "مسك قطبي · MoOS"
     },
     {
       "id": "org.moos.ui2.midnight.light",
       "family": "midnight",
       "mode": "light",
-      "displayName": "MoOS Daylight",
+      "displayName": "MoOS · Mirror Ice",
       "scheme": "MoOSUI2Daylight",
       "style": "MoOSUI2Daylight",
       "konsole": "MoOSUI2Daylight.profile",
@@ -139,13 +146,14 @@
       "wallpaper": "MoOSUI2Daylight",
       "wallpaperBranch": "images",
       "accent": "#0284C7",
-      "surfaceTreatment": "daylight-frost"
+      "surfaceTreatment": "daylight-frost",
+      "displayNameAr": "مرآة الجليد · MoOS"
     },
     {
       "id": "org.moos.ui2.aurora",
       "family": "aurora",
       "mode": "dark",
-      "displayName": "MoOS Aurora",
+      "displayName": "MoOS · Marine Aurora",
       "scheme": "MoOSUI2Aurora",
       "style": "MoOSUI2Aurora",
       "konsole": "MoOSUI2Aurora.profile",
@@ -156,13 +164,14 @@
       "wallpaper": "MoOSUI2Aurora",
       "wallpaperBranch": "images_dark",
       "accent": "#20D6F8",
-      "surfaceTreatment": "quiet-glass"
+      "surfaceTreatment": "quiet-glass",
+      "displayNameAr": "محيط الشفق · MoOS"
     },
     {
       "id": "org.moos.ui2.aurora.light",
       "family": "aurora",
       "mode": "light",
-      "displayName": "MoOS Aurora Light",
+      "displayName": "MoOS · Morning Cobalt",
       "scheme": "MoOSUI2AuroraLight",
       "style": "MoOSUI2AuroraLight",
       "konsole": "MoOSUI2AuroraLight.profile",
@@ -173,13 +182,14 @@
       "wallpaper": "MoOSUI2AuroraLight",
       "wallpaperBranch": "images",
       "accent": "#1647B9",
-      "surfaceTreatment": "quiet-glass"
+      "surfaceTreatment": "quiet-glass",
+      "displayNameAr": "مرفأ الكوبالت · MoOS"
     },
     {
       "id": "org.moos.ui2.gaming",
       "family": "gaming",
       "mode": "dark",
-      "displayName": "MoOS Arena",
+      "displayName": "MoOS · Magenta Velvet",
       "scheme": "MoOSUI2Arena",
       "style": "MoOSUI2Arena",
       "konsole": "MoOSUI2Arena.profile",
@@ -190,13 +200,14 @@
       "wallpaper": "MoOSUI2Arena",
       "wallpaperBranch": "images_dark",
       "accent": "#FF2D95",
-      "surfaceTreatment": "arena-glow"
+      "surfaceTreatment": "arena-glow",
+      "displayNameAr": "مخمل الفوشيا · MoOS"
     },
     {
       "id": "org.moos.ui2.gaming.light",
       "family": "gaming",
       "mode": "light",
-      "displayName": "MoOS Arena Light",
+      "displayName": "MoOS · Mulberry Blush",
       "scheme": "MoOSUI2ArenaLight",
       "style": "MoOSUI2ArenaLight",
       "konsole": "MoOSUI2ArenaLight.profile",
@@ -207,13 +218,14 @@
       "wallpaper": "MoOSUI2ArenaLight",
       "wallpaperBranch": "images",
       "accent": "#C81D7A",
-      "surfaceTreatment": "arena-glow"
+      "surfaceTreatment": "arena-glow",
+      "displayNameAr": "مورد التوت · MoOS"
     },
     {
       "id": "org.moos.ui2.dev",
       "family": "dev",
       "mode": "dark",
-      "displayName": "MoOS Forge",
+      "displayName": "MoOS · Midnight Emerald",
       "scheme": "MoOSUI2Forge",
       "style": "MoOSUI2Forge",
       "konsole": "MoOSUI2Forge.profile",
@@ -224,13 +236,14 @@
       "wallpaper": "MoOSUI2Forge",
       "wallpaperBranch": "images_dark",
       "accent": "#3FB950",
-      "surfaceTreatment": "focus-frost"
+      "surfaceTreatment": "focus-frost",
+      "displayNameAr": "منجم الزمرد · MoOS"
     },
     {
       "id": "org.moos.ui2.dev.light",
       "family": "dev",
       "mode": "light",
-      "displayName": "MoOS Forge Light",
+      "displayName": "MoOS · Meadow Sage",
       "scheme": "MoOSUI2ForgeLight",
       "style": "MoOSUI2ForgeLight",
       "konsole": "MoOSUI2ForgeLight.profile",
@@ -241,13 +254,14 @@
       "wallpaper": "MoOSUI2ForgeLight",
       "wallpaperBranch": "images",
       "accent": "#1A7F37",
-      "surfaceTreatment": "focus-frost"
+      "surfaceTreatment": "focus-frost",
+      "displayNameAr": "مرج المريمية · MoOS"
     },
     {
       "id": "org.moos.ui2.study",
       "family": "study",
       "mode": "dark",
-      "displayName": "MoOS Scholar",
+      "displayName": "MoOS · Molten Amber",
       "scheme": "MoOSUI2Scholar",
       "style": "MoOSUI2Scholar",
       "konsole": "MoOSUI2Scholar.profile",
@@ -258,13 +272,14 @@
       "wallpaper": "MoOSUI2Scholar",
       "wallpaperBranch": "images_dark",
       "accent": "#E0A458",
-      "surfaceTreatment": "reading-frost"
+      "surfaceTreatment": "reading-frost",
+      "displayNameAr": "مشكاة العنبر · MoOS"
     },
     {
       "id": "org.moos.ui2.study.light",
       "family": "study",
       "mode": "light",
-      "displayName": "MoOS Scholar Light",
+      "displayName": "MoOS · Manuscript Sand",
       "scheme": "MoOSUI2ScholarLight",
       "style": "MoOSUI2ScholarLight",
       "konsole": "MoOSUI2ScholarLight.profile",
@@ -275,13 +290,14 @@
       "wallpaper": "MoOSUI2ScholarLight",
       "wallpaperBranch": "images",
       "accent": "#B45309",
-      "surfaceTreatment": "reading-frost"
+      "surfaceTreatment": "reading-frost",
+      "displayNameAr": "مخطوط رملي · MoOS"
     },
     {
       "id": "org.moos.ui2.bloom",
       "family": "bloom",
       "mode": "dark",
-      "displayName": "MoOS Bloom",
+      "displayName": "MoOS · Moonlit Iris",
       "scheme": "MoOSUI2Bloom",
       "style": "MoOSUI2Bloom",
       "konsole": "MoOSUI2Amethyst.profile",
@@ -292,13 +308,14 @@
       "wallpaper": "MoOSUI2Bloom",
       "wallpaperBranch": "images_dark",
       "accent": "#C084FC",
-      "surfaceTreatment": "bloom-soft"
+      "surfaceTreatment": "bloom-soft",
+      "displayNameAr": "مساء السوسن · MoOS"
     },
     {
       "id": "org.moos.ui2.bloom.light",
       "family": "bloom",
       "mode": "light",
-      "displayName": "MoOS Bloom Light",
+      "displayName": "MoOS · Morning Lavender",
       "scheme": "MoOSUI2BloomLight",
       "style": "MoOSUI2BloomLight",
       "konsole": "MoOSUI2AmethystLight.profile",
@@ -309,7 +326,8 @@
       "wallpaper": "MoOSUI2BloomLight",
       "wallpaperBranch": "images",
       "accent": "#7C3AED",
-      "surfaceTreatment": "bloom-soft"
+      "surfaceTreatment": "bloom-soft",
+      "displayNameAr": "مروج الخزامى · MoOS"
     }
   ]
 }
