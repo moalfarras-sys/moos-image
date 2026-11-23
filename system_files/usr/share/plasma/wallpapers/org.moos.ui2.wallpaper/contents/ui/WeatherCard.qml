@@ -98,8 +98,10 @@ Item {
                         elide: Text.ElideRight
                         // Its own width, eliding only when the row really is too narrow:
                         // a fixed 7 grid units cut the spaced English "LOCAL FORECAST"
-                        // to "LOCAL FORECA…" while the Arabic fitted.
-                        Layout.fillWidth: true
+                        // to "LOCAL FORECA…" while the Arabic fitted. Not fillWidth: sharing
+                        // the row's spare room with the spacer squeezed a city that arrived
+                        // after layout ("Berl…" on the live 4K desk). Unfilled, the row gives
+                        // it its natural width and shrinks it only when it must.
                         Layout.maximumWidth: implicitWidth
                     }
                     Item { Layout.fillWidth: true }
