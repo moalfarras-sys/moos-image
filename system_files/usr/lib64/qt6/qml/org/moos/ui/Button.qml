@@ -41,9 +41,10 @@ QQC2.AbstractButton {
     Accessible.role: Accessible.Button
     Accessible.name: label
 
-    implicitHeight: compact ? Tokens.targetCompact : Tokens.targetControl
+    implicitHeight: Math.max(compact ? Tokens.targetCompact : Tokens.targetControl,
+                             contentRow.implicitHeight + topPadding + bottomPadding)
     implicitWidth: Math.max(Tokens.targetControl,
-        contentRow.implicitWidth + Tokens.space5)
+        contentRow.implicitWidth + leftPadding + rightPadding)
     leftPadding: Tokens.space3
     rightPadding: Tokens.space3
     topPadding: Tokens.space2
@@ -59,7 +60,10 @@ QQC2.AbstractButton {
 
     background: Rectangle {
         scale: feedback.value
+        id: plate
         radius: control.cornerRadius
+        topLeftRadius: LayoutMirroring.enabled ? Math.min(radius, Tokens.radiusSquare) : radius
+        topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, Tokens.radiusSquare)
         color: control.enabled ? control.restingColor : control.surfaceColor
         border.width: control.primary ? 0 : Tokens.borderHairline
         border.color: !control.enabled ? control.outlineColor
@@ -79,10 +83,11 @@ QQC2.AbstractButton {
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
-            color: control.primary
-                ? Qt.alpha(control.accentForegroundColor,
-                           control.stateLayerOpacity)
-                : Qt.alpha(control.actionColor, control.stateLayerOpacity)
+            topLeftRadius: plate.topLeftRadius
+            topRightRadius: plate.topRightRadius
+            color: control.primary ? "transparent" : Qt.alpha(control.actionColor, control.stateLayerOpacity)
+            border.width: control.primary && (control.hovered || control.down) ? Tokens.focusWidth : 0
+            border.color: Qt.alpha(control.accentForegroundColor, control.down ? 0.48 : 0.30)
             opacity: control.enabled ? 1 : 0
 
             Behavior on color {
@@ -93,28 +98,37 @@ QQC2.AbstractButton {
         }
     }
 
-    contentItem: RowLayout {
-        id: contentRow
-        scale: feedback.value
-        spacing: Tokens.space2
+    contentItem: Item {
+        implicitWidth: contentRow.implicitWidth
+        implicitHeight: contentRow.implicitHeight
+        RowLayout {
+            id: contentRow
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.width)
+            spacing: Tokens.space2
+            scale: feedback.value
 
-        SymbolIcon {
-            visible: control.iconName !== ""
-            symbol: control.iconName
-            foreground: control.foregroundColor
-            Layout.preferredWidth: control.iconPixelSize
-            Layout.preferredHeight: control.iconPixelSize
-        }
-        Text {
-            Layout.fillWidth: true
-            text: control.label
-            color: control.foregroundColor
-            font.family: control.font.family
-            font.pixelSize: control.fontPixelSize
-            font.weight: Font.DemiBold
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
+            SymbolIcon {
+                visible: control.iconName.length > 0
+                symbol: control.iconName
+                foreground: control.foregroundColor
+                Layout.preferredWidth: control.iconPixelSize
+                Layout.preferredHeight: control.iconPixelSize
+            }
+            Text {
+                visible: control.label.length > 0
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                text: control.label
+                textFormat: Text.PlainText
+                color: control.foregroundColor
+                font.family: control.font.family
+                font.pixelSize: control.fontPixelSize
+                font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
         }
     }
 
@@ -122,5 +136,7 @@ QQC2.AbstractButton {
         anchors.fill: control
         accentColor: control.actionColor
         controlRadius: control.cornerRadius
+        topLeftRadius: plate.topLeftRadius + Tokens.focusGap
+        topRightRadius: plate.topRightRadius + Tokens.focusGap
     }
 }

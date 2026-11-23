@@ -37,11 +37,10 @@ QtObject {
     // white on a light one. Function keys (shift, delete, language, enter,
     // symbols, hide) are a step denser, so the letters read as the field.
     readonly property color letterKey: darkGround
-        ? Kirigami.ColorUtils.tintWithAlpha(glassGround, glassInk, 0.11)
+        ? Kirigami.ColorUtils.tintWithAlpha(glassGround, glassInk, 0.16)
         : Kirigami.ColorUtils.tintWithAlpha(glassGround, "#ffffff", 0.72)
-    readonly property color functionKey: darkGround
-        ? Kirigami.ColorUtils.tintWithAlpha(glassGround, glassInk, 0.05)
-        : Kirigami.ColorUtils.tintWithAlpha(glassGround, glassInk, 0.06)
+    readonly property color functionKey: Kirigami.ColorUtils.tintWithAlpha(
+        glassGround, Kirigami.Theme.highlightColor, darkGround ? 0.14 : 0.13)
 
     property color primaryColor: Kirigami.Theme.backgroundColor
     property color primaryLightColor: Qt.lighter(primaryColor, 1.3)
@@ -62,15 +61,15 @@ QtObject {
     property color capsLockKeyAccentColor: Kirigami.Theme.highlightColor
     property color modeKeyAccentColor: Kirigami.Theme.highlightColor
     property color keyTextColor: textOnPrimaryColor
-    property color keySmallTextColor: Kirigami.ColorUtils.tintWithAlpha(letterKey, glassInk, 0.66)
+    property color keySmallTextColor: Kirigami.ColorUtils.tintWithAlpha(letterKey, glassInk, 0.82)
     property color popupBackgroundColor: darkGround
         ? Kirigami.ColorUtils.tintWithAlpha(glassGround, glassInk, 0.09)
         : Kirigami.ColorUtils.tintWithAlpha(glassGround, "#ffffff", 0.82)
     property color popupBorderColor: Kirigami.ColorUtils.tintWithAlpha(popupBackgroundColor, glassInk, 0.16)
     property color popupTextColor: textOnPrimaryColor
-    property color popupTextSelectedColor: textOnPrimaryColor
+    property color popupTextSelectedColor: Kirigami.Theme.highlightedTextColor
     property color popupHighlightBorderColor: Kirigami.Theme.highlightColor
-    property color popupHighlightColor: Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.3)
+    property color popupHighlightColor: Kirigami.Theme.highlightColor
     property color selectionListTextColor: textOnPrimaryColor
     property color selectionListSeparatorColor: Kirigami.ColorUtils.tintWithAlpha(keyboardBackgroundColor, glassInk, 0.14)
     property color selectionListBackgroundColor: keyboardBackgroundColor

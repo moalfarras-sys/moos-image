@@ -41,7 +41,7 @@ KeyboardStyle {
     property real inputLocaleIndicatorOpacity: 1.0
     property Timer inputLocaleIndicatorHighlightTimer: Timer {
         interval: 1000
-        onTriggered: inputLocaleIndicatorOpacity = 0.5
+        onTriggered: inputLocaleIndicatorOpacity = 0.82
     }
     onInputLocaleChanged: {
         inputLocaleIndicatorOpacity = 1.0
@@ -142,7 +142,7 @@ KeyboardStyle {
                 font {
                     family: theme.fontFamily
                     weight: Font.Normal // MoOS: was Light
-                    pixelSize: 30 * scaleHint
+                    pixelSize: 35 * scaleHint
                     capitalization: control.uppercased ? Font.AllUppercase : Font.MixedCase
                 }
             }
@@ -161,8 +161,8 @@ KeyboardStyle {
                 anchors.centerIn: parent
                 font {
                     family: theme.fontFamily
-                    weight: Font.Normal // MoOS: was Light
-                    pixelSize: 60 * scaleHint
+                    weight: Font.Medium
+                    pixelSize: 70 * scaleHint
                     capitalization: control.uppercased ? Font.AllUppercase : Font.MixedCase
                 }
             }
@@ -233,6 +233,7 @@ KeyboardStyle {
                 id: languageKeyIcon
                 anchors.centerIn: parent
                 implicitHeight: 96 * theme.keyIconScale
+                implicitWidth: implicitHeight
                 // MoOS: the session input-language glyph, the same one the login
                 // footer shows; Breeze's globe is the fallback.
                 source: "moos-session-input-language-symbolic"
@@ -278,7 +279,8 @@ KeyboardStyle {
                         return Qt.size(211, 80)
                     }
                 }
-                implicitHeight: enterKeyIconSize.height * theme.keyIconScale
+                implicitHeight: Math.min(parent.height * 0.6, enterKeyIconSize.height * theme.keyIconScale)
+                implicitWidth: Math.min(parent.width * 0.65, enterKeyIconSize.width * theme.keyIconScale)
                 // MoOS: the ink paired with the accent the Enter key is filled with.
                 isMask: true
                 color: Kirigami.Theme.highlightedTextColor
@@ -346,6 +348,7 @@ KeyboardStyle {
                 id: hideKeyIcon
                 anchors.centerIn: parent
                 implicitHeight: 96 * theme.keyIconScale
+                implicitWidth: implicitHeight
                 source: "input-keyboard-virtual-hide-symbolic"
             }
         }
@@ -374,6 +377,7 @@ KeyboardStyle {
                 id: shiftKeyIcon
                 anchors.centerIn: parent
                 implicitHeight: 134 * theme.keyIconScale
+                implicitWidth: implicitHeight
                 // MoOS: an engaged Caps Lock fills the key with the accent.
                 isMask: true
                 color: InputContext.capsLockActive ? Kirigami.Theme.highlightedTextColor : theme.keyTextColor
@@ -426,7 +430,7 @@ KeyboardStyle {
                 font {
                     family: theme.fontFamily
                     weight: Font.Medium // MoOS: was Light
-                    pixelSize: 35 * scaleHint
+                    pixelSize: 43 * scaleHint
                 }
             }
         }
@@ -456,8 +460,8 @@ KeyboardStyle {
                 verticalAlignment: Text.AlignVCenter
                 font {
                     family: theme.fontFamily
-                    weight: Font.Light
-                    pixelSize: 40 * scaleHint
+                    weight: Font.Medium
+                    pixelSize: 48 * scaleHint
                     capitalization: Font.AllUppercase
                 }
             }
@@ -494,8 +498,8 @@ KeyboardStyle {
                 anchors.margins: theme.keyContentMargin
                 font {
                     family: theme.fontFamily
-                    weight: Font.Light
-                    pixelSize: 40 * scaleHint
+                    weight: Font.Medium
+                    pixelSize: 48 * scaleHint
                     capitalization: Font.AllUppercase
                 }
             }
@@ -698,26 +702,22 @@ KeyboardStyle {
             id: listItemText
             text: model.text
             color: alternateKeysListItem.ListView.isCurrentItem ? theme.popupTextSelectedColor : theme.popupTextColor
-            opacity: 0.8
             font {
                 family: theme.fontFamily
-                weight: Font.Light
-                pixelSize: 60 * scaleHint
+                weight: alternateKeysListItem.ListView.isCurrentItem ? Font.DemiBold : Font.Medium
+                pixelSize: 70 * scaleHint
             }
             anchors.centerIn: parent
-        }
-        states: State {
-            name: "current"
-            when: alternateKeysListItem.ListView.isCurrentItem
-            PropertyChanges {
-                target: listItemText
-                opacity: 1
-            }
         }
     }
     alternateKeysListHighlight: Rectangle {
         color: theme.popupHighlightColor
         radius: theme.buttonRadius
+        // The MoOS corner, following the language being typed.
+        topLeftRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.squareRadius : theme.buttonRadius
+        topRightRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.buttonRadius : theme.squareRadius
         border.color: theme.popupHighlightBorderColor
         border.width: 1
     }
@@ -982,11 +982,10 @@ KeyboardStyle {
             anchors.topMargin: languageNameTextMetrics.height / 3
             anchors.bottomMargin: anchors.topMargin
             text: languageNameFormatter.elidedText
-            color: theme.popupTextColor
-            opacity: 0.8
+            color: languageListItem.ListView.isCurrentItem ? theme.popupTextSelectedColor : theme.popupTextColor
             font {
                 family: theme.fontFamily
-                weight: Font.Light
+                weight: Font.Medium
                 pixelSize: 44 * scaleHint
             }
         }
@@ -994,7 +993,7 @@ KeyboardStyle {
             id: languageNameTextMetrics
             font {
                 family: theme.fontFamily
-                weight: Font.Light
+                weight: Font.Medium
                 pixelSize: 44 * scaleHint
             }
             text: "X"
@@ -1003,26 +1002,23 @@ KeyboardStyle {
             id: languageNameFormatter
             font {
                 family: theme.fontFamily
-                weight: Font.Light
+                weight: Font.Medium
                 pixelSize: 44 * scaleHint
             }
             elide: Text.ElideRight
             elideWidth: languageListItem.width - languageListLabel.anchors.leftMargin - languageListLabel.anchors.rightMargin
             text: displayName
         }
-        states: State {
-            name: "current"
-            when: languageListItem.ListView.isCurrentItem
-            PropertyChanges {
-                target: languageListLabel
-                opacity: 1
-            }
-        }
     }
 
     languageListHighlight: Rectangle {
         color: theme.popupHighlightColor
         radius: theme.buttonRadius
+        // The MoOS corner, following the language being typed.
+        topLeftRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.squareRadius : theme.buttonRadius
+        topRightRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.buttonRadius : theme.squareRadius
         border.color: theme.popupHighlightBorderColor
         border.width: 1
     }
@@ -1052,11 +1048,11 @@ KeyboardStyle {
     }
 
     fullScreenInputContainerBackground: Rectangle {
-        color: "#FFF"
+        color: theme.keyboardBackgroundColor
     }
 
     fullScreenInputBackground: Rectangle {
-        color: "#FFF"
+        color: theme.popupBackgroundColor
     }
 
     fullScreenInputMargins: Math.round(15 * scaleHint)
@@ -1065,10 +1061,14 @@ KeyboardStyle {
 
     fullScreenInputCursor: Rectangle {
         width: 1
-        color: "#000"
+        color: theme.popupTextColor
         visible: parent.blinkStatus
     }
 
+    fullScreenInputColor: theme.popupTextColor
+    fullScreenInputSelectionColor: theme.popupHighlightColor
+    fullScreenInputSelectedTextColor: theme.popupTextSelectedColor
+    fullScreenInputFont.family: theme.fontFamily
     fullScreenInputFont.pixelSize: 58 * scaleHint
 
     functionPopupListDelegate: Item {
@@ -1082,6 +1082,9 @@ KeyboardStyle {
             id: functionIcon
             anchors.centerIn: parent
             implicitHeight: iconHeight
+            implicitWidth: iconWidth
+            isMask: true
+            color: functionPopupListItem.ListView.isCurrentItem ? theme.popupTextSelectedColor : theme.popupTextColor
             source: {
                 switch (keyboardFunction) {
                 case QtVirtualKeyboard.KeyboardFunction.HideInputPanel:
@@ -1109,5 +1112,10 @@ KeyboardStyle {
     functionPopupListHighlight: Rectangle {
         color: theme.popupHighlightColor
         radius: theme.buttonRadius
+        // The MoOS corner, following the language being typed.
+        topLeftRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.squareRadius : theme.buttonRadius
+        topRightRadius: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            ? theme.buttonRadius : theme.squareRadius
     }
 }
