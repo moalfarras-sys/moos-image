@@ -101,12 +101,14 @@ QQC2.AbstractButton {
     contentItem: Item {
         implicitWidth: contentRow.implicitWidth
         implicitHeight: contentRow.implicitHeight
+        // The press answers on the content item itself (the motion contract
+        // reads contentItem.scale); the row inside only centres the content.
+        scale: feedback.value
         RowLayout {
             id: contentRow
             anchors.centerIn: parent
             width: Math.min(implicitWidth, parent.width)
             spacing: Tokens.space2
-            scale: feedback.value
 
             SymbolIcon {
                 visible: control.iconName.length > 0

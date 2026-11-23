@@ -429,7 +429,8 @@ set -uo pipefail
 # 174: refresh native Arabic session notices and action captions.
 # 175: the MoOS corner on every card, popup frame and command button; the
 #      Meyar Glass on-screen keyboard.
-THEME_REV=175
+# 176: the MoOS Button's press answers on its content item again.
+THEME_REV=176
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
