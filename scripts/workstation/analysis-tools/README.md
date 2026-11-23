@@ -1,6 +1,6 @@
 # Optional MoOS analysis workstation profile
 
-REA6.7.0 and Ghidra12.1.4 are user applications. This profile reuses the existing
+REA6.7.0 and Ghidra12.2 are user applications. This profile reuses the existing
 Node26.12.0 runtime and `moos-dev` Toolbx JDK25; it installs no host RPM or kernel
 and changes no provider account or MCP client configuration. It supports this
 x86_64 workstation profile, not every architecture.
@@ -11,7 +11,7 @@ then run from the repository:
 
 ```sh
 python3 scripts/setup-analysis-tools.py --install \
-  --ghidra-archive /path/to/ghidra_12.1.4_PUBLIC_20260921.zip \
+  --ghidra-archive /path/to/ghidra_12.2_PUBLIC_20261016.zip \
   --rea-tarball /path/to/rea-agents-6.7.0.tgz
 python3 scripts/setup-analysis-tools.py --check
 ```

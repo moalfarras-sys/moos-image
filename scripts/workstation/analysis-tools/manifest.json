@@ -10,11 +10,11 @@
     "integrity": "sha512-yhIx2ioJYYT1C/tONfYeitC6LhnKmCh+ZwRUOgYuhSc733lGhkkt73zhug9WmLgxoMdKuqIYGCoBfD4fXkOhFw=="
   },
   "ghidra": {
-    "version": "12.1.4",
-    "directory": "ghidra_12.1.4_PUBLIC",
-    "url": "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip",
-    "sha256": "ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db",
-    "bytes": 569649598
+    "version": "12.2",
+    "directory": "ghidra_12.2_PUBLIC",
+    "url": "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.2_build/ghidra_12.2_PUBLIC_20261016.zip",
+    "sha256": "2c2cd776db3c1f6a097ba418922378ac3649cadd5e844a6f5f088ae628a7be67",
+    "bytes": 569712708
   },
   "package_lock_sha256": "399f5a303937ca6ce426918102da3768a9f64750957ec410aa51ba46364af979"
 }
