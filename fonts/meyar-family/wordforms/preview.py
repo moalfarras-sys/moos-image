@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QPointF, Qt, QTextBoundaryFinder
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPainterPath, QTextLayout
-from PySide6.QtWidgets import QApplication, QLabel, QPlainTextEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QPlainTextEdit, QVBoxLayout, QWidget, QComboBox
 
 ROOT = Path(__file__).resolve().parents[3]
 SAMPLE = "مِعْيَار   المَفَاتِيح   ضَوْء   اتِّصَال\nMeyar   Waveform   Architecture\nالعَرَبِيَّة   MoOS   Ελληνικά   Кириллица\n١٢٣   3.14   →   ⌘   ★"
@@ -88,6 +88,7 @@ class Specimen(QWidget):
     def __init__(self, editor):
         super().__init__()
         self.editor = editor
+        self.pixel_size = 50
         self.setMinimumSize(1000, 530)
         self.paths = {}
         editor.textChanged.connect(self.update)
@@ -102,8 +103,11 @@ class Specimen(QWidget):
         for text in self.editor.toPlainText().splitlines():
             font = QFont('Meyar Sans')
             font.setFamilies(['Meyar Sans', 'Meyar Arabic'])
-            font.setPixelSize(50)
+            font.setPixelSize(self.pixel_size)
             layout = QTextLayout(text, font)
+            option = layout.textOption()
+            option.setAlignment(Qt.AlignRight if text and text[0].isalpha() and unicodedata.bidirectional(text[0]) in ("AL", "R") else Qt.AlignLeft)
+            layout.setTextOption(option)
             layout.beginLayout()
             line = layout.createLine()
             if not line.isValid():
@@ -127,7 +131,12 @@ class Specimen(QWidget):
                     key = (raw.familyName(), raw.styleName(), raw.pixelSize(), gid, sharp)
                     if key not in self.paths:
                         path = raw.pathForGlyph(gid)
-                        self.paths[key] = path if sharp is None else contour(path, sharp)
+                        if sharp is None:
+                            self.paths[key] = path
+                        else:
+                            from PySide6.QtGui import QTransform
+                            normalized = QTransform.fromScale(50 / raw.pixelSize(), 50 / raw.pixelSize()).map(path)
+                            self.paths[key] = QTransform.fromScale(raw.pixelSize() / 50, raw.pixelSize() / 50).map(contour(normalized, sharp))
                     painter.save()
                     painter.translate(position + QPointF(24, y))
                     if self.paths[key].isEmpty():
@@ -158,6 +167,14 @@ if __name__ == '__main__':
     edit = QPlainTextEdit(SAMPLE)
     edit.setMaximumHeight(125)
     preview = Specimen(edit)
+    sizes = QComboBox()
+    for size, title in [(50, 'عنوان'), (22, 'قائمة'), (16, 'نص واجهة')]:
+        sizes.addItem(f'{title} · {size} px', size)
+    def resize_specimen():
+        preview.pixel_size = sizes.currentData()
+        preview.update()
+    sizes.currentIndexChanged.connect(resize_specimen)
+    column.addWidget(sizes)
     column.addWidget(preview)
     column.addWidget(QLabel('اكتب هنا لتجربة شكل الكلمة'))
     column.addWidget(edit)
