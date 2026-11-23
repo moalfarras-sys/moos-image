@@ -5,8 +5,8 @@
   "cellUnits": 700,
   "files": {
     "MeyarArabic[wght].ttf": {
-      "bytes": 302356,
-      "sha256": "1ede121874a7baade3f4e3d6d95a057710d7a69b4ec4165326c86f9277a3610a"
+      "bytes": 302364,
+      "sha256": "27ae5b17c8d2736c75b311174497361a01489f906602d0c85e890029eebd885f"
     },
     "MeyarMonoArabic-Bold.ttf": {
       "bytes": 187428,
@@ -37,8 +37,8 @@
       "sha256": "d0bb837bd4b170f869602be4ce7164bd692ff77a9842ade72c7f09fa013f79db"
     },
     "README.md": {
-      "bytes": 5519,
-      "sha256": "8e7746d7d9cf898b87cf7b7625b24bc9f612375e3a22584df15aaf09fe37d579"
+      "bytes": 5718,
+      "sha256": "23280d28a6fd34fe436389d9382aede1cbac6c84e5bc987571b211b4933fb751"
     },
     "terminal-cells.json": {
       "bytes": 106052,

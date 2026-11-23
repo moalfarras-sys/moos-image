@@ -26,7 +26,7 @@ drift instead of silently downloading another input.
 
 Rounded-square dots recur across the family. The upper stems of isolated and
 final alef (full and short forms), and initial and medial lam, have a square right
-corner and a rounded left shoulder. The shoulder scales with the stroke in all
+corner and a rounded left shoulder. The opening lam keeps a broad geometric shelf, the medial lam has an intermediate shoulder, and the ending alef takes a wider curve. These follow the contextual shapes selected by the Arabic shaper. The shoulder scales with the stroke in all
 eight Arabic source masters and returns to the authored stem above the join.
 Latin M has a raised middle. Latin retains its soft terminal fillets, double-storey
 a/g and phonetic distinctions. Arabic keeps its contextual shaping, bearings and

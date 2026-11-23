@@ -45,7 +45,8 @@ def verify_arabic_caps(font, control):
         endpoints = sorted(x for x, on_curve in top if on_curve)
         assert len(endpoints) == 2 and endpoints[1] == right, (name, 'square corner')
         radius = endpoints[0] - left
-        assert abs(radius - .60 * (right - left)) <= 1, (name, 'shoulder radius')
+        expected = .22 if name.endswith('.init') else .78 if name.endswith('.fina') else .50
+        assert abs(radius - expected * (right - left)) <= 1, (name, 'shoulder radius')
         assert any(not on_curve and left < x < endpoints[0] for x, on_curve in top), (
             name, 'missing rounded tangent')
 

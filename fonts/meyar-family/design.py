@@ -108,7 +108,15 @@ def sculpt_arabic_caps(font):
                     or right.position.y != y or y != max(n.position.y for n in nodes)
                     or width <= 0 or dy >= -2 * width or not 0 <= dx <= -dy / 8):
                 raise ValueError('Unreviewed Arabic stem geometry: ' + name)
-            radius = width * .60
+            # Follow the joined form selected by Arabic shaping. Keep a firm
+            # horizontal shelf at an opening lam and soften a closing alef.
+            if name.endswith('.init'):
+                shoulder_fraction = .22
+            elif name.endswith('.fina'):
+                shoulder_fraction = .78
+            else:
+                shoulder_fraction = .50
+            radius = width * shoulder_fraction
             # Recover the original stem tangent locally. The vertical tangent at
             # x keeps the old left bearing even after converting to quadratics.
             lean = dx / -dy
