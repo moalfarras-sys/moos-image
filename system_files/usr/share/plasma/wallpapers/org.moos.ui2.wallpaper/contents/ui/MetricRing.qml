@@ -14,6 +14,12 @@ import org.moos.ui as MoUI
 
 Item {
     id: ring
+    // Text a person reads is the theme's text colour at 0.72 — never the DISABLED role,
+    // which fades text 65% toward the background (1.6:1 as secondary text on the light
+    // schemes; tests/test_secondary_text_contrast.py does the arithmetic for the Hub too).
+    readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r,
+                                                  Kirigami.Theme.textColor.g,
+                                                  Kirigami.Theme.textColor.b, 0.72)
 
     required property string label
     required property real value        // 0..100
@@ -168,7 +174,7 @@ Item {
                 anchors.top: parent.verticalCenter
                 anchors.topMargin: Math.round(ring.diameter * 0.17)
                 text: "%"
-                color: Kirigami.Theme.disabledTextColor
+                color: ring.secondaryInk
                 font.family: "Meyar Sans"
                 font.pixelSize: Math.round(ring.diameter * 0.14)
             }
@@ -177,7 +183,7 @@ Item {
         Text {
             Layout.alignment: Qt.AlignHCenter
             text: ring.label
-            color: Kirigami.Theme.disabledTextColor
+            color: ring.secondaryInk
             font.family: MoUI.Locale.rtl ? "Meyar Arabic" : "Meyar Sans"
             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.46)
             font.weight: Font.DemiBold

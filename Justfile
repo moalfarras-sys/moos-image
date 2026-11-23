@@ -437,6 +437,7 @@ check:
     python3 tests/test_login_handoff.py
     python3 tests/test_session_text.py
     python3 tests/test_moos_corner.py
+    python3 tests/test_scene_frost.py
     python3 tests/test_session_wallpaper.py
     python3 tests/test_session_auth_material.py
     python3 tests/test_session_appearance.py

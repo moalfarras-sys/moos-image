@@ -41,6 +41,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APPS = ROOT / "system_files/usr/share/moos/apps"
 KCM = ROOT / "moos-settings-kcm"
+# The desktop Hub is painted by the scene wallpaper: the same people read its labels.
+HUB = ROOT / "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui"
 SCHEMES = ROOT / "system_files/usr/share/color-schemes"
 AA = 4.5
 
@@ -68,7 +70,28 @@ def surfaces() -> list[tuple[str, list[Path], str]]:
     for path in sorted(KCM.rglob("*.qml")):
         if re.search(r"property\s+color\s+secondaryInk\b", path.read_text(encoding="utf-8")):
             found.append((path.relative_to(KCM).as_posix(), [path], "secondaryInk"))
+    for path in sorted(HUB.glob("*.qml")):
+        if re.search(r"property\s+color\s+secondaryInk\b", path.read_text(encoding="utf-8")):
+            found.append((path.relative_to(ROOT).as_posix(), [path], "secondaryInk"))
     return found
+
+
+def hub_ink_problems() -> list[str]:
+    """The Hub's cards float over a photograph, where a faded label disappears first."""
+    problems: list[str] = []
+    files = sorted(HUB.glob("*.qml"))
+    readers = [p for p in files
+               if re.search(r"property\s+color\s+secondaryInk\b", p.read_text(encoding="utf-8"))]
+    if len(readers) < 6:
+        problems.append(f"expected the Hub's labelled cards to declare secondaryInk under "
+                        f"{HUB.relative_to(ROOT)}, found {len(readers)}")
+    for path in files:
+        code = "\n".join(line for line in path.read_text(encoding="utf-8").splitlines()
+                         if not line.lstrip().startswith("//"))
+        if "disabledTextColor" in code:
+            problems.append(f"{path.relative_to(ROOT)}: paints with the disabled role "
+                            "(1.6:1 as secondary text on the light schemes)")
+    return problems
 
 
 def settings_ink_problems() -> list[str]:
@@ -139,6 +162,7 @@ def main() -> int:
     worst = (99.0, "", "")
     checked = surfaces()
     errors += settings_ink_problems()
+    errors += hub_ink_problems()
     declared = [(app, token, alpha, binding)
                 for app, paths, token in checked
                 for alpha, binding in token_alphas(paths, token)]
