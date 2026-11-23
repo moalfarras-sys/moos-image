@@ -115,8 +115,10 @@ class ExecutableBridge(unittest.TestCase):
         pkg = shutil.which("pkg-config")
         if not compiler or not pkg:
             raise unittest.SkipTest("C++ compiler/pkg-config unavailable; executable bridge unproven")
+        # Build tools never get the caller's stdin: a wrapper (toolbox run) can drain it and
+        # silently end a runner that feeds commands through it.
         flags = subprocess.run([pkg, "--cflags", "--libs", "Qt6Core"],
-                               capture_output=True, text=True)
+                               capture_output=True, text=True, stdin=subprocess.DEVNULL)
         if flags.returncode:
             raise unittest.SkipTest("Qt6Core development headers unavailable; executable bridge unproven")
         cls.temp = tempfile.TemporaryDirectory(prefix="moos-store-bridge-")
@@ -158,7 +160,8 @@ int main(int argc, char **argv) {
         cls.binary = cls.directory / "bridge"
         import shlex
         subprocess.run([compiler, "-std=c++17", "-fPIC", str(cpp), "-o", str(cls.binary),
-                        *shlex.split(flags.stdout)], check=True, capture_output=True, text=True)
+                        *shlex.split(flags.stdout)], check=True, capture_output=True, text=True,
+                       stdin=subprocess.DEVNULL)
 
     def invoke(self, url, enabled=True):
         import json
@@ -206,7 +209,8 @@ class ExecutableVerbs(unittest.TestCase):
         pkg = shutil.which("pkg-config")
         if not compiler or not pkg:
             raise unittest.SkipTest("C++ compiler/pkg-config unavailable; executable verbs unproven")
-        flags = subprocess.run([pkg, "--cflags", "--libs", "Qt6Core"], capture_output=True, text=True)
+        flags = subprocess.run([pkg, "--cflags", "--libs", "Qt6Core"], capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL)
         if flags.returncode:
             raise unittest.SkipTest("Qt6Core development headers unavailable; executable verbs unproven")
         cls.temp = tempfile.TemporaryDirectory(prefix="moos-store-verbs-")
@@ -258,7 +262,8 @@ int main(int argc, char **argv) {
         cls.binary = directory / "verbs"
         import shlex
         subprocess.run([compiler, "-std=c++17", "-fPIC", str(cpp), "-o", str(cls.binary),
-                        *shlex.split(flags.stdout)], check=True, capture_output=True, text=True)
+                        *shlex.split(flags.stdout)], check=True, capture_output=True, text=True,
+                       stdin=subprocess.DEVNULL)
 
     def call(self, *argv, enabled=True):
         import json
