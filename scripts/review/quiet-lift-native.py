@@ -82,7 +82,7 @@ def verified_bus_environment(folder):
 
 
 def inside(folder, mode):
-    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
     # Refuse even a direct --inside invocation before starting the compositor.
     env, bus_pid = verified_bus_environment(folder)
     private = folder / "data/kwin/effects"

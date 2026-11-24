@@ -121,7 +121,7 @@ def kwin_buttons(path: pathlib.Path) -> tuple[str, str]:
 def no_core() -> None:
     """A private compositor that fails must not store a core in the host collector."""
     import resource
-    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
 
 
 def theme_layout(root: pathlib.Path, name: str) -> dict:

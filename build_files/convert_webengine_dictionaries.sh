@@ -37,7 +37,9 @@ mkdir -p "$out"
 # A zero core limit alone does NOT stop the host's piped coredump collector.
 # install_language_packs.sh also protects the earlier RPM file triggers and
 # restores the original converter; both final Arabic/English gates stay active.
-ulimit -c 0 2>/dev/null || true
+# RLIMIT_CORE=1 byte is the kernel's piped-core abort value (`ulimit -c 1` would
+# be 1024 bytes); it keeps an aborting converter out of the host's collector.
+prlimit --pid "$$" --core=1:1 2>/dev/null || ulimit -c 0 2>/dev/null || true
 
 built=0
 for dic in /usr/share/hunspell/*.dic; do

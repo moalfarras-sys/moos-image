@@ -453,6 +453,7 @@ python3 tests/test_index_policy_consumer.py
 python3 tests/test_diagnostic_redirection.py
 python3 tests/test_selfcheck_unit_shadowing.py
 python3 tests/test_mo_remote_watchdog.py
+python3 tests/test_crash_probe_hygiene.py
 python3 tests/test_edition_unit_parity.py
 python3 tests/test_selfcheck_url_handler.py
 python3 tests/test_gate_coverage.py

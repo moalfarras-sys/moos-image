@@ -23,7 +23,7 @@ class SessionText(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import resource
-        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))  # never a host crash report
+        resource.setrlimit(resource.RLIMIT_CORE, (1, 1))  # never a host crash report
         try:
             from PySide6.QtCore import QCoreApplication
             from PySide6.QtQml import QJSEngine

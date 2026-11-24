@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Runs inside the disposable SDK stage, never the development station's bus.
 set -euxo pipefail
-ulimit -c 0
+# RLIMIT_CORE=1 byte makes the kernel abort a piped core before the host's
+# collector runs; `ulimit -c 1` would be 1024 bytes. 0 is the fallback.
+prlimit --pid "$$" --core=1:1 2>/dev/null || ulimit -c 0
 _logout_proof=/work/logout-native-proof
 mkdir -p "${_logout_proof}/fixed" "${_logout_proof}/home/.config" "${_logout_proof}/runtime"
 chmod 0700 "${_logout_proof}/runtime"
