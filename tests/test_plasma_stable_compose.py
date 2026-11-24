@@ -134,7 +134,10 @@ class SelinuxStoreBinding(unittest.TestCase):
             self.skipTest('systemd-tmpfiles is not installed')
         with tempfile.TemporaryDirectory() as tmp:
             root=self.fake_root(tmp)
-            F.bind_selinux_store(root)
+            with mock.patch.object(F.subprocess,'run',wraps=F.subprocess.run) as run:
+                F.bind_selinux_store(root)
+            # The verified file inside the given root, never the caller's own copy.
+            self.assertEqual(run.call_args.args[0][-1], str(root/'usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf'))
             store=root/'var/lib/selinux'
             self.assertTrue(store.is_symlink())
             self.assertEqual(os.readlink(store),'../../etc/selinux')

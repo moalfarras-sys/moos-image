@@ -115,7 +115,9 @@ def bind_selinux_store(root: Path = Path('/')) -> None:
     args=['systemd-tmpfiles','--create','--prefix=/var/lib/selinux']
     if root!=Path('/'):
         args.append('--root='+str(root))
-    subprocess.run([*args, '/' + SELINUX_AUTHORITY], check=True)
+    # The file just verified: systemd-tmpfiles reads a named configuration file from the
+    # caller's filesystem even with --root (Ubuntu CI read the host's, which had none).
+    subprocess.run([*args, str(authority)], check=True)
     if not store.is_symlink() or os.readlink(store)!='../../etc/selinux' or not store.is_dir():
         raise RuntimeError('the vendor rule did not create the exact SELinux store alias')
 
