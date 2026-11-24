@@ -439,7 +439,8 @@ set -uo pipefail
 # 183: refresh the shared window frame and the inset action glyphs.
 # 184: restore the active and inactive inner-border layers around glass windows.
 # 185: refresh the native account avatar in the greeter and lock screen.
-THEME_REV=185
+# 186: reserve decoration space before arranging windows with client size limits.
+THEME_REV=186
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

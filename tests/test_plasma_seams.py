@@ -419,7 +419,8 @@ class TheGateRefuses(unittest.TestCase):
         self.plant_keyboard_qmldirs()
         report = self.run_gate("6.8.3", self.keyboard_digests())
         chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8.3")
-        self.assertEqual(len(KEYBOARD_SEAMS), 4)
+        self.assertEqual(sum(path.startswith("/usr/lib64/") for path in KEYBOARD_SEAMS), 4)
+        self.assertEqual(sum("/layouts/" in path for path in KEYBOARD_SEAMS), 13)
         for path in KEYBOARD_SEAMS:
             self.assertEqual((self.root / path.lstrip("/")).read_bytes(),
                              (ROOT / "build_files/plasma-seams" / chosen["sources"][path]).read_bytes(), path)
@@ -466,9 +467,9 @@ class TheGateRefuses(unittest.TestCase):
         verify = {"plasma-keyboard": "".join(f"S.5....T.    {path}\n"
                                              for path in [*KEYBOARD_SEAMS, *KEYBOARD_QMLDIRS])}
         self.run_gate("6.8.3", self.keyboard_digests(), verify)
-        verify["plasma-keyboard"] += "S.5....T.    /usr/share/plasma/keyboard/layouts/ar_AR/main.qml\n"
+        verify["plasma-keyboard"] += "S.5....T.    /usr/share/plasma/keyboard/layouts/de_DE/main.qml\n"
         self.plant_keyboard_qmldirs()
-        with self.assertRaisesRegex(plasma_seams.SeamError, "ar_AR/main.qml.*neither a registered seam"):
+        with self.assertRaisesRegex(plasma_seams.SeamError, "de_DE/main.qml.*neither a registered seam"):
             self.run_gate("6.8.3", self.keyboard_digests(), verify)
 
     def test_an_unreviewed_plasma_is_refused(self):

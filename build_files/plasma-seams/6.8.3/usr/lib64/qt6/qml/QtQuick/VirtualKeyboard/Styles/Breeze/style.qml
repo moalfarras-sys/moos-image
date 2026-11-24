@@ -9,18 +9,15 @@ import QtQuick.VirtualKeyboard.Styles
 import QtQuick.Controls as QQC2
 import QtQuick.Window
 import QtQuick.Effects
+import org.moos.keyboard as MoOSKeyboard
 
 import org.kde.kirigami as Kirigami
 
 import org.kde.plasma.keyboard
 import org.kde.plasma.keyboard.lib as PlasmaKeyboard
 
-// MoOS: PLASMA 6.8.3 SEAM (plasma-keyboard). Upstream's Breeze keyboard style,
-// verbatim except where marked "MoOS:": a Meyar Glass panel with the session
-// crest, regular-weight key letters (Light Arabic letters thin out on a glass
-// key), the Enter label in the ink paired with its accent, and the MoOS
-// language glyph instead of a full-colour globe. Every panel, state and
-// behaviour is upstream's.
+// MoOS keeps Plasma's input engine, language model and candidate handling.
+// The reserved top row belongs to the keyboard and stays outside the key grid.
 KeyboardStyle {
     id: currentStyle
     readonly property bool compactSelectionList: [InputEngine.InputMode.Pinyin, InputEngine.InputMode.Cangjie, InputEngine.InputMode.Zhuyin].indexOf(InputContext.inputEngine.inputMode) !== -1
@@ -56,8 +53,9 @@ KeyboardStyle {
         }
     }
 
-    // Always have the keyboard panel be 30% of the screen height, or 150px (whichever is larger)
-    readonly property real targetKeyboardHeight: Math.max(Screen.height * 0.3, 150)
+    readonly property real targetKeyboardHeight: Math.max(150, Screen.height
+        * Math.max(28, Math.min(48, MoOSKeyboard.Appearance.heightPercent)) / 100)
+    readonly property real toolbarHeight: Math.max(38, Math.min(48, targetKeyboardHeight * 0.19))
 
     // The value to multiply the height by to get the width
     readonly property real aspectRatio: {
@@ -97,13 +95,28 @@ KeyboardStyle {
         return 6 / keyboardDesignWidth;
     }
     keyboardRelativeRightMargin: keyboardRelativeLeftMargin
-    keyboardRelativeTopMargin: 6 / keyboardDesignHeight
+    keyboardRelativeTopMargin: (toolbarHeight + 4) / targetKeyboardHeight
     keyboardRelativeBottomMargin: 6 / keyboardDesignHeight
 
     // MoOS: the panel is a glass sheet lit along its top edge, carrying the
     // two-tone crest every MoOS session surface wears at its top.
     keyboardBackground: Rectangle {
-        color: theme.keyboardBackgroundColor
+        // panelWrapper already paints the surface; painting twice would cancel
+        // the selected transparency. The key labels keep their full opacity.
+        color: "transparent"
+        MoOSKeyboard.Toolbar {
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width
+            height: currentStyle.toolbarHeight
+            panelHeight: parent.height
+            keyboardSettings: PlasmaKeyboardSettings
+            surface: theme.glassGround
+            ink: theme.glassInk
+            tint: theme.functionKey
+            accent: Kirigami.Theme.highlightColor
+            onAccent: Kirigami.Theme.highlightedTextColor
+        }
         Rectangle {
             anchors.top: parent.top
             width: parent.width

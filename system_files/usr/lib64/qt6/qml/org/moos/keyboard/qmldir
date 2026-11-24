@@ -1,0 +1,3 @@
+module org.moos.keyboard
+singleton Appearance 1.0 Appearance.qml
+Toolbar 1.0 Toolbar.qml

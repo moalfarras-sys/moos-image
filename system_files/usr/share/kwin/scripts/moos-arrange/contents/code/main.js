@@ -103,25 +103,43 @@ function anchor(window) {
     return workspace.clientArea(KWin.MaximizeArea, window);
 }
 
-function place(window, x, y, width, height) {
+// KWin publishes client size limits. The frame includes the title bar and any
+// side borders, which vary with the decoration, scale and window.
+function fitsFrame(window, rect) {
+    const frame = window.frameGeometry;
+    const client = window.clientGeometry;
+    if (!client || !(client.width > 0 && client.height > 0)) return false;
+    const width = rect.width - Math.max(0, frame.width - client.width);
+    const height = rect.height - Math.max(0, frame.height - client.height);
+    const minimum = window.minSize;
+    const maximum = window.maxSize;
+    // Fractional-scale frame coordinates can differ by floating-point noise.
+    const epsilon = 0.000001;
+    return width > 0 && height > 0
+        && (!minimum || (width + epsilon >= minimum.width && height + epsilon >= minimum.height))
+        && (!maximum || (width <= maximum.width + epsilon && height <= maximum.height + epsilon));
+}
+
+function place(window, rect) {
     if (window.maximizeMode !== undefined && window.maximizeMode !== 0) {
         window.setMaximize(false, false);
     }
     window.frameGeometry = {
-        x: Math.round(x), y: Math.round(y),
-        width: Math.round(width), height: Math.round(height),
+        x: Math.round(rect.x), y: Math.round(rect.y),
+        width: rect.width, height: rect.height,
     };
 }
 
 // Lay windows out over `area` using a list of fractional rectangles.
 // Each cell is [x, y, width, height] as a fraction of the usable area.
 function layout(windows, cells, area) {
-    const count = Math.min(windows.length, cells.length);
-    for (let i = 0; i < count; ++i) {
-        const rect = cellRect(cells[i], area);
-        place(windows[i], rect.x, rect.y, rect.width, rect.height);
+    const targets = cells.slice(0, windows.length).map(cell => cellRect(cell, area));
+    if (!targets.every((rect, i) => fitsFrame(windows[i], rect))) {
+        log("a window cannot fit its cell; keeping the current arrangement");
+        return 0;
     }
-    return count;
+    targets.forEach((rect, i) => place(windows[i], rect));
+    return targets.length;
 }
 
 function columns(number) {
@@ -169,10 +187,14 @@ function arrange(kind, startFrom) {
 
     let placed = 0;
     if (kind === "centre") {
-        place(leader,
-              area.x + area.width * 0.14, area.y + area.height * 0.10,
-              area.width * 0.72, area.height * 0.80);
-        placed = 1;
+        const rect = {
+            x: area.x + area.width * 0.14, y: area.y + area.height * 0.10,
+            width: Math.round(area.width * 0.72), height: Math.round(area.height * 0.80),
+        };
+        if (fitsFrame(leader, rect)) {
+            place(leader, rect);
+            placed = 1;
+        }
     } else if (kind === "main") {
         placed = layout(windows, mainAndTwoCells(leader, area), area);
     } else if (kind === "quarters") {
@@ -250,19 +272,6 @@ function cellRect(cell, area) {
     return {x: area.x + MARGIN + x, y: area.y + MARGIN + y, width: right - x, height: bottom - y};
 }
 
-function fits(windows, cells, area) {
-    for (let i = 0; i < windows.length; ++i) {
-        const minimum = windows[i].minSize;
-        const size = cellRect(cells[i], area);
-        const maximum = windows[i].maxSize;
-        if (maximum && (maximum.width < size.width || maximum.height < size.height)) return false;
-        if (minimum && (minimum.width > size.width || minimum.height > size.height)) {
-            return false;
-        }
-    }
-    return true;
-}
-
 function autoArrangeOn(output, hint, leaving) {
     if (!autoArrange) {
         return;
@@ -298,11 +307,7 @@ function autoArrangeOn(output, hint, leaving) {
         cells = mainAndTwoCells(leader, area);
         ordered = [leader].concat(windows.filter(function (w) { return w !== leader; }).sort(byY));
     }
-    if (!fits(ordered, cells, area)) {
-        log("a window cannot shrink to its cell; the arrangement is left as it is");
-        return;
-    }
-    layout(ordered, cells, area);
+    if (!layout(ordered, cells, area)) return;
     for (const window of ordered) {
         arranged[idOf(window)] = true;
     }
