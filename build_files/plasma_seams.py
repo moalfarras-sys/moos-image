@@ -85,7 +85,7 @@ KEYBOARD_MODULES = ("/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib",
 QML_ROOT = "/usr/lib64/qt6/qml"
 # Errors in these files are MoOS's to answer for: the style, its constants and key panels, and
 # upstream's own keyboard QML, which reads MoOS's constants (its errors cascade from MoOS's).
-KEYBOARD_OWNED = re.compile(r"/org/kde/plasma/keyboard/|/QtQuick/VirtualKeyboard/Styles/Breeze/")
+KEYBOARD_OWNED = re.compile(r"/org/kde/plasma/keyboard/|/QtQuick/VirtualKeyboard/Styles/Breeze/|/org/moos/keyboard/")
 # Outside KWin, plasma-keyboard builds its QML scene (style, constants, popups) and then refuses
 # to run standalone. That refusal is the probe's proof that it got through loading.
 KEYBOARD_LOADED = re.compile(r"Cannot run plasma-keyboard standalone")

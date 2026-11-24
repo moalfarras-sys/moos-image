@@ -189,6 +189,18 @@ rewrites only exact retired values (`tests/test_theme_role_contrast.py`).
   follows the card's per-corner radii, a top catch-light stops short of the
   square corner by the softening only, and the focus ring traces the same
   corner. `tests/test_moos_corner.py` holds all four owners to this;
+- **the on-screen keyboard's Touch Bar** (owner steering 2026-11-24: "an
+  interactive emoji bar like a Mac Touch Bar, with suggested words and
+  buttons"): one glass strip above unchanged keys, at least 44 logical px,
+  separated by a hairline. Its start holds 😊 (the emoji sheet; ⌨ when open),
+  its end the cursor keys (screen direction in both languages) and settings;
+  between them, while a word is written, the person's completions (the leading
+  one in the accent with its paired ink) and emoji whose keywords fit, else an
+  emoji scrubber. The emoji sheet takes the keys' place: colour emoji in
+  four rows scrolling in the typing direction, category tabs drawn as
+  one-ink symbols (VS15 text presentation), delete at the far end. Password and
+  sensitive fields show a lock notice and nothing else; the login screen shows
+  the cursor keys only. It mirrors with the language being typed;
 - panel/dock stays one bottom floating capsule. Do not add a second bar;
 - the Tidal Horizon is physical geometry and does not mirror in RTL. Logical
   content, navigation and text do mirror;
