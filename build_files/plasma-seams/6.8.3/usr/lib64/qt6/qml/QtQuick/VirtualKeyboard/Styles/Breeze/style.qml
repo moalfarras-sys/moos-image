@@ -15,12 +15,16 @@ import org.kde.kirigami as Kirigami
 import org.kde.plasma.keyboard
 import org.kde.plasma.keyboard.lib as PlasmaKeyboard
 
+import org.moos.keyboard as MoOSKeyboard
+
 // MoOS: PLASMA 6.8.3 SEAM (plasma-keyboard). Upstream's Breeze keyboard style,
 // verbatim except where marked "MoOS:": a Meyar Glass panel with the session
 // crest, regular-weight key letters (Light Arabic letters thin out on a glass
 // key), the Enter label in the ink paired with its accent, and the MoOS
-// language glyph instead of a full-colour globe. Every panel, state and
-// behaviour is upstream's.
+// language glyph instead of a full-colour globe, and the MoOS Touch Bar over the
+// keys (org.moos.keyboard): suggestions, emoji and the emoji sheet, cursor keys and
+// settings, which also draws the word candidates upstream showed in a list above the
+// panel. Every key panel, state and behaviour is upstream's.
 KeyboardStyle {
     id: currentStyle
     readonly property bool compactSelectionList: [InputEngine.InputMode.Pinyin, InputEngine.InputMode.Cangjie, InputEngine.InputMode.Zhuyin].indexOf(InputContext.inputEngine.inputMode) !== -1
@@ -57,7 +61,24 @@ KeyboardStyle {
     }
 
     // Always have the keyboard panel be 30% of the screen height, or 150px (whichever is larger)
-    readonly property real targetKeyboardHeight: Math.max(Screen.height * 0.3, 150)
+    // MoOS: that is now the KEYS' height; the Touch Bar's band is added above it, so the
+    // keys stay exactly upstream's size and the bar is never under 44 logical pixels.
+    readonly property real keysHeight: Math.max(Screen.height * 0.3, 150)
+    readonly property real touchBarHeight: Math.max(44, Math.round(keysHeight * 0.15))
+    readonly property real touchBarBand: touchBarHeight + Math.max(8, Math.round(keysHeight * 0.03))
+    readonly property real targetKeyboardHeight: keysHeight + touchBarBand
+    // upstream's design height for the keys; scaleHint (height / design height) is unchanged
+    readonly property real keysDesignHeight: {
+        if (Screen.width < 500) {
+            // Phone mode
+            return 800;
+        } else if (Screen.width < 1200) {
+            // Wider
+            return 600;
+        }
+        // Widest
+        return 700;
+    }
 
     // The value to multiply the height by to get the width
     readonly property real aspectRatio: {
@@ -73,36 +94,30 @@ KeyboardStyle {
 
     // Calculate width based on the height so that the keyboard height is always targetKeyboardHeight
     keyboardDesignWidth: aspectRatio * keyboardDesignHeight;
-    keyboardDesignHeight: {
-        if (Screen.width < 500) {
-            // Phone mode
-            return 800;
-        } else if (Screen.width < 1200) {
-            // Wider
-            return 600;
-        }
-        // Widest
-        return 700;
-    }
+    // MoOS: the keys' design height plus the Touch Bar's band, at the keys' scale.
+    keyboardDesignHeight: keysDesignHeight * targetKeyboardHeight / keysHeight
 
     // The width should never be > 6 times height
     readonly property real maxWidthToHeightRatio: 6
 
     keyboardRelativeLeftMargin: {
-        if (keyboardDesignWidth > keyboardDesignHeight * maxWidthToHeightRatio) {
+        // MoOS: the cap compares the width with the keys, not the keys and the bar.
+        if (keyboardDesignWidth > keysDesignHeight * maxWidthToHeightRatio) {
             // Cap keyboard width if it's too wide
-            const extraWidth = keyboardDesignWidth - (keyboardDesignHeight * maxWidthToHeightRatio);
+            const extraWidth = keyboardDesignWidth - (keysDesignHeight * maxWidthToHeightRatio);
             return (extraWidth / 2) / keyboardDesignWidth;
         }
         return 6 / keyboardDesignWidth;
     }
     keyboardRelativeRightMargin: keyboardRelativeLeftMargin
-    keyboardRelativeTopMargin: 6 / keyboardDesignHeight
+    // MoOS: the keys begin below the Touch Bar's band.
+    keyboardRelativeTopMargin: (6 + touchBarBand * keysDesignHeight / keysHeight) / keyboardDesignHeight
     keyboardRelativeBottomMargin: 6 / keyboardDesignHeight
 
     // MoOS: the panel is a glass sheet lit along its top edge, carrying the
     // two-tone crest every MoOS session surface wears at its top.
     keyboardBackground: Rectangle {
+        id: panelFace
         color: theme.keyboardBackgroundColor
         Rectangle {
             anchors.top: parent.top
@@ -121,6 +136,25 @@ KeyboardStyle {
                 GradientStop { position: 0.0; color: Qt.alpha(Kirigami.Theme.highlightColor, 0.0) }
                 GradientStop { position: 0.5; color: Kirigami.Theme.highlightColor }
                 GradientStop { position: 1.0; color: Qt.alpha(Kirigami.Theme.highlightColor, 0.0) }
+            }
+        }
+
+        // MoOS: the Touch Bar. It is a sibling of the keys (the panel face's own parent
+        // holds them), above them so that its emoji sheet can take their place.
+        MoOSKeyboard.TouchBar {
+            parent: panelFace.parent
+            anchors.fill: parent
+            z: 2
+            inputContext: InputContext
+            theme: currentStyle.theme
+            barHeight: currentStyle.touchBarHeight
+            bandHeight: Math.round(6 * currentStyle.scaleHint) + currentStyle.touchBarBand
+            sideInset: Math.round(currentStyle.keyboardRelativeLeftMargin * width)
+            rightToLeft: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
+            onFeedback: {
+                if (PlasmaKeyboardSettings.vibrationEnabled) {
+                    Vibration.vibrate(PlasmaKeyboardSettings.vibrationMs);
+                }
             }
         }
     }
@@ -732,7 +766,9 @@ KeyboardStyle {
         }
     }
 
-    selectionListHeight: 85 * scaleHint
+    // MoOS: the Touch Bar draws the word candidates, so upstream's list above the panel
+    // takes no height (its delegates stay, unseen, for the keyboard's own bookkeeping).
+    selectionListHeight: 0
     selectionListDelegate: SelectionListItem {
         id: selectionListItem
         width: Math.round(selectionListLabel.width + selectionListLabel.anchors.leftMargin * 2)

@@ -1,0 +1,7 @@
+module org.moos.keyboard
+TouchBar 1.0 TouchBar.qml
+EmojiSheet 1.0 EmojiSheet.qml
+TouchBarButton 1.0 TouchBarButton.qml
+EmojiCell 1.0 EmojiCell.qml
+TouchBarLogic 1.0 TouchBarLogic.js
+EmojiData 1.0 EmojiData.js
