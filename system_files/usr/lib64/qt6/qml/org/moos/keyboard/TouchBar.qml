@@ -13,7 +13,9 @@
 //   A suggestion replaces the word and adds a space; holding one forgets it.
 // • Otherwise it is an emoji scrubber: emoji for the word just written, else recent ones.
 // • 😊 opens the emoji sheet over the keys; ⌨ brings the keys back.
-// • ◀ ▶ move the text cursor (held, they repeat); ⚙ opens the keyboard's System Settings.
+// • ◀ ▶ move the text cursor (held, they repeat); ⚙ opens the bar's own settings in the
+//   keys' place — learning on/off, forget learned words, clear recent emoji — and from
+//   there Plasma's keyboard page in System Settings.
 // • In a password or other sensitive field it suggests nothing and records nothing, and
 //   offers no settings; on the login screen (the plasmalogin account) it offers only the
 //   cursor keys.
@@ -43,6 +45,7 @@ Item {
     signal feedback()
 
     property bool sheetOpen: false
+    property bool settingsOpen: false
     property int activeCandidate: -1
     readonly property var recent: Logic.parseRecent(store.recentEmoji)
     // The person's own words (word → times written); revision re-runs the bindings.
@@ -106,7 +109,7 @@ Item {
         learnWord(chosen)
     }
     function learnWord(word) {
-        if (!emojiAllowed || !Logic.learn(vocabulary, word))
+        if (!emojiAllowed || !store.learnWords || !Logic.learn(vocabulary, word))
             return
         vocabularyRevision += 1
         saveWords.restart()
@@ -119,20 +122,37 @@ Item {
         vocabularyRevision += 1
         saveWords.restart()
     }
+    function setLearning(on) {
+        root.feedback()
+        store.learnWords = on
+    }
+    function forgetAllWords() {
+        root.feedback()
+        vocabulary = ({})
+        vocabularyRevision += 1
+        saveWords.stop()
+        store.learnedWords = "{}"
+    }
+    function clearRecentEmoji() {
+        root.feedback()
+        store.recentEmoji = "[]"
+    }
     function openSettings() {
         if (greeter || sensitive)
             return
         root.feedback()
         root.sheetOpen = false
+        root.settingsOpen = false
         const panel = root.Window.window
         if (panel && typeof panel.showSettings === "function")
             panel.showSettings()
     }
 
-    onSheetOpenChanged: if (sheetOpen) { sheet.recent = root.recent; sheet.reset() }
+    onSheetOpenChanged: if (sheetOpen) { settingsOpen = false; sheet.recent = root.recent; sheet.reset() }
+    onSettingsOpenChanged: if (settingsOpen) sheetOpen = false
     Component.onCompleted: vocabulary = Logic.parseWords(store.learnedWords)
     onEmojiAllowedChanged: if (!emojiAllowed) sheetOpen = false
-    onHintsChanged: sheetOpen = false
+    onHintsChanged: { sheetOpen = false; settingsOpen = false }
 
     Connections {
         target: root.candidates
@@ -150,7 +170,12 @@ Item {
     }
     Connections {
         target: root.Window.window
-        function onVisibleChanged() { if (!root.Window.window.visible) root.sheetOpen = false }
+        function onVisibleChanged() {
+            if (!root.Window.window.visible) {
+                root.sheetOpen = false
+                root.settingsOpen = false
+            }
+        }
     }
 
     // Recent emoji and the person's own words stay in their own config
@@ -161,6 +186,7 @@ Item {
         category: "TouchBar"
         property string recentEmoji: "[]"
         property string learnedWords: "{}"
+        property bool learnWords: true
     }
     Timer {
         id: saveWords
@@ -213,7 +239,7 @@ Item {
                 RowLayout {
                     anchors.fill: parent
                     spacing: 0
-                    opacity: root.composing && !root.sheetOpen ? 1 : 0
+                    opacity: root.composing && !root.sheetOpen && !root.settingsOpen ? 1 : 0
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
 
@@ -309,7 +335,7 @@ Item {
                     anchors.fill: parent
                     orientation: ListView.Horizontal
                     boundsBehavior: Flickable.StopAtBounds
-                    opacity: !root.composing && !root.sheetOpen && root.emojiAllowed ? 1 : 0
+                    opacity: !root.composing && !root.sheetOpen && !root.settingsOpen && root.emojiAllowed ? 1 : 0
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
                     model: root.wordEmoji.length > 0 ? root.wordEmoji : Logic.recentOrPopular(root.recent, 24)
@@ -331,10 +357,11 @@ Item {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
-                    opacity: root.sheetOpen ? 1 : 0
+                    opacity: root.sheetOpen || root.settingsOpen ? 1 : 0
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
-                    text: sheet.sectionTitle
+                    text: root.settingsOpen ? (root.language === "ar" ? "إعدادات الشريط" : "Touch Bar settings")
+                                            : sheet.sectionTitle
                     color: root.theme ? root.theme.keySmallTextColor : Kirigami.Theme.textColor
                     font.family: root.theme ? root.theme.fontFamily : ""
                     font.pixelSize: Math.round(root.barHeight * 0.36)
@@ -399,9 +426,10 @@ Item {
                 Layout.fillHeight: true
                 theme: root.theme
                 rightToLeft: root.rightToLeft
+                selected: root.settingsOpen
                 iconName: "settings-configure"
                 accessibleName: root.language === "ar" ? "إعدادات لوحة المفاتيح" : "Keyboard settings"
-                onActivated: root.openSettings()
+                onActivated: { root.feedback(); root.settingsOpen = !root.settingsOpen }
             }
         }
     }
@@ -412,7 +440,7 @@ Item {
         y: root.bandHeight - 1
         width: parent.width - root.sideInset * 2 - Math.round(root.barHeight * 0.6)
         height: 1
-        visible: !root.sheetOpen
+        visible: !root.sheetOpen && !root.settingsOpen
         color: root.theme ? root.theme.selectionListSeparatorColor : Kirigami.Theme.disabledTextColor
     }
 
@@ -442,5 +470,32 @@ Item {
         Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
         onPicked: (emoji) => root.commitEmoji(emoji)
         onBackspace: root.sendKey(Qt.Key_Backspace)
+    }
+
+    SettingsSheet {
+        objectName: "moosKeyboardSettingsSheet"
+        anchors {
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+            leftMargin: root.sideInset
+            rightMargin: root.sideInset
+        }
+        height: parent.height - root.bandHeight
+        theme: root.theme
+        rightToLeft: root.rightToLeft
+        language: root.language
+        rowHeight: Math.max(48, Math.round(root.barHeight * 1.1))
+        learning: store.learnWords
+        learnedCount: root.vocabularyRevision >= 0 ? Object.keys(root.vocabulary).length : 0
+        recentCount: root.recent.length
+        opacity: root.settingsOpen ? 1 : 0
+        visible: opacity > 0
+        enabled: root.settingsOpen
+        Behavior on opacity { NumberAnimation { duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic } }
+        onLearningToggled: (on) => root.setLearning(on)
+        onForgetWords: root.forgetAllWords()
+        onClearRecent: root.clearRecentEmoji()
+        onAllSettings: root.openSettings()
     }
 }

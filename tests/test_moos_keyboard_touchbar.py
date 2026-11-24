@@ -18,7 +18,9 @@ recording input context and engine, and real mouse and Qt touch events
 - move the cursor with the bar's keys (Key_Left/Key_Right, no modifiers);
 - in a password field: no learning, no emoji, no suggestions, nothing stored;
 - forget a suggestion when it is held, and store only recent emoji and finished words in
-  the private ~/.config/moos-keyboardrc.
+  the private ~/.config/moos-keyboardrc;
+- open ⚙'s own sheet: stop and restart learning, forget every learned word, clear recent
+  emoji, and reach Plasma's keyboard page (InputPanelWindow.showSettings).
 Three mutants of the module must fail it: one that learns inside a password field, one
 that commits a suggestion without replacing the typed letters, and one that sends emoji as
 key clicks again (the first draft, which doubled ❤️ in the real keyboard).
@@ -68,6 +70,18 @@ Window {
         engine.virtualKeyClick(key, text, 0)
     }
     function setHints(hints) { ctx.inputMethodHints = hints }
+    // plasma-keyboard's InputPanelWindow.showSettings(), recorded instead of opened.
+    function showSettings() { record({ kind: "settings", text: "" }) }
+    // A settings row's two text lines lie inside its glass (a fixed row once painted the
+    // detail line below it).
+    function rowFits(name) {
+        const row = findItem(win.contentItem, name)
+        const texts = row ? findItem(row, "moosSettingTexts") : null
+        if (!texts)
+            return false
+        const top = texts.mapToItem(row, 0, 0).y
+        return top >= 0 && top + texts.implicitHeight <= row.height + 0.5
+    }
     function greeterHome(url) { return MoOSKeyboard.TouchBarLogic.isGreeterHome(url) }
     // Repeater delegates are visual children only: find them here, by name, in QML.
     function findItem(item, name) {
@@ -351,6 +365,39 @@ def probe() -> int:
     check(greeter_home("file:///var/lib/plasmalogin") is True and greeter_home("file:///var/lib/plasmalogin/") is True
           and greeter_home("file:///var/home/moos") is False and greeter_home("file:///var/lib/plasmalogin-x") is False,
           "the greeter account is recognised by its home alone")
+    # ⚙ opens the bar's own settings in the keys' place.
+    tap(named_point("moosTouchBarSettings"), by_touch=True)
+    QTest.qWait(400)
+    check(bar.property("settingsOpen") and not bar.property("sheetOpen"), "⚙ opens the Touch Bar settings")
+    from PySide6.QtCore import QMetaObject, Q_ARG, Q_RETURN_ARG
+    for name in ("moosKeyboardLearning", "moosKeyboardForget", "moosKeyboardClearRecent", "moosKeyboardAllSettings"):
+        fits = QMetaObject.invokeMethod(win, "rowFits", Qt.DirectConnection, Q_RETURN_ARG("QVariant"), Q_ARG("QVariant", name))
+        check((fits.toVariant() if hasattr(fits, "toVariant") else fits) is True, f"{name}'s text lies inside its row")
+    tap(named_point("moosKeyboardLearning"))
+    call("clearText")
+    call("type", "مرحبا")
+    call("press", int(Qt.Key_Space), " ")
+    call("type", "مر")
+    check(value("suggestions") == [], "with learning off, a finished word is not learned")
+    tap(named_point("moosKeyboardLearning"))
+    call("clearText")
+    call("type", "مرحبا")
+    call("press", int(Qt.Key_Space), " ")
+    call("type", "مر")
+    check(value("suggestions") == ["مرحبا"], "with learning back on, it is")
+    tap(named_point("moosKeyboardForget"))
+    check(value("suggestions") == [], "forget clears every learned word")
+    tap(named_point("moosKeyboardClearRecent"))
+    check(value("recent") == [], "recent emoji can be cleared")
+    n = len(events())
+    tap(named_point("moosKeyboardAllSettings"))
+    check([e["kind"] for e in events()[n:]] == ["settings"] and not bar.property("settingsOpen"),
+          "the full keyboard settings open through the panel window, and the sheet closes")
+    QTest.qWait(1800)
+    settings.sync()
+    check(json.loads(settings.value("TouchBar/learnedWords", "{}")) == {}
+          and json.loads(settings.value("TouchBar/recentEmoji", "[]")) == [], "forgetting and clearing reach the config")
+
     errors = [m for m in messages if re.search(r"(Error|TypeError|ReferenceError|Cannot|Unable|not defined)", m)]
     check(not errors, "no QML errors: " + json.dumps(errors[:3], ensure_ascii=False))
     print("TOUCHBAR_PROBE_OK " + json.dumps({"steps": steps}, ensure_ascii=False), flush=True)
@@ -458,8 +505,8 @@ class NativeJourney(unittest.TestCase):
 
     def test_learning_in_a_password_field_is_refused(self):
         # Both privacy guards removed: the key-signal check and learnWord's own.
-        status, output = self.mutant(("if (!emojiAllowed || !Logic.learn(vocabulary, word))",
-                                      "if (!Logic.learn(vocabulary, word))"),
+        status, output = self.mutant(("if (!emojiAllowed || !store.learnWords || !Logic.learn(vocabulary, word))",
+                                      "if (!store.learnWords || !Logic.learn(vocabulary, word))"),
                                      ("if (!isAutoRepeat && root.emojiAllowed && root.inputContext",
                                       "if (!isAutoRepeat && root.inputContext"))
         self.assertNotEqual(status, 0, "a module that learns in password fields passed the journey")
