@@ -11,7 +11,7 @@ import tempfile
 
 from runtime_state import Transaction
 from login_state import reconcile as reconcile_login_state
-from finalize_canary_base import finalize as finalize_canary
+from finalize_canary_base import bind_selinux_store, finalize as finalize_canary
 from finalize_root_home import finalize as finalize_root_home
 
 
@@ -27,6 +27,8 @@ def compose():
     # only these build-command logs in a private temporary directory instead
     # of widening the shared runtime/identity gate to accept arbitrary logs.
     # Native command stdout/stderr remains in the retained compose log.
+    # selinux-policy installs under /var/lib/selinux: give it the store a booted MoOS has.
+    bind_selinux_store()
     with tempfile.TemporaryDirectory(prefix='moos-canary-dnf-',dir='/tmp') as logs:
         dnf(logs,'-y','copr','enable','@kdesig/kde-beta')
         optional=subprocess.run(['rpm','-q','kcm-fcitx5'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

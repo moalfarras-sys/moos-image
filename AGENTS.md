@@ -444,6 +444,13 @@ out before its sheet has a height can create every delegate: load the emoji grid
 only while shown. The build's offscreen seam probe never creates the keyboard
 background, so `test_moos_keyboard_touchbar.py` is the bar's own native gate.
 
+**A local image build reads the working tree while it runs.** Buildah copies
+each `COPY` source when that step executes: editing the module after the build
+started gave one image a newer TouchBar and an older test, and its native gate
+failed on a mutant anchor that no longer existed. Build a qualification image
+from a detached `git worktree` at the commit being qualified, keep editing
+elsewhere, and name the image by that commit.
+
 **A signed review module is not trusted kernel delivery.** Native7.3.3 old/fixed
 SMOCF05 transports compile from exact publisher-signed SRPM/devel inputs; the
 fixed module adds only its ACPI match. Preserve RPM signatures, source/header

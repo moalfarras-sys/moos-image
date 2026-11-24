@@ -16,6 +16,13 @@ FINGERPRINT='96BDF4E8710B8F9FFB11D83DDB51F4CB6C33BDBB'
 REPO='copr:copr.fedorainfracloud.org:group_kdesig:kde-final'
 EXPECTED={name:'6.8.3-1.fc44' for name in ('plasma-workspace','plasma-desktop',
           'kwin','libplasma','kscreenlocker','plasma-login-manager')}
+# Exact Fedora -2 carries KDE 19404161 (input backends start only after the input
+# redirection exists: a startup null-pointer crash) and 47f03822 (libinput delays
+# non-ADDED events, such as switch state, until KWin's filters exist; KDE bug
+# 528936). The upstream archive, its signature and macros are byte-identical to
+# reviewed -1; the new Requires plasma-milou is already in the image.
+# docs/reviews/2026-11-24-kwin-libinput-startup-review.json
+EXPECTED['kwin']='6.8.3-2.fc44'
 
 def run(*args):
     return subprocess.check_output(list(args),text=True).strip()
@@ -57,8 +64,9 @@ def compose(root=Path('/')):
     # Preserve the base kernel and its matching driver input. A solver conflict
     # fails the build; do not erase desktop/authentication or input components.
     from runtime_state import Transaction
-    from finalize_canary_base import finalize as finalize_canary_base
+    from finalize_canary_base import bind_selinux_store, finalize as finalize_canary_base
     transaction = Transaction()
+    bind_selinux_store()
     actual=sync_packages()
     Path('/usr/share/moos/plasma-stable.json').write_text(json.dumps({
         'schema':1,'architecture':'x86_64','packages':actual,'signing_key_sha256':KEY_SHA256,
