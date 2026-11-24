@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PySide6.QtCore import ClassInfo, QObject, QPointF, Qt, QTimer, QUrl, Signal, Slot
 from PySide6.QtDBus import QDBusConnection
-from PySide6.QtGui import QAccessible, QGuiApplication, QInputDevice
+from PySide6.QtGui import QAccessible, QGuiApplication, QIcon, QInputDevice
 from PySide6.QtQml import QQmlComponent, QQmlEngine
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
@@ -63,8 +63,10 @@ def wait(check, description, timeout=3):
 def check_device_tools(engine, ui, voice):
     component = QQmlComponent(engine)
     component.setData(b"""import QtQuick
+import org.kde.kirigami as Kirigami
 Window {
     id: win
+    color: Kirigami.Theme.backgroundColor
     width: 408; height: 145; visible: true
     property int returns: 0
     IslandDeviceTools {
@@ -92,13 +94,24 @@ Window {
         tools.setProperty("rtl", rtl)
         for width in (248, 408):
             window.setWidth(width)
-            QTest.qWait(50)
+            QTest.qWait(350)  # Allow the native symbolic icon fade to finish.
             positions = []
+            painted = window.grabWindow()
+            assert not painted.isNull(), "no native frame for the device controls"
+            scale = painted.devicePixelRatio()
             for button in buttons:
                 box = button.mapRectToItem(tools, button.boundingRect())
                 assert box.left() >= 0 and box.right() <= tools.width() + 1, box
                 assert box.top() >= 0 and box.bottom() <= tools.height() + 1, box
                 assert box.width() >= 44 and box.height() >= 48 and button.isVisible(), box
+                # Bounds and accessible names can both pass for a blank native ToolButton.
+                # Ignore borders and require contrasting glyph pixels in each actual interior.
+                box_on_screen = button.mapRectToScene(button.boundingRect()).adjusted(8, 8, -8, -8)
+                samples = [painted.pixelColor(x, y).lightness()
+                           for x in range(round(box_on_screen.left() * scale), round(box_on_screen.right() * scale))
+                           for y in range(round(box_on_screen.top() * scale), round(box_on_screen.bottom() * scale))]
+                samples.sort()
+                assert samples[-8] - samples[7] >= 55, (button.objectName(), width, rtl, samples[7], samples[-8], "missing ink")
                 positions.append(box.left())
             assert positions == sorted(positions, reverse=rtl), positions
     tools.focusBack()
@@ -121,6 +134,9 @@ Window {
 
 def run():
     app = QGuiApplication([])
+    overlay = Path(__file__).resolve().parents[1] / "system_files/usr/share/icons"
+    QIcon.setThemeSearchPaths([str(overlay)] + QIcon.themeSearchPaths())
+    QIcon.setThemeName("MoOSUI2Bloom")
     QAccessible.setActive(True)
     cold = sys.argv[1] == "--activated"
     server = QDBusConnection.connectToBus(os.environ["DBUS_SESSION_BUS_ADDRESS"], "voice-fixture")
@@ -135,6 +151,7 @@ def run():
 
     ui = Path(sys.argv[1]).parent
     engine = QQmlEngine()
+    engine.setProperty("_kirigamiTheme", "KirigamiPlasmaStyle")
     engine.addImportPath(str(Path(__file__).resolve().parents[1] / "system_files/usr/lib64/qt6/qml"))
     component = QQmlComponent(engine)
     component.setData(b"""import QtQuick

@@ -3,6 +3,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.workspace.dbus as DBus
@@ -30,9 +31,9 @@ Item {
     // System Settings owns both hardware pages. KWin owns Overview, and
     // Mira.Show only raises her window. Voice capture stays a separate action.
     readonly property var tools: [
-        { key: "overview", icon: "view-grid-symbolic", ar: "النوافذ", en: "Windows" },
-        { key: "audio", icon: "audio-volume-high-symbolic", ar: "الصوت", en: "Sound" },
-        { key: "display", icon: "video-display-symbolic", ar: "الشاشة", en: "Display" },
+        { key: "overview", icon: "moos-grid-symbolic", ar: "النوافذ", en: "Windows" },
+        { key: "audio", icon: "moos-volume-symbolic", ar: "الصوت", en: "Sound" },
+        { key: "display", icon: "moos-system-symbolic", ar: "الشاشة", en: "Display" },
         { key: "mira", icon: "moos-ai-symbolic", ar: "ميرا", en: "Mira" },
         { key: "media" }
     ]
@@ -73,12 +74,38 @@ Item {
                     enabled: !pending
                     hoverEnabled: true
                     icon.name: modelData.key === "media"
-                        ? (strip.playing ? "media-playback-pause-symbolic" : "media-playback-start-symbolic") : modelData.icon
+                        ? (strip.playing ? "moos-pause-symbolic" : "moos-play-symbolic") : modelData.icon
                     readonly property int iconExtent: Math.min(24, Math.round(height * 0.44))
                     icon.width: command.iconExtent
                     icon.height: command.iconExtent
                     display: width >= (strip.compact ? 106 : 88)
                              ? Controls.AbstractButton.TextBesideIcon : Controls.AbstractButton.IconOnly
+                    // The Plasma shell can supply an empty desktop ToolButton content item.
+                    // Use the same label and symbolic icon in the shell and input panel.
+                    contentItem: Item {
+                        RowLayout {
+                            anchors.centerIn: parent
+                            width: Math.min(implicitWidth, parent.width)
+                            spacing: 4
+                            layoutDirection: strip.rtl ? Qt.RightToLeft : Qt.LeftToRight
+                            Kirigami.Icon {
+                                source: command.icon.name
+                                Layout.preferredWidth: command.iconExtent
+                                Layout.preferredHeight: command.iconExtent
+                                isMask: true
+                                color: Kirigami.Theme.textColor
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: command.display !== Controls.AbstractButton.IconOnly
+                                text: command.text
+                                font: command.font
+                                color: Kirigami.Theme.textColor
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
+                            }
+                        }
+                    }
                     Controls.ToolTip.visible: hovered && display === Controls.AbstractButton.IconOnly
                     Controls.ToolTip.text: text
                     Controls.ToolTip.delay: Kirigami.Units.toolTipDelay

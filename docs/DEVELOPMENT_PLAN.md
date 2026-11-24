@@ -40,6 +40,11 @@ the manual keys and settings journeys. In a strict form the released Arabic
 layout left the field empty after ten presses. The reviewed layout entered
 0123456789. Check cover hotplug again on the personal session and signed image.
 The Places and Mira work uses the existing Dolphin, Plasma and Mira services.
+In a private V3 Plasma session the Arabic device pane painted four 99×52
+logical-pixel targets. The English light portrait pane returned to search with
+reduced motion. A private GStreamer player paused and resumed through Plasma's
+MPRIS owner. A private KWin run kept both halves and four quarters inside the
+48-pixel panel margin after rotation, 125% scale and restoration.
 On the physical V3, four independent applications occupied four quarters and
 returned to two halves when two closed. A separate native decorated-window
 control refused the old minimum-size calculation. The next visual M1 journey
