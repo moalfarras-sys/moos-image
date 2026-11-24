@@ -661,6 +661,10 @@ class TheRealKeyboardLoadsTheseFiles(unittest.TestCase):
 
     def run_shadow(self, tmp: Path, name: str, **kwargs) -> tuple[Path, int | None, list[str]]:
         shadow = plasma_seams.shadow_keyboard_modules(tmp / name, **kwargs)
+        # The image installs MoOS's own QML modules (org.moos.keyboard, which the constants
+        # now import) beside these seams; a host that has not booted them yet lacks them.
+        shutil.copytree(ROOT / "system_files/usr/lib64/qt6/qml/org/moos", shadow / "org/moos",
+                        dirs_exist_ok=True)
         status, lines = plasma_seams.run_keyboard(shadow, timeout=60)
         return shadow, status, lines
 
