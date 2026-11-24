@@ -16,9 +16,18 @@ ConditionUser=!@system
 # failed for xdg-desktop-portal.service" at 13.18s. That happened on every boot.
 #
 # %t/bus is not the right marker either -- the bus exists at 12.5s, before the
-# session. %t/wayland-0 is what "the graphical session is up" actually means,
-# and it is what mo-remote-personal itself needs.
-ConditionPathExists=%t/wayland-0
+# session.
+#
+# NOR IS A FIXED SOCKET NAME. This unit used ConditionPathExists=%t/wayland-0
+# until 2026-11-24, when the V3 station's KWin was measured listening on
+# wayland-1 with no wayland-0 at all: the watchdog was skipped 792 times in
+# one boot and a crashed Remote would never have come back on that machine.
+# Plasma publishes the compositor it actually started by importing
+# WAYLAND_DISPLAY into this manager's environment; that is the session marker.
+# The manager can keep that value after a logout, so the script additionally
+# asks the shared resolver for a compositor that answers before it restarts
+# anything (mo-remote-start resolves the same way).
+ConditionEnvironment=WAYLAND_DISPLAY
 After=plasma-workspace.target
 
 [Service]
@@ -27,5 +36,14 @@ ExecStart=/usr/libexec/mo-remote-watchdog
 # The recovery is a couple of systemctl calls; if it ever hangs, the timer's
 # next firing is the retry.
 TimeoutStartSec=30
+# Once a minute for the whole session, the manager's own Starting/Finished lines
+# were 2,880 journal entries a day saying nothing, in a journal capped at 500 MB
+# that already fails to reach back one boot. Keep this script's own messages (a
+# recovery, or a missing compositor) by logging them at notice, and drop the
+# manager's info-level chatter about the unit. Measured 2026-11-24 on the V3 user
+# manager with transient units: the echo survived, Starting/Finished did not.
+# A timeout or failure is logged above notice and still appears.
+SyslogLevel=notice
+LogLevelMax=notice
 
 # NO [Install] SECTION ON PURPOSE — mo-remote-watchdog.timer starts this.
