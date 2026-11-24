@@ -154,7 +154,17 @@ FocusScope {
     }
     readonly property int userReach: everyoneShown ? userListView.count
                                                    : (userSlots - 1) / 2
-    readonly property real islandWidth: Math.min(
+    // On a wide screen one account can sit alongside its own password field.
+    // Leave the native carousel and the compact/portrait interaction intact.
+    readonly property bool accountBesidePrompt: showUserList && userListView.count === 1
+        && width >= unit * 43 && height >= unit * 30 && width >= height * 1.15
+    readonly property real promptWidth: unit * (accountBesidePrompt ? 17 : 16)
+    readonly property real columnGap: unit * 1.6
+    readonly property int accountSide: Qt.application.layoutDirection === Qt.RightToLeft ? 1 : -1
+    readonly property real promptOffset: accountBesidePrompt
+        ? -accountSide * (userListView.userItemWidth + columnGap) / 2 : 0
+    readonly property real islandWidth: accountBesidePrompt
+        ? userListView.userItemWidth + columnGap + promptWidth + islandPad * 2 : Math.min(
         root.width - root.unit,
         Math.max(root.unit * 16,
                  userListView.userItemWidth * userSlots) + islandPad * 2)
@@ -434,34 +444,7 @@ FocusScope {
                     duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
                 } }
 
-                // The catch-light along the capsule's upper edge: glass, not a slot.
-                Rectangle {
-                    anchors { left: parent.left; right: parent.right; top: parent.top }
-                    anchors.margins: parent.border.width
-                    height: parent.height * 0.5
-                    radius: parent.radius - parent.border.width
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
-                            Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.07) }
-                        GradientStop { position: 1.0; color: "transparent" }
-                    }
-                }
 
-                // The focus halo: one soft ring outside the capsule, lit only
-                // while the field or its key has the keyboard.
-                Rectangle {
-                    z: -1
-                    anchors.fill: parent
-                    anchors.margins: -Kirigami.Units.smallSpacing
-                    radius: parent.radius + Kirigami.Units.smallSpacing
-                    color: "transparent"
-                    border.width: Kirigami.Units.smallSpacing
-                    border.color: Qt.rgba(root.accentA.r, root.accentA.g, root.accentA.b,
-                                          field.lit ? 0.18 : 0.0)
-                    Behavior on border.color { ColorAnimation {
-                        duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
-                    } }
-                }
             }
         }
     }
@@ -633,8 +616,10 @@ FocusScope {
         readonly property real topEdge: userListView.visible
             ? userListView.y + faceInset - root.islandPadTop
             : prompts.y - root.islandPad
-        readonly property real bottomEdge: prompts.y + promptBlock.y + promptBlock.height
-                                           + root.islandPad
+        readonly property real promptBottom: prompts.y + promptBlock.y + promptBlock.height
+        readonly property real bottomEdge: (root.accountBesidePrompt
+            ? Math.max(userListView.y + userListView.height, promptBottom)
+            : promptBottom) + root.islandPad
 
         x: Math.round((root.width - width) / 2)
         y: Math.round(topEdge + (1 - root.settle(root.slice(0, 0.7))) * root.unit * 1.4)
@@ -652,19 +637,6 @@ FocusScope {
                               Kirigami.Theme.textColor.g,
                               Kirigami.Theme.textColor.b, 0.16)
 
-        // Sheen — the catch-light across the plate's upper field.
-        Rectangle {
-            anchors { top: parent.top; left: parent.left; right: parent.right }
-            anchors.margins: 1
-            height: parent.height * 0.42
-            radius: parent.radius - 1
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
-                    Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06) }
-                GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
-                    Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.0) }
-            }
-        }
         // The crest: the two-tone mark every MoOS session surface carries on
         // its top edge.
         Rectangle {
@@ -774,16 +746,16 @@ FocusScope {
     Rectangle {
         id: makersMark
         anchors.horizontalCenter: island.horizontalCenter
-        anchors.verticalCenter: island.bottom
+        anchors.horizontalCenterOffset: root.promptOffset
+        anchors.verticalCenter: root.accountBesidePrompt ? island.top : island.bottom
+        anchors.verticalCenterOffset: root.accountBesidePrompt ? root.unit * 0.85 : 0
         width: makersRow.implicitWidth + root.unit
         height: Math.round(root.unit * 1.2)
         radius: height / 2
         opacity: root.slice(0.5, 1) * root.settledOpacity
-        color: Kirigami.Theme.backgroundColor
-        border.width: root.design.borderHairline
-        border.color: Qt.rgba(Kirigami.Theme.textColor.r,
-                              Kirigami.Theme.textColor.g,
-                              Kirigami.Theme.textColor.b, 0.16)
+        color: root.accountBesidePrompt ? "transparent" : Kirigami.Theme.backgroundColor
+        border.width: root.accountBesidePrompt ? 0 : root.design.borderHairline
+        border.color: Qt.alpha(Kirigami.Theme.textColor, 0.16)
 
         Row {
             id: makersRow
@@ -835,11 +807,11 @@ FocusScope {
         Kirigami.Theme.inherit: false
         Kirigami.Theme.colorSet: Kirigami.Theme.Window
         visible: root.showUserList && y > 0
-        anchors {
-            bottom: parent.verticalCenter
-            left: parent.left
-            right: parent.right
-        }
+        width: root.accountBesidePrompt ? userItemWidth : parent.width
+        x: (parent.width - width) / 2 + (root.accountBesidePrompt
+            ? root.accountSide * (root.promptWidth + root.columnGap) / 2 : 0)
+        anchors.bottom: parent.verticalCenter
+        anchors.bottomMargin: root.accountBesidePrompt ? -height / 2 : 0
         fontSize: root.fontSize
         // bubble up the signal
         onUserSelected: root.userSelected()
@@ -857,7 +829,9 @@ FocusScope {
         Kirigami.Theme.inherit: false
         Kirigami.Theme.colorSet: Kirigami.Theme.Window
         anchors.top: parent.verticalCenter
-        anchors.topMargin: Kirigami.Units.largeSpacing + root.neighbourRoom
+        anchors.topMargin: root.accountBesidePrompt
+            ? -Math.round((noticeSlot.implicitHeight + promptBlock.implicitHeight) / 2)
+            : Kirigami.Units.largeSpacing + root.neighbourRoom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -871,6 +845,7 @@ FocusScope {
         // inside it is only there while there is something to say.
         Item {
             id: noticeSlot
+            transform: Translate { x: root.promptOffset }
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
             Layout.maximumWidth: root.unit * 16
@@ -887,21 +862,22 @@ FocusScope {
             // island says hello in the session's language — by the time of day
             // read when it arrives, never on a timer. A notice (Caps Lock, PAM,
             // a refusal) takes the same line and the greeting steps aside.
-            PlasmaComponents3.Label {
+            Kirigami.Heading {
                 id: greetingLabel
+                level: root.accountBesidePrompt ? 2 : 4
                 objectName: "moosSessionGreeting"
                 anchors.centerIn: parent
-                width: Math.min(implicitWidth, root.unit * 15)
+                width: root.accountBesidePrompt ? parent.width : Math.min(implicitWidth, root.unit * 15)
                 text: root.greeting
                 textFormat: Text.PlainText
-                horizontalAlignment: Text.AlignHCenter
+                horizontalAlignment: root.accountBesidePrompt ? (root.accountSide === 1 ? Text.AlignRight : Text.AlignLeft) : Text.AlignHCenter
                 elide: Text.ElideRight
                 font.family: root.design.interfaceFamily
-                font.pointSize: Math.max(8, Math.round((Kirigami.Theme.defaultFont.pointSize + 1)
-                                                       * root.sessionScale))
-                font.weight: Font.Medium
+                font.pointSize: Math.max(9, Math.round(Kirigami.Theme.defaultFont.pointSize
+                    * (root.accountBesidePrompt ? 1.42 : 1.10) * root.sessionScale))
+                font.weight: root.accountBesidePrompt ? Font.DemiBold : Font.Medium
                 color: Kirigami.Theme.textColor
-                opacity: root.design.mutedOpacity
+                opacity: 1
                 visible: notificationsLabel.text.length === 0 && text.length > 0
                 Accessible.ignored: true
             }
@@ -1006,7 +982,8 @@ FocusScope {
 
         ColumnLayout {
             id: promptBlock
-            Layout.maximumWidth: root.unit * 16
+            transform: Translate { x: root.promptOffset }
+            Layout.maximumWidth: root.promptWidth
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
@@ -1025,8 +1002,10 @@ FocusScope {
         // but never below the plate's own margin.
         Item {
             Layout.fillWidth: true
-            Layout.minimumHeight: root.islandPad + root.unit * 0.8
-            Layout.preferredHeight: root.islandPad + root.unit * 1.8
+            readonly property real belowFace: root.accountBesidePrompt
+                ? Math.max(0, userListView.y + userListView.height - island.promptBottom) : 0
+            Layout.minimumHeight: root.islandPad + root.unit * 0.8 + belowFace
+            Layout.preferredHeight: root.islandPad + root.unit * 1.8 + belowFace
             Layout.maximumHeight: Layout.preferredHeight
             Layout.fillHeight: true
         }
