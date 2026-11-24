@@ -40,9 +40,10 @@ static void capture(void *data, ply_event_loop_t *loop) {
     ply_event_loop_exit(loop, 0);
 }
 int main(int argc, char **argv) {
-    /* RLIMIT_CORE alone does not stop a host's piped core collector. */
+    /* RLIMIT_CORE 0 alone does not stop a host's piped core collector; 1 is the
+     * kernel's value for aborting a piped core before the handler runs. */
     if (prctl(PR_SET_DUMPABLE, 0)) return 2;
-    struct rlimit limit = {0, 0};
+    struct rlimit limit = {1, 1};
     if (setrlimit(RLIMIT_CORE, &limit)) return 2;
     if (argc < 4 || argc > 6) return 2;
     if (argc == 6 && strcmp(argv[5], "--prompt-update") && strcmp(argv[5], "--prompt-zero")) return 2;

@@ -411,12 +411,14 @@ def probe() -> int:
 
 
 def no_crash_report() -> None:
-    """The probe child keeps no core on the host. Measured 2026-11-24 on V3: this test's
-    development left four 13.8 MB SIGABRT cores in systemd-coredump; with RLIMIT_CORE 0 an
-    aborting child is still LOGGED (suid_dumpable=2 pipes even non-dumpable processes to
-    the handler) but stored as "none". Never claim the journal stays silent."""
+    """The probe child reaches no host crash collector. Measured 2026-11-24 on V3: this
+    test's development left four 13.8 MB SIGABRT cores in systemd-coredump; with
+    RLIMIT_CORE 0 an aborting child was still piped to the handler (stored as "none") and
+    each one left a DrKonqi launcher running for the rest of the session. A limit of 1
+    byte is the kernel's value for aborting a piped core before the handler runs: the
+    child still dies by its signal and the kernel logs one line."""
     import resource
-    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
 
 
 def run_probe(qml_root: Path, timeout: float = 90) -> tuple[int, str]:

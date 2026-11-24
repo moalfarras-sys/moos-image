@@ -402,7 +402,7 @@ def run_keyboard(import_root: Path | None = None, timeout: float = 60.0) -> tupl
         try:
             proc = subprocess.run([KEYBOARD], env=env, stdin=subprocess.DEVNULL,
                                   capture_output=True, text=True, timeout=timeout,
-                                  preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
+                                  preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (1, 1)))
         except subprocess.TimeoutExpired as exc:
             out = (exc.stdout or b"") + (exc.stderr or b"")
             text = out.decode("utf-8", "replace") if isinstance(out, bytes) else out

@@ -40,7 +40,7 @@ def run(probe, qml, quick, expect, imports=None):
         if imports is not None:
             env['QML_IMPORT_PATH'] = str(imports)
         def no_core():
-            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
         result = subprocess.run([str(probe.resolve()), str(qml.resolve())], env=env,
                                 cwd=private, text=True, capture_output=True, timeout=15,
                                 preexec_fn=no_core)

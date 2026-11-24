@@ -6,7 +6,7 @@ from pathlib import Path
 import resource
 import subprocess
 
-resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
 root = Path('/work/plymouth-package-proof')
 root.mkdir()
 manifest = json.loads(Path('/out/manifest.json').read_text())
