@@ -239,7 +239,8 @@ FocusScope {
                     Keys.onDownPressed: event => { surface.move(1); event.accepted = true; }
                     Keys.onUpPressed: event => { surface.move(-1); event.accepted = true; }
                     Keys.onTabPressed: event => {
-                        surface.focusContent();
+                        if (deviceToolsButton.visible) deviceToolsButton.forceActiveFocus(Qt.TabFocusReason);
+                        else surface.focusContent();
                         event.accepted = true;
                     }
                     KeyNavigation.backtab: askRow
@@ -274,6 +275,25 @@ FocusScope {
                     Layout.preferredHeight: root.design.iconLarge
                     running: surface.hasQuery && results.querying
                     visible: running
+                }
+
+                PC3.ToolButton {
+                    id: deviceToolsButton
+                    objectName: "searchDeviceTools"
+                    visible: field.text.length === 0
+                    text: root.local("أدوات الجهاز", "Device tools")
+                    icon.name: "moos-system-symbolic"
+                    display: surface.compact ? PC3.AbstractButton.IconOnly : PC3.AbstractButton.TextBesideIcon
+                    Layout.minimumWidth: root.design.targetCompact
+                    Layout.minimumHeight: root.design.targetCompact
+                    PC3.ToolTip.text: text
+                    PC3.ToolTip.visible: hovered && surface.compact
+                    PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    KeyNavigation.backtab: field
+                    Keys.onTabPressed: event => { surface.focusContent(); event.accepted = true; }
+                    Keys.onReturnPressed: event => { if (!event.isAutoRepeat) clicked(); event.accepted = true; }
+                    Keys.onEnterPressed: event => { if (!event.isAutoRepeat) clicked(); event.accepted = true; }
+                    onClicked: root.openDeviceTools()
                 }
 
                 PC3.ToolButton {
