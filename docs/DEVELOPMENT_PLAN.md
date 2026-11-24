@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-23. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-24. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -27,6 +27,17 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 | Trustworthy delivery | Matching source/artifact evidence, all edition-specific boot gates, signed promotion, installed readback and working recovery |
 
 ## Active delivery and acceptance batch
+
+Nov24. PR328 (a6577cd8) reached signed production on x86 and ARM. V3 booted
+1187 with the expected signed digest, a working file search and 56/56 post-update
+checks. The open PR tips for the Arabic theme names, glass, quarter layout and
+Meyar variants (#327, #324, #326, #323 and #322) are ancestors of this release.
+PR329 changes the optional engineering profile and is outside this revision.
+The next physical M1 checks are two/four real windows on the V3, keyboard
+detach/reattach with a focused field, and the internal-panel login handoff.
+Record the attached display, scaling and orientation for each journey.
+[Signed x86 promotion](https://github.com/moalfarras-sys/moos-image/actions/runs/45314040906).
+[ARM build, packaged recovery boot and promotion](https://github.com/moalfarras-sys/moos-image/actions/runs/45259218792).
 
 Nov23 owner steering (second message): one polished, modern system across all
 eighteen looks. The MoOS corner (square top-trailing, three round) and Liquid Glass
@@ -58,7 +69,7 @@ qualify it before the next signed cycle.
 PR318 contains the Arabic session keys from PR317, the selected-look handoff,
 and the light-theme contrast fixes. On V3, check the native fingerprint prompt,
 keyboard input, refusal and accessible action names after signed installation.
-The last observed physical boot used 1178.
+1178 supplied the earlier visual baseline; V3 now runs 1187.
 
 V3 session qualification follows the signed 1178 baseline. Check the twelve
 session symbols, password entry, lock/unlock and power confirmation on the
@@ -370,8 +381,7 @@ For every task:
 
 The owner-authorized complete integration above is the current entry point.
 Boot/security/data-loss fixes still preempt the same M0→M1→M2/M3→M4→M5 queue.
-Oracle coordinated PR313. V3 owns the current PR316 merge, signed release and
-physical acceptance. PR313 includes d5d4897a and the preserved Oracle
+Oracle coordinated PR313. V3 completed the later PR328 delivery and booted 1187. PR313 includes d5d4897a and the preserved Oracle
 maintenance ancestry; all269 known refs are covered. Keep constituent component
 and V3 proofs with their actual sources; freeze one final combined candidate,
 then preserve its source/tree/attempt/signature and release admission.
@@ -475,6 +485,8 @@ M0 evidence as measured performance or require another local VM image.
 
 ## التسليم للإيجنت المنفّذ التالي
 
+هذه النقاط سجلّ تسليم سابق. للتنفيذ الحالي ابدأ بفقرة 24 نوفمبر وأدلة الإصدار 1187 أعلاه.
+
 1. اقرأ الحالة والفروع والـPRs والعمليات الحقيقية. root علىV3 يملك الدمج الكامل
    منPR311/1df01483 معApp Drop98fed279 وNight Light016e518d. لا تعِد دمج
    PR308/309/310 منفردة، ولا تغيّر مصدر إثباتاتOracle الجارية.
@@ -496,8 +508,8 @@ M0 evidence as measured performance or require another local VM image.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | PR313 preserves the reviewed window, sensor, Store/App Drop and Night Light work. All 70 local and 216 GitHub branch tips were ancestors of 6315e997 on V3. PR313 merged at 3f114cb0. Qualify the combined recovery and ARM base-account changes before the next signed cycle. | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Signed x86 1162 and ARM 966 have independent promotion receipts. PR313 at 6315e997 passed ARM image CI. Its x86 package solver refused the missing stable liboapv.so.11 provider before image construction. The separately packaged ARM recovery disk still needs its own UEFI boot evidence. | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | PR313 preserves the reviewed window, sensor, Store/App Drop and Night Light work. All 70 local and 216 GitHub branch tips were ancestors of 6315e997 on V3. PR313 merged at 3f114cb0. The subsequent PR328 release qualified the combined inputs at a6577cd8. | Exact candidate source, all integrated fixes and no local override counted as release. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Signed x86 1162 and ARM 966 have independent promotion receipts. PR313 at 6315e997 passed ARM image CI. Its x86 package solver refused the missing stable liboapv.so.11 provider before image construction. The subsequent PR328 workflow booted and accepted its separately packaged three-drive recovery installer and promoted the ARM image. | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Nov15 disposable-VM run 43769002291 (rollback-proof.yml, signed moos@03c211a6): a second deployment booted, `bootc rollback` returned to the same signed commit with user data intact, signed origin and no failed units, and kept the newer deployment. Open: a deliberately failing boot reaching automatic fallback (P1.2) and an actual forward return; no physical-station rollback | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
