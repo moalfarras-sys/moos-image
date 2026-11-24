@@ -191,8 +191,8 @@ def main():
     app.aboutToQuit.connect(controller.shutdown)
 
     # Desktop apps reach her on the session bus: org.moos.Mira /Mira (kde_integration.start_dbus).
-    # Optional, never fatal, never claimed by a review run. Show, Prefill and Talk raise her window
-    # first: nothing on the bus starts her listening while she sits unseen in the tray.
+    # Public voice requests raise her window. The Island has its own visible
+    # controls and authenticates Plasma before starting or stopping a turn.
     def dbus_show(panel):
         if panel:
             controller.handle_instance_command(b'open:' + json.dumps({'panel': panel}).encode())
@@ -209,8 +209,14 @@ def main():
     dbus = None
     if controller.kde is not None:
         import kde_integration
-        dbus = kde_integration.start_dbus({'show': dbus_show, 'prefill': dbus_prefill,
-                                           'talk': dbus_talk, 'stop': controller.stop})
+        dbus = kde_integration.start_dbus({
+            'show': dbus_show, 'prefill': dbus_prefill, 'talk': dbus_talk, 'stop': controller.stop,
+            'island_state': controller.island_voice_state,
+            'island_talk': controller.start_island_voice,
+            'island_stop': controller.stop_island_voice,
+        })
+        if dbus is not None:
+            controller.islandVoiceChanged.connect(dbus.IslandVoiceChanged.emit)
         if not TEST_MODE:
             controller.kde.set_dbus_active(dbus is not None)
         app.aboutToQuit.connect(lambda: kde_integration.stop_dbus(dbus))

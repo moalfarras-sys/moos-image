@@ -16,6 +16,7 @@ Item {
     required property var pages
     required property var navigation
     required property var categories
+    required property var placesList
     required property var powerButton
     required property var powerMenu
     required property var actionMenu
@@ -324,6 +325,18 @@ Item {
                 const horizon=named(v,"movaHorizon");
                 driver.verify(horizon&&horizon.gradient.stops[0].color.a===0&&horizon.gradient.orientation===Gradient.Vertical,
                     "horizon rises from the rim with no top edge");
+                l.activePage = 2;
+                check.tryCompare(driver.pages, "pageAnimating", false, 1500, "Places settles");
+                v.focusActivePageContent();
+                driver.verify(driver.placesList.activeFocus && driver.placesList.currentSection.length > 0,
+                    "Places keeps native row focus and publishes its native group");
+                check.keyClick(Qt.Key_Backtab, Qt.ShiftModifier);
+                check.keyClick(Qt.Key_Backtab, Qt.ShiftModifier);
+                const split = named(v, "movaSplitFiles");
+                driver.verify(split && split.activeFocus && split.height >= 44
+                    && split.width >= split.implicitWidth - 1,
+                    "Split Files is a readable keyboard-reachable touch target");
+                driver.captureSurface("places");
                 l.activePage=3;check.tryCompare(driver.pages,"pageAnimating",false,1500,"customize settles");
                 const switches=[];
                 (function collect(item){if(item.objectName==="movaSettingSwitch")switches.push(item);for(const c of item.children||[])collect(c);})(v);

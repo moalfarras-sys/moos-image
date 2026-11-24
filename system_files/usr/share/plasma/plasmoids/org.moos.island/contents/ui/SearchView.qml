@@ -130,6 +130,7 @@ FocusScope {
     }
 
     function focusField() {
+        if (!surface.visible || !root.expanded) return;
         field.forceActiveFocus();
         field.cursorPosition = field.text.length;
     }
@@ -143,11 +144,11 @@ FocusScope {
         resultList.positionViewAtIndex(resultList.currentIndex, ListView.Contain);
     }
 
-    Component.onCompleted: if (root.expanded) Qt.callLater(surface.focusField)
+    onVisibleChanged: if (surface.visible && root.expanded) Qt.callLater(surface.focusField)
     Connections {
         target: root
         function onExpandedChanged() {
-            if (root.expanded) {
+            if (root.expanded && surface.visible) {
                 Qt.callLater(surface.focusField);
                 if (root.motionEnabled) {
                     entrance.value = 0.965;

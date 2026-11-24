@@ -440,7 +440,9 @@ set -uo pipefail
 # 184: restore the active and inactive inner-border layers around glass windows.
 # 185: refresh the native account avatar in the greeter and lock screen.
 # 186: the on-screen keyboard gains the MoOS Touch Bar (style seam + org.moos.keyboard).
-THEME_REV=186
+# 187: adaptive keyboard, native Mira Island controls, Places and window frame sizing.
+# 188: honor native AnyInput on an initially detached V3 field as well as after a posture change.
+THEME_REV=188
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -671,6 +673,26 @@ if [ "$font_status" = 4 ]; then
 elif [ "$font_status" != 0 ]; then
     echo "Meyar font migration failed; preserve recovery and retry at next login" >>"$log"
     exit 1
+fi
+
+# Let the native input panel open its compact bar on pointer focus. Only adopt
+# the new default for this keyboard, with neither a modern nor legacy KWin
+# visibility choice. The compositor persists the accepted mode itself.
+if [ "$(kreadconfig6 --file kwinrc --group Wayland --key InputMethod 2>/dev/null)" = /usr/share/applications/org.kde.plasma.keyboard.desktop ] \
+        && [ "$(kreadconfig6 --file kwinrc --group Wayland --key VirtualKeyboardMode --default absent)" = absent ] \
+        && [ "$(kreadconfig6 --file kwinrc --group Wayland --key VirtualKeyboardEnabled --default true)" = true ] \
+        && [ "$(kreadconfig6 --file "${XDG_CONFIG_HOME:-$HOME/.config}/kwinrc" --group Wayland --key VirtualKeyboardEnabled --default absent)" = absent ] \
+        && grep -q 'MoOSKeyboard.InputPanelFocus' /usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml; then
+    vk_iface=org.kde.kwin.VirtualKeyboard
+    if [ "$(busctl --user get-property org.kde.KWin /VirtualKeyboard "$vk_iface" available 2>/dev/null)" = 'b true' ] \
+            && [ "$(busctl --user get-property org.kde.KWin /VirtualKeyboard "$vk_iface" mode 2>/dev/null)" = 'i 1' ]; then
+        if busctl --user set-property org.kde.KWin /VirtualKeyboard "$vk_iface" mode i 2 >>"$log" 2>&1 \
+                && [ "$(busctl --user get-property org.kde.KWin /VirtualKeyboard "$vk_iface" mode)" = 'i 2' ]; then
+            echo "Native keyboard now offers its Touch Bar on desktop text focus" >>"$log"
+        else
+            echo "KWin did not confirm its desktop keyboard mode" >>"$log"
+        fi
+    fi
 fi
 
 migration_completed=false

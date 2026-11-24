@@ -60,13 +60,22 @@ KeyboardStyle {
         }
     }
 
-    // Always have the keyboard panel be 30% of the screen height, or 150px (whichever is larger)
-    // MoOS: that is now the KEYS' height; the Touch Bar's band is added above it, so the
-    // keys stay exactly upstream's size and the bar is never under 44 logical pixels.
-    readonly property real keysHeight: Math.max(Screen.height * 0.3, 150)
+    // Only the session input panel follows KWin's posture. The KCM preview,
+    // greeter and protected fields keep their full, directly usable keypad.
+    property bool sessionInputPanel: false
+    property bool keysRequested: false
+    property bool browserOpen: false
+    readonly property bool followTextFocus: sessionInputPanel && MoOSKeyboard.PanelState.postureKnown
+        && !MoOSKeyboard.PanelState.greeter
+        && (InputContext.inputMethodHints & (Qt.ImhHiddenText | Qt.ImhSensitiveData)) === 0
+    readonly property bool desktopBar: followTextFocus && MoOSKeyboard.PanelState.desktopPosture
+    readonly property bool barOnly: desktopBar && !keysRequested && !browserOpen
+    onDesktopBarChanged: keysRequested = false
+
+    readonly property real keysHeight: Math.max(150, Math.round(Screen.height * MoOSKeyboard.PanelState.heightPercent / 100))
     readonly property real touchBarHeight: Math.max(44, Math.round(keysHeight * 0.15))
     readonly property real touchBarBand: touchBarHeight + Math.max(8, Math.round(keysHeight * 0.03))
-    readonly property real targetKeyboardHeight: keysHeight + touchBarBand
+    readonly property real targetKeyboardHeight: (barOnly ? 0 : keysHeight) + touchBarBand
     // upstream's design height for the keys; scaleHint (height / design height) is unchanged
     readonly property real keysDesignHeight: {
         if (Screen.width < 500) {
@@ -89,7 +98,7 @@ KeyboardStyle {
         }
 
         const targetAspectRatio = 3.0; // Target width = 3 * height
-        return Math.min(fillScreenWidth, targetAspectRatio);
+        return Math.min(fillScreenWidth, targetAspectRatio * (keysHeight + touchBarBand) / targetKeyboardHeight);
     }
 
     // Calculate width based on the height so that the keyboard height is always targetKeyboardHeight
@@ -111,14 +120,41 @@ KeyboardStyle {
     }
     keyboardRelativeRightMargin: keyboardRelativeLeftMargin
     // MoOS: the keys begin below the Touch Bar's band.
-    keyboardRelativeTopMargin: (6 + touchBarBand * keysDesignHeight / keysHeight) / keyboardDesignHeight
-    keyboardRelativeBottomMargin: 6 / keyboardDesignHeight
+    keyboardRelativeTopMargin: barOnly ? 1 : (6 + touchBarBand * keysDesignHeight / keysHeight) / keyboardDesignHeight
+    keyboardRelativeBottomMargin: barOnly ? 0 : 6 / keyboardDesignHeight
 
     // MoOS: the panel is a glass sheet lit along its top edge, carrying the
     // two-tone crest every MoOS session surface wears at its top.
     keyboardBackground: Rectangle {
         id: panelFace
-        color: theme.keyboardBackgroundColor
+        MoOSKeyboard.InputPanelFocus {
+            followTextFocus: currentStyle.followTextFocus
+            desktopPosture: MoOSKeyboard.PanelState.desktopPosture
+        }
+        // Qt's zero-height key rows can still paint their labels beyond the
+        // layout. Use the actual InputPanel keyboard's layout and input owner.
+        readonly property var layoutLoader: parent && parent.parent ? parent.parent.keyboardLayoutLoader : null
+        Binding {
+            target: panelFace.layoutLoader || null
+            property: "visible"
+            when: !!panelFace.layoutLoader && currentStyle.barOnly
+            value: false
+            restoreMode: Binding.RestoreBindingOrValue
+        }
+        Binding {
+            target: panelFace.layoutLoader || null
+            property: "enabled"
+            when: !!panelFace.layoutLoader && currentStyle.barOnly
+            value: false
+            restoreMode: Binding.RestoreBindingOrValue
+        }
+        Binding {
+            target: currentStyle
+            property: "sessionInputPanel"
+            value: !!panelFace.Window.window && typeof panelFace.Window.window.showSettings === "function"
+        }
+        // The native input window already paints this glass under the panel.
+        color: Window.window && typeof Window.window.showSettings === "function" ? "transparent" : theme.keyboardBackgroundColor
         Rectangle {
             anchors.top: parent.top
             width: parent.width
@@ -148,7 +184,12 @@ KeyboardStyle {
             inputContext: InputContext
             theme: currentStyle.theme
             barHeight: currentStyle.touchBarHeight
-            bandHeight: Math.round(6 * currentStyle.scaleHint) + currentStyle.touchBarBand
+            bandHeight: (currentStyle.barOnly ? 0 : Math.round(6 * currentStyle.scaleHint)) + currentStyle.touchBarBand
+            desktopBar: currentStyle.desktopBar
+            keysShown: currentStyle.keysRequested
+            onToggleKeys: currentStyle.keysRequested = !currentStyle.keysRequested
+            onToolsOpenChanged: currentStyle.browserOpen = toolsOpen
+            onResetKeys: currentStyle.keysRequested = false
             sideInset: Math.round(currentStyle.keyboardRelativeLeftMargin * width)
             rightToLeft: Qt.locale(InputContext.locale).textDirection === Qt.RightToLeft
             onFeedback: {
@@ -474,7 +515,7 @@ KeyboardStyle {
                 name: "disabled"
                 when: !control.enabled
                 PropertyChanges {
-                    target: spaceKeyBackground
+                    target: spaceKeyPanel.background
                     opacity: 0.8
                 }
             }
