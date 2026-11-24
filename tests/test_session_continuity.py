@@ -190,6 +190,10 @@ Window {
         caption=button.findChild(QQuickItem,'moosPowerActionCaption');assert caption
         assert caption.property('paintedHeight') <= caption.height()+1, ('caption ink outside line box',button.property('text'))
         assert not caption.property('truncated'), ('truncated power action',button.property('text'))
+        for part in (caption, button.findChild(QQuickItem,'moosSessionActionGlyph')):
+            if part and part.isVisible():
+                bounds=part.mapRectToItem(button,part.boundingRect())
+                assert button.boundingRect().adjusted(-1,-1,1,1).contains(bounds), ('power content outside its button',button.property('text'),bounds)
         face=button.findChild(QQuickItem,'moosPowerActionSurface');assert face
         # Bound the remaining sheet transparency with both extreme backdrops,
         # including the actual interactive fill and the caption's own alpha.

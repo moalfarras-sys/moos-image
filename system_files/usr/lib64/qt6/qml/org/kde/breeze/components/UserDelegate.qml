@@ -302,7 +302,11 @@ Item {
             anchors.fill: parent
             visible: wrapper.placeholderFace && !wrapper.anonymous
             name: wrapper.name
+            sourceSize: Qt.size(width, height)
+            icon.name: "user-symbolic"
             font.family: design.interfaceFamily
+            font.pixelSize: Math.round(wrapper.faceSize * 0.40)
+            font.weight: Font.Medium
             color: Kirigami.Theme.textColor
             background: null
             Accessible.ignored: true

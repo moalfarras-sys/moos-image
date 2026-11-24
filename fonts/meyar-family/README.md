@@ -24,10 +24,13 @@ source under `../meyar-arabic/`, pinned to
 Every source byte and original OFL/author notice is retained. Builders refuse
 drift instead of silently downloading another input.
 
-The design shares soft terminal fillets and rounded-square dot shoulders.
-Latin M has a raised central rhythm; double-storey a/g and phonetic distinctions
-remain. Arabic retains contextual shaping, bearings and joins, with reviewed
-dot/meem/upper-terminal changes. The mono pair uses matching700-unit cells.
+Rounded-square dots recur across the family. The upper stems of isolated and
+final alef (full and short forms), and initial and medial lam, have a square right
+corner and a rounded left shoulder. The shoulder scales with the stroke in all
+eight Arabic source masters and returns to the authored stem above the join.
+Latin M has a raised middle. Latin retains its soft terminal fillets, double-storey
+a/g and phonetic distinctions. Arabic keeps its contextual shaping, bearings and
+joins, including the earlier dot and meem changes. The mono pair uses matching700-unit cells.
 Its source Arabic marks are compacted and attached to actual ink bounds;
 the installed upstream control reproduces1932UPM above alef/hamza/shadda/fatha,
 while the new Bold source reaches1523UPM inside1600/−768 line metrics.
@@ -62,6 +65,12 @@ python fonts/meyar-family/build.py mono-arabic --otf --output test-results/meyar
 python fonts/meyar-family/verify.py test-results/meyar-family \
   --output test-results/meyar-family/verification.json
 ```
+
+To inspect Arabic typing and natural line bounds on the current Qt installation,
+pass the variable font and a private output PNG to `proof_arabic_editor.py`.
+The tool exercises Arabic input, undo and redo in QTextEdit and records each
+shaped line's width, ink bounds and the loaded outline digest alongside the PNG.
+Run it once per font to compare a baseline with a candidate.
 
 OTF exports use the canonical static variable instances: their quadratic curves
 are converted exactly to cubic curves, keeping cmap/layout/advances identical.

@@ -73,16 +73,20 @@ QQC2.AbstractButton {
     // whole footprint is interactive and the dock has real visual mass.
     // The session family's one size, from the window this tile is in.
     readonly property real sessionScale: design.sessionScale(Window.width, Window.height)
+    // Two lines of shaped Arabic can be taller than the nominal tile.
     readonly property real keyHeight: Math.max(design.targetControl,
+        commandContents.implicitHeight + Kirigami.Units.smallSpacing * 2,
         Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 5.3) * sessionScale)
     readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 10.4 : 8.6) * sessionScale
-    // The way out is one line of words, and it must never be cut short: on a
-    // small screen the pill takes the width its caption needs.
+    // The native label includes its shaped advances and content insets. Give
+    // short actions their standard width and let longer names use spare room.
     readonly property real fittedWidth: control.subtle
         ? Math.max(keyWidth, caption.implicitWidth + Kirigami.Units.gridUnit * 2)
-        : keyWidth
+        : Math.max(keyWidth, Math.min(Math.ceil(caption.implicitWidth) + design.space2 * 2, keyWidth * 1.5))
     implicitWidth: fittedWidth
     implicitHeight: keyHeight
+    Layout.fillWidth: !control.subtle
+    Layout.fillHeight: !control.subtle
     padding: 0
     scale: down ? design.pressScale : 1.0
     Behavior on scale {
@@ -129,8 +133,9 @@ QQC2.AbstractButton {
 
             // Glyph above caption, both inside the tile.
             ColumnLayout {
+                id: commandContents
                 anchors.centerIn: parent
-                width: parent.width - Kirigami.Units.largeSpacing * 2
+                width: parent.width - design.space2 * 2
                 spacing: control.subtle ? 0 : Kirigami.Units.smallSpacing
 
                 MoUI.SessionActionGlyph {
@@ -142,6 +147,7 @@ QQC2.AbstractButton {
                     // reads faster than glyph+word at its quiet weight.
                     visible: !control.subtle
                     Layout.preferredWidth: Math.round(design.targetControl * control.sessionScale)
+                                           + (control.sessionScale >= 1 ? design.space2 : 0)
                     Layout.preferredHeight: Layout.preferredWidth
                     accentColor: disc.color
                     inkColor: control.filled ? control.filledInk : control.restingGlyphInk

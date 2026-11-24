@@ -276,7 +276,7 @@ generated into `org.moos.ui/SessionPower.qml`; Plasma6.8.1's reviewed shell adap
 connects it to the native timer, output handoff and signal owner. Desktop, login
 and power resolve known profile images from one generated map, using actual
 packaged dimensions rather than an assumed 4K JPEG. Never copy authentication
-logic or replace the native executor. Session actions keep complete captions,
+logic or replace the native executor. On wide screens a single account and its prompt share one card, with the account on the reading-start side. Narrow screens and multiple accounts retain the native vertical arrangement. The account without a photo uses Kirigami’s initials and a symbolic fallback. The greeting follows the writing direction, and session actions stay centred below both columns. Session actions keep complete captions,
 44px minimum targets and two-step sensitive confirmation. Pointer/key navigation
 cancels the native countdown; hidden/reduced motion settles finite transitions.
 The native login/lock buttons and power tiles share `SessionActionGlyph`:
@@ -296,7 +296,7 @@ shared files, not look-alikes:
 | Scene | the family's wallpaper under the session veil (lighter while idle, the session scrim once the island is up) | lock: `org.kde.breeze.components/WallpaperFader.qml`; login: `org.moos.ui2.greeter`; power: `Logout.qml` |
 | Signature | emblem, wordmark and one accent stroke in the **leading** top corner | `org.moos.ui/SessionSignature.qml`, instantiated once by each scene |
 | Clock | top-centre, on the island's axis: ExtraLight time, accent colon, horizon cut, one date in the session locale and the clock's numerals | `org.kde.breeze.components/Clock.qml` |
-| Island | one glass plate, centred, that **hugs** what it frames; crest on its top edge, maker's mark on its bottom edge | lock and login: `SessionManagementScreen.qml`; power: `Logout.qml`, same material |
+| Island | one glass plate, centred, that **hugs** what it frames; crest on its top edge, maker's mark tucked inside the wide card or on the compact card’s bottom edge | lock and login: `SessionManagementScreen.qml`; power: `Logout.qml`, same material |
 | Face | accent ring and bloom; an initial on a two-tone disc when the account has no photo, on both doors. Up to five accounts stand in one centred row inside a wider island; more than that is upstream's carousel | `UserDelegate.qml`, `UserList.qml` |
 | Password row | field and key at one height and one radius; the key is flat accent under the scheme's paired ink | `SessionManagementScreen.qml` gives upstream's stock controls this face |
 | Action keys | login/lock below the card; power inside its command card | `ActionButton.qml`; power: `MoOSUI2ActionButton.qml`; both use `SessionActionGlyph.qml` |

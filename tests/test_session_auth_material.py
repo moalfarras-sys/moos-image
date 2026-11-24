@@ -27,6 +27,8 @@ def probe():
     from PySide6.QtQml import QQmlEngine, QQmlComponent, QQmlExpression
     from PySide6.QtTest import QTest
     app = QGuiApplication([])
+    rtl = os.environ["AUTH_DIRECTION"] == "rtl"
+    app.setLayoutDirection(Qt.RightToLeft if rtl else Qt.LeftToRight)
     engine = QQmlEngine(); engine.setProperty('_kirigamiTheme','org.kde.desktop')
     engine.addImportPath(str(ROOT/'system_files/usr/lib64/qt6/qml'))
     engine.addImportPath(os.environ['AUTH_IMPORTS'])
@@ -37,6 +39,8 @@ import QtQuick.Controls as C
 import org.kde.kirigami as Kirigami
 import org.kde.breeze.components as Native
 Window { id: window; width: '''+os.environ['AUTH_WIDTH']+'''; height: 640; visible: true
+ LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+ LayoutMirroring.childrenInherit: true
  Kirigami.Theme.inherit: false
  Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
  property int submitted: 0
@@ -78,6 +82,22 @@ Window { id: window; width: '''+os.environ['AUTH_WIDTH']+'''; height: 640; visib
     target=[round(channel*.94+255*.06) for channel in (expected.red(),expected.green(),expected.blue())]
     assert max(abs(a-b) for a,b in zip((pixel.red(),pixel.green(),pixel.blue()),target))<=25,('working sheet did not paint',pixel.name(),expected.name())
     field = window.findChild(QQuickItem,'nativePassword'); button = window.findChild(QQuickItem,'nativeSubmit')
+    account = window.findChild(QQuickItem, 'moosSessionAccountList')
+    greeting = window.findChild(QQuickItem, 'moosSessionGreeting')
+    wide = int(os.environ['AUTH_WIDTH']) > 1000
+    assert screen.property('accountBesidePrompt') == wide
+    def scene_bounds(item):
+        return item.mapRectToScene(item.boundingRect())
+    account_bounds = scene_bounds(account)
+    field_bounds = scene_bounds(field).united(scene_bounds(button))
+    if wide:
+        assert account_bounds.left() >= field_bounds.right() if rtl else account_bounds.right() <= field_bounds.left(), (account_bounds, field_bounds, rtl)
+        assert scene_bounds(card).adjusted(-1, -1, 1, 1).contains(field_bounds)
+        aligned = QQmlExpression(QQmlEngine.contextForObject(greeting), greeting,
+            'effectiveHorizontalAlignment === ' + ('Text.AlignRight' if rtl else 'Text.AlignLeft'))
+        assert aligned.evaluate()[0] is True, 'wide greeting did not follow the reading direction'
+    else:
+        assert account_bounds.bottom() <= field_bounds.top(), (account_bounds, field_bounds)
     expression = QQmlExpression(QQmlEngine.contextForObject(field),field,'echoMode === TextInput.Password && text === ""')
     assert expression.evaluate()[0] is True,'password semantics changed on adoption'
     window.requestActivate(); field.forceActiveFocus(); QTest.qWait(50)
@@ -126,6 +146,7 @@ class NativeAuthenticationMaterial(unittest.TestCase):
                     DBUS_SESSION_BUS_ADDRESS='unix:path='+td+'/absent',QT_QPA_PLATFORM='offscreen',
                     QT_QUICK_BACKEND='software',QML_DISABLE_DISK_CACHE='1',AUTH_IMPORTS=str(imports),
                     AUTH_SOURCE=str(target),AUTH_WIDTH='360' if i%2 else '1280',
+                    AUTH_DIRECTION='rtl' if i%4 < 2 else 'ltr',
                     AUTH_BG='#'+''.join(f'{int(v):02x}' for v in palette['Colors:Window']['BackgroundNormal'].split(',')))
                 env.pop('DISPLAY',None);env.pop('WAYLAND_DISPLAY',None)
                 before = {p.name:p.read_bytes() for p in config.iterdir()}

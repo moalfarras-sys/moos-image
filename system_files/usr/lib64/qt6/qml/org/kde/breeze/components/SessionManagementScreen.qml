@@ -819,6 +819,7 @@ FocusScope {
     // whitespace to avoid items being overlapped.
     UserList {
         id: userListView
+        objectName: "moosSessionAccountList"
         // Observe the native selection; authentication and selected account
         // remain entirely owned by the caller. Ordinary lock clients do not
         // activate the separate login account's appearance reader.
@@ -845,6 +846,7 @@ FocusScope {
     // prompts instead, and one fixed gap keeps the actions clear of its edge.
     ColumnLayout {
         id: prompts
+        transform: Translate { x: root.promptOffset }
         objectName: "moosSessionPrompts"
         Kirigami.Theme.inherit: false
         Kirigami.Theme.colorSet: Kirigami.Theme.Window
@@ -865,7 +867,6 @@ FocusScope {
         // inside it is only there while there is something to say.
         Item {
             id: noticeSlot
-            transform: Translate { x: root.promptOffset }
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
             Layout.maximumWidth: root.unit * 16
@@ -890,6 +891,8 @@ FocusScope {
                 width: root.accountBesidePrompt ? parent.width : Math.min(implicitWidth, root.unit * 15)
                 text: root.greeting
                 textFormat: Text.PlainText
+                // This alignment is physical; the greeter already mirrors the surrounding layout.
+                LayoutMirroring.enabled: false
                 horizontalAlignment: root.accountBesidePrompt ? (root.accountSide === 1 ? Text.AlignRight : Text.AlignLeft) : Text.AlignHCenter
                 elide: Text.ElideRight
                 font.family: root.design.interfaceFamily
@@ -1002,7 +1005,6 @@ FocusScope {
 
         ColumnLayout {
             id: promptBlock
-            transform: Translate { x: root.promptOffset }
             Layout.maximumWidth: root.promptWidth
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
@@ -1032,6 +1034,8 @@ FocusScope {
 
         Item {
             id: actionDockSlot
+            // The account and prompt form two columns; their shared actions stay centred.
+            transform: Translate { x: -root.promptOffset }
             Layout.alignment: Qt.AlignHCenter
             // The session dock: one glass sheet in the island's silhouette holds
             // every session action, the way the MoOS bar holds the desktop's,
