@@ -679,7 +679,8 @@ fi
 # visibility choice. The compositor persists the accepted mode itself.
 if [ "$(kreadconfig6 --file kwinrc --group Wayland --key InputMethod 2>/dev/null)" = /usr/share/applications/org.kde.plasma.keyboard.desktop ] \
         && [ "$(kreadconfig6 --file kwinrc --group Wayland --key VirtualKeyboardMode --default absent)" = absent ] \
-        && [ "$(kreadconfig6 --file kwinrc --group Wayland --key VirtualKeyboardEnabled --default absent)" = absent ] \
+        && [ "$(kreadconfig6 --file kwinrc --group Wayland --key VirtualKeyboardEnabled --default true)" = true ] \
+        && [ "$(kreadconfig6 --file "${XDG_CONFIG_HOME:-$HOME/.config}/kwinrc" --group Wayland --key VirtualKeyboardEnabled --default absent)" = absent ] \
         && grep -q 'MoOSKeyboard.DesktopBarFocus' /usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml; then
     vk_iface=org.kde.kwin.VirtualKeyboard
     if [ "$(busctl --user get-property org.kde.KWin /VirtualKeyboard "$vk_iface" available 2>/dev/null)" = 'b true' ] \
