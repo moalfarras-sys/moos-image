@@ -31,4 +31,4 @@ if [ "${MOOS_GHIDRA_HOST_WAYLAND:-0}" = 1 ] || \
 fi
 export JAVA_HOME=/usr/lib/jvm/java-25-openjdk
 export PATH=/usr/local/bin:/usr/bin
-exec "${HOME}/.local/share/moos-dev-platform/ghidra_12.1.4_PUBLIC/support/launch.sh" fg jdk Ghidra "${GHIDRA_GUI_MAXMEM:-${GHIDRA_MAXMEM:-4G}}" "-Dsun.java2d.uiScale=${MOOS_GHIDRA_UI_SCALE:-1}" ghidra.GhidraRun "$@"
+exec "${HOME}/.local/share/moos-dev-platform/ghidra_12.2_PUBLIC/support/launch.sh" fg jdk Ghidra "${GHIDRA_GUI_MAXMEM:-${GHIDRA_MAXMEM:-4G}}" "-Dsun.java2d.uiScale=${MOOS_GHIDRA_UI_SCALE:-1}" ghidra.GhidraRun "$@"

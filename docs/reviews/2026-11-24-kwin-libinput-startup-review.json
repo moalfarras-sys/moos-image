@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "date": "2026-11-24",
+  "plan": [
+    "P0.1",
+    "P5.3",
+    "P6.7"
+  ],
+  "tier": "Tier1 exact stable package-input review; full local image and signed proof required before delivery",
+  "originalRefusals": {
+    "prImageGatesRun": 45396277835,
+    "pr": 331,
+    "reason": "The unchanged exact-package guard refused kwin 6.8.3-2.fc44 (Fedora updates) where 6.8.3-1.fc44 was reviewed; no gate relaxed and no failed job rerun"
+  },
+  "publisherPackages": [
+    {
+      "name": "kwin-6.8.3-2.fc44.x86_64.rpm",
+      "bytes": 537234,
+      "sha256": "9f54e9101237f647f80891fb6345e657e19da4f375b49bf7d29891eb9eca6fb6"
+    },
+    {
+      "name": "kwin-common-6.8.3-2.fc44.x86_64.rpm",
+      "bytes": 3954105,
+      "sha256": "6966dc8c82fcd672f31ee1138660e87a3d8780845dbb15f5a2bba4caf8633559"
+    },
+    {
+      "name": "kwin-libs-6.8.3-2.fc44.x86_64.rpm",
+      "bytes": 2964649,
+      "sha256": "e87abf1a22f58b2c234ca614faf76eeffdde04e7a27eaee6d309858f066f18be"
+    },
+    {
+      "name": "kwin-6.8.3-2.fc44.src.rpm",
+      "bytes": 9108154,
+      "sha256": "018a4e95cdab88cf860603a2c6f79f1ca61cb3c87e2a9ba3543dd260eb8dc92b"
+    }
+  ],
+  "rpmVerification": {
+    "allFourDigestsAndSignatures": "OK",
+    "signingKeyId": "dbfcf71c6d9f90a6",
+    "trustedFingerprint": "36F612DCF27F7D1A48A835E4DBFCF71C6D9F90A6",
+    "previousSourceRpm": {
+      "name": "kwin-6.8.3-1.fc44.src.rpm (Koji copy, digests only)",
+      "sha256": "cb95935bcddeaf739580f9e60784915fd34494fccc8b44726e69937c65cba68d"
+    }
+  },
+  "source": {
+    "upstreamArchiveSha256": "fd5cb783f220ea4526a9afee2f72b582c3e87ef7f91b19bc5c7a6662ffe7fbdc",
+    "upstreamSignatureSha256": "4680e5a7200a1e946f4b94a0a311e945c53cd83cbdfcb497906cb3ade25f2179",
+    "macrosSha256": "5a9e14f71d794d479b7e11163c5ed796c6d8acdea98031758e5b7f6447b125a9",
+    "archiveSignatureAndMacrosUnchangedFromReviewed1": true,
+    "specDelta": "Release 2; two upstream KWin patches; Requires plasma-milou (already installed: plasma-milou-6.8.3-1.fc44); changelog. No authentication, identity, theme, API or kernel change.",
+    "patches": [
+      {
+        "commit": "https://invent.kde.org/plasma/kwin/-/commit/19404161bc367b87b794361915b85a14c034ec63",
+        "subject": "input: only init backends after InputRedirection",
+        "why": "input backends could send events during construction, before the input-redirection global existed, and crash KWin",
+        "vendorPatchSha256": "657c90be8f2051f742a583e4ce38388d502ecaf0e402f2b01743ceb358836f68",
+        "upstreamPatchSha256": "67c7f17a26bfdfdef1b33572422377999d45b0e025bd8a5d1ebd99587cc82cf0",
+        "addedAndRemovedLinesIdentical": true
+      },
+      {
+        "commit": "https://invent.kde.org/plasma/kwin/-/commit/47f038220448a57e3b071b9d1d70c835e7387128",
+        "subject": "backends/libinput: only process device add events on startup",
+        "why": "switch state (tablet-mode, lid) is only communicated through events; non-ADDED events are delayed until KWin's filters exist (KDE bug 528936)",
+        "vendorPatchSha256": "cd2d27071eabe7f055d3cd0ce55d51dd7016e98b24582b74659195b2fb1f4871",
+        "upstreamPatchSha256": "31f8c5bc0e47ae4ec8d1647d0b0cb092884d8e17daa94260d30b67f83f5fbff4",
+        "addedAndRemovedLinesIdentical": true,
+        "onlyDifference": "one hunk header's function-context label (private: vs private Q_SLOTS:), which git generates and patch ignores"
+      }
+    ]
+  },
+  "admission": "build_files/plasma_stable/compose.py EXPECTED['kwin'] = 6.8.3-2.fc44 only; tests keep 6.8.2-*, 6.8.3-1, 6.8.3-3, 6.8.4-1 and any other package's -2 refused",
+  "notClaimed": "The libinput change concerns the V3's detachable cover (switch events at startup) but no physical detach/boot journey was run; the image gates, a signed candidate and the owner's V3 boot qualify it separately."
+}
