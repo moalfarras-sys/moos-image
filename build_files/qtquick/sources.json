@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "base": "6.11.2-2.fc44",
+  "fixed": "6.11.2-2.1.moos1.fc44",
+  "architectures": ["x86_64", "aarch64"],
+  "source_url": "https://kojipkgs.fedoraproject.org/packages/qt6-qtdeclarative/6.11.2/2.fc44/data/signed/6d9f90a6/src/qt6-qtdeclarative-6.11.2-2.fc44.src.rpm",
+  "source_sha256": "69053ff691edc997c9bc413c4bd5fcec8054c8a25eda3769879f681522ce5bbb",
+  "source_signer": "36f612dcf27f7d1a48a835e4dbfcf71c6d9f90a6",
+  "spec_sha256": "a13f931a3514355ee53f9748433a17304a395c7df814c098c070d43bf62d49f3",
+  "archive_sha256": "215b7b70517e380123eabc6b92243f3c47b6f016a91d126057dbe53551c6b430",
+  "upstream_commit": "83d091dcb160d3f0c4a8bc9df8b8a9a934ac82a1",
+  "original_itemview_sha256": "6d54e5de003c7c7d152068b963bcdb47400cf4490acedc82fba95714d4cc31dd",
+  "fixed_itemview_sha256": "19a1da7a5c619768a78d294a15295708d4a493e33ad863250b6322e9a4bfbb8f"
+}
