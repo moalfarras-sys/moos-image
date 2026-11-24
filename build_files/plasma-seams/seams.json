@@ -91,6 +91,104 @@
         "6.8.3"
       ],
       "qmldir": "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/qmldir"
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/am_ET/symbols.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/ar_AR/digits.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/ar_AR/handwriting.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/ar_AR/main.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/ar_AR/numbers.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/ar_AR/symbols.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/fa_FA/digits.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/fa_FA/handwriting.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/fa_FA/main.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/fa_FA/numbers.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/fa_FA/symbols.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/hi_IN/main.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/hi_IN/symbols.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
+    },
+    {
+      "path": "/usr/share/plasma/keyboard/layouts/th_TH/main.qml",
+      "package": "plasma-keyboard",
+      "sets": [
+        "6.8.3"
+      ]
     }
   ],
   "sets": [
@@ -359,7 +457,7 @@
         "from": "6.8.3",
         "before": "6.8.4"
       },
-      "reviewed_on": "2026-11-16: exact native x86_64 and aarch64 6.8.3-1.fc44 transaction. Upstream Clock.qml updated font.features to inherit defaultFont features (182941183dd7f7c164a2239d24d8c91d5e6c050e5d985537bdf5d0376800a52d); all 12 other upstream seam digests match the 6.8.2 review. Existing MoOS variants load in native 6.8.3 kscreenlocker_greet; authentication QML remains upstream. 2026-11-22: plasma-keyboard 6.8.3-1.fc44 (Plasma's on-screen keyboard) gains four MoOS seams, the Meyar Glass keyboard: its Qt Virtual Keyboard style and the three plasma-keyboard style files it instantiates (constants, key panel, popup). Upstream names, types, slots and feedback are kept; MoOS owns values and drawing. Both module qmldirs are reviewed at their upstream bytes and lose `prefer`, as the breeze components do. Native evidence: the real plasma-keyboard as a private KWin's input method draws them (Bloom/BloomLight, ar_AR/de_DE), and offscreen it loads them clean while a planted type or reference error is reported. 2026-11-24: the style variant also places the MoOS Touch Bar (org.moos.keyboard, outside Plasma) in a band its keyboardRelativeTopMargin reserves above upstream-sized keys, and gives upstream's word-candidate list no height (the bar draws those candidates). Upstream bytes and their digests are unchanged; the real plasma-keyboard in a private KWin typed, completed and replaced an Arabic word, inserted emoji and opened the emoji sheet.",
+      "reviewed_on": "2026-11-16: exact native x86_64 and aarch64 6.8.3-1.fc44 transaction. Upstream Clock.qml updated font.features to inherit defaultFont features (182941183dd7f7c164a2239d24d8c91d5e6c050e5d985537bdf5d0376800a52d); all 12 other upstream seam digests match the 6.8.2 review. Existing MoOS variants load in native 6.8.3 kscreenlocker_greet; authentication QML remains upstream. 2026-11-22: plasma-keyboard 6.8.3-1.fc44 (Plasma's on-screen keyboard) gains four MoOS seams, the Meyar Glass keyboard: its Qt Virtual Keyboard style and the three plasma-keyboard style files it instantiates (constants, key panel, popup). Upstream names, types, slots and feedback are kept; MoOS owns values and drawing. Both module qmldirs are reviewed at their upstream bytes and lose `prefer`, as the breeze components do. Native evidence: the real plasma-keyboard as a private KWin's input method draws them (Bloom/BloomLight, ar_AR/de_DE), and offscreen it loads them clean while a planted type or reference error is reported. 2026-11-24: the style variant also places the MoOS Touch Bar (org.moos.keyboard, outside Plasma) in a band its keyboardRelativeTopMargin reserves above upstream-sized keys, and gives upstream's word-candidate list no height (the bar draws those candidates). Upstream bytes and their digests are unchanged; the real plasma-keyboard in a private KWin typed, completed and replaced an Arabic word, inserted emoji and opened the emoji sheet. Amharic, Arabic, Persian, Hindi and Thai digit layouts reviewed against the v6.8.3 tag and plasma-keyboard-6.8.3-1.fc44 on V3; their decimal keys use ASCII labels and input. The Amharic digit row also keeps its explicit Ethiopic tens and powers as secondary symbols.",
       "sources": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": "6.8.0/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml",
         "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml",
@@ -368,7 +466,21 @@
         "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeConstants.qml": "6.8.3/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeConstants.qml",
         "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeKeyPanel.qml": "6.8.3/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezeKeyPanel.qml",
         "/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezePopup.qml": "6.8.3/usr/lib64/qt6/qml/org/kde/plasma/keyboard/lib/BreezePopup.qml",
-        "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml": "6.8.3/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml"
+        "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml": "6.8.3/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml",
+        "/usr/share/plasma/keyboard/layouts/am_ET/symbols.qml": "6.8.3/usr/share/plasma/keyboard/layouts/am_ET/symbols.qml",
+        "/usr/share/plasma/keyboard/layouts/ar_AR/digits.qml": "6.8.3/usr/share/plasma/keyboard/layouts/ar_AR/digits.qml",
+        "/usr/share/plasma/keyboard/layouts/ar_AR/handwriting.qml": "6.8.3/usr/share/plasma/keyboard/layouts/ar_AR/handwriting.qml",
+        "/usr/share/plasma/keyboard/layouts/ar_AR/main.qml": "6.8.3/usr/share/plasma/keyboard/layouts/ar_AR/main.qml",
+        "/usr/share/plasma/keyboard/layouts/ar_AR/numbers.qml": "6.8.3/usr/share/plasma/keyboard/layouts/ar_AR/numbers.qml",
+        "/usr/share/plasma/keyboard/layouts/ar_AR/symbols.qml": "6.8.3/usr/share/plasma/keyboard/layouts/ar_AR/symbols.qml",
+        "/usr/share/plasma/keyboard/layouts/fa_FA/digits.qml": "6.8.3/usr/share/plasma/keyboard/layouts/fa_FA/digits.qml",
+        "/usr/share/plasma/keyboard/layouts/fa_FA/handwriting.qml": "6.8.3/usr/share/plasma/keyboard/layouts/fa_FA/handwriting.qml",
+        "/usr/share/plasma/keyboard/layouts/fa_FA/main.qml": "6.8.3/usr/share/plasma/keyboard/layouts/fa_FA/main.qml",
+        "/usr/share/plasma/keyboard/layouts/fa_FA/numbers.qml": "6.8.3/usr/share/plasma/keyboard/layouts/fa_FA/numbers.qml",
+        "/usr/share/plasma/keyboard/layouts/fa_FA/symbols.qml": "6.8.3/usr/share/plasma/keyboard/layouts/fa_FA/symbols.qml",
+        "/usr/share/plasma/keyboard/layouts/hi_IN/main.qml": "6.8.3/usr/share/plasma/keyboard/layouts/hi_IN/main.qml",
+        "/usr/share/plasma/keyboard/layouts/hi_IN/symbols.qml": "6.8.3/usr/share/plasma/keyboard/layouts/hi_IN/symbols.qml",
+        "/usr/share/plasma/keyboard/layouts/th_TH/main.qml": "6.8.3/usr/share/plasma/keyboard/layouts/th_TH/main.qml"
       },
       "reviewed": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": [
@@ -421,6 +533,48 @@
         ],
         "/usr/lib64/qt6/qml/QtQuick/VirtualKeyboard/Styles/Breeze/style.qml": [
           "91d9e1c3f546a20d127903ea61ea231d0332e4029ec919e2d042955617887ced"
+        ],
+        "/usr/share/plasma/keyboard/layouts/am_ET/symbols.qml": [
+          "df1a5b4d21d15838bee36211c0029e75010046911d54ffdca59512384a72153f"
+        ],
+        "/usr/share/plasma/keyboard/layouts/ar_AR/digits.qml": [
+          "fdf2e22859bd70bc7c0f1ffcf52c71d307610f4462d82793546610be44559df5"
+        ],
+        "/usr/share/plasma/keyboard/layouts/ar_AR/handwriting.qml": [
+          "c8d756309d38cffcbe648e8b8282c4356f86fb9256a898265f1f35e763d09235"
+        ],
+        "/usr/share/plasma/keyboard/layouts/ar_AR/main.qml": [
+          "bbd76cc3c134bd69f987239e6ff1b78381f1a5ca3e713d6e95d0866fa42db3e0"
+        ],
+        "/usr/share/plasma/keyboard/layouts/ar_AR/numbers.qml": [
+          "4cceeffc1ec1106ed2dab0d64ea26415a268043667c128331b467989c92e8835"
+        ],
+        "/usr/share/plasma/keyboard/layouts/ar_AR/symbols.qml": [
+          "34cc465a8e8299cb5eb5647b1463576e1480e89188c0d8015414fb7cc7663d8c"
+        ],
+        "/usr/share/plasma/keyboard/layouts/fa_FA/digits.qml": [
+          "3e169eef24f1f28f6146b2a5e2f3cc079ce7512a2d43f51ea43d22e3fcab08ba"
+        ],
+        "/usr/share/plasma/keyboard/layouts/fa_FA/handwriting.qml": [
+          "c9697218c9906eb7d136775facd5d7448adc547beae05914eee0e105fdb93ab5"
+        ],
+        "/usr/share/plasma/keyboard/layouts/fa_FA/main.qml": [
+          "263d8c03e292cdc0331c7ba10f6a46ed1599979938abe8cc5b0695ea6973dc1b"
+        ],
+        "/usr/share/plasma/keyboard/layouts/fa_FA/numbers.qml": [
+          "1b77e2d966d50a668ab9da2d1af0e4017d8f4725b6e89a99e2df48ac67c40066"
+        ],
+        "/usr/share/plasma/keyboard/layouts/fa_FA/symbols.qml": [
+          "5968b265db3128f091201e90bbc668bff2d7d85c5de37deb14a983a6c33e3fc4"
+        ],
+        "/usr/share/plasma/keyboard/layouts/hi_IN/main.qml": [
+          "95076ae5c24f66f3b2d4ddf5b30172b6d303713dbebaf10d75a46cdddea3865d"
+        ],
+        "/usr/share/plasma/keyboard/layouts/hi_IN/symbols.qml": [
+          "7ad112c6835c69a1cf0304958c13a1e2e1c6f712b39c8d402963d6f626b71bd6"
+        ],
+        "/usr/share/plasma/keyboard/layouts/th_TH/main.qml": [
+          "a29e6d38e6eefd0048bc8637b5eed133d63d7d869bf5234295484f4fada0d27e"
         ]
       },
       "qmldirs": {
