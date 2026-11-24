@@ -192,7 +192,11 @@ class LauncherKeyboardNavigation(unittest.TestCase):
     def test_places_list_is_keyboard_driven(self) -> None:
         block = self.src.split("id: placesList", 1)[1].split("delegate: PlaceRow", 1)[0]
         self.assertIn("activeFocusOnTab: true", block)
-        self.assertIn("KeyNavigation.backtab: navPlaces", block)
+        self.assertIn("KeyNavigation.backtab: fileSearchSettingsButton", block)
+        self.assertIn('section.property: "group"', block)
+        actions = self.src.split("id: splitFilesButton", 1)[1].split("id: placesList", 1)[0]
+        self.assertIn("KeyNavigation.backtab: navPlaces", actions)
+        self.assertIn("KeyNavigation.tab: placesList", actions)
         self.assertIn("view.focusSearch()", block)
         self.assertIn("view.launcher.triggerEntry(view.placesModel, currentIndex)", block)
         # The keyboard selection has to be visible on the row it lands on.
