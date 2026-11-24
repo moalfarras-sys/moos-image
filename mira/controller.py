@@ -458,8 +458,13 @@ class Controller(QObject):
 
     def _resolve_phase(self):
         vp = self._voice_phase
-        island_state = (vp if vp in (*ACTIVE, 'off')
-                        else 'error' if self._voice_failed else 'idle')
+        if vp in ACTIVE:
+            self._voice_failed = False
+            island_state = vp
+        elif vp == 'off':
+            island_state = 'off'
+        else:
+            island_state = 'error' if self._voice_failed else 'idle'
         if island_state != self._island_voice:
             self._island_voice = island_state
             self.islandVoiceChanged.emit(island_state)
@@ -909,12 +914,10 @@ class Controller(QObject):
         self.desk.talk()
 
     def _wake_timeout(self, attempt):
-        if (self._voice_owner != 'echo' or attempt != self._wake_seq
-                or self._voice_phase in ('listening', 'thinking', 'speaking', 'executing')):
+        if self._voice_owner != 'echo' or attempt != self._wake_seq or self._voice_phase != 'activating':
             return
-        if self._voice_phase == 'activating':
-            self._voice_phase = 'ready'
-            self._voice_failed = True
+        self._voice_phase = 'ready'
+        self._voice_failed = True
         self._add('error', 'لم يبدأ Echo الاستماع. تحقّق من اتصاله ثم أعد المحاولة.' if self._lang == 'ar'
                   else 'Echo did not start listening. Check its connection and try again.', status='error')
         self._flash_error()
@@ -1965,6 +1968,7 @@ class Controller(QObject):
         self._update('_echo', self.echoChanged, online=False, state=message)
         self._set_service('echo', 'offline')
         if self._voice_owner != 'pc' and (self._voice_phase in ACTIVE or self._voice_phase == 'connecting'):
+            self._voice_failed = self._voice_phase in ACTIVE
             self._voice_phase = 'ready'
         self._resolve_phase()
 
@@ -1986,6 +1990,7 @@ class Controller(QObject):
                 self._wake_seq += 1
                 if self._voice_phase == 'activating':
                     self._voice_phase = 'ready'
+                    self._voice_failed = True
                 self._flash_error()
         elif kind == 'capture' and status.startswith('error:'):
             self._update('_enrol', self.enrolChanged, recording='', message=self._s['enrol_failed'])

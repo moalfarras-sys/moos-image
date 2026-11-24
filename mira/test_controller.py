@@ -237,6 +237,52 @@ class ControllerTest(unittest.TestCase):
         self.c.talk()  # a second press while active stops the turn
         self.assertIn(('cancel',), self.c.bridge.commands)
 
+    def test_island_stop_during_echo_start_retires_the_wake_timeout(self):
+        self.c.bridge.online = True
+        notices = []
+        self.c.islandVoiceChanged.connect(notices.append)
+        self.assertEqual(self.c.start_island_voice(), 'ok')
+        attempt = self.c._wake_seq
+        self.assertEqual(self.c.start_island_voice(), 'busy')
+        self.assertEqual(self.c.stop_island_voice(), 'ok')
+        rows = list(self.c.chat.rows())
+        self.c._wake_timeout(attempt)
+        self.assertEqual(self.c.chat.rows(), rows)
+        self.assertEqual(notices, ['activating', 'idle'])
+
+    def test_island_reports_failed_echo_start_and_clears_it_on_a_new_turn(self):
+        self.c.bridge.online = True
+        self.assertEqual(self.c.start_island_voice(), 'ok')
+        self.c._on_echo_command('wake', 'error:unavailable')
+        self.assertEqual(self.c.island_voice_state(), 'error')
+        self.assertEqual(self.c.start_island_voice(), 'ok')
+        self.c.stop_island_voice()
+        self.assertEqual(self.c.island_voice_state(), 'idle')
+
+    def test_opening_voice_setup_routes_directly_to_settings_without_starting_audio(self):
+        sheets = []
+        self.c.showSheet.connect(sheets.append)
+        self.assertEqual(self.c.handle_instance_command(b'open:{"panel":"voice"}'), 'show')
+        self.assertEqual(sheets, ['voice-settings'])
+        self.assertEqual(self.c.island_voice_state(), 'idle')
+        self.assertEqual(self.c.bridge.commands, [])
+
+    def test_island_exposes_only_phase_and_waits_for_pc_stop_receipt(self):
+        desk = self._fake_desk()
+        notices = []
+        self.c.islandVoiceChanged.connect(notices.append)
+        with patch.object(self.c, '_gemini_state', return_value='set'):
+            self.assertEqual(self.c.start_island_voice(), 'ok')
+        self.c._on_desk_voice('listening', '')
+        self.c._on_desk_voice('partial_heard', 'private test transcript')
+        self.assertEqual(self.c.stop_island_voice(), 'ok')
+        self.assertEqual(self.c.start_island_voice(), 'busy')
+        self.assertEqual(self.c.island_voice_state(), 'listening')
+        self.c._on_desk_voice('ready', '')
+        self.assertEqual(notices, ['activating', 'listening', 'idle'])
+        desk.talk.assert_called_once_with()
+        desk.stop.assert_called_once_with()
+
     def test_echo_readbacks_populate_device_settings(self):
         entities = [FakeEntity(1, 'speaker'), FakeEntity(2, 'wake_threshold_1'), FakeEntity(3, 'mic_mute'),
                     FakeEntity(4, 'setup_page')]

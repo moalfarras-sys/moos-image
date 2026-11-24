@@ -26,7 +26,7 @@ Item {
     readonly property bool needsSettings: connection.result === "setup"
         || connection.result === "off" || connection.phase === "off"
     readonly property bool failed: connection.phase === "error"
-        || (connection.result.length > 0 && connection.result !== "idle")
+        || ["unavailable", "failed", "refused", "stopUnconfirmed"].includes(connection.result)
     readonly property color accent: failed ? Kirigami.Theme.negativeTextColor
         : connection.phase === "listening" ? Kirigami.Theme.positiveTextColor
         : Kirigami.Theme.highlightColor
@@ -42,6 +42,7 @@ Item {
         case "setup": return local("الصوت بحاجة إلى إعداد", "Voice setup required");
         case "off": return local("الصوت متوقف في ميرا", "Voice is turned off");
         case "busy": return local("الصوت مشغول", "Voice is busy");
+        case "stopUnconfirmed": return local("لم تؤكّد ميرا الإيقاف", "Mira hasn’t confirmed the stop");
         case "unavailable": return local("ميرا غير متاحة", "Mira is unavailable");
         case "failed":
         case "refused": return local("تعذّر تشغيل الصوت", "Voice could not be started");
@@ -64,6 +65,9 @@ Item {
                 icon.name: panel.rtl ? "go-next-symbolic" : "go-previous-symbolic"
                 text: panel.local("رجوع", "Back")
                 display: PC3.AbstractButton.IconOnly
+                PC3.ToolTip.text: text
+                PC3.ToolTip.visible: hovered
+                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                 onClicked: panel.back()
                 Keys.onReturnPressed: event => { if (!event.isAutoRepeat) clicked(); event.accepted = true; }
                 Keys.onEnterPressed: event => { if (!event.isAutoRepeat) clicked(); event.accepted = true; }
@@ -78,9 +82,12 @@ Item {
             PC3.ToolButton {
                 Layout.minimumWidth: panel.design.targetComfortable
                 Layout.minimumHeight: panel.design.targetComfortable
-                icon.name: "window-new-symbolic"
+                icon.name: "moos-ai-symbolic"
                 text: panel.local("فتح ميرا", "Open Mira")
                 display: PC3.AbstractButton.IconOnly
+                PC3.ToolTip.text: text
+                PC3.ToolTip.visible: hovered
+                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                 onClicked: panel.openMira()
                 Keys.onReturnPressed: event => { if (!event.isAutoRepeat) clicked(); event.accepted = true; }
                 Keys.onEnterPressed: event => { if (!event.isAutoRepeat) clicked(); event.accepted = true; }
@@ -109,7 +116,8 @@ Item {
                 MiraVoiceBars {
                     Layout.preferredWidth: 42
                     Layout.preferredHeight: 32
-                    phase: panel.connection.phase
+                    phase: panel.connection.stopping || panel.connection.pending === "stop" ? "stopping"
+                        : panel.connection.pending === "start" ? "activating" : panel.connection.phase
                     ink: panel.accent
                     duration: panel.motionDuration
                 }
@@ -135,11 +143,17 @@ Item {
             LayoutMirroring.childrenInherit: true
             Layout.fillWidth: true
             Layout.minimumHeight: panel.design.targetComfortable
-            text: panel.live ? panel.local("إيقاف المحادثة", "Stop talking")
+            text: panel.live && panel.connection.result === "stopUnconfirmed"
+                ? panel.local("أعِد طلب الإيقاف", "Retry stop")
+                : panel.live ? panel.local("إيقاف المحادثة", "Stop talking")
                 : panel.needsSettings ? panel.local("إعداد الصوت في ميرا", "Set up voice in Mira")
                 : panel.local("تحدّث مع ميرا", "Talk to Mira")
             icon.name: panel.live ? "media-playback-stop-symbolic"
                 : panel.needsSettings ? "moos-settings-symbolic" : "moos-microphone-symbolic"
+            icon.width: panel.design.iconControl
+            icon.height: panel.design.iconControl
+            font.pixelSize: panel.design.typeLabel
+            font.weight: Font.DemiBold
             enabled: !panel.busy
             onClicked: {
                 if (panel.needsSettings && !panel.live) panel.openSettings();

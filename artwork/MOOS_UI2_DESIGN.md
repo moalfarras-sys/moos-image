@@ -425,7 +425,9 @@ Talk button starts the existing Mira conversation, and the same button then
 stops it. The five bars change shape with the reported voice phase, settle once
 and follow reduced motion. Keep speech content inside Mira. Remote and privacy
 retain priority in the capsule, with the active conversation reachable through
-the Mira tab when those states coexist.
+the Mira tab when those states coexist. The Island’s own context menu can
+also open voice while another activity occupies its compact action. An
+unconfirmed stop keeps the last observed phase visible and offers a retry.
 
 ### First-party apps
 

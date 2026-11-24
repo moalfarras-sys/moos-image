@@ -191,8 +191,8 @@ def main():
     app.aboutToQuit.connect(controller.shutdown)
 
     # Desktop apps reach her on the session bus: org.moos.Mira /Mira (kde_integration.start_dbus).
-    # Optional, never fatal, never claimed by a review run. Show, Prefill and Talk raise her window
-    # first: nothing on the bus starts her listening while she sits unseen in the tray.
+    # Public voice requests raise her window. The Island has its own visible
+    # controls and authenticates Plasma before starting or stopping a turn.
     def dbus_show(panel):
         if panel:
             controller.handle_instance_command(b'open:' + json.dumps({'panel': panel}).encode())

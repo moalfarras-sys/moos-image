@@ -19,9 +19,11 @@ MoOS and Mira must read as one system. These gates hold the image side of that:
 The launcher runs against a stand-in app and a fake /sys/class/drm; nothing starts a real
 window, touches the session or reaches the owner's desktop.
 """
+import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -56,6 +58,36 @@ def code_lines(text):
 
 
 class IslandVoiceActivation(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec("PySide6") and shutil.which("dbus-run-session"),
+                         "native Qt and D-Bus are needed for the Island connection")
+    def test_native_voice_owner_activation_and_stop_receipts(self):
+        from PySide6.QtCore import QLibraryInfo
+        imports = Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.QmlImportsPath))
+        if not (imports / "org/kde/plasma/workspace/dbus/qmldir").exists():
+            self.skipTest("native Plasma D-Bus QML module unavailable")
+        probe = ROOT / "tests/island_mira_voice_native.py"
+        connection = (ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island"
+                      / "contents/ui/MiraVoiceConnection.qml")
+        with tempfile.TemporaryDirectory(prefix="island-mira-bus-") as folder:
+            tmp = Path(folder)
+            services = tmp / "services"
+            services.mkdir()
+            (services / "org.moos.Mira.service").write_text(
+                f'[D-BUS Service]\nName=org.moos.Mira\nExec={sys.executable} "{probe}" --activated\n')
+            config = tmp / "bus.conf"
+            config.write_text(f'<busconfig><type>session</type><listen>unix:tmpdir={tmp}</listen>'
+                              f'<servicedir>{services}</servicedir><policy context="default">'
+                              '<allow send_destination="*"/><allow receive_sender="*"/><allow own="*"/>'
+                              '</policy></busconfig>')
+            env = {"PATH": os.environ.get("PATH", "/usr/bin"), "HOME": folder,
+                   "XDG_RUNTIME_DIR": folder, "QT_QPA_PLATFORM": "offscreen",
+                   "DBUS_SYSTEM_BUS_ADDRESS": f"unix:path={tmp}/no-system-bus"}
+            run = subprocess.run(["dbus-run-session", f"--config-file={config}", "--",
+                                  sys.executable, str(probe), str(connection)], env=env,
+                                 capture_output=True, text=True, timeout=25)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn("MIRA_ISLAND_PRIVATE_BUS_OK", run.stdout)
+
     def test_activation_reuses_the_existing_background_service(self):
         config = (ROOT / "system_files/usr/share/dbus-1/services/org.moos.Mira.service").read_text()
         self.assertEqual(config.splitlines(), [
@@ -64,6 +96,7 @@ class IslandVoiceActivation(unittest.TestCase):
         ])
         self.assertIn("ExecStart=/usr/bin/mira --background", UNIT.read_text())
         router = (ROOT / "system_files/usr/bin/moos-open").read_text()
+        self.assertRegex(router, r'ai/voice\)\s+gui moai --panel voice ;;')
         for method in ("IslandTalk", "IslandStop"):
             self.assertNotIn(method, router, "public URLs cannot start the private Island voice route")
 

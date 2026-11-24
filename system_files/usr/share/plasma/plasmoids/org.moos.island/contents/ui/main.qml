@@ -479,6 +479,13 @@ PlasmoidItem {
     }
 
     MiraVoiceConnection { id: voice }
+    Plasmoid.contextualActions: [
+        PlasmaCore.Action {
+            text: root.local("افتح صوت ميرا", "Open Mira voice")
+            icon.name: "moos-microphone-symbolic"
+            onTriggered: root.openVoicePane()
+        }
+    ]
     property bool voicePane: false
     readonly property bool voiceForeground: voice.active && !root.remotePresent && !root.privacyPresent
     readonly property bool voiceActionVisible: root.voiceForeground || !root.active
@@ -501,6 +508,7 @@ PlasmoidItem {
     })[voice.phase] || root.voicePhaseLabel
     function openVoicePane() {
         if (!root.voicePane && !voice.pending) voice.result = "";
+        root.queuedRun = "";
         root.voicePane = true;
         root.expanded = true;
         Qt.callLater(() => {
@@ -658,12 +666,12 @@ PlasmoidItem {
         }
     }
     function runSearch(row) {
-        if (!root.expanded || searchResults.querying || row < 0
+        if (!root.expanded || root.voicePane || searchResults.querying || row < 0
                 || row >= searchResults.rowCount()) return;
         if (searchResults.run(searchResults.index(row, 0))) root.expanded = false;
     }
     function runCurrent(row) {
-        if (!root.expanded || root.query.trim().length === 0) return;
+        if (!root.expanded || root.voicePane || root.query.trim().length === 0) return;
         if (searchResults.querying || searchResults.rowCount() < 1 || row < 0) {
             root.queuedRun = root.query;
             return;
@@ -677,7 +685,7 @@ PlasmoidItem {
         const requestedQuery = root.queuedRun;
         const requestedRevision = root.queryRevision;
         Qt.callLater(() => {
-            if (root.expanded && !root.active && root.query === requestedQuery
+            if (root.expanded && !root.active && !root.voicePane && root.query === requestedQuery
                     && root.queryRevision === requestedRevision
                     && root.queuedRun === requestedQuery && !searchResults.querying) {
                 root.queuedRun = "";
@@ -1374,7 +1382,7 @@ PlasmoidItem {
                 else root.voicePane = false;
             }
             onOpenMira: root.openMoAI()
-            onOpenSettings: root.openDestination("moos://ai/settings")
+            onOpenSettings: root.openDestination("moos://ai/voice")
         }
 
         PC3.TabBar {
