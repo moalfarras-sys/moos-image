@@ -478,6 +478,38 @@ PlasmoidItem {
         Qt.openUrlExternally("moos://app/moai");
     }
 
+    MiraVoiceConnection { id: voice }
+    property bool voicePane: false
+    readonly property bool voiceForeground: voice.active && !root.remotePresent && !root.privacyPresent
+    readonly property bool voiceActionVisible: root.voiceForeground || !root.active
+    readonly property string voicePhase: voice.phase
+    readonly property string voicePhaseLabel: {
+        switch (voice.phase) {
+        case "activating": return root.local("جارٍ الاتصال", "Connecting");
+        case "listening": return root.local("ميرا تستمع", "Mira is listening");
+        case "thinking": return root.local("ميرا تفكّر", "Mira is thinking");
+        case "executing": return root.local("ميرا تعمل", "Mira is working");
+        case "speaking": return root.local("ميرا تردّ", "Mira is speaking");
+        case "off": return root.local("الصوت متوقف في ميرا", "Voice is turned off");
+        case "error": return root.local("تعذّر إكمال المحادثة", "Voice turn failed");
+        default: return root.local("محادثة صوتية", "Voice conversation");
+        }
+    }
+    readonly property string voiceCompactLabel: root.rtl ? root.voicePhaseLabel : ({
+        activating: "Connecting", listening: "Listening", thinking: "Thinking",
+        executing: "Working", speaking: "Speaking"
+    })[voice.phase] || root.voicePhaseLabel
+    function openVoicePane() {
+        if (!root.voicePane && !voice.pending) voice.result = "";
+        root.voicePane = true;
+        root.expanded = true;
+        Qt.callLater(() => {
+            if (root.expanded && root.voicePane && root.fullRepresentationItem) {
+                root.fullRepresentationItem.focusVoiceAction();
+            }
+        });
+    }
+
     // Mpris2Model deliberately owns active-player selection. Building another
     // registry here would disagree with Plasma and break browser Media Session.
     Mpris.Mpris2Model { id: players }
@@ -576,7 +608,7 @@ PlasmoidItem {
     readonly property bool multipleContexts: (root.remotePresent ? 1 : 0)
         + (root.privacyPresent ? 1 : 0)
         + (root.storeJobPresent ? 1 : 0)
-        + (root.moaiJobPresent ? 1 : 0)
+        + (root.moaiJobPresent || voice.active ? 1 : 0)
         + (root.mediaPresent ? 1 : 0) > 1
     readonly property string selectedDetailContext:
         ((root.detailContext === "remote" && root.remotePresent)
@@ -601,6 +633,7 @@ PlasmoidItem {
     function openDetails() {
         if (root.remotePresent) { root.detailContext = "remote"; }
         else if (root.privacyPresent) { root.detailContext = "privacy"; }
+        else if (root.voiceForeground) { root.openVoicePane(); return; }
         else if (root.storeJobPresent) { root.detailContext = "store"; }
         else if (root.moaiJobPresent) { root.detailContext = "moai"; }
         else { root.detailContext = "media"; }
@@ -683,11 +716,12 @@ PlasmoidItem {
         && (root.track.length > 0 || root.identity.length > 0)
     readonly property bool active: root.remotePresent
                                    || root.privacyPresent
+                                   || root.voiceForeground
                                    || root.storeJobPresent
                                    || root.moaiJobPresent
                                    || root.mediaPresent
                                    || releaseGrace.running
-    readonly property string contextTitle: !root.active
+    readonly property string contextTitle: root.voiceForeground ? root.voicePhaseLabel : !root.active
         ? root.local("ابحث في MoOS", "Search MoOS")
         : root.remotePresent
         ? root.remoteTitle
@@ -700,7 +734,7 @@ PlasmoidItem {
                     : root.displayTrack)))
     // The bar is glanceable, not a transcript. Keep a concise label inside the
     // compact frame and reserve the complete sentence for the tooltip/popup.
-    readonly property string compactTitle: !root.active
+    readonly property string compactTitle: root.voiceForeground ? root.voiceCompactLabel : !root.active
         ? root.local("بحث MoOS", "Search MoOS")
         : root.remotePresent
         ? root.local("تحكم متصل", "Remote connected")
@@ -712,7 +746,8 @@ PlasmoidItem {
                     : root.local("الميكروفون نشط", "Microphone active")))
             : (root.storeJobPresent ? root.storeJobTitle
                 : (root.moaiJobPresent ? root.moaiJobCompact : root.displayTrack)))
-    readonly property string contextSource: !root.active
+    readonly property string contextSource: root.voiceForeground
+        ? root.local("المحادثة الصوتية", "Voice conversation") : !root.active
         ? root.local("تطبيقات وملفات وإعدادات", "Apps, files and settings")
         : root.remotePresent
         ? root.remoteSource
@@ -723,7 +758,7 @@ PlasmoidItem {
                 : (root.moaiJobPresent
                     ? root.moaiJobSource
                     : root.displaySource)))
-    readonly property string contextIcon: !root.active
+    readonly property string contextIcon: root.voiceForeground ? "moos-microphone-symbolic" : !root.active
         ? "moos-search-symbolic"
         : root.remotePresent
         ? "moos-pc-remote"
@@ -739,13 +774,14 @@ PlasmoidItem {
         if (root.mediaPresent) { releaseGrace.stop(); }
         else { releaseGrace.restart(); }
     }
-    onActiveChanged: if (!root.active) { root.expanded = false; }
+    onActiveChanged: if (!root.active && !root.voicePane) { root.expanded = false; }
     onVolumeChanged: {
         if (root.volume > 0.01) { root.lastAudibleVolume = root.volume; }
     }
     onExpandedChanged: {
         if (root.expanded && root.player) { root.player.updatePosition(); }
         if (!root.expanded) {
+            root.voicePane = false;
             root.query = "";
             root.queuedRun = "";
         }
@@ -872,6 +908,8 @@ PlasmoidItem {
                         } else {
                             root.expanded = !wasExpanded;
                         }
+                    } else if (root.voiceForeground && mouse.button === Qt.LeftButton && !wasExpanded) {
+                        root.openVoicePane();
                     } else if (mouse.button === Qt.MiddleButton) {
                         root.togglePlaying();
                     } else {
@@ -997,6 +1035,7 @@ PlasmoidItem {
                                  && !root.privacyPresent
                                  && !root.storeJobPresent
                                  && !root.moaiJobPresent
+                                 && !root.voiceForeground
                                  && root.artworkSource.length > 0
                                  && status === Image.Ready
                         onStatusChanged: if (status === Image.Error
@@ -1021,7 +1060,17 @@ PlasmoidItem {
                                 ? Kirigami.Theme.positiveTextColor
                                 : (root.privacyType === "screen" ? Kirigami.Theme.highlightColor : Kirigami.Theme.neutralTextColor))
                             : Kirigami.Theme.highlightColor
-                        visible: !compactArt.visible
+                        visible: !compactArt.visible && !root.voiceForeground
+                    }
+                    MiraVoiceBars {
+                        anchors.centerIn: parent
+                        width: 16
+                        height: 15
+                        visible: root.voiceForeground
+                        phase: root.voicePhase
+                        ink: root.voicePhase === "listening" ? Kirigami.Theme.positiveTextColor
+                            : Kirigami.Theme.highlightColor
+                        duration: root.motionFast
                     }
 
                     // Live state on the settled chip, never animated: a status dot (active or
@@ -1148,34 +1197,37 @@ PlasmoidItem {
                 // One reserved action slot. Five fading siblings briefly
                 // consumed the title lane together during context changes.
                 Item {
-                    Layout.preferredWidth: root.active ? compactAction.targetSize : 0
-                    Layout.minimumWidth: root.active ? compactAction.targetSize : 0
-                    Layout.maximumWidth: root.active ? compactAction.targetSize : 0
+                    Layout.preferredWidth: compactAction.targetSize
+                    Layout.minimumWidth: Layout.preferredWidth
+                    Layout.maximumWidth: Layout.preferredWidth
                     Layout.fillHeight: true
                     Layout.minimumHeight: 0
                     Layout.maximumHeight: Math.max(0, compactShell.height - 4)
-                    visible: root.active
                     MediaControl {
                         id: compactAction
                         anchors.centerIn: parent
                         slotSize: 28
                         toolTipEnabled: false // Plasma owns this panel applet's tooltip.
-                        revealed: root.active
-                        controlEnabled: !root.mediaPresent || root.remotePresent
+                        revealed: true
+                        controlEnabled: root.voiceActionVisible || !root.mediaPresent || root.remotePresent
                             || root.privacyPresent || root.storeJobPresent || root.moaiJobPresent
                             || (root.playing ? root.canPause : (root.canPlay || root.canControl))
-                        iconName: root.remotePresent ? "configure-symbolic"
+                        iconName: root.voiceActionVisible ? "moos-microphone-symbolic"
+                            : root.remotePresent ? "configure-symbolic"
                             : root.privacyPresent ? "moos-close-symbolic"
                             : root.storeJobPresent ? "moos-store"
                             : root.moaiJobPresent ? root.moaiJobIcon
                             : root.playing ? "media-playback-pause-symbolic" : "media-playback-start-symbolic"
-                        label: root.remotePresent ? root.local("فتح إعدادات التحكم", "Open Remote controls")
+                        label: root.voiceActionVisible ? root.local("افتح صوت ميرا", "Open Mira voice")
+                            : root.remotePresent ? root.local("فتح إعدادات التحكم", "Open Remote controls")
                             : root.privacyPresent ? root.local("إيقاف", "Stop")
                             : root.storeJobPresent ? root.local("المتجر", "Store")
                             : root.moaiJobPresent ? root.local("فتح ميرا", "Open Mira")
                             : root.playing ? root.local("إيقاف مؤقت", "Pause") : root.local("تشغيل", "Play")
                         onActivated: {
-                            if (root.remotePresent) {
+                            if (root.voiceActionVisible) {
+                                root.openVoicePane();
+                            } else if (root.remotePresent) {
                                 Qt.openUrlExternally("moos://app/remote");
                             } else if (root.privacyPresent) {
                                 Qt.openUrlExternally("moos://privacy/stop/" + root.privacyType + "/" + root.privacyNodeId);
@@ -1202,9 +1254,9 @@ PlasmoidItem {
                 anchors.rightMargin: 14
                 anchors.bottomMargin: 2
                 height: 2
-                visible: (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent
+                visible: !root.voiceForeground && ((!root.remotePresent && !root.privacyPresent && !root.storeJobPresent
                           && !root.moaiJobPresent && root.hasTimeline)
-                         || (!root.remotePresent && !root.privacyPresent && root.storeJobPresent && root.storeJobProgress > 0)
+                         || (!root.remotePresent && !root.privacyPresent && root.storeJobPresent && root.storeJobProgress > 0))
 
                 Rectangle {
                     anchors.fill: parent
@@ -1235,10 +1287,12 @@ PlasmoidItem {
     fullRepresentation: FocusScope {
         id: expanded
         Keys.onEscapePressed: root.expanded = false
+        function focusVoiceAction() { voicePanel.focusAction(); }
 
-        Layout.preferredWidth: root.active ? Kirigami.Units.gridUnit * 21
+        Layout.preferredWidth: root.voicePane ? Math.min(Kirigami.Units.gridUnit * 21, Screen.width - 24)
+            : root.active ? Kirigami.Units.gridUnit * 21
                                            : Kirigami.Units.gridUnit * 30
-        Layout.preferredHeight: root.active
+        Layout.preferredHeight: root.voicePane ? 248 : root.active
             ? Kirigami.Units.gridUnit
                 * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails
                     || root.showMoaiDetails) ? 13 : 17)
@@ -1248,15 +1302,16 @@ PlasmoidItem {
             // behind the Horizon Bar at 4K/265% and clipped the Mo AI row.
             : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
                        Screen.height - Kirigami.Units.gridUnit * 7)
-        Layout.minimumWidth: root.active ? Kirigami.Units.gridUnit * 18
+        Layout.minimumWidth: root.voicePane ? Math.min(280, Screen.width - 24)
+            : root.active ? Kirigami.Units.gridUnit * 18
                                          : Math.min(400, Screen.width - 24)
-        Layout.minimumHeight: root.active
+        Layout.minimumHeight: root.voicePane ? 224 : root.active
             ? Kirigami.Units.gridUnit
                 * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails
                     || root.showMoaiDetails) ? 12 : 15)
                 + (root.multipleContexts ? 48 : 0)
             : Kirigami.Units.gridUnit * 16
-        Layout.maximumHeight: root.active
+        Layout.maximumHeight: root.voicePane ? 300 : root.active
             ? Kirigami.Units.gridUnit * 22 + (root.multipleContexts ? 48 : 0)
             : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
                        Screen.height - Kirigami.Units.gridUnit * 7)
@@ -1298,11 +1353,28 @@ PlasmoidItem {
 
         SearchView {
             anchors.fill: parent
-            visible: !root.active
+            visible: !root.active && !root.voicePane
             z: 20
             controller: root
             resultModel: searchResults
             recentModel: searchRecentApps
+        }
+
+        MiraVoicePanel {
+            id: voicePanel
+            anchors.fill: parent
+            anchors.margins: root.design.space4
+            visible: root.voicePane
+            connection: voice
+            rtl: root.rtl
+            motionDuration: root.motionFast
+            phaseLabel: root.voicePhaseLabel
+            onBack: {
+                if (root.voiceForeground && root.selectedDetailContext === "") root.expanded = false;
+                else root.voicePane = false;
+            }
+            onOpenMira: root.openMoAI()
+            onOpenSettings: root.openDestination("moos://ai/settings")
         }
 
         PC3.TabBar {
@@ -1313,7 +1385,7 @@ PlasmoidItem {
             anchors.margins: root.design.space4
             height: 44
             clip: true
-            visible: root.active && root.multipleContexts
+            visible: root.active && root.multipleContexts && !root.voicePane
             currentIndex: root.showRemoteDetails ? 0
                 : (root.showPrivacyDetails ? 1
                     : (root.showStoreDetails ? 2 : (root.showMoaiDetails ? 3
@@ -1459,7 +1531,7 @@ PlasmoidItem {
                     contextTabs.focusAdjacent(3, root.rtl ? -1 : 1);
                     event.accepted = true;
                 }
-                visible: root.moaiJobPresent
+                visible: root.moaiJobPresent || voice.active
                 width: visible ? Math.max(96, implicitWidth) : 0
                 height: contextTabs.height
                 topPadding: 6
@@ -1467,7 +1539,10 @@ PlasmoidItem {
                 leftPadding: 12
                 rightPadding: 12
                 text: root.local("ميرا", "Mira")
-                onClicked: root.detailContext = "moai"
+                onClicked: {
+                    if (voice.active) root.openVoicePane();
+                    else root.detailContext = "moai";
+                }
                 contentItem: PC3.Label {
                     text: moaiTab.text
                     wrapMode: Text.NoWrap
@@ -1519,7 +1594,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showRemoteDetails
+            visible: root.showRemoteDetails && !root.voicePane
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1616,7 +1691,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showPrivacyDetails
+            visible: root.showPrivacyDetails && !root.voicePane
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1720,7 +1795,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showStoreDetails
+            visible: root.showStoreDetails && !root.voicePane
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1819,7 +1894,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showMoaiDetails
+            visible: root.showMoaiDetails && !root.voicePane
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1900,7 +1975,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showMediaDetails
+            visible: root.showMediaDetails && !root.voicePane
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {

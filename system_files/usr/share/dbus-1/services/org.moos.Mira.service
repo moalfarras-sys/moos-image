@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.moos.Mira
+Exec=/usr/bin/mira --background
+SystemdService=mira.service

@@ -55,6 +55,19 @@ def code_lines(text):
     return "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("//"))
 
 
+class IslandVoiceActivation(unittest.TestCase):
+    def test_activation_reuses_the_existing_background_service(self):
+        config = (ROOT / "system_files/usr/share/dbus-1/services/org.moos.Mira.service").read_text()
+        self.assertEqual(config.splitlines(), [
+            "[D-BUS Service]", "Name=org.moos.Mira",
+            "Exec=/usr/bin/mira --background", "SystemdService=mira.service",
+        ])
+        self.assertIn("ExecStart=/usr/bin/mira --background", UNIT.read_text())
+        router = (ROOT / "system_files/usr/bin/moos-open").read_text()
+        for method in ("IslandTalk", "IslandStop"):
+            self.assertNotIn(method, router, "public URLs cannot start the private Island voice route")
+
+
 class Launcher(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="mira-launcher-test-")

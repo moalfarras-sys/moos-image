@@ -209,8 +209,14 @@ def main():
     dbus = None
     if controller.kde is not None:
         import kde_integration
-        dbus = kde_integration.start_dbus({'show': dbus_show, 'prefill': dbus_prefill,
-                                           'talk': dbus_talk, 'stop': controller.stop})
+        dbus = kde_integration.start_dbus({
+            'show': dbus_show, 'prefill': dbus_prefill, 'talk': dbus_talk, 'stop': controller.stop,
+            'island_state': controller.island_voice_state,
+            'island_talk': controller.start_island_voice,
+            'island_stop': controller.stop_island_voice,
+        })
+        if dbus is not None:
+            controller.islandVoiceChanged.connect(dbus.IslandVoiceChanged.emit)
         if not TEST_MODE:
             controller.kde.set_dbus_active(dbus is not None)
         app.aboutToQuit.connect(lambda: kde_integration.stop_dbus(dbus))

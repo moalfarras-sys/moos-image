@@ -44,7 +44,7 @@ def fixture(source, old=False, broken_route=False, cramped=False):
         part=body[start:].replace('anchors.fill: parent','anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; height: 17',1)
         part=part.replace('fontSizeMode: Text.VerticalFit','fontSizeMode: Text.FixedSize',1)
         body=body[:start]+part
-    props=dict(active=True,remotePresent=False,privacyPresent=False,storeJobPresent=False,moaiJobPresent=False,
+    props=dict(active=True,voiceForeground=False,voiceActionVisible=False,voicePhase="idle",remotePresent=False,privacyPresent=False,storeJobPresent=False,moaiJobPresent=False,
         mediaPresent=True,playing=False,canControl=True,canPause=True,canPlay=True,compactFocused=False,
         compactHovered=False,contextIcon='moos-moplayer',compactTitle='',contextTitle='Full context',
         contextSource='Application and artist',artUrl='',artworkSource='',artworkBridgeFailed=False,expanded=False,
@@ -70,6 +70,7 @@ Window { id: root; width: 230; height:110; visible:true
  function decodePx(v){return v}
  function openPrimary(){primaryCount++}
  function openMoAI(){miraCount++;lastRoute="mira"}
+ function openVoicePane(){lastRoute="voice"}
  function recordUrl(url){lastRoute=url;return true}
  function togglePlaying(){toggleCount++}
 '''%UI.as_uri()
@@ -115,6 +116,7 @@ def probe():
             for key in ('remotePresent','privacyPresent','storeJobPresent','moaiJobPresent','mediaPresent'):
                 window.setProperty(key,key==dict(remote='remotePresent',privacy='privacyPresent',store='storeJobPresent',moai='moaiJobPresent',media='mediaPresent').get(context,''))
             window.setProperty('active',context!='search')
+            window.setProperty('voiceActionVisible',context=='search')
             window.setProperty('compactTitle','اختبار حدود النص العربية — عنوان طويل جداً في MoOS مع KDE' if window.property('rtl') else 'A long title with file names & <plain text> — MoOS KDE')
             window.setProperty('motionEnabled',os.environ['PROBE_FACTOR']=='1')
             QTest.qWait(20)
@@ -170,7 +172,12 @@ def probe():
             raise AssertionError('shared action changed its executor or priority')
         window.setProperty(flag,False)
     # Parent popup keys also keep the one activation and held-key guard.
-    window.setProperty('active',False);QTest.qWait(10);compact.forceActiveFocus()
+    window.setProperty('active',False);window.setProperty('voiceActionVisible',True);QTest.qWait(10)
+    button.forceActiveFocus()
+    QTest.keyClick(window, Qt.Key_Return)
+    assert window.property('lastRoute') == 'voice', 'idle keyboard microphone opens the Island voice pane'
+    button.setFocus(False)
+    compact.forceActiveFocus()
     for key in (Qt.Key_Return,Qt.Key_Enter,Qt.Key_Space):
         n=window.property('primaryCount');QTest.keyClick(window,key)
         assert window.property('primaryCount')==n+1,('popup key',key)
