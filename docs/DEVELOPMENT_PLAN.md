@@ -368,6 +368,16 @@ For every task:
 
 ## Ordered execution
 
+Nov24 P2.8/P2.15/P3.1: voice controls in the existing Island open a dedicated
+Mira surface and use the current controller, microphone route and approvals.
+Preserve Remote/privacy priority and fixed panel width. The applet reads typed
+phase events on the session bus. Only the native Plasma process can invoke
+Island Talk/Stop, and no transcript is published there. Private native V3
+Plasma/Wayland tests cover Arabic and English, voice setup refusal, simulated
+Echo phase transitions and stopping. The physical PC's native PCM capture and
+silent playback pass independently. A spoken provider response and signed
+installed acceptance remain open.
+
 Nov24 product review uses main `a6577cd8` and the physical V3 booted on
 signed 1178. ARM run [45259218792](https://github.com/moalfarras-sys/moos-image/actions/runs/45259218792)
 passed the separately packaged recovery installer, desktop UEFI and promotion
