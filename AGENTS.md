@@ -432,6 +432,18 @@ height, bound both rows by the screen and retain native old/fixed ink masks.
 Preserve normal artwork bytes, prompt redraw, masking and finite handoff. A
 private renderer with exact libraries/fonts is not an encrypted cold boot.
 
+**A loaded dictionary is not a shown suggestion.** plasma-keyboard 6.8.3 always
+sets ImhNoPredictiveText, so Qt Virtual Keyboard's Hunspell list never appears;
+the MoOS Touch Bar replaces typed letters with InputContext.commit ranges instead
+of re-enabling pre-edit. A key event carrying text is committed once per keysym
+there: send emoji as one commit (a key-click ❤️ arrived twice). Qt VKB searches
+styles over import paths in reverse, so QML_IMPORT_PATH cannot override the
+Breeze style; a live copy binds the seam files in its own namespace, and KWin
+applies an InputMethod change only with `kwriteconfig6 --notify`. A grid laid
+out before its sheet has a height can create every delegate: load the emoji grid
+only while shown. The build's offscreen seam probe never creates the keyboard
+background, so `test_moos_keyboard_touchbar.py` is the bar's own native gate.
+
 **A signed review module is not trusted kernel delivery.** Native7.3.3 old/fixed
 SMOCF05 transports compile from exact publisher-signed SRPM/devel inputs; the
 fixed module adds only its ACPI match. Preserve RPM signatures, source/header
