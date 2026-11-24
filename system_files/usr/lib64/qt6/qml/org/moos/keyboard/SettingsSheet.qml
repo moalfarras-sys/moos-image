@@ -7,6 +7,7 @@
 // control; its opaque face and catch-all area keep touches off the keys underneath.
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls as QQC
 import org.kde.kirigami as Kirigami
 
 Rectangle {
@@ -29,7 +30,7 @@ Rectangle {
     readonly property color quietInk: theme ? theme.keySmallTextColor : Kirigami.Theme.textColor
     function say(ar, en) { return language === "ar" ? ar : en }
 
-    color: theme ? theme.keyboardBackgroundColor : Kirigami.Theme.backgroundColor
+    color: theme ? Qt.alpha(theme.keyboardBackgroundColor, 1) : Kirigami.Theme.backgroundColor
 
     MouseArea {
         anchors.fill: parent
@@ -113,15 +114,74 @@ Rectangle {
         }
     }
 
-    ColumnLayout {
+    component SizeRow: RowLayout {
+        id: stepper
+        required property string label
+        required property int value
+        required property int minimum
+        required property int maximum
+        required property int step
+        signal chosen(int value)
+        Layout.fillWidth: true
+        Layout.preferredHeight: sheet.rowHeight
+        spacing: Kirigami.Units.smallSpacing
+
+        Text {
+            Layout.fillWidth: true
+            text: stepper.label
+            elide: Text.ElideRight
+            color: sheet.ink
+            font.family: sheet.theme ? sheet.theme.fontFamily : ""
+            font.pixelSize: Math.round(sheet.rowHeight * 0.32)
+        }
+        TouchBarButton {
+            objectName: stepper.objectName + "Less"
+            Layout.preferredWidth: 44
+            Layout.fillHeight: true
+            theme: sheet.theme
+            rightToLeft: sheet.rightToLeft
+            iconName: "list-remove-symbolic"
+            accessibleName: sheet.say("تقليل ", "Decrease ") + stepper.label
+            enabled: stepper.value > stepper.minimum
+            onActivated: stepper.chosen(Math.max(stepper.minimum, stepper.value - stepper.step))
+        }
+        Text {
+            Layout.minimumWidth: 38
+            horizontalAlignment: Text.AlignHCenter
+            text: stepper.value + "%"
+            color: sheet.ink
+            font.family: sheet.theme ? sheet.theme.fontFamily : ""
+            font.pixelSize: Math.round(sheet.rowHeight * 0.32)
+        }
+        TouchBarButton {
+            objectName: stepper.objectName + "More"
+            Layout.preferredWidth: 44
+            Layout.fillHeight: true
+            theme: sheet.theme
+            rightToLeft: sheet.rightToLeft
+            iconName: "list-add-symbolic"
+            accessibleName: sheet.say("زيادة ", "Increase ") + stepper.label
+            enabled: stepper.value < stepper.maximum
+            onActivated: stepper.chosen(Math.min(stepper.maximum, stepper.value + stepper.step))
+        }
+    }
+
+    Flickable {
+        id: scroller
         anchors.fill: parent
         anchors.margins: Math.round(sheet.rowHeight * 0.2)
-        spacing: Math.round(sheet.rowHeight * 0.12)
+        clip: true
+        contentWidth: width
+        contentHeight: grid.implicitHeight
+        boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
+        QQC.ScrollBar.vertical: QQC.ScrollBar { }
 
         GridLayout {
-            Layout.fillWidth: true
-            columns: sheet.width > sheet.rowHeight * 14 ? 2 : 1
-            columnSpacing: Math.round(sheet.rowHeight * 0.15)
+            id: grid
+            width: scroller.width
+            columns: width > sheet.rowHeight * 14 ? 2 : 1
+            columnSpacing: Math.round(sheet.rowHeight * 0.2)
             rowSpacing: Math.round(sheet.rowHeight * 0.12)
             LayoutMirroring.enabled: sheet.rightToLeft
             LayoutMirroring.childrenInherit: true
@@ -159,7 +219,24 @@ Rectangle {
                 detail: sheet.say("اللغات والصوت والاهتزاز", "Languages, sound and vibration")
                 onActivated: sheet.allSettings()
             }
+            SizeRow {
+                objectName: "moosKeyboardHeight"
+                label: sheet.say("ارتفاع المفاتيح", "Key height")
+                value: PanelState.heightPercent
+                minimum: 25
+                maximum: 42
+                step: 3
+                onChosen: (value) => PanelState.appearance.heightPercent = value
+            }
+            SizeRow {
+                objectName: "moosKeyboardOpacity"
+                label: sheet.say("عتامة الزجاج", "Glass opacity")
+                value: PanelState.surfaceOpacity
+                minimum: 72
+                maximum: 100
+                step: 4
+                onChosen: (value) => PanelState.appearance.surfaceOpacity = value
+            }
         }
-        Item { Layout.fillHeight: true }
     }
 }

@@ -42,6 +42,11 @@ Item {
     property real sideInset: 0
     property bool rightToLeft: false
     property string emojiFamily: "Noto Color Emoji"
+    property bool desktopBar: false
+    property bool keysShown: false
+    readonly property bool toolsOpen: sheetOpen || settingsOpen
+    signal toggleKeys()
+    signal resetKeys()
     signal feedback()
 
     property bool sheetOpen: false
@@ -153,6 +158,7 @@ Item {
     Component.onCompleted: vocabulary = Logic.parseWords(store.learnedWords)
     onEmojiAllowedChanged: if (!emojiAllowed) sheetOpen = false
     onHintsChanged: { sheetOpen = false; settingsOpen = false }
+    onDesktopBarChanged: { sheetOpen = false; settingsOpen = false; resetKeys() }
 
     Connections {
         target: root.candidates
@@ -174,6 +180,7 @@ Item {
             if (!root.Window.window.visible) {
                 root.sheetOpen = false
                 root.settingsOpen = false
+                root.resetKeys()
             }
         }
     }
@@ -239,7 +246,8 @@ Item {
                 RowLayout {
                     anchors.fill: parent
                     spacing: 0
-                    opacity: root.composing && !root.sheetOpen && !root.settingsOpen ? 1 : 0
+                    enabled: root.composing && !root.toolsOpen
+                    opacity: enabled ? 1 : 0
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
 
@@ -335,7 +343,8 @@ Item {
                     anchors.fill: parent
                     orientation: ListView.Horizontal
                     boundsBehavior: Flickable.StopAtBounds
-                    opacity: !root.composing && !root.sheetOpen && !root.settingsOpen && root.emojiAllowed ? 1 : 0
+                    enabled: !root.composing && !root.toolsOpen && root.emojiAllowed
+                    opacity: enabled ? 1 : 0
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
                     model: root.wordEmoji.length > 0 ? root.wordEmoji : Logic.recentOrPopular(root.recent, 24)
@@ -419,6 +428,25 @@ Item {
                 }
             }
             TouchBarButton {
+                objectName: "moosTouchBarKeys"
+                visible: root.desktopBar
+                Layout.preferredWidth: root.barHeight
+                Layout.fillHeight: true
+                theme: root.theme
+                rightToLeft: root.rightToLeft
+                selected: root.keysShown
+                iconName: root.keysShown ? "moos-session-hide-keyboard-symbolic" : "moos-session-show-keyboard-symbolic"
+                accessibleName: root.keysShown
+                    ? (root.language === "ar" ? "إخفاء صفوف المفاتيح" : "Hide key rows")
+                    : (root.language === "ar" ? "إظهار صفوف المفاتيح" : "Show key rows")
+                onActivated: {
+                    root.feedback()
+                    root.sheetOpen = false
+                    root.settingsOpen = false
+                    root.toggleKeys()
+                }
+            }
+            TouchBarButton {
                 objectName: "moosTouchBarSettings"
                 // Nothing opens over a password field, a lock screen or the login screen.
                 visible: !root.greeter && !root.sensitive
@@ -454,7 +482,7 @@ Item {
             leftMargin: root.sideInset
             rightMargin: root.sideInset
         }
-        height: parent.height - root.bandHeight
+        height: Math.max(0, parent.height - root.bandHeight)
         theme: root.theme
         rightToLeft: root.rightToLeft
         language: root.language
@@ -481,7 +509,7 @@ Item {
             leftMargin: root.sideInset
             rightMargin: root.sideInset
         }
-        height: parent.height - root.bandHeight
+        height: Math.max(0, parent.height - root.bandHeight)
         theme: root.theme
         rightToLeft: root.rightToLeft
         language: root.language

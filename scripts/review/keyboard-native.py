@@ -50,6 +50,10 @@ import QtQuick.Controls
 ApplicationWindow {
     visible: true; visibility: Window.Maximized; title: "MoOS keyboard review"
     color: "#202024"
+    Timer { interval: 700; running: true; onTriggered: {
+        const pt = field.mapToGlobal(field.width / 2, field.height / 2)
+        console.info("MOOS_FIELD_AT", pt.x, pt.y)
+    } }
     TextField { id: field; anchors.horizontalCenter: parent.horizontalCenter; y: parent.height * 0.15; width: Math.min(parent.width - 32, 520); placeholderText: "اكتب هنا"
         onTextChanged: console.info("MOOS_REVIEW_INPUT", JSON.stringify(text)); focus: true; Component.onCompleted: forceActiveFocus() }
 }
@@ -77,10 +81,16 @@ def main() -> int:
     ap.add_argument("--launcher", help="start the keyboard with this desktop file's exact Exec line "
                     "(a live copy's launcher) instead of binding this tree's seams over /usr")
     ap.add_argument("--gpu", action="store_true")
+    ap.add_argument("--exercise-posture", action="store_true", help="exercise the desktop bar, keys, and live tablet posture transitions")
+    ap.add_argument("--pointer-mode", choices=("any", "touch", "never"), default="any",
+                    help="KWin pointer-focus policy for the posture journey")
+    ap.add_argument("--exercise-digits", action="store_true", help="type all ten digits into a strict ASCII-only field")
     ap.add_argument("--exercise-arabic", action="store_true", help="verify native Arabic input and long-press selection")
     ap.add_argument("--exercise-touchbar", action="store_true",
                     help="type, learn and complete an Arabic word, insert emoji and open the emoji sheet")
     args = ap.parse_args()
+    if sum((args.exercise_posture, args.exercise_digits, args.exercise_touchbar, args.exercise_arabic)) > 1:
+        ap.error("choose one native interaction per run")
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     lw, lh = (int(v) for v in args.logical.split("x"))
@@ -95,6 +105,12 @@ def main() -> int:
         colors.read_text(encoding="utf-8")
         + f"\n[General]\nColorScheme={scheme}\nfont=Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1\n"
         f"[KDE]\nLookAndFeelPackage={args.look}\n[Icons]\nTheme={icons}\n", encoding="utf-8")
+    # Exercise the same published KWin state as the detachable cover, inside
+    # this private compositor only. Pointer focus can open the compact panel.
+    posture = "off" if args.exercise_posture else "on"
+    visibility_mode = {"never": 0, "touch": 1, "any": 2}[args.pointer_mode]
+    (cfg / "kwinrc").write_text(f"[Input]\nTabletMode={posture}\n[Wayland]\nVirtualKeyboardMode={visibility_mode}\n")
+    (cfg / "kxkbrc").write_text("[Layout]\nUse=true\nLayoutList=ara\n")
     (cfg / "plasmakeyboardrc").write_text(f"[General]\nenabledLocales={args.locales}\n", encoding="utf-8")
     pw, ph = round(lw * args.scale), round(lh * args.scale)
     (cfg / "kwinoutputconfig.json").write_text(json.dumps([
@@ -135,9 +151,14 @@ def main() -> int:
             qmldir.write_text("\n".join(l for l in (directory / "qmldir").read_text().splitlines()
                                          if not l.startswith("prefer ")) + "\n")
             binds += ["--ro-bind", str(qmldir), str(directory / "qmldir")]
+        layouts = Path("/usr/share/plasma/keyboard/layouts")
+        for path in sorted((SEAMS / layouts.relative_to("/")).glob("*/*.qml")):
+            binds += ["--ro-bind", str(path), str(layouts / path.parent.name / path.name)]
     # The MoOS Touch Bar module comes from this tree; the image installs it at
     # /usr/lib64/qt6/qml/org/moos/keyboard.
     tree_env = "" if args.stock else f"QML_IMPORT_PATH='{ROOT}/system_files/usr/lib64/qt6/qml' "
+    if args.exercise_posture:
+        tree_env += "WAYLAND_DEBUG=client "
     command = "/usr/bin/plasma-keyboard"
     if args.launcher:
         import shlex
@@ -176,7 +197,14 @@ def main() -> int:
                 break
             time.sleep(0.1)
         time.sleep(1.5)
-        (base / "client.py").write_text(CLIENT, encoding="utf-8")
+        client_source = CLIENT
+        if args.exercise_digits:
+            client_source = client_source.replace("id: field;", "id: field; inputMethodHints: Qt.ImhDigitsOnly; "
+                "validator: RegularExpressionValidator { regularExpression: /[0-9]*/ }")
+        if args.exercise_posture:
+            client_source = client_source.replace("visible: true; visibility:", "flags: Qt.Window | Qt.FramelessWindowHint; visible: true; visibility:")
+            client_source = client_source.replace("focus: true; Component.onCompleted: forceActiveFocus()", "focus: false")
+        (base / "client.py").write_text(client_source, encoding="utf-8")
         cenv = dict(env, WAYLAND_DISPLAY=sock, QT_QPA_PLATFORM="wayland", QT_QPA_PLATFORMTHEME="", QT_IM_MODULE="wayland")
         client = subprocess.Popen([sys.executable, "-s", "-B", str(base / "client.py")], env=cenv,
                                   stdout=(base / "client.log").open("w"), stderr=subprocess.STDOUT,
@@ -190,7 +218,33 @@ def main() -> int:
             time.sleep(0.1)
         else:
             raise RuntimeError("private text client readiness timed out")
-        for _ in range(3):
+        if args.exercise_posture:
+            # A real click on this private editor opens the panel through the
+            # client's text-input protocol, as it does on a physical desktop.
+            from gi.repository import Gio, GLib
+            sys.path.insert(0, str(ROOT / "moremote/agent-linux"))
+            from mo_remote_eis import EisInput
+            private = Gio.DBusConnection.new_for_address_sync(
+                env["DBUS_SESSION_BUS_ADDRESS"],
+                Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+                None, None)
+            eis = EisInput(private, Gio, GLib)
+            def click(x, y):
+                eis.absolute(x, y)
+                time.sleep(0.12)
+                eis.send("NotifyPointerButton", (272, 1), None)
+                time.sleep(0.1)
+                eis.send("NotifyPointerButton", (272, 0), None)
+                time.sleep(0.25)
+            for _ in range(50):
+                coords = re.search(r"MOOS_FIELD_AT ([.\d]+) ([.\d]+)", (base / "client.log").read_text())
+                if coords:
+                    break
+                time.sleep(0.1)
+            if not coords:
+                raise RuntimeError("private editor did not report its placement")
+            click(float(coords[1]) / lw, float(coords[2]) / lh)
+        for _ in range(0 if args.exercise_posture else 3):
             subprocess.run([QDBUS, "org.kde.KWin", "/VirtualKeyboard", "org.kde.kwin.VirtualKeyboard.forceActivate"],
                            env=env, capture_output=True, timeout=10)
             time.sleep(1.5)
@@ -199,10 +253,16 @@ def main() -> int:
         session = dbus.bus.BusConnection("unix:path=" + str(run / "bus"))
         vk = dbus.Interface(session.get_object("org.kde.KWin", "/VirtualKeyboard"),
                             "org.freedesktop.DBus.Properties")
-        state = vk.GetAll("org.kde.kwin.VirtualKeyboard")
+        for _ in range(50):
+            state = vk.GetAll("org.kde.kwin.VirtualKeyboard")
+            if state.get("visible"):
+                break
+            time.sleep(0.1)
+        result["mode"] = int(state["mode"])
+        manager = session.get_object("org.kde.KWin", "/org/kde/KWin")
+        result["tablet"] = bool(dbus.Interface(manager, "org.freedesktop.DBus.Properties").Get(
+            "org.kde.KWin.TabletModeManager", "tabletMode"))
         result["keyboard"] = {str(k): bool(v) for k, v in state.items() if isinstance(v, dbus.Boolean)}
-        if not (state.get("active") and state.get("visible")):
-            raise RuntimeError("KWin did not activate and show the input method")
         shot = dbus.Interface(session.get_object("org.kde.KWin", "/org/kde/KWin/ScreenShot2"),
                               "org.kde.KWin.ScreenShot2")
         def capture(name: str):
@@ -220,6 +280,9 @@ def main() -> int:
             if len(data) != h * stride or not QImage(bytes(data), w, h, stride, QImage.Format(fmt)).copy().save(str(out / name)):
                 raise RuntimeError("incomplete native screen capture")
         capture("keyboard.png")
+        expect_hidden = args.exercise_posture and visibility_mode != 2
+        if not state.get("active") or bool(state.get("visible")) == expect_hidden or int(state["mode"]) != visibility_mode:
+            raise RuntimeError(f"unexpected panel state for pointer mode {args.pointer_mode}: {result['keyboard']!r}")
         # The keyboard process (a descendant of this private KWin, never the owner's).
         def descendants(root_pid):
             children = {}
@@ -244,6 +307,64 @@ def main() -> int:
                 except OSError:
                     pass
         keyboard_rss("keyboard_rss_kib")
+        if args.exercise_posture and not expect_hidden:
+            keys = max(150, round(lh * 0.3))
+            bar = max(44, round(keys * 0.15))
+            band = bar + max(8, round(keys * 0.03))
+            regions = []
+            def wait_region(label, height):
+                # The input panel sends KWin this exact mask, including the area
+                # it reserves from the editor. A cropped screenshot cannot prove it.
+                pattern = r"wl_region#\d+\.add\(0, (\d+), " + str(lw) + r", (\d+)\)"
+                last = []
+                for _ in range(60):
+                    last = re.findall(pattern, (base / "keyboard.log").read_text(errors="replace"))
+                    if last and tuple(map(int, last[-1])) == (lh - height, height):
+                        regions.append((label, height))
+                        return
+                    time.sleep(0.1)
+                raise RuntimeError(f"{label} expected a {height}-pixel input region, last {last[-3:]}")
+            def change_posture(value):
+                subprocess.run(["kwriteconfig6", "--file", "kwinrc", "--group", "Input",
+                                "--key", "TabletMode", "--notify", value], env=env, check=True, timeout=5)
+                for _ in range(40):
+                    observed = dbus.Interface(manager, "org.freedesktop.DBus.Properties").Get(
+                        "org.kde.KWin.TabletModeManager", "tabletMode")
+                    if bool(observed) == (value == "on"):
+                        return
+                    time.sleep(0.05)
+                raise RuntimeError(f"KWin did not publish test posture {value!r}")
+            def tool_x(button):
+                # Arabic input places settings, then the desktop keys button, on the left.
+                edge = 6 * keys / (800 if lw < 500 else 600 if lw < 1200 else 700)
+                x = edge + (bar * 1.15 / 2 if button == "settings" else bar * 1.15 + round(bar * 0.1) + bar / 2)
+                return x / lw
+            def bar_y(height):
+                return (lh - height + band / 2) / lh
+            wait_region("attached", band)
+            for down in (1, 0):
+                eis.send("NotifyKeyboardKeycode", (30, down), None)
+            click(tool_x("keys"), bar_y(band))
+            wait_region("keys opened by hand", keys + band)
+            click(tool_x("keys"), bar_y(keys + band))
+            wait_region("keys closed by hand", band)
+            click(tool_x("settings"), bar_y(band))
+            wait_region("settings from compact bar", keys + band)
+            capture("desktop-settings.png")
+            click(tool_x("settings"), bar_y(keys + band))
+            wait_region("settings closed", band)
+            change_posture("on")
+            wait_region("detached", keys + band)
+            capture("tablet-keys.png")
+            change_posture("off")
+            wait_region("reattached", band)
+            capture("reattached.png")
+            typed = [json.loads(line.partition("MOOS_REVIEW_INPUT ")[2])
+                     for line in (base / "client.log").read_text().splitlines() if "MOOS_REVIEW_INPUT " in line]
+            if typed != ["ش"]:
+                raise RuntimeError(f"the physical key did not reach the editor exactly once: {typed!r}")
+            result["regions"] = regions
+            result["keycode30"] = typed[-1]
         if args.exercise_arabic:
             from gi.repository import Gio, GLib
             sys.path.insert(0, str(ROOT / "moremote/agent-linux"))
@@ -284,7 +405,7 @@ def main() -> int:
             result["typed"] = typed
             if not typed or typed[0] != "س" or typed[-1] not in ("سأ", "سإ", "سآ", "سٱ"):
                 raise RuntimeError("Arabic key and held alternate did not reach the private editor")
-        if args.exercise_touchbar:
+        if args.exercise_touchbar or args.exercise_digits:
             from gi.repository import Gio, GLib
             sys.path.insert(0, str(ROOT / "moremote/agent-linux"))
             from mo_remote_eis import EisInput
@@ -321,36 +442,48 @@ def main() -> int:
             first_chip = middle_start - max(round(bar * 1.8), 0) / 2 / lw
             first_emoji = middle_start - round(bar * 1.1) / 2 / lw
             switch = (lw - inset - round(bar * 1.35) / 2) / lw
-            try:
-                write("سلام")
-                tap(*space)
-                write("سل")
-                time.sleep(0.4)
-                capture("suggest.png")
-                tap(first_chip, bar_y)
-                write("قلب")
-                time.sleep(0.4)
-                capture("emoji-for-word.png")
-                tap(first_emoji, bar_y)
-                tap(switch, bar_y)
-                time.sleep(0.6)
-                capture("emoji-sheet.png")
-                sheet_top = (top + band_h) / lh
-                cell = (keys + band - band_h) * 0.8 / 4
-                tap((lw - inset - cell * 1.12 / 2) / lw, sheet_top + cell / 2 / lh)
-                tap(switch, bar_y)
-                time.sleep(0.6)
-                capture("after-sheet.png")
-                keyboard_rss("keyboard_rss_after_sheet_kib")
-                # ⚙ sits at the bar's far end: the left in Arabic, the right in German/English.
-                gear = round(bar * 1.15) / 2 + inset
-                tap((gear if args.locales.startswith("ar") else lw - gear) / lw, bar_y)
-                time.sleep(0.6)
-                capture("settings-sheet.png")
-                tap((gear if args.locales.startswith("ar") else lw - gear) / lw, bar_y)
-            finally:
-                eis.close()
-                private.close_sync(None)
+            if args.exercise_digits:
+                try:
+                    area = keys - 12 * keys / (800 if lw < 500 else 600 if lw < 1200 else 700)
+                    left = (lw - area) / 2
+                    for column, digit_row in ((1, 3), (0, 2), (1, 2), (2, 2), (0, 1),
+                                              (1, 1), (2, 1), (0, 0), (1, 0), (2, 0)):
+                        tap((left + area * (column + 0.5) / 4) / lw, row(digit_row))
+                    capture("digits.png")
+                finally:
+                    eis.close()
+                    private.close_sync(None)
+            else:
+                try:
+                    write("سلام")
+                    tap(*space)
+                    write("سل")
+                    time.sleep(0.4)
+                    capture("suggest.png")
+                    tap(first_chip, bar_y)
+                    write("قلب")
+                    time.sleep(0.4)
+                    capture("emoji-for-word.png")
+                    tap(first_emoji, bar_y)
+                    tap(switch, bar_y)
+                    time.sleep(0.6)
+                    capture("emoji-sheet.png")
+                    sheet_top = (top + band_h) / lh
+                    cell = (keys + band - band_h) * 0.8 / 4
+                    tap((lw - inset - cell * 1.12 / 2) / lw, sheet_top + cell / 2 / lh)
+                    tap(switch, bar_y)
+                    time.sleep(0.6)
+                    capture("after-sheet.png")
+                    keyboard_rss("keyboard_rss_after_sheet_kib")
+                    # ⚙ sits at the bar's far end: the left in Arabic, the right in German/English.
+                    gear = round(bar * 1.15) / 2 + inset
+                    tap((gear if args.locales.startswith("ar") else lw - gear) / lw, bar_y)
+                    time.sleep(0.6)
+                    capture("settings-sheet.png")
+                    tap((gear if args.locales.startswith("ar") else lw - gear) / lw, bar_y)
+                finally:
+                    eis.close()
+                    private.close_sync(None)
             lines = (base / "client.log").read_text().splitlines()
             typed = [json.loads(line.partition("MOOS_REVIEW_INPUT ")[2]) for line in lines
                      if "MOOS_REVIEW_INPUT " in line]
@@ -359,13 +492,22 @@ def main() -> int:
             result["final"] = final
             # One ❤️ from the bar, one from the sheet: each exactly once (a key event
             # carrying ❤️ was committed once per keysym, twice, by plasma-keyboard 6.8.3).
-            if final != "سلام سلام قلب❤️❤️":
-                raise RuntimeError(f"Touch Bar journey did not produce the expected text: {final!r}")
+            expected = "0123456789" if args.exercise_digits else "سلام سلام قلب❤️❤️"
+            if final != expected:
+                raise RuntimeError(f"private editor received {final!r}; expected {expected!r}")
+        owned_errors = [line.strip() for line in (base / "keyboard.log").read_text(errors="replace").splitlines()
+                        if re.search(r"(?i)(/org/moos/keyboard/|/Styles/Breeze/|/plasma/keyboard/(?:lib|layouts)/)", line)
+                        and re.search(r"Error:|binding loop|unable to assign|cannot assign|is not a type", line, re.I)]
+        if owned_errors:
+            raise RuntimeError(f"keyboard reported {owned_errors[:3]}")
         result["result"] = "CAPTURED"
     except Exception as exc:  # evidence, not a verdict
         result["result"] = "ERROR"
         result["error"] = repr(exc)
     finally:
+        if args.exercise_posture and "eis" in locals():
+            eis.close()
+            private.close_sync(None)
         for p in reversed(procs):
             if p.poll() is None:
                 p.terminate()

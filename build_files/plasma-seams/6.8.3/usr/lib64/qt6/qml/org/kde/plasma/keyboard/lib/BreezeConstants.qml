@@ -12,6 +12,7 @@
 // round, the top-trailing one square.
 
 import QtQuick
+import org.moos.keyboard as MoOSKeyboard
 
 import org.kde.kirigami as Kirigami
 
@@ -51,9 +52,10 @@ QtObject {
     property color secondaryDarkColor: Qt.darker(secondaryColor, 1.3)
     property color textOnSecondaryColor: Kirigami.Theme.textColor
 
-    property color keyboardBackgroundColor: darkGround
+    readonly property color panelGround: darkGround
         ? Kirigami.ColorUtils.tintWithAlpha(glassGround, "#000000", 0.18)
         : Kirigami.ColorUtils.tintWithAlpha(glassGround, glassInk, 0.04)
+    property color keyboardBackgroundColor: Qt.alpha(panelGround, MoOSKeyboard.PanelState.surfaceOpacity / 100)
     property color normalKeyBackgroundColor: letterKey
     property color normalKeyPressedBackgroundColor: Kirigami.ColorUtils.tintWithAlpha(letterKey,
         Kirigami.Theme.highlightColor, 0.42)

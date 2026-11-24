@@ -28,6 +28,21 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+Nov24, V3 workspace. With the cover attached the owner wants the Touch Bar
+on text focus. Detaching keeps the bar above the full native keyboard. The
+desktop panel follows KWin posture and keyboard visibility preferences. An
+unknown posture or a protected field keeps the full keypad. At 1200×800 the
+native Wayland mask changed from 52 to 292 logical pixels and back, including
+the manual keys and settings journeys. In a strict form the released Arabic
+layout left the field empty after ten presses. The reviewed layout entered
+0123456789. Check cover hotplug again on the personal session and signed image.
+The Places and Mira work uses the existing Dolphin, Plasma and Mira services.
+On the physical V3, four independent applications occupied four quarters and
+returned to two halves when two closed. A separate native decorated-window
+control refused the old minimum-size calculation. The next visual M1 journey
+is the internal panel from Plymouth through login. Preserve the 1187 receipts
+and boot rollback while qualifying this batch.
+
 Nov24. PR328 (a6577cd8) reached signed production on x86 and ARM. V3 booted
 1187 with the expected signed digest, a working file search and 56/56 post-update
 checks. The open PR tips for the Arabic theme names, glass, quarter layout and

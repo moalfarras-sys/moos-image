@@ -373,6 +373,12 @@ def probe() -> int:
     for name in ("moosKeyboardLearning", "moosKeyboardForget", "moosKeyboardClearRecent", "moosKeyboardAllSettings"):
         fits = QMetaObject.invokeMethod(win, "rowFits", Qt.DirectConnection, Q_RETURN_ARG("QVariant"), Q_ARG("QVariant", name))
         check((fits.toVariant() if hasattr(fits, "toVariant") else fits) is True, f"{name}'s text lies inside its row")
+    tap(named_point("moosKeyboardHeightMore"), by_touch=True)
+    tap(named_point("moosKeyboardOpacityLess"))
+    QTest.qWait(800)
+    settings.sync()
+    check(settings.value("Appearance/heightPercent", type=int) == 33, "height changes at touch release")
+    check(settings.value("Appearance/surfaceOpacity", type=int) == 90, "glass opacity persists")
     tap(named_point("moosKeyboardLearning"))
     call("clearText")
     call("type", "مرحبا")
@@ -457,10 +463,10 @@ class SourceContract(unittest.TestCase):
             self.assertIn(needle, block)
         self.assertIn("selectionListHeight: 0", style)
         # The keys keep upstream's height; the band is added above them.
-        self.assertIn("readonly property real keysHeight: Math.max(Screen.height * 0.3, 150)", style)
-        self.assertIn("readonly property real targetKeyboardHeight: keysHeight + touchBarBand", style)
+        self.assertIn("readonly property real keysHeight: Math.max(150, Math.round(Screen.height * MoOSKeyboard.PanelState.heightPercent / 100))", style)
+        self.assertIn("readonly property real targetKeyboardHeight: (barOnly ? 0 : keysHeight) + touchBarBand", style)
         self.assertIn("touchBarHeight: Math.max(44,", style)
-        self.assertIn("keyboardRelativeTopMargin: (6 + touchBarBand * keysDesignHeight / keysHeight) / keyboardDesignHeight",
+        self.assertIn("keyboardRelativeTopMargin: barOnly ? 1 : (6 + touchBarBand * keysDesignHeight / keysHeight) / keyboardDesignHeight",
                       style)
 
     def test_module_lists_its_files_and_drives_only_public_api(self):
