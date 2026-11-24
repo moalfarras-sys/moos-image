@@ -5,6 +5,8 @@ Owner steering, 2026-11-23: opening two programs should split the screen, and fo
 should take a quarter each. This opens real Wayland client windows one at a time in
 a private `kwin_wayland --virtual` (1280x720, no panel) with the actual script
 loaded, and reads every window's frame geometry after each one arrives. It also
+rotates and rescales the private output with two and four arranged windows and a panel.
+The existing windows must follow the new work area without being reopened. It
 reads the KWin 6.8 API the script relies on (internalId, minSize, windowList,
 windowAdded/windowRemoved, minimizedChanged), so a property that reads as undefined
 fails here instead of silently disabling the feature. A copy with the mode forced
@@ -90,6 +92,23 @@ READ = ('const all = workspace.windowList().filter(w => /^MOOS_AUTO_/.test(w.cap
         'removed: !!(workspace.windowRemoved && workspace.windowRemoved.connect)}));')
 
 
+def output_transitions(count):
+    """Change only the display owned by this private virtual compositor."""
+    output_config = subprocess.run(["kscreen-doctor", "-j"], env=env, capture_output=True,
+                                   text=True, check=True, timeout=8)
+    outputs = json.loads(output_config.stdout)["outputs"]
+    assert len(outputs) == 1 and outputs[0]["name"].startswith("Virtual-"), outputs
+    prefix = "output." + outputs[0]["name"] + "."
+    for tag, settings in (("PORTRAIT", ("rotation.right",)),
+                          ("SCALED", ("scale.1.25",)),
+                          ("RESTORED", ("scale.1", "rotation.normal"))):
+        subprocess.run(["kscreen-doctor", *(prefix + s for s in settings)], env=env,
+                       capture_output=True, text=True, check=True, timeout=8)
+        time.sleep(.5)
+        label = f"{tag}_{count}"
+        load("read_" + label, READ.replace("{tag}", label))
+
+
 def run(variant):
     stamp = time.monotonic()
     source = SCRIPT.read_text().replace("registerShortcut(", "recordShortcut(").replace(
@@ -106,12 +125,14 @@ def run(variant):
         opened.append(open_window(f"MOOS_AUTO_{variant}_{index}", minimum_height))
         load(f"read_{variant}_{index}", READ.replace("{tag}", f"{variant.upper()}_{index}"))
     if variant == "panel":
+        output_transitions(4)
         for remaining in (3, 2):
             closed = opened.pop()
             closed.terminate()
             closed.wait(timeout=5)
             time.sleep(.5)
             load(f"close_{remaining}", READ.replace("{tag}", f"CLOSE_{remaining}"))
+        output_transitions(2)
     load(f"unload_{variant}", 'console.info("unload");')
     qdbus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "arrange_" + variant)
     for proc in opened:
@@ -192,6 +213,21 @@ app.exec()
     closed_two = geoms("CLOSE_2")
     assert sorted((g["x"],g["y"],g["width"],g["height"]) for g in closed_two) == [
         (8,56,628,656),(644,56,628,656)], closed_two
+    transitions = {}
+    for tag, expected in (
+        ("PORTRAIT_4", [(8, 56, 348, 604), (8, 668, 348, 604), (364, 56, 348, 604), (364, 668, 348, 604)]),
+        ("SCALED_4", [(8, 56, 276, 476), (8, 540, 276, 476), (292, 56, 276, 476), (292, 540, 276, 476)]),
+        ("RESTORED_4", [(8, 56, 628, 324), (8, 388, 628, 324), (644, 56, 628, 324), (644, 388, 628, 324)]),
+        ("PORTRAIT_2", [(8, 56, 704, 604), (8, 668, 704, 604)]),
+        ("SCALED_2", [(8, 56, 560, 476), (8, 540, 560, 476)]),
+        ("RESTORED_2", [(8, 56, 628, 656), (644, 56, 628, 656)]),
+    ):
+        frames = sorted((g["x"], g["y"], g["width"], g["height"]) for g in geoms(tag))
+        assert len(frames) == len(expected) and all(
+            abs(a - b) <= 1 for frame, cell in zip(frames, expected) for a, b in zip(frame, cell)
+        ), (tag, frames, expected)
+        transitions[tag] = frames
+    assert [g["x"] for g in geoms("RESTORED_2")] == [g["x"] for g in closed_two], "window sides swapped"
     before_four = geoms("LIMITS_3")
     after_four = geoms("LIMITS_4")
     limited = next(w for w in found["LIMITS_4"]["windows"] if w["title"].endswith("_4"))
@@ -201,7 +237,7 @@ app.exec()
     assert before_four == after_four[:3], ("a client cannot fit underneath its title bar", before_four, after_four)
     off_four = geoms("OFF_4")
     assert not any(abs(g["width"] - 628) <= 2 and abs(g["height"] - 348) <= 2 for g in off_four), off_four
-    receipt = {"result": "PASS", "two": two, "four": four, "offFour": off_four, "constrainedFourth": limited, "panelFour": panel_four, "afterClosingTwo": closed_two, "seconds": timing,
+    receipt = {"result": "PASS", "two": two, "four": four, "offFour": off_four, "constrainedFourth": limited, "panelFour": panel_four, "afterClosingTwo": closed_two, "outputTransitions": transitions, "seconds": timing,
                "api": {"internalId": api["windows"][0]["id"], "minSize": api["windows"][0]["min"]},
                "scope": "private virtual KWin, native Wayland clients; virtual 48px layer-shell panel; no physical display or input"}
     (r / "result.json").write_text(json.dumps(receipt, indent=2) + "\n")
