@@ -82,6 +82,7 @@ def main() -> int:
                     "(a live copy's launcher) instead of binding this tree's seams over /usr")
     ap.add_argument("--gpu", action="store_true")
     ap.add_argument("--exercise-posture", action="store_true", help="exercise the desktop bar, keys, and live tablet posture transitions")
+    ap.add_argument("--initial-tablet", action="store_true", help="begin the posture journey with a detached cover")
     ap.add_argument("--pointer-mode", choices=("any", "touch", "never"), default="any",
                     help="KWin pointer-focus policy for the posture journey")
     ap.add_argument("--exercise-digits", action="store_true", help="type all ten digits into a strict ASCII-only field")
@@ -107,10 +108,10 @@ def main() -> int:
         f"[KDE]\nLookAndFeelPackage={args.look}\n[Icons]\nTheme={icons}\n", encoding="utf-8")
     # Exercise the same published KWin state as the detachable cover, inside
     # this private compositor only. Pointer focus can open the compact panel.
-    posture = "off" if args.exercise_posture else "on"
+    posture = "off" if args.exercise_posture and not args.initial_tablet else "on"
     visibility_mode = {"never": 0, "touch": 1, "any": 2}[args.pointer_mode]
     (cfg / "kwinrc").write_text(f"[Input]\nTabletMode={posture}\n[Wayland]\nVirtualKeyboardMode={visibility_mode}\n")
-    (cfg / "kxkbrc").write_text("[Layout]\nUse=true\nLayoutList=ara\n")
+    (cfg / "kxkbrc").write_text("[Layout]\nUse=true\nLayoutList=ara\nVariantList=\n")
     (cfg / "plasmakeyboardrc").write_text(f"[General]\nenabledLocales={args.locales}\n", encoding="utf-8")
     pw, ph = round(lw * args.scale), round(lh * args.scale)
     (cfg / "kwinoutputconfig.json").write_text(json.dumps([
@@ -229,7 +230,17 @@ def main() -> int:
                 Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
                 None, None)
             eis = EisInput(private, Gio, GLib)
+            def ready_input():
+                # KWin can re-create EIS devices when its native settings
+                # change. The live client dispatches those events continuously.
+                for _ in range(50):
+                    eis.dispatch()
+                    if eis.ready:
+                        return
+                    time.sleep(0.04)
+                raise RuntimeError("private input devices did not return after the posture change")
             def click(x, y):
+                ready_input()
                 eis.absolute(x, y)
                 time.sleep(0.12)
                 eis.send("NotifyPointerButton", (272, 1), None)
@@ -265,7 +276,7 @@ def main() -> int:
         result["keyboard"] = {str(k): bool(v) for k, v in state.items() if isinstance(v, dbus.Boolean)}
         shot = dbus.Interface(session.get_object("org.kde.KWin", "/org/kde/KWin/ScreenShot2"),
                               "org.kde.KWin.ScreenShot2")
-        def capture(name: str):
+        def capture(name: str | None = None):
             rd, wr = os.pipe()
             try:
                 meta = shot.CaptureActiveScreen({"native-resolution": True, "include-cursor": False},
@@ -277,8 +288,12 @@ def main() -> int:
                 while chunk := fh.read(1 << 20):
                     data += chunk
             w, h, stride, fmt = (int(meta[k]) for k in ("width", "height", "stride", "format"))
-            if len(data) != h * stride or not QImage(bytes(data), w, h, stride, QImage.Format(fmt)).copy().save(str(out / name)):
+            if len(data) != h * stride:
                 raise RuntimeError("incomplete native screen capture")
+            frame = QImage(bytes(data), w, h, stride, QImage.Format(fmt)).copy()
+            if frame.isNull() or (name and not frame.save(str(out / name))):
+                raise RuntimeError("could not read the private display")
+            return frame
         capture("keyboard.png")
         expect_hidden = args.exercise_posture and visibility_mode != 2
         if not state.get("active") or bool(state.get("visible")) == expect_hidden or int(state["mode"]) != visibility_mode:
@@ -320,10 +335,25 @@ def main() -> int:
                 for _ in range(60):
                     last = re.findall(pattern, (base / "keyboard.log").read_text(errors="replace"))
                     if last and tuple(map(int, last[-1])) == (lh - height, height):
+                        break
+                    time.sleep(0.1)
+                else:
+                    raise RuntimeError(f"{label} expected a {height}-pixel input region, last {last[-3:]}")
+                # KWin animates the actual panel after it receives its final
+                # mask. Wait for the left glass control to paint and settle
+                # before sending another click to that position.
+                previous = None
+                for _ in range(25):
+                    frame = capture()
+                    y = round((lh - height + band / 2) / lh * frame.height())
+                    row = tuple(frame.pixelColor(round(frame.width() * fx), y).rgb()
+                                for fx in (.006, .011, .019, .026, .032, .039, .045))
+                    if len(set(row)) > 1 and row == previous:
                         regions.append((label, height))
                         return
+                    previous = row
                     time.sleep(0.1)
-                raise RuntimeError(f"{label} expected a {height}-pixel input region, last {last[-3:]}")
+                raise RuntimeError(f"{label} input mask arrived but its controls did not paint")
             def change_posture(value):
                 subprocess.run(["kwriteconfig6", "--file", "kwinrc", "--group", "Input",
                                 "--key", "TabletMode", "--notify", value], env=env, check=True, timeout=5)
@@ -341,10 +371,20 @@ def main() -> int:
                 return x / lw
             def bar_y(height):
                 return (lh - height + band / 2) / lh
+            if args.initial_tablet:
+                wait_region("initially detached", keys + band)
+                change_posture("off")
             wait_region("attached", band)
+            capture("attached.png")
+            ready_input()
             for down in (1, 0):
                 eis.send("NotifyKeyboardKeycode", (30, down), None)
+            time.sleep(0.25)
+            capture("after-hardware-key.png")
+            if not vk.Get("org.kde.kwin.VirtualKeyboard", "visible"):
+                raise RuntimeError("the physical keystroke hid the Touch Bar")
             click(tool_x("keys"), bar_y(band))
+            capture("after-manual-keys.png")
             wait_region("keys opened by hand", keys + band)
             click(tool_x("keys"), bar_y(keys + band))
             wait_region("keys closed by hand", band)

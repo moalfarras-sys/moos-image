@@ -14,8 +14,8 @@ QtObject {
 
     // KWin owns the detachable cover, external pointers and the user's tablet
     // policy. Keep the keys usable until it publishes a typed desktop posture.
-    readonly property bool desktopPosture: service.registered
-        && tablet.properties.tabletMode === false
+    readonly property bool postureKnown: service.registered && typeof tablet.properties.tabletMode === "boolean"
+    readonly property bool desktopPosture: postureKnown && tablet.properties.tabletMode === false
     readonly property DBus.DBusServiceWatcher service: DBus.DBusServiceWatcher {
         busType: DBus.BusType.Session
         watchedService: "org.kde.KWin"

@@ -6,13 +6,18 @@ import org.kde.plasma.workspace.dbus as DBus
 
 QtObject {
     id: focus
-    required property bool desktopBar
+    required property bool followTextFocus
+    required property bool desktopPosture
     property bool handledFocus: false
-    onDesktopBarChanged: handledFocus = false
+    onFollowTextFocusChanged: handledFocus = false
+    onDesktopPostureChanged: {
+        handledFocus = false
+        if (followTextFocus && keyboard) keyboard.updateAll()
+    }
     readonly property string iface: "org.kde.kwin.VirtualKeyboard"
     readonly property DBus.Properties keyboard: DBus.Properties {
         busType: DBus.BusType.Session
-        service: focus.desktopBar ? "org.kde.KWin" : ""
+        service: focus.followTextFocus ? "org.kde.KWin" : ""
         path: "/VirtualKeyboard"
         iface: focus.iface
         onRefreshed: focus.followFocus()
@@ -22,7 +27,7 @@ QtObject {
         service: "org.kde.KWin"
         path: "/VirtualKeyboard"
         iface: focus.iface
-        enabled: focus.desktopBar
+        enabled: focus.followTextFocus
         function dbusactiveChanged() { focus.keyboard.updateAll() }
         function dbusactiveClientSupportsTextInputChanged() { focus.keyboard.updateAll() }
         function dbusmodeChanged() { focus.keyboard.updateAll() }
@@ -31,14 +36,14 @@ QtObject {
 
     // Some Wayland clients enable text input on pointer focus without asking
     // KWin to show the panel. Honor the native AnyInput preference once per
-    // focus. A subsequent Hide stays in effect for the rest of that focus.
+    // focus or posture change. A subsequent Hide stays in effect for the rest of that focus.
     // Plasma wraps a native D-Bus INT32 (the mode) while leaving booleans
     // plain. Never coerce a missing property or a single-property reply tuple.
     function followFocus() {
         const state = keyboard.properties
         const mode = state.mode
         const anyInput = mode === 2 || (!!mode && mode.value === 2)
-        if (!desktopBar || !anyInput || state.available !== true || state.active !== true
+        if (!followTextFocus || !anyInput || state.available !== true || state.active !== true
                 || state.activeClientSupportsTextInput !== true) {
             handledFocus = false
             return

@@ -65,9 +65,10 @@ KeyboardStyle {
     property bool sessionInputPanel: false
     property bool keysRequested: false
     property bool browserOpen: false
-    readonly property bool desktopBar: MoOSKeyboard.PanelState.desktopPosture && sessionInputPanel
+    readonly property bool followTextFocus: sessionInputPanel && MoOSKeyboard.PanelState.postureKnown
         && !MoOSKeyboard.PanelState.greeter
         && (InputContext.inputMethodHints & (Qt.ImhHiddenText | Qt.ImhSensitiveData)) === 0
+    readonly property bool desktopBar: followTextFocus && MoOSKeyboard.PanelState.desktopPosture
     readonly property bool barOnly: desktopBar && !keysRequested && !browserOpen
     onDesktopBarChanged: keysRequested = false
 
@@ -126,7 +127,10 @@ KeyboardStyle {
     // two-tone crest every MoOS session surface wears at its top.
     keyboardBackground: Rectangle {
         id: panelFace
-        MoOSKeyboard.DesktopBarFocus { desktopBar: currentStyle.desktopBar }
+        MoOSKeyboard.InputPanelFocus {
+            followTextFocus: currentStyle.followTextFocus
+            desktopPosture: MoOSKeyboard.PanelState.desktopPosture
+        }
         // Qt's zero-height key rows can still paint their labels beyond the
         // layout. Use the actual InputPanel keyboard's layout and input owner.
         readonly property var layoutLoader: parent && parent.parent ? parent.parent.keyboardLayoutLoader : null
