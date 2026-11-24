@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "keyboard-touch-bar",
+      "merged": "2026-11-24T12:00:00Z",
+      "glyph": "keyboard",
+      "title": {
+        "ar": "شريط لمس فوق لوحة المفاتيح على الشاشة",
+        "en": "A Touch Bar over the on-screen keyboard"
+      },
+      "body": {
+        "ar": "شريط فوق الأزرار يتغير مع كتابتك: يكمل كلماتك المعتادة ويقترح الإيموجي المناسب (اكتب «قلب» فيظهر ❤️)، وبين الكلمات يعرض إيموجياتك الأخيرة. 😊 يفتح كل الإيموجي بأقسامها وألوان البشرة، و◀ ▶ تحرّك المؤشر، و⚙ للإعدادات. في كلمات المرور لا يقترح ولا يحفظ شيئًا.",
+        "en": "A strip above the keys follows your typing: it finishes the words you usually write and offers emoji that fit (type “heart” for ❤️); between words it shows your recent emoji. 😊 opens every emoji with categories and skin tones, ◀ ▶ move the cursor, ⚙ opens settings. In password fields it suggests and keeps nothing."
+      },
+      "route": "moos://settings/virtual-keyboard"
+    },
+    {
       "id": "auto-arrange-windows",
       "merged": "2026-11-23T18:00:00Z",
       "glyph": "grid",
@@ -938,48 +952,6 @@
         "ar": "اطلب من Mo AI عرض كل النوافذ أو ترتيبها أنصافاً أو أثلاثاً، أو تبديل سطح المكتب، أو عدم الإزعاج، أو كتم الميكروفون، أو تغيير لغة لوحة المفاتيح. ويفتح لك الصفحة الصحيحة من الإعدادات مباشرة، ويخبرك إن لم يستطع.",
         "en": "Ask Mo AI to show all windows, arrange them in halves or thirds, switch desktops, turn on do not disturb, mute the microphone or change the keyboard language. It opens the exact settings page you need, and tells you when it cannot."
       }
-    },
-    {
-      "id": "moai-meta-space",
-      "merged": "2026-09-25T09:00:00Z",
-      "glyph": "keyboard",
-      "title": {
-        "ar": "افتح Mo AI بـ Meta+Space",
-        "en": "Open Mo AI with Meta+Space"
-      },
-      "body": {
-        "ar": "اضغط Meta+Space في أي نافذة لفتح Mo AI، ويمكنك تغيير الاختصار من صفحة الاختصارات. وعندما تؤكد إجراءً يقترحه Mo AI، تعرضه الجزيرة أعلى الشاشة وهو يعمل ثم تقول كيف انتهى.",
-        "en": "Press Meta+Space in any window to open Mo AI; you can change the shortcut on the Shortcuts page. When you confirm an action Mo AI suggests, the Island shows it running and then how it ended."
-      },
-      "route": "moos://settings/shortcuts"
-    },
-    {
-      "id": "remote-one-place",
-      "merged": "2026-09-25T09:00:00Z",
-      "glyph": "shield",
-      "title": {
-        "ar": "Mo PC Remote من الإعدادات",
-        "en": "Mo PC Remote from Settings"
-      },
-      "body": {
-        "ar": "صفحة Mo PC Remote في الإعدادات تشغّل التحكم من الهاتف أو توقفه وتعيد الاتصال، وفيها مفتاح تسريع الاتصال. يسألك MoOS أولاً، ويعرض المفتاح ما يعمل فعلاً.",
-        "en": "The Mo PC Remote page in Settings turns phone control on or off, reconnects it, and has the Speed up the connection switch. MoOS asks you first, and each switch shows what is really running."
-      },
-      "route": "moos://settings/remote"
-    },
-    {
-      "id": "tidier-app-menu",
-      "merged": "2026-09-25T09:00:00Z",
-      "glyph": "boxes",
-      "title": {
-        "ar": "قائمة تطبيقات أنظف",
-        "en": "A tidier app menu"
-      },
-      "body": {
-        "ar": "قائمة التطبيقات صارت أنظف: لا أدوات مكررة ولا صفحة إعدادات ثانية. وإشعارات MoOS صارت مرتبة باسم تطبيقها في صفحة الإشعارات، فتستطيع كتم كل واحد منها وحده.",
-        "en": "The app menu is tidier: no duplicate tools and no second settings app. MoOS notifications are filed under their own app on the Notifications page, so you can mute each one on its own."
-      },
-      "route": "moos://settings/notifications"
     }
   ]
 }

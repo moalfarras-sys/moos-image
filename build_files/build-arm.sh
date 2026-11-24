@@ -1700,6 +1700,11 @@ python3 /ctx/verify_sound_theme.py
 python3 /ctx/verify_qml_host_platform.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 MOOS_TOUCH_OVERLAY=/ MOOS_REQUIRE_NATIVE_TOUCH=1 python3 /ctx/test_island_touch_target.py
+# The on-screen keyboard's MoOS Touch Bar (org.moos.keyboard) as installed: real Qt input
+# learns, completes and replaces a word, inserts emoji as one commit, opens the emoji sheet
+# and stays silent in a password field; three mutants of it must fail. (The style seam that
+# places it is plasma_seams.py's; its source contract runs in the repository gates.)
+MOOS_KEYBOARD_OVERLAY=/ MOOS_REQUIRE_NATIVE_KEYBOARD=1 python3 /ctx/test_moos_keyboard_touchbar.py NativeJourney
 python3 /ctx/verify_no_foreign_identity.py
 # Every handler mimeapps.list promises must exist HERE. The ARM base ships no KDE
 # apps, so a type this image claims but cannot open is a defect only the finished

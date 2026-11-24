@@ -376,6 +376,7 @@ python3 tests/test_session_continuity.py
 python3 tests/test_login_handoff.py
 python3 tests/test_session_text.py
 python3 tests/test_moos_corner.py
+python3 tests/test_moos_keyboard_touchbar.py
 python3 tests/test_scene_frost.py
 # One answer to "is this session Arabic". Four surfaces read
 # Qt.application.layoutDirection, which follows a translator and not the

@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -73,8 +74,12 @@ def main() -> int:
     ap.add_argument("--logical", default="1766x1104")
     ap.add_argument("--scale", type=float, default=1.45)
     ap.add_argument("--stock", action="store_true")
+    ap.add_argument("--launcher", help="start the keyboard with this desktop file's exact Exec line "
+                    "(a live copy's launcher) instead of binding this tree's seams over /usr")
     ap.add_argument("--gpu", action="store_true")
     ap.add_argument("--exercise-arabic", action="store_true", help="verify native Arabic input and long-press selection")
+    ap.add_argument("--exercise-touchbar", action="store_true",
+                    help="type, learn and complete an Arabic word, insert emoji and open the emoji sheet")
     args = ap.parse_args()
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -120,7 +125,7 @@ def main() -> int:
     # plasma-keyboard runs inside bubblewrap with the reviewed style bound in.
     binds = ["--ro-bind", "/", "/", "--dev-bind", "/dev", "/dev", "--bind", str(base), str(base),
              "--tmpfs", "/run/user"]
-    if not args.stock:
+    if not args.stock and not args.launcher:
         for directory in (LIB, STYLE):
             seam_dir = SEAMS / directory.relative_to("/")
             for path in sorted(seam_dir.iterdir()):
@@ -130,10 +135,25 @@ def main() -> int:
             qmldir.write_text("\n".join(l for l in (directory / "qmldir").read_text().splitlines()
                                          if not l.startswith("prefer ")) + "\n")
             binds += ["--ro-bind", str(qmldir), str(directory / "qmldir")]
+    # The MoOS Touch Bar module comes from this tree; the image installs it at
+    # /usr/lib64/qt6/qml/org/moos/keyboard.
+    tree_env = "" if args.stock else f"QML_IMPORT_PATH='{ROOT}/system_files/usr/lib64/qt6/qml' "
+    command = "/usr/bin/plasma-keyboard"
+    if args.launcher:
+        import shlex
+        exec_line = next(line[5:] for line in Path(args.launcher).read_text().splitlines()
+                         if line.startswith("Exec="))
+        tree_env, command = "", " ".join(shlex.quote(a) for a in shlex.split(exec_line))
     wrapper = base / "moos-keyboard-wrapper"
-    wrapper.write_text("#!/bin/sh\nexec bwrap --die-with-parent --unshare-net " +
-                       " ".join(f"'{b}'" for b in binds) + " /usr/bin/plasma-keyboard \"$@\" "
-                       f">>'{base}/keyboard.log' 2>&1\n", encoding="utf-8")
+    if args.launcher:
+        # The live launcher is a bwrap itself (a nested one cannot map its user inside the
+        # review's read-only one). KWin's environment is already this review's private
+        # bus, runtime and XDG directories.
+        wrapper.write_text(f"#!/bin/sh\nexec {command} \"$@\" >>'{base}/keyboard.log' 2>&1\n", encoding="utf-8")
+    else:
+        wrapper.write_text("#!/bin/sh\nexec env " + tree_env + "bwrap --die-with-parent --unshare-net " +
+                           " ".join(f"'{b}'" for b in binds) + f" {command} \"$@\" "
+                           f">>'{base}/keyboard.log' 2>&1\n", encoding="utf-8")
     wrapper.chmod(0o755)
     procs = []
     result = {"look": args.look, "locales": args.locales, "stock": args.stock}
@@ -200,6 +220,30 @@ def main() -> int:
             if len(data) != h * stride or not QImage(bytes(data), w, h, stride, QImage.Format(fmt)).copy().save(str(out / name)):
                 raise RuntimeError("incomplete native screen capture")
         capture("keyboard.png")
+        # The keyboard process (a descendant of this private KWin, never the owner's).
+        def descendants(root_pid):
+            children = {}
+            for stat in Path("/proc").glob("[0-9]*/stat"):
+                try:
+                    fields = stat.read_text().rsplit(")", 1)[1].split()
+                    children.setdefault(int(fields[1]), []).append(int(stat.parent.name))
+                except (OSError, ValueError, IndexError):
+                    continue
+            found, pending = [], [root_pid]
+            while pending:
+                for child in children.get(pending.pop(), []):
+                    found.append(child)
+                    pending.append(child)
+            return found
+        def keyboard_rss(key):
+            for pid in descendants(kwin.pid):
+                try:
+                    if Path(f"/proc/{pid}/comm").read_text().strip() == "plasma-keyboard":
+                        status = Path(f"/proc/{pid}/status").read_text()
+                        result[key] = int(re.search(r"VmRSS:\s+(\d+)", status).group(1))
+                except OSError:
+                    pass
+        keyboard_rss("keyboard_rss_kib")
         if args.exercise_arabic:
             from gi.repository import Gio, GLib
             sys.path.insert(0, str(ROOT / "moremote/agent-linux"))
@@ -240,6 +284,77 @@ def main() -> int:
             result["typed"] = typed
             if not typed or typed[0] != "س" or typed[-1] not in ("سأ", "سإ", "سآ", "سٱ"):
                 raise RuntimeError("Arabic key and held alternate did not reach the private editor")
+        if args.exercise_touchbar:
+            from gi.repository import Gio, GLib
+            sys.path.insert(0, str(ROOT / "moremote/agent-linux"))
+            from mo_remote_eis import EisInput
+            private = Gio.DBusConnection.new_for_address_sync(
+                env["DBUS_SESSION_BUS_ADDRESS"],
+                Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+                None, None)
+            eis = EisInput(private, Gio, GLib)
+            # Geometry from the style: keys keep upstream's max(30% height, 150); the Touch
+            # Bar's band (bar max(44, 15% of the keys) + max(8, 3%)) sits above them.
+            keys = max(0.3 * lh, 150)
+            bar = max(44, round(keys * 0.15))
+            band = bar + max(8, round(keys * 0.03))
+            top = lh - keys - band
+            band_h = round(6 * keys / 700) + band
+            bar_y = (top + round((band_h - bar) / 2) + bar / 2) / lh
+            row = lambda r: (lh - keys + keys * (r + 0.5) / 4) / lh
+            inset = 6 / (lw / (keys + band) * 700 * (keys + band) / keys) * lw
+            def tap(fx, fy, hold=0.12):
+                eis.absolute(fx, fy)
+                time.sleep(0.12)
+                eis.send("NotifyPointerButton", (272, 1), None)
+                time.sleep(hold)
+                eis.send("NotifyPointerButton", (272, 0), None)
+                time.sleep(0.35)
+            letters = {"س": (2 / 12, 1), "ل": (5 / 12, 1), "ا": (6 / 12, 1), "م": (9 / 12, 1),
+                       "ق": (3.5 / 12, 0), "ب": (4 / 12, 1)}
+            def write(word):
+                for ch in word:
+                    fx, r = letters[ch]
+                    tap(fx, row(r))
+            space = (0.5, row(3))
+            middle_start = (lw - inset - round(bar * 1.35) - round(bar * 0.1)) / lw
+            first_chip = middle_start - max(round(bar * 1.8), 0) / 2 / lw
+            first_emoji = middle_start - round(bar * 1.1) / 2 / lw
+            switch = (lw - inset - round(bar * 1.35) / 2) / lw
+            try:
+                write("سلام")
+                tap(*space)
+                write("سل")
+                time.sleep(0.4)
+                capture("suggest.png")
+                tap(first_chip, bar_y)
+                write("قلب")
+                time.sleep(0.4)
+                capture("emoji-for-word.png")
+                tap(first_emoji, bar_y)
+                tap(switch, bar_y)
+                time.sleep(0.6)
+                capture("emoji-sheet.png")
+                sheet_top = (top + band_h) / lh
+                cell = (keys + band - band_h) * 0.8 / 4
+                tap((lw - inset - cell * 1.12 / 2) / lw, sheet_top + cell / 2 / lh)
+                tap(switch, bar_y)
+                time.sleep(0.6)
+                capture("after-sheet.png")
+                keyboard_rss("keyboard_rss_after_sheet_kib")
+            finally:
+                eis.close()
+                private.close_sync(None)
+            lines = (base / "client.log").read_text().splitlines()
+            typed = [json.loads(line.partition("MOOS_REVIEW_INPUT ")[2]) for line in lines
+                     if "MOOS_REVIEW_INPUT " in line]
+            result["typed"] = typed
+            final = typed[-1] if typed else ""
+            result["final"] = final
+            # One ❤️ from the bar, one from the sheet: each exactly once (a key event
+            # carrying ❤️ was committed once per keysym, twice, by plasma-keyboard 6.8.3).
+            if final != "سلام سلام قلب❤️❤️":
+                raise RuntimeError(f"Touch Bar journey did not produce the expected text: {final!r}")
         result["result"] = "CAPTURED"
     except Exception as exc:  # evidence, not a verdict
         result["result"] = "ERROR"
