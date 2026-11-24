@@ -30,10 +30,10 @@ Item {
     // System Settings owns both hardware pages. KWin owns Overview, and
     // Mira.Show only raises her window. Voice capture stays a separate action.
     readonly property var tools: [
-        { key: "overview", icon: "view-grid-symbolic", name: label("النوافذ", "Windows") },
-        { key: "audio", icon: "audio-volume-high-symbolic", name: label("الصوت", "Sound") },
-        { key: "display", icon: "video-display-symbolic", name: label("الشاشة", "Display") },
-        { key: "mira", icon: "moos-ai-symbolic", name: label("ميرا", "Mira") },
+        { key: "overview", icon: "view-grid-symbolic", ar: "النوافذ", en: "Windows" },
+        { key: "audio", icon: "audio-volume-high-symbolic", ar: "الصوت", en: "Sound" },
+        { key: "display", icon: "video-display-symbolic", ar: "الشاشة", en: "Display" },
+        { key: "mira", icon: "moos-ai-symbolic", ar: "ميرا", en: "Mira" },
         { key: "media" }
     ]
 
@@ -66,7 +66,7 @@ Item {
                     width: (row.width - (strip.toolCount - 1) * row.spacing) / strip.toolCount
                     text: refused ? strip.label("تعذّر الفتح", "Unavailable") : actionLabel
                     readonly property string actionLabel: modelData.key === "media"
-                        ? (strip.playing ? strip.label("إيقاف مؤقت", "Pause") : strip.label("تشغيل", "Play")) : modelData.name
+                        ? (strip.playing ? strip.label("إيقاف مؤقت", "Pause") : strip.label("تشغيل", "Play")) : strip.label(modelData.ar, modelData.en)
                     Accessible.name: text
                     Accessible.description: actionLabel
                     focusPolicy: strip.inInputPanel ? Qt.NoFocus : Qt.StrongFocus

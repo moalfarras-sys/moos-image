@@ -28,8 +28,11 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-Nov24, V3 workspace. With the cover attached the owner wants the Touch Bar
-on text focus. Detaching keeps the bar above the full native keyboard. The
+Nov25, V3 development branch. With an attached hardware keyboard, the device
+policy suppresses automatic key rows. Device tools stay accessible from the Island
+and from the Touch Bar when the input panel is open. Both use the same KWin,
+System Settings, Mira and active media player actions. Detaching permits the bar
+above the full native keyboard. The
 desktop panel follows KWin posture and keyboard visibility preferences. An
 unknown posture or a protected field keeps the full keypad. At 1200×800 the
 native Wayland mask changed from 52 to 292 logical pixels and back, including
@@ -60,7 +63,7 @@ apply to every card and frame. The interface scales to each screen's size,
 resolution and scale. Plasma, KWin and Wayland stay the owners. Windows arrange
 themselves: two programs take halves, four take quarters, and frames and programs
 adapt to their cells. The tablet behaves as a tablet when the keyboard is detached,
-showing the full keys then. Nov24 steering retains the Touch Bar on text focus with the cover attached.
+showing the full keys then. Nov24 evening steering suppresses automatic keyboard popups while a physical keyboard is attached. The Island remains an entry point for device tools.
 Delivered in source so far: Meyar Arabic on Tajawal (PR325), real Hub frost
 (PR325) and automatic arrangement (feat/v3-auto-arrange-20261123, P2.18). The
 remaining slices are P2.18 frames and P5.3 tablet keyboard. Research inputs (to be
