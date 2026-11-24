@@ -103,14 +103,15 @@ const vm = require("node:vm");
 const assert = require("node:assert/strict");
 function signal() { const slots = []; return {connect(f) { slots.push(f); }, emit(...a) { for (const f of slots) f(...a); }}; }
 function desk(area) {
-    const output = {}; const stack = []; const added = signal(); const removed = signal();
+    const output = {geometry: {...area}}; const stack = []; const added = signal(); const removed = signal();
     const shortcuts = {}; const osd = []; let menu; let serial = 0;
     const context = {console: {info() {}}, KWin: {MaximizeArea: 1},
         callDBus(...a) { osd.push(a.join(" ")); },
         registerShortcut(n, t, k, f) { shortcuts[n] = f; }, registerUserActionsMenu(f) { menu = f; },
         workspace: {currentDesktop: "current", currentActivity: "here", stackingOrder: stack, activeWindow: null,
             windowAdded: added, windowRemoved: removed, windowList() { return stack.slice(); },
-            clientArea() { return area; }}};
+            screens: [output], screensChanged: signal(),
+            clientArea(option, w) { return w.output.geometry; }}};
     vm.runInNewContext(SOURCE, context);
     function open(extra = {}) {
         let g = {x: 300 + 40 * serial, y: 200, width: 400, height: 300};
@@ -122,7 +123,11 @@ function desk(area) {
         stack.push(w); context.workspace.activeWindow = w; added.emit(w); return w;
     }
     function close(w) { stack.splice(stack.indexOf(w), 1); removed.emit(w); }
-    return {open, close, shortcuts, osd, menu: () => menu, ctx: context};
+    function resize(bounds, display = output) {
+        Object.assign(display.geometry, bounds);
+        context.workspace.screensChanged.emit();
+    }
+    return {open, close, resize, shortcuts, osd, menu: () => menu, ctx: context};
 }
 const wide = {x: 0, y: 0, width: 1280, height: 720};
 const d = desk(wide);
@@ -149,6 +154,29 @@ const tall = desk({x: 0, y: 0, width: 720, height: 1280});
 const t1 = tall.open(); const t2 = tall.open();
 assert.equal(t1.frameGeometry.x, t2.frameGeometry.x, "portrait stacks the two windows");
 assert.notEqual(t1.frameGeometry.y, t2.frameGeometry.y, "portrait rows differ");
+const rotate = desk(wide);
+const pair = [rotate.open(), rotate.open()];
+const startingSides = pair.map(w => w.frameGeometry.x);
+const second = {geometry: {x: 1280, y: 0, width: 1600, height: 900}};
+rotate.ctx.workspace.screens.push(second);
+rotate.ctx.workspace.screensChanged.emit();
+const otherPair = [rotate.open({output: second}), rotate.open({output: second})];
+const otherWrites = otherPair.map(w => w.writes);
+const portrait = {x: 0, y: 0, width: 720, height: 1280};
+rotate.resize(portrait);
+assert.deepEqual(pair.map(w => [w.frameGeometry.y, w.frameGeometry.width, w.frameGeometry.height]).sort((a,b) => a[0]-b[0]),
+    [[8,704,628], [644,704,628]], "existing windows stack after rotation without another window opening");
+assert.deepEqual(otherPair.map(w => w.writes), otherWrites, "changing one output leaves the other pair alone");
+const rotatedWrites = pair.map(w => w.writes);
+rotate.resize(portrait);
+assert.deepEqual(pair.map(w => w.writes), rotatedWrites, "unchanged logical bounds do not overwrite personal sizing");
+rotate.resize(wide);
+assert.deepEqual(pair.map(w => w.frameGeometry.x), startingSides, "rotating back retains each window's side");
+const constrained = desk(wide);
+const fixedPair = [constrained.open(), constrained.open({minSize: {width: 610, height: 150}})];
+const fixedWrites = fixedPair.map(w => w.writes);
+constrained.resize({x: 0, y: 0, width: 1024, height: 576});
+assert.deepEqual(fixedPair.map(w => w.writes), fixedWrites, "a scale change must respect both windows' client limits");
 const wideApp = desk(wide); const w1 = wideApp.open(); const w2 = wideApp.open({minSize: {width: 900, height: 200}});
 assert.equal(w1.writes + w2.writes, 0, "a program that cannot shrink to its half refuses the layout");
 const capped = desk(wide); const cap1 = capped.open();
@@ -197,6 +225,7 @@ assert.equal(real.writes, prior, "closing a transient should preserve manual pla
 const off = desk(wide); off.shortcuts["MoOS Arrange: auto"]();
 assert.ok(off.osd.some(s => s.includes("Auto arrange: off")), "toggling shows the notice");
 const o1 = off.open(); const o2 = off.open();
+off.resize(portrait);
 assert.equal(o1.writes + o2.writes, 0, "turned off, nothing moves");
 const item = off.menu()(o1).items.find(i => i.checkable);
 assert.ok(item && typeof item.triggered === "function" && item.checked === false, "the menu shows the checkable state");

@@ -39,14 +39,16 @@ try:
  if 'if (!isArrangeable(leader))' not in base:raise RuntimeError('cannot construct old guard negative')
  pre='function recordShortcut() {}\nfunction recordMenu() {}\n'
  find='const leader=workspace.windowList().find(w=>w.caption === "MOOS_ARRANGE_LEADER"); if(!leader) throw new Error("leader missing"); '
+ # Read the four extents explicitly; newer KWin also serializes computed edges.
+ frame='const g=leader.frameGeometry; const frame={x:g.x,y:g.y,width:g.width,height:g.height}; '
  script('setup',find+'leader.skipSwitcher=true;leader.frameGeometry={x:50,y:50,width:480,height:320}; console.info("NATIVE_SETUP "+JSON.stringify({geometry:leader.frameGeometry,skip:leader.skipSwitcher,activities:leader.activities,activity:workspace.currentActivity}));')
  for name,src in [('old',base.replace('if (!isArrangeable(leader))','if (!leader)')),('fixed',base)]:
   script('reset_'+name,find+'leader.frameGeometry={x:50,y:50,width:480,height:320};')
   script('run_'+name,pre+src+'\n'+find+'arrange("centre",leader);')
-  script('read_'+name,find+'console.info("NATIVE_'+name.upper()+' "+JSON.stringify(leader.frameGeometry));')
+  script('read_'+name,find+frame+'console.info("NATIVE_'+name.upper()+' "+JSON.stringify(frame));')
  script('positive_setup',find+'leader.skipSwitcher=false;leader.frameGeometry={x:50,y:50,width:480,height:320};')
  script('positive',pre+base+'\n'+find+'arrange("centre",leader);')
- script('positive_read',find+'console.info("NATIVE_POSITIVE "+JSON.stringify(leader.frameGeometry));')
+ script('positive_read',find+frame+'console.info("NATIVE_POSITIVE "+JSON.stringify(frame));')
  if kwin.poll() is not None or client.poll() is not None:raise RuntimeError('native surface exited before final capture')
  log=(r/'kwin.log').read_text();found={}
  for line in log.splitlines():
