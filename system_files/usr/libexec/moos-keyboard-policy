@@ -1,0 +1,164 @@
+#!/usr/bin/python3
+"""Keep the on-screen keyboard away while a physical keyboard is connected.
+
+Owner steering 2026-11-24: "when a keyboard is connected I don't want it to appear".
+
+KWin 6.8 shows its input panel by [Wayland] VirtualKeyboardMode (0 never, 1 after touch
+or pen input, 2 after any input) and decides tablet mode from the cover's switch, which
+cannot see a USB or Bluetooth keyboard: with the V3's cover off and a wireless keyboard
+in use, KWin is in tablet mode and the panel kept appearing. This user service follows
+KWin's own input-device and tablet-mode signals (no polling) and sets that mode through
+KWin's org.kde.kwin.VirtualKeyboard interface:
+
+  - a usable physical keyboard -> 0 (never);
+  - none -> the mode it replaced (normally 1).
+
+A usable physical keyboard is an enabled, alphanumeric, non-virtual input device; an
+external one (USB, Bluetooth) always counts, an internal one (i8042 and the like) only
+outside tablet mode, i.e. with the cover attached. A uinput device such as ydotoold never
+counts. Choices stay the person's: a Never chosen in System Settings is never undone (only
+a 0 this service set is restored, recorded in ~/.local/state/moos/keyboard-policy.json),
+and ~/.config/moos-keyboardrc [Policy] HideWithPhysicalKeyboard=false turns the policy off.
+"""
+from __future__ import annotations
+
+import configparser
+import json
+import os
+from pathlib import Path
+import sys
+
+KWIN = "org.kde.KWin"
+VK_PATH, VK_IFACE = "/VirtualKeyboard", "org.kde.kwin.VirtualKeyboard"
+DEVICES_PATH, DEVICES_IFACE = "/org/kde/KWin/InputDevice", "org.kde.KWin.InputDeviceManager"
+DEVICE_IFACE = "org.kde.KWin.InputDevice"
+TABLET_PATH, TABLET_IFACE = "/org/kde/KWin", "org.kde.KWin.TabletModeManager"
+NEVER, TOUCH = 0, 1
+BUS_USB, BUS_BLUETOOTH, BUS_VIRTUAL = 0x03, 0x05, 0x06
+
+
+def sysfs_root() -> Path:
+    return Path(os.environ.get("MOOS_KEYBOARD_POLICY_SYSFS", "/sys"))
+
+
+def classify(sys_name: str, root: Path | None = None) -> str:
+    """'external', 'internal' or 'virtual' for an input device's sysfs node."""
+    device = (root or sysfs_root()) / "class/input" / sys_name / "device"
+    try:
+        real = os.path.realpath(device)
+        bus = int((device / "id/bustype").read_text().strip(), 16)
+    except (OSError, ValueError):
+        return "virtual"  # unknown provenance never hides the keyboard
+    if "/devices/virtual/" in real or bus == BUS_VIRTUAL:
+        return "virtual"
+    return "external" if bus in (BUS_USB, BUS_BLUETOOTH) else "internal"
+
+
+def physical_keyboard(devices: list[dict], tablet_mode: bool, root: Path | None = None) -> bool:
+    for device in devices:
+        if not (device.get("alphaNumericKeyboard") and device.get("enabled", True)):
+            continue
+        kind = classify(str(device.get("sysName", "")), root)
+        if kind == "external" or (kind == "internal" and not tablet_mode):
+            return True
+    return False
+
+
+def decide(current: int, keyboard: bool, state: dict) -> tuple[int | None, dict]:
+    """The mode to set (None: leave it) and the state to keep."""
+    if keyboard:
+        if current == NEVER:
+            return None, state  # already hidden, by us or by the person's own choice
+        return NEVER, {"managed": True, "restore": current}
+    if state.get("managed") and current == NEVER:
+        restore = state.get("restore")
+        return (restore if restore in (1, 2) else TOUCH), {"managed": False}
+    return None, {"managed": False} if state.get("managed") else state
+
+
+def enabled_by_owner(config_home: Path) -> bool:
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        parser.read(config_home / "moos-keyboardrc", encoding="utf-8")
+    except (OSError, configparser.Error):
+        return True
+    return parser.get("Policy", "HideWithPhysicalKeyboard", fallback="true").strip().lower() != "false"
+
+
+class Policy:
+    def __init__(self, Gio, GLib):
+        self.Gio, self.GLib = Gio, GLib
+        self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        home = Path(os.environ.get("HOME", "~")).expanduser()
+        self.config = Path(os.environ.get("XDG_CONFIG_HOME") or home / ".config")
+        self.state_path = Path(os.environ.get("XDG_STATE_HOME") or home / ".local/state") / "moos/keyboard-policy.json"
+        self.pending = 0
+        for path, iface, member in ((DEVICES_PATH, DEVICES_IFACE, "deviceAdded"),
+                                    (DEVICES_PATH, DEVICES_IFACE, "deviceRemoved"),
+                                    (TABLET_PATH, TABLET_IFACE, "tabletModeChanged")):
+            self.bus.signal_subscribe(KWIN, iface, member, path, None, Gio.DBusSignalFlags.NONE,
+                                      lambda *args: self.schedule(), None)
+        self.bus.signal_subscribe("org.freedesktop.DBus", "org.freedesktop.DBus", "NameOwnerChanged",
+                                  "/org/freedesktop/DBus", KWIN, Gio.DBusSignalFlags.NONE,
+                                  lambda *args: self.schedule(), None)
+        self.schedule()
+
+    def schedule(self):
+        # Coalesce a burst (a receiver adds several devices at once) into one read.
+        if not self.pending:
+            self.pending = self.GLib.timeout_add(150, self.evaluate)
+
+    def get(self, path, iface, name):
+        reply = self.bus.call_sync(KWIN, path, "org.freedesktop.DBus.Properties", "Get",
+                                   self.GLib.Variant("(ss)", (iface, name)), None,
+                                   self.Gio.DBusCallFlags.NONE, 3000, None)
+        return reply.unpack()[0]
+
+    def read_state(self) -> dict:
+        try:
+            state = json.loads(self.state_path.read_text())
+            return state if isinstance(state, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def write_state(self, state: dict):
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.state_path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(state) + "\n")
+        os.replace(temporary, self.state_path)
+
+    def evaluate(self):
+        self.pending = 0
+        try:
+            state = self.read_state()
+            if not enabled_by_owner(self.config):
+                mode, state = decide(self.get(VK_PATH, VK_IFACE, "mode"), False, state)
+            else:
+                devices = []
+                for name in self.get(DEVICES_PATH, DEVICES_IFACE, "devicesSysNames"):
+                    path = f"{DEVICES_PATH}/{name}"
+                    devices.append({key: self.get(path, DEVICE_IFACE, key)
+                                    for key in ("sysName", "alphaNumericKeyboard", "enabled")})
+                tablet = bool(self.get(TABLET_PATH, TABLET_IFACE, "tabletMode"))
+                keyboard = physical_keyboard(devices, tablet)
+                mode, state = decide(int(self.get(VK_PATH, VK_IFACE, "mode")), keyboard, state)
+            if mode is not None:
+                self.bus.call_sync(KWIN, VK_PATH, "org.freedesktop.DBus.Properties", "Set",
+                                   self.GLib.Variant("(ssv)", (VK_IFACE, "mode", self.GLib.Variant("i", mode))),
+                                   None, self.Gio.DBusCallFlags.NONE, 3000, None)
+                print(f"moos-keyboard-policy: on-screen keyboard mode {mode}", flush=True)
+            self.write_state(state)
+        except Exception as error:  # KWin away or restarting: its NameOwnerChanged re-arms us
+            print(f"moos-keyboard-policy: {error}", file=sys.stderr, flush=True)
+        return False
+
+
+def main() -> int:
+    from gi.repository import Gio, GLib
+    Policy(Gio, GLib)
+    GLib.MainLoop().run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
