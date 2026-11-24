@@ -47,6 +47,7 @@ class CanaryTransactionControls(unittest.TestCase):
         with patch.object(composer,'Transaction',side_effect=snapshot), \
              patch.object(composer.subprocess,'check_output',side_effect=query), \
              patch.object(composer.subprocess,'run',side_effect=command), \
+             patch.object(composer,'bind_selinux_store',side_effect=lambda:event('selinux-store')), \
              patch.object(composer,'reconcile_login_state',side_effect=login_state), \
              patch.object(composer,'finalize_canary',side_effect=lambda root:event('canary')), \
              patch.object(composer,'finalize_root_home',side_effect=lambda root:event('root-home')):
@@ -54,7 +55,9 @@ class CanaryTransactionControls(unittest.TestCase):
 
     def test_pristine_snapshot_precedes_every_package_command_and_cleanup_follows_them(self):
         self.execute()
-        self.assertEqual(self.events,['snapshot','architecture','dnf5 -y copr enable @kdesig/kde-beta',
+        # The SELinux store alias is bound after the pristine snapshot and before any package
+        # command, so selinux-policy updates land in the store a booted MoOS loads.
+        self.assertEqual(self.events,['snapshot','architecture','selinux-store','dnf5 -y copr enable @kdesig/kde-beta',
             'rpm -q kcm-fcitx5','dnf5 -y distro-sync --refresh --allowerasing --best --exclude=kernel*',
             'dnf5 clean all','login-state','canary','root-home','finalize'])
         self.assertEqual(len(self.log_dirs),1)
@@ -69,6 +72,10 @@ class CanaryTransactionControls(unittest.TestCase):
     def test_unsafe_input_refuses_before_any_package_query_or_mutation(self):
         with self.assertRaisesRegex(RuntimeError,'snapshot'):self.execute(failure='snapshot')
         self.assertEqual(self.events,['snapshot'])
+
+    def test_a_refused_selinux_store_stops_before_any_package_command(self):
+        with self.assertRaisesRegex(RuntimeError,'selinux-store'):self.execute(failure='selinux-store')
+        self.assertEqual(self.events,['snapshot','architecture','selinux-store'])
 
     def test_arm_input_cannot_reach_x86_beta_repository(self):
         with self.assertRaisesRegex(RuntimeError,'x86_64'):self.execute(arch='aarch64')
