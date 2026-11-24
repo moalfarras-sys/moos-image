@@ -404,6 +404,15 @@ def probe() -> int:
     return 0
 
 
+def no_crash_report() -> None:
+    """The probe child keeps no core on the host. Measured 2026-11-24 on V3: this test's
+    development left four 13.8 MB SIGABRT cores in systemd-coredump; with RLIMIT_CORE 0 an
+    aborting child is still LOGGED (suid_dumpable=2 pipes even non-dumpable processes to
+    the handler) but stored as "none". Never claim the journal stays silent."""
+    import resource
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+
+
 def run_probe(qml_root: Path, timeout: float = 90) -> tuple[int, str]:
     with tempfile.TemporaryDirectory(prefix="moos-touchbar-") as tmp:
         base = Path(tmp)
@@ -422,7 +431,8 @@ def run_probe(qml_root: Path, timeout: float = 90) -> tuple[int, str]:
                    QML_IMPORT_PATH=str(qml_root))
         try:
             proc = subprocess.run([sys.executable, "-s", "-B", __file__, "--probe", str(fixture), str(qml_root)],
-                                  env=env, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+                                  env=env, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL,
+                                  preexec_fn=no_crash_report)
         except subprocess.TimeoutExpired as exc:
             return -1, f"timed out: {exc.stdout}{exc.stderr}"
         return proc.returncode, proc.stdout + proc.stderr
