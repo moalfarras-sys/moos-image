@@ -1,0 +1,19 @@
+[Unit]
+Description=MoOS: no on-screen keyboard while a physical keyboard is connected
+Documentation=file:///usr/libexec/moos-keyboard-policy
+PartOf=graphical-session.target
+After=graphical-session.target
+# The login screen's account keeps Plasma's own policy; desktops without the
+# on-screen keyboard have nothing to steer.
+ConditionUser=!@system
+ConditionPathExists=/usr/bin/plasma-keyboard
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/moos-keyboard-policy
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=graphical-session.target
