@@ -342,6 +342,12 @@ def main() -> int:
                 time.sleep(0.6)
                 capture("after-sheet.png")
                 keyboard_rss("keyboard_rss_after_sheet_kib")
+                # ⚙ sits at the bar's far end: the left in Arabic, the right in German/English.
+                gear = round(bar * 1.15) / 2 + inset
+                tap((gear if args.locales.startswith("ar") else lw - gear) / lw, bar_y)
+                time.sleep(0.6)
+                capture("settings-sheet.png")
+                tap((gear if args.locales.startswith("ar") else lw - gear) / lw, bar_y)
             finally:
                 eis.close()
                 private.close_sync(None)
