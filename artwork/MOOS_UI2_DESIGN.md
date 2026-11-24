@@ -432,6 +432,15 @@ Island's anchored popup. It must never route to the application launcher's
 “All applications” page. Search may grow the popup, but it must not resize the
 panel slot; closing it returns the same fixed capsule to its contextual owner.
 
+The microphone opens Mira's voice panel from that same capsule. The separate
+Talk button starts the existing Mira conversation, and the same button then
+stops it. The five bars change shape with the reported voice phase, settle once
+and follow reduced motion. Keep speech content inside Mira. Remote and privacy
+retain priority in the capsule, with the active conversation reachable through
+the Mira tab when those states coexist. The Island’s own context menu can
+also open voice while another activity occupies its compact action. An
+unconfirmed stop keeps the last observed phase visible and offers a retry.
+
 ### First-party apps
 
 Settings, Store, Updater, Recovery, Mo AI, Installer, MoPlayer and Mo PC Remote

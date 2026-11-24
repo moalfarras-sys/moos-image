@@ -754,6 +754,7 @@ PY
     # device) and Lumen (every light, scenes, Screen Sync, the PC's RGB). Fixed pages, no argument:
     # opening a page changes nothing in the house.
     ai/settings)   gui moai --panel settings ;;
+    ai/voice)      gui moai --panel voice ;;
     ai/system)     gui moai --panel system ;;
     ai/home)       gui moai --panel home ;;
     ai/lumen)      gui moai --panel lumen ;;

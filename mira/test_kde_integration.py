@@ -838,7 +838,10 @@ class DBusDoor(unittest.TestCase):
         callbacks = {'show': lambda panel: self.calls.append(('show', panel)),
                      'prefill': lambda text: self.calls.append(('prefill', text)),
                      'talk': lambda: self.calls.append(('talk',)),
-                     'stop': lambda: self.calls.append(('stop',))}
+                     'stop': lambda: self.calls.append(('stop',)),
+                     'island_state': lambda: 'listening',
+                     'island_talk': lambda: self.calls.append(('island_talk',)) or 'ok',
+                     'island_stop': lambda: self.calls.append(('island_stop',)) or 'ok'}
         self.exported = kde.start_dbus(callbacks, connection=self.server)
         self.assertIsNotNone(self.exported, 'the door opens on a connected bus')
 
@@ -869,16 +872,35 @@ class DBusDoor(unittest.TestCase):
         self.assertEqual(self.call('Prefill', ' ' + RLO + '\n '), 'empty')
         self.assertEqual(self.calls, [])
 
-    def test_introspection_offers_only_the_four_methods(self):
+    def test_introspection_offers_only_fixed_methods(self):
         from PySide6.QtDBus import QDBus, QDBusMessage
         message = QDBusMessage.createMethodCall(kde.SERVICE, kde.OBJECT_PATH,
                                                 'org.freedesktop.DBus.Introspectable', 'Introspect')
         xml = self.client.call(message, QDBus.CallMode.BlockWithGui, 5000).arguments()[0]
         self.assertIn(f'<interface name="{kde.INTERFACE}">', xml)
-        for method in ('Show', 'Prefill', 'Talk', 'Stop'):
+        for method in ('Show', 'Prefill', 'Talk', 'Stop', 'IslandVoiceState', 'IslandTalk', 'IslandStop'):
             self.assertIn(f'<method name="{method}">', xml)
         own = xml.split(f'<interface name="{kde.INTERFACE}">', 1)[1].split('</interface>', 1)[0]
-        self.assertEqual(own.count('<method '), 4, own)
+        self.assertEqual(own.count('<method '), 7, own)
+        self.assertIn('<signal name="IslandVoiceChanged">', own)
+
+    def test_island_calls_require_the_native_shell_sender(self):
+        self.assertEqual(self.call('IslandVoiceState'), 'listening')
+        self.assertEqual(self.call('IslandTalk'), 'refused')
+        self.assertEqual(self.call('IslandStop'), 'refused')
+        self.assertTrue(self.client.registerService('org.kde.plasmashell'))
+        try:
+            self.assertEqual(self.call('IslandTalk'), 'refused', 'a claimed name alone is insufficient')
+            self.assertEqual(self.calls, [])
+        finally:
+            self.client.unregisterService('org.kde.plasmashell')
+
+    def test_island_callback_sees_the_bus_assigned_sender(self):
+        with patch.object(self.exported, '_from_plasma',
+                          side_effect=lambda message: message.service() == self.client.baseService()):
+            self.assertEqual(self.call('IslandTalk'), 'ok')
+            self.assertEqual(self.call('IslandStop'), 'ok')
+        self.assertEqual(self.calls, [('island_talk',), ('island_stop',)])
 
     def test_a_failing_callback_answers_failed(self):
         kde.stop_dbus(self.exported)

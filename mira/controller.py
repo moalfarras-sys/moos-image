@@ -101,6 +101,7 @@ class Worker(QObject):
 class Controller(QObject):
     # ── notify signals ──────────────────────────────────────────────
     phaseChanged = Signal(); levelChanged = Signal(); mouthLevelChanged = Signal(); mouthPacketChanged = Signal(); statusChanged = Signal(); captionChanged = Signal()
+    islandVoiceChanged = Signal(str)
     moodChanged = Signal(); faceChanged = Signal(); langChanged = Signal(); motionChanged = Signal()
     servicesChanged = Signal(); weatherChanged = Signal(); homeChanged = Signal(); pcChanged = Signal()
     echoChanged = Signal(); settingsChanged = Signal(); profileChanged = Signal(); busyChanged = Signal()
@@ -135,6 +136,8 @@ class Controller(QObject):
 
         self._phase = 'idle'
         self._voice_phase = 'connecting'
+        self._island_voice = 'idle'
+        self._voice_failed = False
         self._text_phase = None
         self._level = 0.0
         self._mouth_level = -1.0
@@ -450,8 +453,21 @@ class Controller(QObject):
     profileText = Property(str, _get_profile, notify=profileChanged)
 
     # ── state ───────────────────────────────────────────────────────
+    def island_voice_state(self):
+        return self._island_voice
+
     def _resolve_phase(self):
         vp = self._voice_phase
+        if vp in ACTIVE:
+            self._voice_failed = False
+            island_state = vp
+        elif vp == 'off':
+            island_state = 'off'
+        else:
+            island_state = 'error' if self._voice_failed else 'idle'
+        if island_state != self._island_voice:
+            self._island_voice = island_state
+            self.islandVoiceChanged.emit(island_state)
         if vp in ACTIVE:
             phase = 'thinking' if vp == 'activating' else vp
         elif self._text_phase:
@@ -711,6 +727,7 @@ class Controller(QObject):
         else:
             if kind in ACTIVE or kind in ('ready', 'off', 'error'):
                 self._voice_phase = kind if kind != 'error' else 'ready'
+                self._voice_failed = kind == 'error'
                 if kind in ('ready', 'off', 'error', 'thinking', 'executing', 'listening'):
                     self._mouth_level = -1.0
                     self.mouthLevelChanged.emit()
@@ -830,6 +847,23 @@ class Controller(QObject):
             self._voice_owner = ''
             self._flush_audio_refresh()
 
+    def start_island_voice(self):
+        """Start one turn using the same device route as the desktop Talk button."""
+        if self._microphone['busy'] or self._voice_phase in ACTIVE:
+            return 'busy'
+        if self._voice_phase == 'off':
+            return 'off'
+        if not self.bridge.online and self._gemini_state() != 'set':
+            return 'setup'
+        self.talk()
+        return 'ok' if self._voice_phase in ACTIVE else 'failed'
+
+    def stop_island_voice(self):
+        if self._voice_phase not in ACTIVE:
+            return 'idle'
+        self.stop()
+        return 'ok'
+
     @Slot()
     def talk(self):
         if self._microphone['busy']:
@@ -880,11 +914,10 @@ class Controller(QObject):
         self.desk.talk()
 
     def _wake_timeout(self, attempt):
-        if (self._voice_owner != 'echo' or attempt != self._wake_seq
-                or self._voice_phase in ('listening', 'thinking', 'speaking', 'executing')):
+        if self._voice_owner != 'echo' or attempt != self._wake_seq or self._voice_phase != 'activating':
             return
-        if self._voice_phase == 'activating':
-            self._voice_phase = 'ready'
+        self._voice_phase = 'ready'
+        self._voice_failed = True
         self._add('error', 'لم يبدأ Echo الاستماع. تحقّق من اتصاله ثم أعد المحاولة.' if self._lang == 'ar'
                   else 'Echo did not start listening. Check its connection and try again.', status='error')
         self._flash_error()
@@ -1935,6 +1968,7 @@ class Controller(QObject):
         self._update('_echo', self.echoChanged, online=False, state=message)
         self._set_service('echo', 'offline')
         if self._voice_owner != 'pc' and (self._voice_phase in ACTIVE or self._voice_phase == 'connecting'):
+            self._voice_failed = self._voice_phase in ACTIVE
             self._voice_phase = 'ready'
         self._resolve_phase()
 
@@ -1956,6 +1990,7 @@ class Controller(QObject):
                 self._wake_seq += 1
                 if self._voice_phase == 'activating':
                     self._voice_phase = 'ready'
+                    self._voice_failed = True
                 self._flash_error()
         elif kind == 'capture' and status.startswith('error:'):
             self._update('_enrol', self.enrolChanged, recording='', message=self._s['enrol_failed'])

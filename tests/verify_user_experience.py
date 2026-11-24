@@ -6585,7 +6585,7 @@ require("readonly property real stableWidth:" in _island
         and "Milou.ResultsModel" in _island
         and "readonly property int searchSurfaceUnits: 24" in _island
         and "readonly property int searchBottomInset: root.design.targetComfortable" in _island
-        and "Layout.maximumHeight: root.active" in _island
+        and "Layout.maximumHeight: root.voicePane ? 300 : root.active" in _island
         and "visible: !root.active" in _island
         and "Kirigami.Units.gridUnit * 9.5" in _island
         and "function onCompactTitleChanged()" in _island,
