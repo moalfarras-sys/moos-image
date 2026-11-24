@@ -37,7 +37,7 @@ Rectangle {
         ? (language === "ar" ? "المستخدمة مؤخرًا" : "Recently used")
         : Data.categories[section][language === "ar" ? "ar" : "en"]
 
-    color: theme ? theme.keyboardBackgroundColor : Kirigami.Theme.backgroundColor
+    color: theme ? Qt.alpha(theme.keyboardBackgroundColor, 1) : Kirigami.Theme.backgroundColor
 
     function jump(section) {
         tones.close()

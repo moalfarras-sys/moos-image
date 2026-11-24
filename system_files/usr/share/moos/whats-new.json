@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "keyboard-hides-with-physical-keyboard",
+      "merged": "2026-11-24T20:00:00Z",
+      "glyph": "keyboard",
+      "title": {
+        "ar": "لوحة الشاشة تختفي مع الكيبورد الحقيقي",
+        "en": "No on-screen keyboard with a real one"
+      },
+      "body": {
+        "ar": "ما دام كيبورد حقيقي موصولًا (USB أو بلوتوث أو غطاء الجهاز) لا تظهر لوحة المفاتيح على الشاشة، وتعود حين تفصله وتلمس حقل كتابة.",
+        "en": "While a real keyboard is connected (USB, Bluetooth or the cover), the on-screen keyboard stays away; it returns when you unplug it and touch a field."
+      },
+      "route": "moos://settings/virtual-keyboard"
+    },
+    {
       "id": "keyboard-touch-bar",
       "merged": "2026-11-24T12:00:00Z",
       "glyph": "keyboard",

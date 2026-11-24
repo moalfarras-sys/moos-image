@@ -1,4 +1,6 @@
 module org.moos.keyboard
+singleton PanelState 1.0 PanelState.qml
+InputPanelFocus 1.0 InputPanelFocus.qml
 TouchBar 1.0 TouchBar.qml
 EmojiSheet 1.0 EmojiSheet.qml
 SettingsSheet 1.0 SettingsSheet.qml

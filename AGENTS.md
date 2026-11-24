@@ -443,6 +443,10 @@ applies an InputMethod change only with `kwriteconfig6 --notify`. A grid laid
 out before its sheet has a height can create every delegate: load the emoji grid
 only while shown. The build's offscreen seam probe never creates the keyboard
 background, so `test_moos_keyboard_touchbar.py` is the bar's own native gate.
+KWin's tablet mode follows the cover switch, which cannot see a USB or Bluetooth
+keyboard, and VirtualKeyboardMode can change at runtime without a kwinrc key:
+read both live before blaming the panel. The owner wants no panel at all beside a
+physical keyboard (moos-keyboard-policy), not a desktop-posture strip.
 
 **A local image build reads the working tree while it runs.** Buildah copies
 each `COPY` source when that step executes: editing the module after the build

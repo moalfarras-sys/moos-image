@@ -47,6 +47,7 @@ class CanaryTransactionControls(unittest.TestCase):
         with patch.object(composer,'Transaction',side_effect=snapshot), \
              patch.object(composer.subprocess,'check_output',side_effect=query), \
              patch.object(composer.subprocess,'run',side_effect=command), \
+             patch.object(composer,'bind_selinux_store',side_effect=lambda:event('selinux-store')), \
              patch.object(composer,'reconcile_login_state',side_effect=login_state), \
              patch.object(composer,'finalize_canary',side_effect=lambda root:event('canary')), \
              patch.object(composer,'finalize_root_home',side_effect=lambda root:event('root-home')):
@@ -54,7 +55,7 @@ class CanaryTransactionControls(unittest.TestCase):
 
     def test_pristine_snapshot_precedes_every_package_command_and_cleanup_follows_them(self):
         self.execute()
-        self.assertEqual(self.events,['snapshot','architecture','dnf5 -y copr enable @kdesig/kde-beta',
+        self.assertEqual(self.events,['snapshot','architecture','selinux-store','dnf5 -y copr enable @kdesig/kde-beta',
             'rpm -q kcm-fcitx5','dnf5 -y distro-sync --refresh --allowerasing --best --exclude=kernel*',
             'dnf5 clean all','login-state','canary','root-home','finalize'])
         self.assertEqual(len(self.log_dirs),1)
@@ -78,6 +79,11 @@ class CanaryTransactionControls(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'query failed'):self.execute(optional=2)
         self.assertNotIn('dnf5 -y distro-sync --refresh --allowerasing --best --exclude=kernel*',self.events)
         self.assertNotIn('finalize',self.events)
+
+    def test_refused_selinux_store_stops_before_package_mutation(self):
+        with self.assertRaisesRegex(RuntimeError, 'planted selinux-store'):
+            self.execute(failure='selinux-store')
+        self.assertEqual(self.events, ['snapshot', 'architecture', 'selinux-store'])
 
     def test_each_package_failure_stops_before_cleanup(self):
         for command in ('dnf5 -y copr enable @kdesig/kde-beta','dnf5 -y remove --no-autoremove kcm-fcitx5',

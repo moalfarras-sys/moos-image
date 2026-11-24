@@ -1287,64 +1287,45 @@ Item {
                         SectionTitle {
                             Layout.fillWidth: true
                             title: view.local("الأماكن والملفات", "Places & files")
-                            subtitle: view.local(
-                                "مجلداتك وأقراصك في مكان واحد",
-                                "Your folders and storage in one place")
                         }
 
-                        Rectangle {
+                        GridLayout {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: scopeCallout.implicitHeight + view.space4
-                            radius: view.radiusM
-                            color: Qt.alpha(Kirigami.Theme.highlightColor, 0.075)
-                            border.width: 1
-                            border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.22)
+                            columns: view.narrow ? 1 : 2
+                            rowSpacing: view.space2
+                            columnSpacing: view.space2
 
-                            GridLayout {
-                                columns: view.narrow ? 1 : 3
-                                id: scopeCallout
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.leftMargin: view.space4
-                                anchors.rightMargin: view.space4
-                                rowSpacing: view.space3
-                                columnSpacing: view.space3
+                            PC3.Button {
+                                id: splitFilesButton
+                                objectName: "movaSplitFiles"
+                                Layout.fillWidth: true
+                                Layout.minimumHeight: view.targetSize
+                                text: view.local("فتح الملفات بلوحتين", "Open files in split view")
+                                icon.name: "view-split-left-right"
+                                KeyNavigation.backtab: navPlaces
+                                KeyNavigation.tab: fileSearchSettingsButton
+                                onClicked: view.launcher.openRoute("moos://app/files-split")
+                                Keys.onReturnPressed: event => { clicked(); event.accepted = true; }
+                                Keys.onEnterPressed: event => { clicked(); event.accepted = true; }
+                            }
 
-                                Kirigami.Icon {
-                                    Layout.preferredWidth: Kirigami.Units.iconSizes.medium
-                                    Layout.preferredHeight: width
-                                    source: "moos-search-symbolic"
-                                    visible: !view.narrow
-                                    color: Kirigami.Theme.highlightColor
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 1
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: view.local("بحث الملفات يعمل داخل مجلدك الشخصي", "File search covers your home folder")
-                                        color: Kirigami.Theme.textColor
-                                        font.family: view.uiFontFamily
-                                        font.pixelSize: view.typeBody
-                                        font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: view.local("الملفات المخفية مستثناة لحماية الخصوصية والأداء", "Hidden files stay private and out of the index")
-                                        color: view.secondaryInk
-                                        font.family: view.uiFontFamily
-                                        font.pixelSize: view.typeCaption
-                                        elide: Text.ElideRight
-                                    }
-                                }
-                                PC3.Button {
-                                    Layout.minimumHeight: view.targetSize
-                                    text: view.local("إدارة المواقع", "Manage locations")
-                                    icon.name: "moos-settings-symbolic"
-                                    onClicked: view.launcher.openDesktop("kcm_baloofile.desktop")
-                                }
+                            PC3.Button {
+                                id: fileSearchSettingsButton
+                                Layout.fillWidth: true
+                                Layout.minimumHeight: view.targetSize
+                                text: view.local("إعدادات بحث الملفات", "File search settings")
+                                icon.name: "moos-settings-symbolic"
+                                Accessible.description: view.local(
+                                    "يشمل بحث الملفات مجلدك الشخصي ويستثني الملفات المخفية",
+                                    "File search covers your home folder and excludes hidden files")
+                                PC3.ToolTip.text: Accessible.description
+                                PC3.ToolTip.visible: hovered
+                                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
+                                KeyNavigation.backtab: splitFilesButton
+                                KeyNavigation.tab: placesList
+                                onClicked: view.launcher.openDesktop("kcm_baloofile.desktop")
+                                Keys.onReturnPressed: event => { clicked(); event.accepted = true; }
+                                Keys.onEnterPressed: event => { clicked(); event.accepted = true; }
                             }
                         }
 
@@ -1360,7 +1341,23 @@ Item {
                             currentIndex: -1
                             model: view.placesModel
                             KeyNavigation.priority: KeyNavigation.BeforeItem
-                            KeyNavigation.backtab: navPlaces
+                            KeyNavigation.backtab: fileSearchSettingsButton
+                            section.property: "group"
+                            section.delegate: Text {
+                                required property string section
+
+                                width: placesList.width
+                                height: section.length > 0 ? implicitHeight + view.space2 : 0
+                                text: section
+                                textFormat: Text.PlainText
+                                color: view.secondaryInk
+                                font.family: view.uiFontFamily
+                                font.pixelSize: view.typeCaption
+                                font.weight: Font.DemiBold
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                                Accessible.role: Accessible.Heading
+                            }
 
                             // Enter is handled at the view (like the results
                             // list): the delegate carries its own handlers too,

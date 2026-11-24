@@ -419,7 +419,8 @@ class TheGateRefuses(unittest.TestCase):
         self.plant_keyboard_qmldirs()
         report = self.run_gate("6.8.3", self.keyboard_digests())
         chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8.3")
-        self.assertEqual(len(KEYBOARD_SEAMS), 4)
+        self.assertEqual(sum(path.startswith("/usr/lib64/") for path in KEYBOARD_SEAMS), 4)
+        self.assertEqual(sum("/layouts/" in path for path in KEYBOARD_SEAMS), 14)
         for path in KEYBOARD_SEAMS:
             self.assertEqual((self.root / path.lstrip("/")).read_bytes(),
                              (ROOT / "build_files/plasma-seams" / chosen["sources"][path]).read_bytes(), path)
@@ -466,9 +467,9 @@ class TheGateRefuses(unittest.TestCase):
         verify = {"plasma-keyboard": "".join(f"S.5....T.    {path}\n"
                                              for path in [*KEYBOARD_SEAMS, *KEYBOARD_QMLDIRS])}
         self.run_gate("6.8.3", self.keyboard_digests(), verify)
-        verify["plasma-keyboard"] += "S.5....T.    /usr/share/plasma/keyboard/layouts/ar_AR/main.qml\n"
+        verify["plasma-keyboard"] += "S.5....T.    /usr/share/plasma/keyboard/layouts/de_DE/main.qml\n"
         self.plant_keyboard_qmldirs()
-        with self.assertRaisesRegex(plasma_seams.SeamError, "ar_AR/main.qml.*neither a registered seam"):
+        with self.assertRaisesRegex(plasma_seams.SeamError, "de_DE/main.qml.*neither a registered seam"):
             self.run_gate("6.8.3", self.keyboard_digests(), verify)
 
     def test_an_unreviewed_plasma_is_refused(self):
@@ -602,6 +603,50 @@ def native_keyboard_version() -> str | None:
         return None
 
 
+class TheKeyboardUsesLatinDigits(unittest.TestCase):
+    layouts = Path("/usr/share/plasma/keyboard/layouts")
+    reviewed = ROOT / "build_files/plasma-seams/6.8.3" / layouts.relative_to("/")
+
+    def assert_latin_digits(self, layout: Path) -> None:
+        source = qml_code(layout.read_text(encoding="utf-8"))
+        # Keys declare text, displayText and hold alternatives as QML strings, and
+        # some declare an independent Qt key value (e.g. the old Arabic key 0x0661).
+        expanded = re.sub(r"\\u([0-9a-fA-F]{4})|\\u\{([0-9a-fA-F]{1,6})\}",
+                          lambda m: chr(int(m[1] or m[2], 16)), source)
+        key_codes = [int(v, 0) for v in re.findall(r"\bkey:\s*(0[xX][0-9a-fA-F]+|[0-9]+)\b", source)]
+        digits = {c for c in expanded if c.isdigit() and not c.isascii()}
+        digits.update(chr(n) for n in key_codes if 127 < n <= 0x10ffff and chr(n).isdigit())
+        self.assertEqual(digits, set(), f"{layout} still offers a non-ASCII digit")
+
+    def test_reviewed_digits_labels_alternatives_and_key_values(self):
+        files = list(self.reviewed.rglob("*.qml"))
+        self.assertTrue(files)
+        for file in files:
+            with self.subTest(layout=file):
+                self.assert_latin_digits(file)
+
+    def test_numeric_rows_still_offer_each_digit(self):
+        for locale in ("ar_AR", "fa_FA", "hi_IN", "am_ET"):
+            source = qml_code((self.reviewed / locale / "symbols.qml").read_text(encoding="utf-8"))
+            self.assertEqual(re.findall(r'(?m)^\s*text: "([0-9])"', source), list("1234567890"), locale)
+        for locale in ("ar_AR", "fa_FA"):
+            for mode in ("digits", "numbers"):
+                source = qml_code((self.reviewed / locale / f"{mode}.qml").read_text(encoding="utf-8"))
+                self.assertCountEqual(re.findall(r'(?m)^\s*text: "([0-9])"', source), "0123456789",
+                                      f"{locale}/{mode}")
+        source = (self.reviewed / "am_ET/symbols.qml").read_text(encoding="utf-8")
+        self.assertIn(r'alternativeKeys: "\u1372\u137C"', source)
+
+    @unittest.skipUnless(native_keyboard_version() == "6.8.3", "requires the reviewed Plasma layout tree")
+    def test_every_native_layout_with_its_selected_override(self):
+        files = list(self.layouts.rglob("*.qml"))
+        self.assertTrue(files)
+        for native in files:
+            staged = self.reviewed / native.relative_to(self.layouts)
+            with self.subTest(layout=native):
+                self.assert_latin_digits(staged if staged.is_file() else native)
+
+
 @unittest.skipUnless(native_keyboard_version() == "6.8.3",
                      "needs native plasma-keyboard 6.8.3; both image builds run this probe")
 class TheRealKeyboardLoadsTheseFiles(unittest.TestCase):
@@ -616,6 +661,10 @@ class TheRealKeyboardLoadsTheseFiles(unittest.TestCase):
 
     def run_shadow(self, tmp: Path, name: str, **kwargs) -> tuple[Path, int | None, list[str]]:
         shadow = plasma_seams.shadow_keyboard_modules(tmp / name, **kwargs)
+        # The image installs MoOS's own QML modules (org.moos.keyboard, which the constants
+        # now import) beside these seams; a host that has not booted them yet lacks them.
+        shutil.copytree(ROOT / "system_files/usr/lib64/qt6/qml/org/moos", shadow / "org/moos",
+                        dirs_exist_ok=True)
         status, lines = plasma_seams.run_keyboard(shadow, timeout=60)
         return shadow, status, lines
 

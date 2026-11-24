@@ -70,6 +70,7 @@ def one(width,height,language,light,reduced):
         surface: view; field: searchInput; appGrid: applicationsGrid
         homeGrid: favoritesGrid; homeScroll: homeScroll; canvas: commandCanvas
         pages: pages; navigation: navigation; categories: categoryStrip
+        placesList: placesList
         powerButton: sessionMenuButton; powerMenu: sessionMenu; actionMenu: appActions
     }
 '''

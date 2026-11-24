@@ -61,6 +61,7 @@ function run(override, kind, throughMenu = false) {
             skipSwitcher: false, fullScreen: false, desktops: [], output,
             moveable: true, resizeable: true,
             get frameGeometry() { return geometry; },
+            get clientGeometry() { return geometry; },
             set frameGeometry(value) { ++writes; geometry = value; }}, extra);
     }
     const leader = window();
@@ -116,6 +117,7 @@ function desk(area) {
         const w = Object.assign({internalId: "w" + (++serial), normalWindow: true, minimized: false,
             skipTaskbar: false, skipSwitcher: false, fullScreen: false, desktops: [], output,
             moveable: true, resizeable: true, writes: 0, minimizedChanged: signal(),
+            get clientGeometry() { return {width: g.width - (this.borderWidth || 0), height: g.height - (this.borderHeight || 0)}; },
             get frameGeometry() { return g; }, set frameGeometry(v) { ++w.writes; g = v; }}, extra);
         stack.push(w); context.workspace.activeWindow = w; added.emit(w); return w;
     }
@@ -152,6 +154,32 @@ assert.equal(w1.writes + w2.writes, 0, "a program that cannot shrink to its half
 const capped = desk(wide); const cap1 = capped.open();
 const cap2 = capped.open({maxSize: {width: 380, height: 800}});
 assert.equal(cap1.writes + cap2.writes, 0, "refuse a split a size-capped window cannot fill");
+// A quarter has 348 logical pixels for the frame, including the decoration.
+const decorated = desk(wide);
+const group = [decorated.open(), decorated.open(), decorated.open()];
+const placements = group.map(w => w.writes);
+const limited = decorated.open({borderHeight: 28, minSize: {width: 150, height: 346}});
+assert.deepEqual(group.map(w => w.writes), placements, "preflight every client before the first move");
+assert.equal(limited.writes, 0, "346 client pixels and a 28px title bar do not fit in 348");
+decorated.shortcuts["MoOS Arrange: quarters"]();
+assert.deepEqual(group.map(w => w.writes), placements, "the keyboard shortcut must use the same limits");
+assert.equal(limited.writes, 0);
+const manual = desk(wide);
+manual.shortcuts["MoOS Arrange: auto"]();
+const normal = manual.open();
+const large = manual.open({minSize: {width: 1000, height: 250}});
+manual.menu()(normal).items[0].triggered();
+assert.equal(normal.writes + large.writes, 0, "a later window must veto the whole menu action");
+manual.shortcuts["MoOS Arrange: centre"]();
+assert.equal(large.writes, 0, "centring must keep the client's minimum");
+const last = desk(wide);
+const bounded = last.open({borderWidth: 8, borderHeight: 28, maxSize: {width: 620, height: 676}});
+const peer = last.open();
+assert.equal(bounded.frameGeometry.width, 628, "a 620px client with 8px of borders fills a half");
+assert.equal(bounded.frameGeometry.height, 704, "the title bar does not count against the client maximum");
+const halfWrites = bounded.writes;
+last.close(peer);
+assert.equal(bounded.writes, halfWrites, "do not expand a capped survivor beyond its maximum");
 const odd = desk({x: 17, y: 54, width: 1281, height: 721});
 const fourOdd = [odd.open(), odd.open(), odd.open(), odd.open()].map(w => w.frameGeometry);
 assert.equal(Math.max(...fourOdd.map(g => g.x+g.width)), 17+1281-8, "exact trailing margin");

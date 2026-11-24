@@ -3064,6 +3064,9 @@ systemctl --global enable moos-reclaim-disk.timer
 systemctl --global enable moos-update-ready.timer
 systemctl --global enable moos-privacy-monitor.service
 systemctl --global enable moos-material-state.service
+# The on-screen keyboard stays away while a physical keyboard is connected (owner,
+# 2026-11-24): KWin's tablet switch cannot see a USB or Bluetooth keyboard.
+systemctl --global enable moos-keyboard-policy.service
 # App Drop: a file dropped into ~/Applications raises the install question. The path unit is
 # what is enabled; its service only ever runs `moos-app-drop --scan`, which installs nothing
 # without a dialog whose default is No.

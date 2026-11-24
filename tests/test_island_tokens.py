@@ -807,8 +807,10 @@ class TheCapsuleFitsWhatItSays(unittest.TestCase):
         self.assertEqual(compact.count("MediaControl {"), 1,
                          "context changes must reserve one action, including their transition")
         self.assertIn("slotSize: 28", compact)
-        for bound in ("Layout.preferredWidth", "Layout.minimumWidth", "Layout.maximumWidth"):
-            self.assertIn(bound + ": root.active ? compactAction.targetSize : 0", compact)
+        self.assertIn("Layout.preferredWidth: compactAction.targetSize", compact)
+        for bound in ("Layout.minimumWidth", "Layout.maximumWidth"):
+            self.assertIn(bound + ": Layout.preferredWidth", compact)
+        self.assertIn('root.voiceActionVisible ? "moos-microphone-symbolic"', compact)
         self.assertEqual(compact.count("PC3.Label {"), 1,
                          "the compact caption is one line in idle and active contexts")
         self.assertIn("text: root.compactTitle", compact)

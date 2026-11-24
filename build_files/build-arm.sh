@@ -348,6 +348,7 @@ for unit in \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
+    moos-keyboard-policy.service \
     moos-store-notify.path mo-remote-watchdog.timer mira-lumen.service \
     flatpak-user-update.service flatpak-user-update.timer; do
     test -f "/usr/lib/systemd/user/${unit}" || {
@@ -372,6 +373,7 @@ systemctl --global enable \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
+    moos-keyboard-policy.service \
     moos-store-notify.path mo-remote-watchdog.timer mira-lumen.service
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service

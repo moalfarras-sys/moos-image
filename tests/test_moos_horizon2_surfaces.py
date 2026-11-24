@@ -176,7 +176,7 @@ class RemoteIsland(unittest.TestCase):
         self.assertIn("root.searchSurfaceUnits", search_view)
         self.assertIn("anchors.bottomMargin: root.design.space3 + root.searchBottomInset", search_view)
         self.assertIn("Layout.maximumHeight: Math.min(", search_view)
-        self.assertIn("Layout.maximumHeight: root.active", self.qml)
+        self.assertIn("Layout.maximumHeight: root.voicePane ? 300 : root.active", self.qml)
         self.assertIn("root.expanded = true;", self.qml)
         self.assertIn("visible: !root.active", self.qml,
                       "Search owns the popup only while no live context replaces it")

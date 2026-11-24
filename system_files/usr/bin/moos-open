@@ -347,6 +347,7 @@ case "${cat}/${tgt}" in
     app/updater)   gui moos-update ;;
     app/recovery)  gui moos-rollback ;;
     app/store)     gui moos-store ;;
+    app/files-split) gui dolphin --new-window --split -- "$HOME" ;;
     app/settings)  gui moos-settings ;;
     # Native process/resource management, shared with the system launcher.
     # Opening it grants no authority to terminate another user's processes.
@@ -753,6 +754,7 @@ PY
     # device) and Lumen (every light, scenes, Screen Sync, the PC's RGB). Fixed pages, no argument:
     # opening a page changes nothing in the house.
     ai/settings)   gui moai --panel settings ;;
+    ai/voice)      gui moai --panel voice ;;
     ai/system)     gui moai --panel system ;;
     ai/home)       gui moai --panel home ;;
     ai/lumen)      gui moai --panel lumen ;;

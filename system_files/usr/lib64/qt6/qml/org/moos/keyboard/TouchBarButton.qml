@@ -129,5 +129,5 @@ Item {
 
     Accessible.role: Accessible.Button
     Accessible.name: control.accessibleName
-    Accessible.onPressAction: control.activated()
+    Accessible.onPressAction: if (control.enabled && control.visible) control.activated()
 }

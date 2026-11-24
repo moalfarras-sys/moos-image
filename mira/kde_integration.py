@@ -24,6 +24,7 @@ import subprocess
 from pathlib import Path
 
 from PySide6.QtCore import ClassInfo, QObject, Signal, Slot
+from PySide6.QtDBus import QDBusMessage
 
 from pages.base import Page, TEST_MODE
 
@@ -721,6 +722,8 @@ class MiraBus(QObject):
     """The object exported at /Mira. Every method answers 'ok' or why not: 'refused' (a bad
     argument), 'empty', 'unavailable' (no callback) or 'failed' (the callback raised)."""
 
+    IslandVoiceChanged = Signal(str)
+
     def __init__(self, callbacks, parent=None):
         super().__init__(parent)
         self._callbacks = dict(callbacks or {})
@@ -761,6 +764,48 @@ class MiraBus(QObject):
     def Stop(self):
         return self._call('stop')
 
+    @Slot(result=str)
+    def IslandVoiceState(self):
+        state = self._callbacks.get('island_state')
+        return state() if state else 'idle'
+
+    def _from_plasma(self, message):
+        # D-Bus supplies this message and its unique sender. A process merely
+        # claiming the name cannot open a microphone while Mira's window is hidden.
+        if self.connection is None or not message.service().startswith(':'):
+            return False
+        interface = self.connection.interface()
+        owner = interface.serviceOwner('org.kde.plasmashell')
+        if not owner.isValid() or owner.value() != message.service():
+            return False
+        pid = interface.servicePid(message.service())
+        if not pid.isValid() or not pid.value():
+            return False
+        try:
+            return os.readlink(f'/proc/{pid.value()}/exe') == '/usr/bin/plasmashell'
+        except OSError:
+            return False
+
+    def _island_action(self, name, message):
+        if not self._from_plasma(message):
+            return 'refused'
+        fn = self._callbacks.get(name)
+        if not callable(fn):
+            return 'unavailable'
+        try:
+            return fn()
+        except Exception as exc:
+            print('Mira D-Bus:', name, type(exc).__name__, flush=True)
+            return 'failed'
+
+    @Slot(QDBusMessage, result=str)
+    def IslandTalk(self, message):
+        return self._island_action('island_talk', message)
+
+    @Slot(QDBusMessage, result=str)
+    def IslandStop(self, message):
+        return self._island_action('island_stop', message)
+
 
 def start_dbus(callbacks, connection=None, service=SERVICE, path=OBJECT_PATH):
     """Export MiraBus on the session bus (or `connection`). Returns the object — keep a reference —
@@ -777,7 +822,8 @@ def start_dbus(callbacks, connection=None, service=SERVICE, path=OBJECT_PATH):
         if not bus.isConnected():
             return None
         exported = MiraBus(callbacks)
-        if not bus.registerObject(path, exported, QDBusConnection.ExportAllSlots):
+        if not bus.registerObject(path, exported, QDBusConnection.ExportAllSlots
+                                  | QDBusConnection.ExportAllSignals):
             return None
         if not bus.registerService(service):
             bus.unregisterObject(path)
