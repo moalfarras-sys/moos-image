@@ -30,7 +30,7 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 Nov25, V3 development branch. With an attached hardware keyboard, the device
 policy suppresses automatic key rows. Device tools stay accessible from the Island
-and from the Touch Bar when the input panel is open. Both use the same KWin,
+and from the Touch Bar when the input panel is open. Both use the same KWin window search through KRunner,
 System Settings, Mira and active media player actions. Detaching permits the bar
 above the full native keyboard. The
 desktop panel follows KWin posture and keyboard visibility preferences. An
@@ -43,7 +43,9 @@ The Places and Mira work uses the existing Dolphin, Plasma and Mira services.
 In a private V3 Plasma session the Arabic device pane painted four 99×52
 logical-pixel targets. The English light portrait pane returned to search with
 reduced motion. A private GStreamer player paused and resumed through Plasma's
-MPRIS owner. A private KWin run kept both halves and four quarters inside the
+MPRIS owner. Invoking Overview crashed the private GPU-backed compositor. The
+device button uses KRunner’s Windows provider to find an existing KWin window.
+A private KWin run kept both halves and four quarters inside the
 48-pixel panel margin after rotation, 125% scale and restoration.
 On the physical V3, four independent applications occupied four quarters and
 returned to two halves when two closed. A separate native decorated-window

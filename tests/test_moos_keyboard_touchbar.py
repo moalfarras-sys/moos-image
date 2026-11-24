@@ -288,7 +288,7 @@ def probe() -> int:
     check(settings_destination.urls == ["systemsettings:kcm_pulseaudio", "systemsettings:kcm_kscreen"],
           "each settings button opens its native KCM once")
     from PySide6.QtCore import QMetaObject, Q_ARG, Q_RETURN_ARG
-    for key in ("overview", "mira"):
+    for key in ("windows", "mira"):
         name = "moosStrip_" + key
         tap(named_point(name))
         def action_refused():

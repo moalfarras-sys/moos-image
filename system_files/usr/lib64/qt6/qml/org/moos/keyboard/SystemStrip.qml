@@ -28,10 +28,10 @@ Item {
     readonly property int toolCount: mediaAvailable ? tools.length : tools.length - 1
 
     function label(ar, en) { return language === "ar" ? ar : en }
-    // System Settings owns both hardware pages. KWin owns Overview, and
+    // System Settings owns both hardware pages. KRunner uses KWin’s windows provider, and
     // Mira.Show only raises her window. Voice capture stays a separate action.
     readonly property var tools: [
-        { key: "overview", icon: "moos-grid-symbolic", ar: "النوافذ", en: "Windows" },
+        { key: "windows", icon: "moos-grid-symbolic", ar: "النوافذ", en: "Windows" },
         { key: "audio", icon: "moos-volume-symbolic", ar: "الصوت", en: "Sound" },
         { key: "display", icon: "moos-system-symbolic", ar: "الشاشة", en: "Display" },
         { key: "mira", icon: "moos-ai-symbolic", ar: "ميرا", en: "Mira" },
@@ -147,7 +147,7 @@ Item {
                             return
                         }
                         const mira = key === "mira"
-                        if (!mira && key !== "overview") return
+                        if (!mira && key !== "windows") return
                         pending = true
                         const request = ++requestId
                         deadline.restart()
@@ -155,11 +155,11 @@ Item {
                             if (command && command.pending && command.requestId === request) command.finish(ok)
                         }
                         DBus.SessionBus.asyncCall({
-                            service: mira ? "org.moos.Mira" : "org.kde.kglobalaccel",
-                            path: mira ? "/Mira" : "/component/kwin",
-                            iface: mira ? "org.moos.Mira" : "org.kde.kglobalaccel.Component",
-                            member: mira ? "Show" : "invokeShortcut",
-                            signature: "(s)", arguments: [mira ? "" : "Overview"]
+                            service: mira ? "org.moos.Mira" : "org.kde.krunner",
+                            path: mira ? "/Mira" : "/App",
+                            iface: mira ? "org.moos.Mira" : "org.kde.krunner.App",
+                            member: mira ? "Show" : "displaySingleRunner",
+                            signature: "(s)", arguments: [mira ? "" : "windows"]
                         }, reply => {
                             const raw = reply.value
                             const result = raw && raw.value !== undefined ? raw.value : raw

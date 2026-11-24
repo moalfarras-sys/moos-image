@@ -88,7 +88,7 @@ Window {
             if match is not None:
                 return match
         return None
-    buttons = [visual(tools, "moosStrip_" + key) for key in ("overview", "audio", "display", "mira")]
+    buttons = [visual(tools, "moosStrip_" + key) for key in ("windows", "audio", "display", "mira")]
     back = visual(tools, "islandDeviceToolsBack")
     for rtl in (False, True):
         tools.setProperty("rtl", rtl)
