@@ -2,45 +2,12 @@
   "purpose": "Curated generic artwork for the native MoOS Bloom finish. No upstream installers or OS identity assets. Window action glyphs are MoOS-owned.",
   "sources": [
     {
-      "repo": "vinceliuice/Colloid-kde",
-      "sha": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
-      "archive_sha256": "007964b43d1c8a1635c970d7d5f00b6687f532f061c71df0c401b0a1d13f15e5"
-    },
-    {
       "repo": "vinceliuice/Fluent-icon-theme",
       "sha": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
       "archive_sha256": "07b6b593ab557e07f0a7cdb232cda99214af13fb74ad6ce1e77d666057647767"
     }
   ],
   "files": [
-    {
-      "source_repo": "vinceliuice/Colloid-kde",
-      "source_commit": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
-      "source_path": "aurorae/Colloid-dark-round/decoration.svg",
-      "target": "artwork/vendor/bloom/colloid/dark/decoration.svg",
-      "sha256": "fc5306b99a492c2e2becb48a9b2b6527bbfaa32a3782d6495f8ec866cb7593e5"
-    },
-    {
-      "source_repo": "vinceliuice/Colloid-kde",
-      "source_commit": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
-      "source_path": "aurorae/Colloid-dark-round/Colloid-dark-roundrc",
-      "target": "artwork/vendor/bloom/colloid/dark/theme.rc",
-      "sha256": "24fc00c9ad6f4d43bf827047de9e62c460c5ec484494ef2b4cd23b0fba373c76"
-    },
-    {
-      "source_repo": "vinceliuice/Colloid-kde",
-      "source_commit": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
-      "source_path": "aurorae/Colloid-light-round/decoration.svg",
-      "target": "artwork/vendor/bloom/colloid/light/decoration.svg",
-      "sha256": "ceb77323c5d767a19982bd89b1dcaf744efd51c8e9ef475454259a8db4371195"
-    },
-    {
-      "source_repo": "vinceliuice/Colloid-kde",
-      "source_commit": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
-      "source_path": "aurorae/Colloid-light-round/Colloid-light-roundrc",
-      "target": "artwork/vendor/bloom/colloid/light/theme.rc",
-      "sha256": "73ed050aad6ed990b4b452308baf405c88d635b2192b037595b8f56e32ffffa6"
-    },
     {
       "source_repo": "vinceliuice/Fluent-icon-theme",
       "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
