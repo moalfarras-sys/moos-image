@@ -64,8 +64,9 @@ def compose(root=Path('/')):
     # Preserve the base kernel and its matching driver input. A solver conflict
     # fails the build; do not erase desktop/authentication or input components.
     from runtime_state import Transaction
-    from finalize_canary_base import finalize as finalize_canary_base
+    from finalize_canary_base import bind_selinux_store, finalize as finalize_canary_base
     transaction = Transaction()
+    bind_selinux_store()
     actual=sync_packages()
     Path('/usr/share/moos/plasma-stable.json').write_text(json.dumps({
         'schema':1,'architecture':'x86_64','packages':actual,'signing_key_sha256':KEY_SHA256,

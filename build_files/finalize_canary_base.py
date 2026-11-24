@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import stat
+import subprocess
 
 from finalize_image_state import owned_path
 
@@ -81,6 +82,42 @@ def tree(root: Path, relative: str, mounts: set[Path] | None = None) -> dict[str
         elif not stat.S_ISDIR(info.st_mode):
             raise RuntimeError(f'unsafe policy entry: {path.relative_to(root)}')
     return result
+
+
+# The vendor rule that makes /var/lib/selinux an alias of the configured store; the
+# same exact rule finalize() requires before it retires that alias.
+SELINUX_AUTHORITY = 'usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf'
+SELINUX_RULE = ['L', '/var/lib/selinux', '-', '-', '-', '-', '../../etc/selinux']
+
+
+def bind_selinux_store(root: Path = Path('/')) -> None:
+    """Give the package transaction the policy store a booted MoOS has.
+
+    selinux-policy-targeted ships its modules under /var/lib/selinux. On a booted MoOS
+    (and under rpm-ostree) the vendor tmpfiles rule makes that path an alias of the
+    configured store in /etc/selinux; this build starts with an empty /var. On
+    2026-11-24 Fedora's 44.11 -> 44.12 update therefore landed in a plain /var directory
+    while /etc kept 44.11's bytes for 47 modules (rpm -V cannot see it: the package does not
+    verify those files' contents), and finalize() correctly refused the divergence. Apply
+    exactly that vendor rule before the transaction, so the update reaches the real store;
+    finalize() verifies and retires the alias.
+    """
+    store=root/'var/lib/selinux'
+    if store.exists() or store.is_symlink():
+        raise RuntimeError('a SELinux store already exists at /var/lib/selinux before the transaction')
+    authority=root/SELINUX_AUTHORITY
+    rules=[line.split() for line in authority.read_text().splitlines()
+           if line.strip() and not line.lstrip().startswith('#')]
+    # The same exact-rule test finalize() applies before it retires the alias.
+    if [r for r in rules if len(r)>1 and r[1]=='/var/lib/selinux'
+            and r!=['Z','/var/lib/selinux','-','-','-','-']]!=[SELINUX_RULE]:
+        raise RuntimeError('no exact vendor tmpfiles rule for the SELinux store alias')
+    args=['systemd-tmpfiles','--create','--prefix=/var/lib/selinux']
+    if root!=Path('/'):
+        args.append('--root='+str(root))
+    subprocess.run([*args, '/' + SELINUX_AUTHORITY], check=True)
+    if not store.is_symlink() or os.readlink(store)!='../../etc/selinux' or not store.is_dir():
+        raise RuntimeError('the vendor rule did not create the exact SELinux store alias')
 
 
 def finalize(root: Path) -> None:

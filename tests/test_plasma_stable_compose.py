@@ -105,4 +105,80 @@ class PackageCommandLogs(unittest.TestCase):
             self.execute(overrides={'libplasma':'6.8.3-2.fc44'})
         self.assertEqual(len(self.commands),1)
 
+import sys
+sys.path.insert(0, str(ROOT/'build_files'))
+fspec=importlib.util.spec_from_file_location('finalize_canary_base',ROOT/'build_files/finalize_canary_base.py')
+F=importlib.util.module_from_spec(fspec);fspec.loader.exec_module(F)
+
+
+class SelinuxStoreBinding(unittest.TestCase):
+    """The transaction writes selinux-policy where a booted MoOS reads it (2026-11-24)."""
+    # The rules the real rpm-ostree-0-integration.conf holds for these paths (V3, 2026-11-24).
+    VENDOR=('d /var/home 0755 root root -\n'
+            'L /var/lib/rpm - - - - ../../usr/share/rpm\n'
+            'L /var/lib/selinux - - - - ../../etc/selinux\n'
+            '# /var/lib/selinux -> /etc/selinux equivalence. Z does not follow symlinks.\n'
+            'Z /var/lib/selinux - - - -\n')
+
+    def fake_root(self, tmp, rule=VENDOR):
+        root=Path(tmp)
+        (root/'etc/selinux/targeted').mkdir(parents=True)
+        (root/'usr/lib/tmpfiles.d').mkdir(parents=True)
+        (root/'usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf').write_text(rule)
+        (root/'var').mkdir()
+        return root
+
+    def test_the_real_vendor_rule_creates_exactly_the_store_alias(self):
+        import os, shutil, tempfile
+        if not shutil.which('systemd-tmpfiles'):
+            self.skipTest('systemd-tmpfiles is not installed')
+        with tempfile.TemporaryDirectory() as tmp:
+            root=self.fake_root(tmp)
+            F.bind_selinux_store(root)
+            store=root/'var/lib/selinux'
+            self.assertTrue(store.is_symlink())
+            self.assertEqual(os.readlink(store),'../../etc/selinux')
+
+    def test_an_existing_store_is_refused_before_tmpfiles_runs(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root=self.fake_root(tmp)
+            (root/'var/lib/selinux/targeted').mkdir(parents=True)
+            with mock.patch.object(F.subprocess,'run') as run:
+                with self.assertRaisesRegex(RuntimeError,'already exists'):F.bind_selinux_store(root)
+                run.assert_not_called()
+
+    def test_a_missing_or_changed_vendor_rule_is_refused(self):
+        import tempfile
+        for rule in ('', 'L /var/lib/selinux - - - - /tmp/elsewhere\n',
+                     'L /var/lib/selinux - - - - ../../etc/selinux\nL+ /var/lib/selinux - - - - x\n',
+                     'L /var/lib/selinux - - - - ../../etc/selinux\nd /var/lib/selinux 0755 root root -\n',
+                     'L /var/lib/selinux - - - - ../../etc/selinux\nZ /var/lib/selinux - - - - extra\n'):
+            with self.subTest(rule=rule),tempfile.TemporaryDirectory() as tmp:
+                root=self.fake_root(tmp, rule)
+                with mock.patch.object(F.subprocess,'run') as run:
+                    with self.assertRaisesRegex(RuntimeError,'no exact vendor tmpfiles rule'):
+                        F.bind_selinux_store(root)
+                    run.assert_not_called()
+
+    def test_a_different_result_than_the_exact_alias_is_refused(self):
+        import os, tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root=self.fake_root(tmp)
+            def wrong(args, **kwargs):
+                (root/'var/lib').mkdir(parents=True, exist_ok=True)
+                os.symlink('../../tmp', root/'var/lib/selinux')
+            with mock.patch.object(F.subprocess,'run',side_effect=wrong):
+                with self.assertRaisesRegex(RuntimeError,'did not create the exact'):F.bind_selinux_store(root)
+
+    def test_both_transactions_bind_the_store_after_the_pristine_snapshot_and_before_packages(self):
+        for path, snapshot, first_package in (
+                ('build_files/plasma_stable/compose.py', 'transaction = Transaction()', 'actual=sync_packages()'),
+                ('build_files/prepare_plasma_canary_base.py', 'transaction=Transaction()', "dnf(logs,'-y','copr'")):
+            with self.subTest(path=path):
+                body=(ROOT/path).read_text()
+                body=body[body.index('def compose('):]
+                self.assertLess(body.index(snapshot), body.index('bind_selinux_store()'))
+                self.assertLess(body.index('bind_selinux_store()'), body.index(first_package))
+
 if __name__=='__main__':unittest.main(verbosity=2)
