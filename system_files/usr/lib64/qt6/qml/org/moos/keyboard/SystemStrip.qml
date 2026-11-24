@@ -1,0 +1,146 @@
+// SPDX-FileCopyrightText: 2026 Moalfarras
+// SPDX-License-Identifier: GPL-2.0-or-later
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import QtQuick.Controls as Controls
+import org.kde.kirigami as Kirigami
+import org.kde.plasma.workspace.dbus as DBus
+import org.kde.plasma.private.mpris as Mpris
+
+Item {
+    id: strip
+    property bool rtl: false
+    property string language: "en"
+    property bool compact: false
+    property bool inInputPanel: false
+    implicitHeight: 52
+    implicitWidth: 312
+
+    // Row and the scroll origin both use the requested reading direction.
+    LayoutMirroring.enabled: false
+    LayoutMirroring.childrenInherit: true
+    Mpris.Mpris2Model { id: media }
+    readonly property var player: media.currentPlayer
+    readonly property bool playing: !!player && player.playbackStatus === Mpris.PlaybackStatus.Playing
+    readonly property bool mediaAvailable: !!player && player.canControl && (playing ? player.canPause : player.canPlay)
+    readonly property int toolCount: mediaAvailable ? tools.length : tools.length - 1
+
+    function label(ar, en) { return language === "ar" ? ar : en }
+    // System Settings owns both hardware pages. KWin owns Overview, and
+    // Mira.Show only raises her window. Voice capture stays a separate action.
+    readonly property var tools: [
+        { key: "overview", icon: "view-grid-symbolic", name: label("النوافذ", "Windows") },
+        { key: "audio", icon: "audio-volume-high-symbolic", name: label("الصوت", "Sound") },
+        { key: "display", icon: "video-display-symbolic", name: label("الشاشة", "Display") },
+        { key: "mira", icon: "moos-ai-symbolic", name: label("ميرا", "Mira") },
+        { key: "media" }
+    ]
+
+    Flickable {
+        id: viewport
+        anchors.fill: parent
+        clip: true
+        contentWidth: Math.max(width, strip.toolCount * 44 + (strip.toolCount - 1) * row.spacing)
+        contentHeight: height
+        boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.HorizontalFlick
+        Component.onCompleted: if (strip.rtl) contentX = Math.max(0, contentWidth - width)
+        Row {
+            id: row
+            width: viewport.contentWidth
+            height: viewport.height
+            spacing: 4
+            layoutDirection: strip.rtl ? Qt.RightToLeft : Qt.LeftToRight
+            Repeater {
+                model: strip.tools
+                Controls.ToolButton {
+                    id: command
+                    required property var modelData
+                    property bool pending: false
+                    property int requestId: 0
+                    property bool refused: false
+                    objectName: "moosStrip_" + modelData.key
+                    visible: modelData.key !== "media" || strip.mediaAvailable
+                    height: row.height
+                    width: (row.width - (strip.toolCount - 1) * row.spacing) / strip.toolCount
+                    text: refused ? strip.label("تعذّر الفتح", "Unavailable") : actionLabel
+                    readonly property string actionLabel: modelData.key === "media"
+                        ? (strip.playing ? strip.label("إيقاف مؤقت", "Pause") : strip.label("تشغيل", "Play")) : modelData.name
+                    Accessible.name: text
+                    Accessible.description: actionLabel
+                    focusPolicy: strip.inInputPanel ? Qt.NoFocus : Qt.StrongFocus
+                    enabled: !pending
+                    hoverEnabled: true
+                    icon.name: modelData.key === "media"
+                        ? (strip.playing ? "media-playback-pause-symbolic" : "media-playback-start-symbolic") : modelData.icon
+                    readonly property int iconExtent: Math.min(24, Math.round(height * 0.44))
+                    icon.width: command.iconExtent
+                    icon.height: command.iconExtent
+                    display: width >= (strip.compact ? 106 : 88)
+                             ? Controls.AbstractButton.TextBesideIcon : Controls.AbstractButton.IconOnly
+                    Controls.ToolTip.visible: hovered && display === Controls.AbstractButton.IconOnly
+                    Controls.ToolTip.text: text
+                    Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    background: Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 2
+                        radius: Math.min(12, height / 3)
+                        topLeftRadius: strip.rtl ? 3 : radius
+                        topRightRadius: strip.rtl ? radius : 3
+                        color: Qt.alpha(Kirigami.Theme.highlightColor,
+                                        command.down ? 0.30 : command.hovered || command.visualFocus ? 0.20 : 0.09)
+                        border.width: command.visualFocus ? 2 : 1
+                        border.color: command.refused ? Kirigami.Theme.negativeTextColor
+                            : Qt.alpha(Kirigami.Theme.highlightColor, command.visualFocus ? 1 : 0.32)
+                        scale: command.down ? 0.95 : 1
+                        Behavior on scale { NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic } }
+                        Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
+                    }
+                    Timer { id: retryLabel; interval: 2200; onTriggered: command.refused = false }
+                    // A disconnected session bus can leave the KDE async callback undelivered.
+                    Timer { id: deadline; interval: 4000; onTriggered: command.finish(false) }
+                    function finish(ok) {
+                        deadline.stop()
+                        pending = false
+                        refused = !ok
+                        if (refused) retryLabel.restart()
+                    }
+                    onClicked: {
+                        if (!strip.enabled || !strip.visible || pending) return
+                        const key = modelData.key
+                        if (key === "media") {
+                            if (!strip.mediaAvailable) return
+                            if (strip.playing) strip.player.Pause()
+                            else strip.player.Play()
+                            return
+                        }
+                        if (key === "audio" || key === "display") {
+                            finish(Qt.openUrlExternally(key === "audio" ? "systemsettings:kcm_pulseaudio" : "systemsettings:kcm_kscreen"))
+                            return
+                        }
+                        const mira = key === "mira"
+                        if (!mira && key !== "overview") return
+                        pending = true
+                        const request = ++requestId
+                        deadline.restart()
+                        const completed = ok => {
+                            if (command && command.pending && command.requestId === request) command.finish(ok)
+                        }
+                        DBus.SessionBus.asyncCall({
+                            service: mira ? "org.moos.Mira" : "org.kde.kglobalaccel",
+                            path: mira ? "/Mira" : "/component/kwin",
+                            iface: mira ? "org.moos.Mira" : "org.kde.kglobalaccel.Component",
+                            member: mira ? "Show" : "invokeShortcut",
+                            signature: "(s)", arguments: [mira ? "" : "Overview"]
+                        }, reply => {
+                            const raw = reply.value
+                            const result = raw && raw.value !== undefined ? raw.value : raw
+                            completed(!reply.isError && (!mira || result === "ok"))
+                        }, _error => completed(false))
+                    }
+                }
+            }
+        }
+    }
+}

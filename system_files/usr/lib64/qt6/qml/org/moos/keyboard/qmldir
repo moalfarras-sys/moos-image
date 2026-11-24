@@ -8,3 +8,4 @@ TouchBarButton 1.0 TouchBarButton.qml
 EmojiCell 1.0 EmojiCell.qml
 TouchBarLogic 1.0 TouchBarLogic.js
 EmojiData 1.0 EmojiData.js
+SystemStrip 1.0 SystemStrip.qml

@@ -94,6 +94,10 @@ Window {
         }
         return null
     }
+    function refused(name) {
+        const item = findItem(win.contentItem, name)
+        return item && item.refused
+    }
     function centreOf(name) {
         const item = findItem(win.contentItem, name)
         if (!item || !item.visible || item.width <= 0)
@@ -177,7 +181,8 @@ Window {
 def probe() -> int:
     """Runs in a private child: real Qt objects, real dispatched input."""
     from PySide6.QtCore import QPoint, QPointF, Qt, QUrl, QSettings, qInstallMessageHandler
-    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtCore import QObject, Slot
+    from PySide6.QtGui import QDesktopServices, QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
     from PySide6.QtQuick import QQuickItem
     from PySide6.QtTest import QTest
@@ -185,6 +190,17 @@ def probe() -> int:
     messages: list[str] = []
     qInstallMessageHandler(lambda _kind, _ctx, text: messages.append(text))
     app = QGuiApplication(sys.argv[:1])
+    class SettingsDestination(QObject):
+        def __init__(self):
+            super().__init__()
+            self.urls = []
+
+        @Slot(QUrl)
+        def openPage(self, url):
+            self.urls.append(url.toString())
+
+    settings_destination = SettingsDestination()
+    QDesktopServices.setUrlHandler("systemsettings", settings_destination, "openPage")
     engine = QQmlApplicationEngine()
     engine.setProperty("_kirigamiTheme", "org.kde.desktop")
     engine.addImportPath(sys.argv[3])
@@ -263,6 +279,29 @@ def probe() -> int:
     check(None not in (bar, scrubber, words, switch, sheet, left, right), "named Touch Bar parts exist")
     check(scrubber.isVisible() and scrubber.property("count") == 24, "idle bar is a 24-emoji scrubber")
 
+    tap(named_point("moosTouchBarSystem"), by_touch=True)
+    QTest.qWait(300)
+    check(bar.property("showSystemTools") and not scrubber.isEnabled(), "tools replace the emoji input targets")
+    check(named_point("moosStrip_media") is None, "an absent player has no playback action")
+    for key in ("audio", "display"):
+        tap(named_point("moosStrip_" + key), by_touch=True)
+    check(settings_destination.urls == ["systemsettings:kcm_pulseaudio", "systemsettings:kcm_kscreen"],
+          "each settings button opens its native KCM once")
+    from PySide6.QtCore import QMetaObject, Q_ARG, Q_RETURN_ARG
+    for key in ("overview", "mira"):
+        name = "moosStrip_" + key
+        tap(named_point(name))
+        def action_refused():
+            return QMetaObject.invokeMethod(win, "refused", Qt.DirectConnection,
+                                            Q_RETURN_ARG("QVariant"), Q_ARG("QVariant", name)) is True
+        for _ in range(100):
+            if action_refused():
+                break
+            QTest.qWait(50)
+        check(action_refused(), f"{key} reports unavailable on a disconnected session bus")
+    tap(named_point("moosTouchBarSystem"))
+    check(not bar.property("showSystemTools") and scrubber.isEnabled(), "closing the strip restores text tools")
+
     # A finished word is learned, then offered for its first letters.
     call("type", "سلام")
     call("press", int(Qt.Key_Space), " ")
@@ -334,6 +373,7 @@ def probe() -> int:
     check(value("suggestions") == [] and value("wordEmoji") == [], "a password field gets no suggestions")
     check(not switch.isEnabled() and not scrubber.isVisible(), "a password field gets no emoji")
     check(named_point("moosTouchBarSettings") is None, "a password field offers no settings")
+    check(named_point("moosTouchBarSystem") is None, "a protected field offers no system actions")
     call("setHints", 0)
     call("clearText")
     call("type", "سر")
