@@ -192,12 +192,12 @@ def probe():
     window.setProperty('desktopTextFocus',True)
     QTest.qWait(50)
     strip = compact.findChild(QQuickItem,'islandInlineStrip')
-    back = compact.findChild(QQuickItem,'islandInlineReturn')
+    back = button
     assert strip and strip.property('item') and back.isVisible() and compact.width() == width_before
-    assert not button.isEnabled(), "hidden context control still accepts input"
+    assert back.property("iconName") == "go-down-symbolic" and not caption.isVisible()
     window.setProperty('active',True)
     QTest.qWait(25)
-    assert not back.isVisible() and button.isEnabled(), "live activity must interrupt tools"
+    assert not strip.isVisible() and caption.isVisible() and back.property("iconName") != "go-down-symbolic", "live activity must interrupt tools"
     window.setProperty('active',False)
     QTest.qWait(25)
     point = back.mapToScene(QPointF(back.width()/2,back.height()/2)).toPoint()

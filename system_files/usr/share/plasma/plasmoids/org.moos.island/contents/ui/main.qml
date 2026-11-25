@@ -953,41 +953,6 @@ PlasmoidItem {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 2
-                layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
-                spacing: 1
-                opacity: root.showInlineTools ? 1 : 0
-                enabled: root.showInlineTools
-                visible: opacity > 0
-                Behavior on opacity { NumberAnimation { duration: root.motionFast } }
-
-                Loader {
-                    objectName: "islandInlineStrip"
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    active: parent.visible
-                    sourceComponent: MoKeyboard.SystemStrip {
-                        compact: true
-                        rtl: root.rtl
-                        language: root.rtl ? "ar" : "en"
-                    }
-                }
-                MediaControl {
-                    objectName: "islandInlineReturn"
-                    iconName: "go-down-symbolic"
-                    label: root.local("العودة إلى الجزيرة", "Return to Island")
-                    toolTipEnabled: false
-                    slotSize: 32
-                    onActivated: root.stripDismissed = true
-                }
-            }
-
-            RowLayout {
-                enabled: !root.showInlineTools
-                visible: opacity > 0
-                opacity: root.showInlineTools ? 0 : 1
-                Behavior on opacity { NumberAnimation { duration: root.motionFast } }
-                anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
                 // The shell already reserves two pixels above and below.
@@ -998,8 +963,25 @@ PlasmoidItem {
                 spacing: root.design.space1
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
+                Loader {
+                    objectName: "islandInlineStrip"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    active: root.showInlineTools
+                    visible: active
+                    sourceComponent: MoKeyboard.SystemStrip {
+                        compact: true
+                        rtl: root.rtl
+                        language: root.rtl ? "ar" : "en"
+                        opacity: 0
+                        Component.onCompleted: opacity = 1
+                        Behavior on opacity { NumberAnimation { duration: root.motionFast } }
+                    }
+                }
+
                 Rectangle {
                     id: contextPlate
+                    visible: !root.showInlineTools
                     // Artwork is secondary to the title. Its size never
                     // consumes the text lane when the panel becomes shorter.
                     readonly property int artSize:
@@ -1199,6 +1181,7 @@ PlasmoidItem {
 
                 Item {
                     id: compactText
+                    visible: !root.showInlineTools
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.minimumWidth: 0
@@ -1272,20 +1255,24 @@ PlasmoidItem {
                         controlEnabled: root.voiceActionVisible || !root.mediaPresent || root.remotePresent
                             || root.privacyPresent || root.storeJobPresent || root.moaiJobPresent
                             || (root.playing ? root.canPause : (root.canPlay || root.canControl))
-                        iconName: root.voiceActionVisible ? "moos-microphone-symbolic"
+                        iconName: root.showInlineTools ? "go-down-symbolic"
+                            : root.voiceActionVisible ? "moos-microphone-symbolic"
                             : root.remotePresent ? "configure-symbolic"
                             : root.privacyPresent ? "moos-close-symbolic"
                             : root.storeJobPresent ? "moos-store"
                             : root.moaiJobPresent ? root.moaiJobIcon
                             : root.playing ? "media-playback-pause-symbolic" : "media-playback-start-symbolic"
-                        label: root.voiceActionVisible ? root.local("افتح صوت ميرا", "Open Mira voice")
+                        label: root.showInlineTools ? root.local("العودة إلى الجزيرة", "Return to Island")
+                            : root.voiceActionVisible ? root.local("افتح صوت ميرا", "Open Mira voice")
                             : root.remotePresent ? root.local("فتح إعدادات التحكم", "Open Remote controls")
                             : root.privacyPresent ? root.local("إيقاف", "Stop")
                             : root.storeJobPresent ? root.local("المتجر", "Store")
                             : root.moaiJobPresent ? root.local("فتح ميرا", "Open Mira")
                             : root.playing ? root.local("إيقاف مؤقت", "Pause") : root.local("تشغيل", "Play")
                         onActivated: {
-                            if (root.voiceActionVisible) {
+                            if (root.showInlineTools) {
+                                root.stripDismissed = true;
+                            } else if (root.voiceActionVisible) {
                                 root.openVoicePane();
                             } else if (root.remotePresent) {
                                 Qt.openUrlExternally("moos://app/remote");
