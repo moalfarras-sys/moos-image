@@ -3,6 +3,19 @@
  "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
  "entries": [
   {
+   "id": "mova-library-touch-and-words",
+   "merged": "2026-11-25T09:00:00Z",
+   "glyph": "grid",
+   "title": {
+    "ar": "مكتبة التطبيقات أوضح باللمس",
+    "en": "A clearer app library by touch"
+   },
+   "body": {
+    "ar": "أسماء الفئات مثل «الكل» و«الأدوات» كاملة في وسط أزرارها. قائمة الضغط المطوّل على تطبيق صارت عربية كلها بخط أكبر وصفوف تناسب الإصبع، ولمسة خارجها تغلقها دون أن تفتح ما تحتها. وأزرار الجلسة تظهر بأسمائها.",
+    "en": "Category names such as “All” and “Tools” sit whole in the middle of their buttons. The press-and-hold menu on an app is fully translated, with larger words and finger-sized rows; a touch outside only closes it. Session buttons show their names."
+   }
+  },
+  {
    "id": "keyboard-hides-with-physical-keyboard",
    "merged": "2026-11-24T20:00:00Z",
    "glyph": "keyboard",

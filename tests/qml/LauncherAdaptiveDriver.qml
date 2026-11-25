@@ -138,6 +138,32 @@ Item {
                     "grid consumes the actual selected Kicker model");
                 driver.verify(driver.appGrid.count > 0 && driver.appGrid.count <= allApps,
                     "category has actual application entries");
+                // Every chip paints its whole name centred inside its own
+                // padding. On the V3 «الأدوات» lost its first letter under the
+                // border and «الوسائط المتعددة» ran past both edges.
+                function chipLabelFits(chip, what) {
+                    const label = chip.contentItem;
+                    const room = chip.width - chip.leftPadding - chip.rightPadding;
+                    driver.verify(label.contentWidth <= room + 0.5,
+                        what + " label fits its chip: text=" + label.contentWidth + " room=" + room);
+                    driver.verify(Math.abs(label.x + label.width / 2 - chip.width / 2) < 1
+                        && label.effectiveHorizontalAlignment === Text.AlignHCenter,
+                        what + " label is centred in its chip");
+                }
+                for (let row = 1; row < l.appRootModel.count; ++row) {
+                    driver.categories.positionViewAtIndex(row, ListView.Contain);
+                    driver.verify(check.waitForPolish(driver.categories), "category row polished");
+                    const chip = driver.categories.itemAtIndex(row);
+                    if (chip && chip.visible) chipLabelFits(chip, "native category " + row);
+                }
+                driver.categories.positionViewAtIndex(2, ListView.Contain);
+                driver.verify(check.waitForPolish(driver.categories), "long category target polished");
+                const longChip = driver.categories.itemAtIndex(2);
+                driver.verify(longChip !== null, "long category target exists");
+                longChip.text = "الوسائط المتعدّدة والمحتوى";
+                driver.verify(check.waitForPolish(driver.categories), "long category polished");
+                chipLabelFits(longChip, "long Arabic category");
+                longChip.text = Qt.binding(() => String(longChip.model.display || ""));
                 check.keyClick(v.rtl ? Qt.Key_Left : Qt.Key_Right);
                 check.wait(80);
                 driver.compare(l.appsModelRow, Math.min(3, l.appRootModel.count - 1),
@@ -218,6 +244,15 @@ Item {
                     if (entry.actionItem && entry.actionItem.actionId === "_kicker_favorite_add") favoriteAction = entry;
                 }
                 driver.verify(favoriteAction !== null, "native Kicker favorite action exists");
+                // Mova's catalogue has no copy of Kicker's strings: this row
+                // read "Add to Favorites" inside the Arabic menu.
+                driver.compare(favoriteAction.text, v.local("أضف إلى المفضّلة", "Add to Favorites"),
+                    "native favorite action reads in the launcher's language");
+                for (const entry of entries) {
+                    if (!entry.actionItem) continue;
+                    driver.verify(entry.height >= 44, "menu row is a touch target: " + entry.text);
+                    driver.compare(entry.mirrored, v.rtl, "menu row follows the launcher's direction: " + entry.text);
+                }
                 const pinnedId = actionTile.favoriteId;
                 driver.actionMenu.favoriteIdentity = "not-the-selected-application";
                 favoriteAction.action.trigger();check.wait(50);
@@ -229,6 +264,38 @@ Item {
                 l.favoriteModel.removeFavorite(pinnedId);
                 driver.waitVerified(() => JSON.stringify(l.favoriteSearchIds) === originalPins, 1500,
                     "native pin test restores exact favorite identity/order");
+                // A press outside only dismisses the menu. On the V3 a QMenu
+                // ignored the finger; a pass-through menu launched the tile
+                // beneath it; focus given back to the search field raised the
+                // on-screen keyboard. The pin round trip may have rebuilt the
+                // grid's delegates, so take the tile that shows the same app now.
+                let dismissTile = null;
+                for (let row = 0; row < driver.appGrid.count && !dismissTile; ++row) {
+                    driver.appGrid.positionViewAtIndex(row, GridView.Contain);
+                    check.wait(20);
+                    const candidate = driver.appGrid.itemAtIndex(row);
+                    if (candidate && candidate.favoriteId === pinnedId) dismissTile = candidate;
+                }
+                driver.verify(dismissTile !== null && dismissTile.index >= 0, "live tile for the dismissal check");
+                driver.verify(check.waitForRendering(dismissTile, 1500), "dismissal tile rendered");
+                // Focus is only meaningful in the active window, and a menu
+                // still running its exit transition keeps its modal overlay.
+                driver.Window.window.requestActivate();
+                check.tryCompare(driver.Window.window, "active", true);
+                driver.waitVerified(() => !driver.actionMenu.__menu || !driver.actionMenu.__menu.visible,
+                    1500, "previous menu finished closing");
+                check.mouseClick(dismissTile, dismissTile.width/2, dismissTile.height/2, Qt.RightButton);
+                driver.waitVerified(() => driver.actionMenu.opened, 1500, "menu reopens on its tile");
+                const rowBeforeDismiss = l.appsModelRow;
+                const dismissRow = rowBeforeDismiss === 2 ? 3 : 2;
+                driver.categories.positionViewAtIndex(dismissRow, ListView.Contain);
+                driver.verify(check.waitForPolish(driver.categories), "dismissal target polished");
+                check.mouseClick(driver.categories.itemAtIndex(dismissRow));
+                driver.waitVerified(() => !driver.actionMenu.opened, 1500, "outside press dismisses the menu");
+                driver.compare(l.appsModelRow, rowBeforeDismiss, "dismissing press does not choose a category");
+                // Qt hands focus back when the exit transition finishes.
+                driver.waitVerified(() => dismissTile.activeFocus && !driver.field.activeFocus, 1500,
+                    "focus returns to the tile, not the search field");
                 driver.appGrid.positionViewAtBeginning();
                 driver.Window.window.requestActivate();
                 check.tryCompare(driver.Window.window, "active", true);
@@ -254,6 +321,7 @@ Item {
                 check.wait(80);
                 driver.compare(l.activePage, 1, "touch changes page");
                 driver.verify(apps.activeFocus, "touch focus follows selected page");
+                driver.verify(!apps.pointerOver, "a lifted finger leaves no hover highlight");
                 v.focusSearch();
                 for (const letter of "moos-adaptive-test") check.keyClick(letter);
                 driver.compare(l.searchQuery, "moos-adaptive-test", "native text editing");

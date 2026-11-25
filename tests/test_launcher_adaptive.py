@@ -226,6 +226,8 @@ class AdaptiveLauncher(unittest.TestCase):
                 ('--broken-folders','real nested KService group exists'),
                 ('--broken-home-focus','focused Home action stays inside visible viewport'),
                 ('--broken-runner-preferences','Milou preserves native default or personal provider priority'),
+                ('--broken-chip-label','native category 1 label is centred in its chip'),
+                ('--broken-menu-dismiss','dismissing press does not choose a category'),
             ):
                 output=Path(tmp)/flag.removeprefix('--broken-')
                 result=subprocess.run([shutil.which('python3'),str(ROOT/'tests/launcher_adaptive_native.py'),
