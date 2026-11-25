@@ -442,7 +442,7 @@ set -uo pipefail
 # 186: the on-screen keyboard gains the MoOS Touch Bar (style seam + org.moos.keyboard).
 # 187: adaptive keyboard, native Mira Island controls, Places and window frame sizing.
 # 188: honor native AnyInput on an initially detached V3 field as well as after a posture change.
-THEME_REV=192
+THEME_REV=193
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

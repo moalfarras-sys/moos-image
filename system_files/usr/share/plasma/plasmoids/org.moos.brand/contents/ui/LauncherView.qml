@@ -82,7 +82,7 @@ Item {
     readonly property bool compact: width < 640
     readonly property bool narrow: width < 480
     readonly property bool shortLayout: height < 520
-    readonly property int touchTarget: design.targetControl
+    readonly property int touchTarget: design.targetComfortable
     readonly property int canvasMargin: compact ? space3 : space5
 
     function appColumns(availableWidth) {
@@ -1167,6 +1167,18 @@ Item {
 
                             delegate: PC3.ItemDelegate {
                                 id: category
+                                leftPadding: view.space3
+                                rightPadding: view.space3
+                                contentItem: Text {
+                                    text: category.text
+                                    textFormat: Text.PlainText
+                                    color: Kirigami.Theme.textColor
+                                    font.family: view.uiFontFamily
+                                    font.pixelSize: view.typeBody
+                                    font.weight: category.checked ? Font.DemiBold : Font.Medium
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
                                 required property int index
                                 required property var model
                                 objectName: "launcherCategory" + index
@@ -1727,11 +1739,13 @@ Item {
                 text: view.local("الجلسة والطاقة", "Session & power")
                 icon.name: "moos-power-symbolic"
                 onClicked: sessionMenu.popup()
-                QQC2.Menu {
+                PC3.Menu {
                     id: sessionMenu
                     Instantiator {
                         model: view.sessionModel
-                        delegate: QQC2.MenuItem {
+                        delegate: PC3.MenuItem {
+                            font.family: view.uiFontFamily
+                            font.pixelSize: view.typeBody
                             required property int index
                             required property var model
                             visible: view.sessionActionShown(model.favoriteId)
@@ -1902,7 +1916,8 @@ Item {
             spacing: view.narrow ? 0 : view.space3
 
             Kirigami.Icon {
-                Layout.alignment: view.narrow ? Qt.AlignHCenter : Qt.AlignVCenter
+                visible: !view.narrow
+                Layout.alignment: Qt.AlignVCenter
                 Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
                 Layout.preferredHeight: width
                 source: nav.iconName
@@ -1913,9 +1928,8 @@ Item {
             Text {
                 Layout.fillWidth: true
                 text: nav.label
-                visible: !view.narrow
                 textFormat: Text.PlainText
-                horizontalAlignment: Text.AlignLeft
+                horizontalAlignment: view.narrow ? Text.AlignHCenter : Text.AlignLeft
                 color: Kirigami.Theme.textColor
                 font.family: view.uiFontFamily
                 font.pixelSize: view.typeSecondary
