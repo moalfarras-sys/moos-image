@@ -74,6 +74,14 @@ Item {
                         ? (strip.playing ? strip.label("إيقاف مؤقت", "Pause") : strip.label("تشغيل", "Play")) : strip.label(modelData.ar, modelData.en)
                     Accessible.name: text
                     Accessible.description: actionLabel
+                    onActiveFocusChanged: {
+                        if (!activeFocus || !visible || strip.inInputPanel) return
+                        const left = command.x
+                        const right = left + command.width
+                        if (left < viewport.contentX) viewport.contentX = left
+                        else if (right > viewport.contentX + viewport.width)
+                            viewport.contentX = right - viewport.width
+                    }
                     focusPolicy: strip.inInputPanel ? Qt.NoFocus : Qt.StrongFocus
                     enabled: !pending
                     hoverEnabled: true

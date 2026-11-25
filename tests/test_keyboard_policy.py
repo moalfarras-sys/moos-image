@@ -273,10 +273,17 @@ class NativeJourney(unittest.TestCase):
         self.assertEqual(self.mode(), 2, "a virtual keyboard must not hide the panel")
         self.call("Add", "event8", True)        # the Compx USB receiver
         self.wait_mode(0)
+        def presence():
+            return subprocess.check_output([
+                "gdbus", "call", "--session", "--dest", "org.moos.KeyboardPolicy", "--object-path", "/KeyboardPolicy",
+                "--method", "org.freedesktop.DBus.Properties.Get", "org.moos.KeyboardPolicy", "PhysicalKeyboard"
+            ], env=self.env, text=True).strip()
+        self.assertEqual(presence(), "(<true>,)")
         state = json.loads((self.tmp / "state/moos/keyboard-policy.json").read_text())
         self.assertEqual(state, {"managed": True, "restore": 2})
         self.call("Remove", "event8")
         self.wait_mode(2)
+        self.assertEqual(presence(), "(<false>,)")
         # The internal keyboard counts only with the cover on (tablet mode off).
         self.call("Add", "event2", True)
         time.sleep(1.0)

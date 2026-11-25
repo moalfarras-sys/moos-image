@@ -27,6 +27,7 @@ import org.kde.plasma.private.kicker as Kicker
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.mpris as Mpris
 import org.moos.ui as MoUI
+import org.moos.keyboard as MoKeyboard
 import "IslandTokens.js" as IslandTokens
 // SearchView.qml and SearchAnswers.js live in THIS package. They used to be
 // imported from the retired org.moos.search applet by a relative path across
@@ -491,6 +492,10 @@ PlasmoidItem {
             onTriggered: root.openDeviceTools()
         }
     ]
+    readonly property bool desktopTextFocus: MoKeyboard.PanelState.desktopTextFocus
+    property bool stripDismissed: false
+    onDesktopTextFocusChanged: stripDismissed = false
+    readonly property bool showInlineTools: desktopTextFocus && !stripDismissed && !active && !expanded
     property string popupPage: "context"
     readonly property bool contextPage: popupPage === "context"
     readonly property bool voicePane: popupPage === "voice"
@@ -947,6 +952,41 @@ PlasmoidItem {
             }
 
             RowLayout {
+                anchors.fill: parent
+                anchors.margins: 2
+                layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
+                spacing: 1
+                opacity: root.showInlineTools ? 1 : 0
+                enabled: root.showInlineTools
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: root.motionFast } }
+
+                Loader {
+                    objectName: "islandInlineStrip"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    active: parent.visible
+                    sourceComponent: MoKeyboard.SystemStrip {
+                        compact: true
+                        rtl: root.rtl
+                        language: root.rtl ? "ar" : "en"
+                    }
+                }
+                MediaControl {
+                    objectName: "islandInlineReturn"
+                    iconName: "go-down-symbolic"
+                    label: root.local("العودة إلى الجزيرة", "Return to Island")
+                    toolTipEnabled: false
+                    slotSize: 32
+                    onActivated: root.stripDismissed = true
+                }
+            }
+
+            RowLayout {
+                enabled: !root.showInlineTools
+                visible: opacity > 0
+                opacity: root.showInlineTools ? 0 : 1
+                Behavior on opacity { NumberAnimation { duration: root.motionFast } }
                 anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8

@@ -44,7 +44,7 @@ def fixture(source, old=False, broken_route=False, cramped=False):
         part=body[start:].replace('anchors.fill: parent','anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; height: 17',1)
         part=part.replace('fontSizeMode: Text.VerticalFit','fontSizeMode: Text.FixedSize',1)
         body=body[:start]+part
-    props=dict(active=True,voiceForeground=False,voiceActionVisible=False,voicePhase="idle",remotePresent=False,privacyPresent=False,storeJobPresent=False,moaiJobPresent=False,
+    props=dict(desktopTextFocus=False,stripDismissed=False,active=True,voiceForeground=False,voiceActionVisible=False,voicePhase="idle",remotePresent=False,privacyPresent=False,storeJobPresent=False,moaiJobPresent=False,
         mediaPresent=True,playing=False,canControl=True,canPause=True,canPlay=True,compactFocused=False,
         compactHovered=False,contextIcon='moos-moplayer',compactTitle='',contextTitle='Full context',
         contextSource='Application and artist',artUrl='',artworkSource='',artworkBridgeFailed=False,expanded=False,
@@ -56,6 +56,7 @@ import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.components as PC3
 import org.moos.ui as MoUI
+import org.moos.keyboard as MoKeyboard
 import "%s"
 Window { id: root; width: 230; height:110; visible:true
  readonly property var design: MoUI.Tokens
@@ -77,7 +78,8 @@ Window { id: root; width: 230; height:110; visible:true
     for name,value in props.items():
         kind='bool' if isinstance(value,bool) else 'real' if isinstance(value,(int,float)) else 'string'
         text+='property '+kind+' '+name+': '+json.dumps(value)+'\n'
-    return text+body+'\n}'
+    predicate = next(line for line in source.splitlines() if 'readonly property bool showInlineTools:' in line)
+    return text+predicate+'\n'+body+'\n}'
 
 
 def probe():
@@ -184,6 +186,25 @@ def probe():
         repeat=QKeyEvent(QEvent.KeyPress,key,Qt.NoModifier,'',True,2)
         QCoreApplication.sendEvent(window,repeat)
         assert window.property('primaryCount')==n+1,('held popup key',key)
+    width_before = compact.width()
+    window.setProperty('motionEnabled',False)
+    window.setProperty('expanded',False)
+    window.setProperty('desktopTextFocus',True)
+    QTest.qWait(50)
+    strip = compact.findChild(QQuickItem,'islandInlineStrip')
+    back = compact.findChild(QQuickItem,'islandInlineReturn')
+    assert strip and strip.property('item') and back.isVisible() and compact.width() == width_before
+    assert not button.isEnabled(), "hidden context control still accepts input"
+    window.setProperty('active',True)
+    QTest.qWait(25)
+    assert not back.isVisible() and button.isEnabled(), "live activity must interrupt tools"
+    window.setProperty('active',False)
+    QTest.qWait(25)
+    point = back.mapToScene(QPointF(back.width()/2,back.height()/2)).toPoint()
+    QTest.touchEvent(window,touch).press(0,point,window).commit()
+    QTest.touchEvent(window,touch).release(0,point,window).commit()
+    QTest.qWait(30)
+    assert window.property('stripDismissed') and button.isEnabled(), "touch must restore Island"
     errors=[m for m in messages if any(k in m.lower() for k in ('typeerror','referenceerror','unable to assign','cannot assign','binding loop','failed to load','is not a type'))]
     assert not errors,errors
     print('ISLAND_COMPACT_PROOF '+json.dumps(dict(samples=rows,tablet=os.environ['KDE_KIRIGAMI_TABLET_MODE'],scale=os.environ['QT_SCALE_FACTOR'],light=os.environ['PROBE_LIGHT'],locale=os.environ['LANG'],input='mouse/key/Qt-touch')),flush=True)

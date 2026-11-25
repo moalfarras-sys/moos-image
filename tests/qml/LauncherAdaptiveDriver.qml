@@ -154,7 +154,11 @@ Item {
                     driver.categories.positionViewAtIndex(row, ListView.Contain);
                     driver.verify(check.waitForPolish(driver.categories), "category row polished");
                     const chip = driver.categories.itemAtIndex(row);
-                    if (chip && chip.visible) chipLabelFits(chip, "native category " + row);
+                    if (chip && chip.visible) {
+                        chipLabelFits(chip, "native category " + row);
+                        if (chip.model.display === "Accessories")
+                            driver.compare(chip.text, v.local("الأدوات", "Accessories"), "native tools category");
+                    }
                 }
                 driver.categories.positionViewAtIndex(2, ListView.Contain);
                 driver.verify(check.waitForPolish(driver.categories), "long category target polished");
@@ -163,7 +167,7 @@ Item {
                 longChip.text = "الوسائط المتعدّدة والمحتوى";
                 driver.verify(check.waitForPolish(driver.categories), "long category polished");
                 chipLabelFits(longChip, "long Arabic category");
-                longChip.text = Qt.binding(() => String(longChip.model.display || ""));
+                longChip.text = Qt.binding(() => v.categoryLabel(longChip.index, longChip.model.display));
                 check.keyClick(v.rtl ? Qt.Key_Left : Qt.Key_Right);
                 check.wait(80);
                 driver.compare(l.appsModelRow, Math.min(3, l.appRootModel.count - 1),

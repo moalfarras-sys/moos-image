@@ -101,6 +101,20 @@ Item {
         const rows = Math.max(1, Math.floor(room / minimum));
         return Math.max(minimum, Math.floor(room / rows));
     }
+    // Some XDG menu directories supply only an English display name.
+    // Preserve native translations and custom folders; Kicker still owns the row.
+    readonly property var arabicCategoryLabels: ({
+        "Accessories": "الأدوات", "Utilities": "الأدوات المساعدة", "Development": "التطوير",
+        "Education": "التعليم", "Games": "الألعاب", "Graphics": "الرسومات", "Internet": "الإنترنت",
+        "Multimedia": "الوسائط المتعددة", "Office": "المكتب", "Science & Math": "العلوم والرياضيات",
+        "Settings": "الإعدادات", "System": "النظام", "Other": "أخرى"
+    })
+    function categoryLabel(row, display) {
+        if (row === 1) return view.local("الكل", "All");
+        const name = String(display || "");
+        return view.rtl && Object.prototype.hasOwnProperty.call(arabicCategoryLabels, name)
+            ? arabicCategoryLabels[name] : name;
+    }
     function selectCategory(row) {
         const catalogue = view.launcher.appRootModel;
         // Row zero is Kicker's deliberately invisible favorites placeholder.
@@ -1296,7 +1310,7 @@ Item {
                                 visible: index > 0 && model.hasChildren === true
                                 width: visible ? Math.max(view.touchTarget, implicitWidth) : 0
                                 height: view.touchTarget
-                                text: index === 1 ? view.local("الكل", "All") : String(model.display || "")
+                                text: view.categoryLabel(index, model.display)
                                 checked: view.launcher.appsModelRow === index
                                 hoverEnabled: true
                                 activeFocusOnTab: visible

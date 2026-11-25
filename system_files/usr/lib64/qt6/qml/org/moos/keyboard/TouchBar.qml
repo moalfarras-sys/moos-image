@@ -429,6 +429,24 @@ Item {
                 LayoutMirroring.enabled: false
                 LayoutMirroring.childrenInherit: true
                 spacing: Math.round(root.barHeight * 0.06)
+                Repeater {
+                    model: !root.desktopBar && !root.toolsOpen && !root.showSystemTools
+                           && !root.sensitive && !root.greeter && bar.width >= 18 * root.barHeight
+                           ? [Qt.Key_Home, Qt.Key_End] : []
+                    TouchBarButton {
+                        required property int modelData
+                        width: Math.round(root.barHeight * 1.15)
+                        height: parent.height
+                        theme: root.theme
+                        rightToLeft: root.rightToLeft
+                        readonly property bool start: modelData === Qt.Key_Home
+                        objectName: start ? "moosTouchBarHome" : "moosTouchBarEnd"
+                        iconName: start !== root.rightToLeft ? "go-first-symbolic" : "go-last-symbolic"
+                        accessibleName: start ? (root.language === "ar" ? "أول السطر" : "Start of line")
+                                              : (root.language === "ar" ? "آخر السطر" : "End of line")
+                        onActivated: root.sendKey(modelData)
+                    }
+                }
                 TouchBarButton {
                     objectName: "moosTouchBarLeft"
                     width: Math.round(root.barHeight * 1.15)

@@ -313,6 +313,15 @@ def probe() -> int:
     win.setWidth(1100)
     QTest.qWait(100)
 
+    start = named_point("moosTouchBarHome")
+    end = named_point("moosTouchBarEnd")
+    check(start is not None and end is not None, "wide tablet exposes line navigation")
+    n = len(events())
+    tap(start, by_touch=True)
+    tap(end, by_touch=True)
+    check([e["key"] for e in events()[n:] if e["kind"] == "key"] == [int(Qt.Key_Home), int(Qt.Key_End)],
+          "line navigation sends each native editing key once")
+
     # A finished word is learned, then offered for its first letters.
     call("type", "سلام")
     call("press", int(Qt.Key_Space), " ")
