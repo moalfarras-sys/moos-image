@@ -194,6 +194,34 @@ def probe():
     strip = compact.findChild(QQuickItem,'islandInlineStrip')
     back = button
     assert strip and strip.property('item') and back.isVisible() and compact.width() == width_before
+    viewport = strip.findChild(QQuickItem, "moosToolsViewport")
+    def shown_tools():
+        visible_tools = []
+        for tool in descendants(viewport):
+            if not tool.objectName().startswith("moosStrip_") or not tool.isVisible():
+                continue
+            left = tool.mapToItem(viewport, QPointF(0, 0)).x()
+            right = left + tool.width()
+            if right <= .1 or left >= viewport.width() - .1:
+                continue
+            assert left >= -.1 and right <= viewport.width() + .1, ("clipped tool", tool.objectName(), left, right)
+            visible_tools.append(tool.objectName())
+        return visible_tools
+    first = shown_tools()
+    assert set(first) == {"moosStrip_windows", "moosStrip_audio"}, first
+    start = viewport.mapToScene(QPointF(viewport.width() * (.15 if window.property('rtl') else .85),
+                                        viewport.height() / 2)).toPoint()
+    dx = (1 if window.property('rtl') else -1) * viewport.width() * .65
+    QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, start)
+    for step in range(1, 9):
+        QTest.mouseMove(window, start + QPoint(round(dx * step / 8), 0), 9)
+    QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, start + QPoint(round(dx), 0))
+    for _ in range(50):
+        QTest.qWait(15)
+        if not viewport.property("moving") and abs(viewport.property("contentX") / viewport.property("pitch") - round(viewport.property("contentX") / viewport.property("pitch"))) < .001:
+            break
+    after_swipe = shown_tools()
+    assert len(after_swipe) == len(first) and after_swipe != first, ("strip swipe", after_swipe)
     assert back.property("iconName") == "go-down-symbolic" and not caption.isVisible()
     window.setProperty('active',True)
     QTest.qWait(25)

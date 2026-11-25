@@ -70,7 +70,7 @@ apply to every card and frame. The interface scales to each screen's size,
 resolution and scale. Plasma, KWin and Wayland stay the owners. Windows arrange
 themselves: two programs take halves, four take quarters, and frames and programs
 adapt to their cells. The tablet behaves as a tablet when the keyboard is detached,
-showing the full keys then. Nov24 evening steering suppresses automatic keyboard popups while a physical keyboard is attached. The Island remains an entry point for device tools.
+showing the full keys then. Nov24 evening steering suppresses automatic keyboard popups while a physical keyboard is attached. The Island pages device tools within its fixed width while a physical keyboard is in use. The V3 native Qt review covers complete tool cells at rest and after a swipe in RTL and LTR. For P5.3 hardware-keyboard completions, a nested KWin editor received the physical Arabic key with the panel hidden in Never mode. Its Wayland input context received the word while the Qt keyboard style did not receive the same word change. Plasma Keyboard 6.8.3 updates Qt surrounding text only while the panel window is exposed. The remaining integration belongs to the focused native input method, with stale-focus and protected-field refusals before signed acceptance.
 Delivered in source so far: Meyar Arabic on Tajawal (PR325), real Hub frost
 (PR325) and automatic arrangement (feat/v3-auto-arrange-20261123, P2.18). The
 remaining slices are P2.18 frames and P5.3 tablet keyboard. Research inputs (to be
