@@ -15,6 +15,7 @@ Item {
     property string language: "en"
     property bool compact: false
     property bool inInputPanel: false
+    readonly property bool inIsland: compact && !inInputPanel
     implicitHeight: 52
     implicitWidth: 312
 
@@ -42,11 +43,53 @@ Item {
         id: viewport
         anchors.fill: parent
         clip: true
-        contentWidth: Math.max(width, strip.toolCount * 44 + (strip.toolCount - 1) * row.spacing)
+        objectName: "moosToolsViewport"
+        readonly property int columns: Math.max(1, Math.min(strip.toolCount,
+                Math.floor((width + row.spacing) / (44 + row.spacing))))
+        readonly property real cellWidth: strip.inIsland
+            ? Math.max(1, (width + row.spacing) / columns - row.spacing)
+            : Math.max(44, (width + row.spacing) / strip.toolCount - row.spacing)
+        readonly property real pitch: cellWidth + row.spacing
+        readonly property real endOffset: Math.max(0, contentWidth - width)
+        property int firstTool: 0
+        contentWidth: strip.toolCount * pitch - row.spacing
         contentHeight: height
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.HorizontalFlick
-        Component.onCompleted: if (strip.rtl) contentX = Math.max(0, contentWidth - width)
+
+        function alignTools(animate) {
+            settle.stop()
+            const offset = Math.min(firstTool * pitch, endOffset)
+            const target = strip.rtl ? endOffset - offset : offset
+            if (animate && Kirigami.Units.shortDuration > 1) {
+                settle.to = target
+                settle.start()
+            } else {
+                contentX = target
+            }
+        }
+        onMovementStarted: settle.stop()
+        onMovementEnded: {
+            if (!strip.inIsland) return
+            firstTool = Math.round((strip.rtl ? endOffset - contentX : contentX) / pitch)
+            alignTools(true)
+        }
+        // The Loader first constructs the strip at its implicit width. Restore
+        // its logical leading tool after the panel gives it its actual width.
+        onWidthChanged: Qt.callLater(alignTools, false)
+        onContentWidthChanged: Qt.callLater(alignTools, false)
+        Component.onCompleted: Qt.callLater(alignTools, false)
+        Connections {
+            target: strip
+            function onRtlChanged() { viewport.firstTool = 0; viewport.alignTools(false) }
+        }
+        NumberAnimation {
+            id: settle
+            target: viewport
+            property: "contentX"
+            duration: Kirigami.Units.shortDuration
+            easing.type: Easing.OutCubic
+        }
         Row {
             id: row
             width: viewport.contentWidth
@@ -64,7 +107,7 @@ Item {
                     objectName: "moosStrip_" + modelData.key
                     visible: modelData.key !== "media" || strip.mediaAvailable
                     height: row.height
-                    width: (row.width - (strip.toolCount - 1) * row.spacing) / strip.toolCount
+                    width: viewport.cellWidth
                     Binding on font.pixelSize {
                         when: strip.inInputPanel
                         value: Math.max(Kirigami.Units.gridUnit * 0.82, Math.round(command.height * 0.35))
@@ -76,11 +119,13 @@ Item {
                     Accessible.description: actionLabel
                     onActiveFocusChanged: {
                         if (!activeFocus || !visible || strip.inInputPanel) return
+                        settle.stop()
                         const left = command.x
                         const right = left + command.width
                         if (left < viewport.contentX) viewport.contentX = left
                         else if (right > viewport.contentX + viewport.width)
                             viewport.contentX = right - viewport.width
+                        viewport.firstTool = Math.round((strip.rtl ? viewport.endOffset - viewport.contentX : viewport.contentX) / viewport.pitch)
                     }
                     focusPolicy: strip.inInputPanel ? Qt.NoFocus : Qt.StrongFocus
                     enabled: !pending
@@ -128,8 +173,8 @@ Item {
                         topLeftRadius: strip.rtl ? 3 : radius
                         topRightRadius: strip.rtl ? radius : 3
                         color: Qt.alpha(Kirigami.Theme.highlightColor,
-                                        command.down ? 0.30 : command.hovered || command.visualFocus ? 0.20 : 0.09)
-                        border.width: command.visualFocus ? 2 : 1
+                                        command.down ? 0.30 : command.hovered || command.visualFocus ? 0.20 : strip.inIsland ? 0 : 0.09)
+                        border.width: command.visualFocus ? 2 : strip.inIsland && !command.refused ? 0 : 1
                         border.color: command.refused ? Kirigami.Theme.negativeTextColor
                             : Qt.alpha(Kirigami.Theme.highlightColor, command.visualFocus ? 1 : 0.32)
                         scale: command.down ? 0.95 : 1
@@ -180,6 +225,24 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    Rectangle {
+        visible: strip.inIsland && viewport.endOffset > 0
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 2
+        width: 24
+        height: 2
+        radius: 1
+        color: Qt.alpha(Kirigami.Theme.textColor, 0.16)
+        Rectangle {
+            height: parent.height
+            width: parent.width * viewport.columns / strip.toolCount
+            radius: parent.radius
+            x: viewport.endOffset > 0 ? (parent.width - width) * viewport.contentX / viewport.endOffset : 0
+            color: Kirigami.Theme.highlightColor
         }
     }
 }

@@ -6,7 +6,7 @@
 # the signed ghcr.io/moalfarras-sys/moos-arm digest in arm-latest.json.
 #
 # BUILD (native arm64 or emulated — slow on x86):
-#   podman build --platform linux/arm64 -f Containerfile.arm-recovery -t moos-arm-recovery .
+#   podman build --platform linux/arm64 -f Containerfile.arm-recovery --ulimit core=1:1 -t moos-arm-recovery .
 #   bootc-image-builder --type qcow2 --build-dir /var/tmp/bib moos-arm-recovery
 # =============================================================================
 

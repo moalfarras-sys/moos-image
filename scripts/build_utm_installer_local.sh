@@ -11,7 +11,7 @@ PLATFORM="${MOOS_ARM_PLATFORM:-linux/arm64}"
 mkdir -p "$OUT_DIR" "$BUILD_DIR/output" "$BUILD_DIR/config"
 
 echo "=== Building recovery container ($PLATFORM) ==="
-podman build --platform "$PLATFORM" -f "$ROOT/Containerfile.arm-recovery" -t localhost/moos-arm-recovery:local "$ROOT"
+podman build --platform "$PLATFORM" -f "$ROOT/Containerfile.arm-recovery" --ulimit core=1:1 -t localhost/moos-arm-recovery:local "$ROOT"
 podman save -o /var/tmp/moos-recovery.tar localhost/moos-arm-recovery:local
 sudo podman load -i /var/tmp/moos-recovery.tar
 
