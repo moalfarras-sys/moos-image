@@ -55,6 +55,15 @@ class RecoveryPlymouthWiring(unittest.TestCase):
         self.assertIn('for archive in "${archives[@]}"', block)
         self.assertIn('set -euo pipefail', block)
 
+    def test_recovery_producers_supply_the_probe_core_limit(self):
+        workflow = (ROOT / ".github/workflows/build-arm.yml").read_text()
+        builds = [line.strip() for line in workflow.splitlines()
+                  if "podman build " in line and "Containerfile.arm-recovery" in line]
+        self.assertEqual(len(builds), 2)
+        self.assertTrue(all("--ulimit core=1:1" in line.split(" -t ", 1)[0] for line in builds))
+        local = (ROOT / "scripts/build_utm_installer_local.sh").read_text()
+        self.assertIn('Containerfile.arm-recovery" --ulimit core=1:1 -t', local)
+
     def test_recovery_reuses_the_exact_native_arm_producer(self):
         self.assertEqual(
             stage_commands(CONTAINER.read_text(), "plymouth-build"),

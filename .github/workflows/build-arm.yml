@@ -233,7 +233,7 @@ jobs:
         run: |
           set -euo pipefail
           img=localhost/moos-arm-recovery:ci
-          podman build --pull=always -f Containerfile.arm-recovery -t "$img" .
+          podman build --pull=always -f Containerfile.arm-recovery --ulimit core=1:1 -t "$img" .
           [ "$(podman inspect --format '{{.Architecture}}' "$img")" = arm64 ]
           podman run --rm --network=none --read-only \
             --tmpfs /tmp:rw,nosuid,nodev --tmpfs /var/tmp:rw,nosuid,nodev \
@@ -539,7 +539,8 @@ jobs:
       - name: Build slim recovery installer disk
         run: |
           set -euo pipefail
-          sudo podman build -f Containerfile.arm-recovery -t localhost/moos-arm-recovery:local .
+          # The Plymouth crash probes need the one-byte kernel sentinel before the container drops privileges.
+          sudo podman build -f Containerfile.arm-recovery --ulimit core=1:1 -t localhost/moos-arm-recovery:local .
           mkdir -p output-recovery
           cat > config/recovery.toml <<'TOML'
           [customizations.kernel]
