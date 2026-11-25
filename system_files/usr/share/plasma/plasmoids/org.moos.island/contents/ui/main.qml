@@ -27,6 +27,7 @@ import org.kde.plasma.private.kicker as Kicker
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.mpris as Mpris
 import org.moos.ui as MoUI
+import org.moos.keyboard as MoKeyboard
 import "IslandTokens.js" as IslandTokens
 // SearchView.qml and SearchAnswers.js live in THIS package. They used to be
 // imported from the retired org.moos.search applet by a relative path across
@@ -484,9 +485,21 @@ PlasmoidItem {
             text: root.local("افتح صوت ميرا", "Open Mira voice")
             icon.name: "moos-microphone-symbolic"
             onTriggered: root.openVoicePane()
+        },
+        PlasmaCore.Action {
+            text: root.local("أدوات الجهاز", "Device tools")
+            icon.name: "moos-system-symbolic"
+            onTriggered: root.openDeviceTools()
         }
     ]
-    property bool voicePane: false
+    readonly property bool desktopTextFocus: MoKeyboard.PanelState.desktopTextFocus
+    property bool stripDismissed: false
+    onDesktopTextFocusChanged: stripDismissed = false
+    readonly property bool showInlineTools: desktopTextFocus && !stripDismissed && !active && !expanded
+    property string popupPage: "context"
+    readonly property bool contextPage: popupPage === "context"
+    readonly property bool voicePane: popupPage === "voice"
+    readonly property bool toolsPane: popupPage === "tools"
     readonly property bool voiceForeground: voice.active && !root.remotePresent && !root.privacyPresent
     readonly property bool voiceActionVisible: root.voiceForeground || !root.active
     readonly property string voicePhase: voice.phase
@@ -507,13 +520,17 @@ PlasmoidItem {
         executing: "Working", speaking: "Speaking"
     })[voice.phase] || root.voicePhaseLabel
     function openVoicePane() {
-        if (!root.voicePane && !voice.pending) voice.result = "";
+        if (root.popupPage !== "voice" && !voice.pending) voice.result = "";
+        openPopupPage("voice");
+    }
+    function openDeviceTools() { openPopupPage("tools"); }
+    function openPopupPage(page) {
         root.queuedRun = "";
-        root.voicePane = true;
+        root.popupPage = page;
         root.expanded = true;
         Qt.callLater(() => {
-            if (root.expanded && root.voicePane && root.fullRepresentationItem) {
-                root.fullRepresentationItem.focusVoiceAction();
+            if (root.expanded && root.popupPage === page && root.fullRepresentationItem) {
+                root.fullRepresentationItem.focusPageAction();
             }
         });
     }
@@ -666,12 +683,12 @@ PlasmoidItem {
         }
     }
     function runSearch(row) {
-        if (!root.expanded || root.voicePane || searchResults.querying || row < 0
+        if (!root.expanded || !root.contextPage || searchResults.querying || row < 0
                 || row >= searchResults.rowCount()) return;
         if (searchResults.run(searchResults.index(row, 0))) root.expanded = false;
     }
     function runCurrent(row) {
-        if (!root.expanded || root.voicePane || root.query.trim().length === 0) return;
+        if (!root.expanded || !root.contextPage || root.query.trim().length === 0) return;
         if (searchResults.querying || searchResults.rowCount() < 1 || row < 0) {
             root.queuedRun = root.query;
             return;
@@ -685,7 +702,7 @@ PlasmoidItem {
         const requestedQuery = root.queuedRun;
         const requestedRevision = root.queryRevision;
         Qt.callLater(() => {
-            if (root.expanded && !root.active && !root.voicePane && root.query === requestedQuery
+            if (root.expanded && !root.active && root.contextPage && root.query === requestedQuery
                     && root.queryRevision === requestedRevision
                     && root.queuedRun === requestedQuery && !searchResults.querying) {
                 root.queuedRun = "";
@@ -782,14 +799,14 @@ PlasmoidItem {
         if (root.mediaPresent) { releaseGrace.stop(); }
         else { releaseGrace.restart(); }
     }
-    onActiveChanged: if (!root.active && !root.voicePane) { root.expanded = false; }
+    onActiveChanged: if (!root.active && root.contextPage) { root.expanded = false; }
     onVolumeChanged: {
         if (root.volume > 0.01) { root.lastAudibleVolume = root.volume; }
     }
     onExpandedChanged: {
         if (root.expanded && root.player) { root.player.updatePosition(); }
         if (!root.expanded) {
-            root.voicePane = false;
+            root.popupPage = "context";
             root.query = "";
             root.queuedRun = "";
         }
@@ -946,8 +963,25 @@ PlasmoidItem {
                 spacing: root.design.space1
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
+                Loader {
+                    objectName: "islandInlineStrip"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    active: root.showInlineTools
+                    visible: active
+                    sourceComponent: MoKeyboard.SystemStrip {
+                        compact: true
+                        rtl: root.rtl
+                        language: root.rtl ? "ar" : "en"
+                        opacity: 0
+                        Component.onCompleted: opacity = 1
+                        Behavior on opacity { NumberAnimation { duration: root.motionFast } }
+                    }
+                }
+
                 Rectangle {
                     id: contextPlate
+                    visible: !root.showInlineTools
                     // Artwork is secondary to the title. Its size never
                     // consumes the text lane when the panel becomes shorter.
                     readonly property int artSize:
@@ -1147,6 +1181,7 @@ PlasmoidItem {
 
                 Item {
                     id: compactText
+                    visible: !root.showInlineTools
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.minimumWidth: 0
@@ -1220,20 +1255,24 @@ PlasmoidItem {
                         controlEnabled: root.voiceActionVisible || !root.mediaPresent || root.remotePresent
                             || root.privacyPresent || root.storeJobPresent || root.moaiJobPresent
                             || (root.playing ? root.canPause : (root.canPlay || root.canControl))
-                        iconName: root.voiceActionVisible ? "moos-microphone-symbolic"
+                        iconName: root.showInlineTools ? "go-down-symbolic"
+                            : root.voiceActionVisible ? "moos-microphone-symbolic"
                             : root.remotePresent ? "configure-symbolic"
                             : root.privacyPresent ? "moos-close-symbolic"
                             : root.storeJobPresent ? "moos-store"
                             : root.moaiJobPresent ? root.moaiJobIcon
                             : root.playing ? "media-playback-pause-symbolic" : "media-playback-start-symbolic"
-                        label: root.voiceActionVisible ? root.local("افتح صوت ميرا", "Open Mira voice")
+                        label: root.showInlineTools ? root.local("العودة إلى الجزيرة", "Return to Island")
+                            : root.voiceActionVisible ? root.local("افتح صوت ميرا", "Open Mira voice")
                             : root.remotePresent ? root.local("فتح إعدادات التحكم", "Open Remote controls")
                             : root.privacyPresent ? root.local("إيقاف", "Stop")
                             : root.storeJobPresent ? root.local("المتجر", "Store")
                             : root.moaiJobPresent ? root.local("فتح ميرا", "Open Mira")
                             : root.playing ? root.local("إيقاف مؤقت", "Pause") : root.local("تشغيل", "Play")
                         onActivated: {
-                            if (root.voiceActionVisible) {
+                            if (root.showInlineTools) {
+                                root.stripDismissed = true;
+                            } else if (root.voiceActionVisible) {
                                 root.openVoicePane();
                             } else if (root.remotePresent) {
                                 Qt.openUrlExternally("moos://app/remote");
@@ -1295,12 +1334,19 @@ PlasmoidItem {
     fullRepresentation: FocusScope {
         id: expanded
         Keys.onEscapePressed: root.expanded = false
-        function focusVoiceAction() { voicePanel.focusAction(); }
+        readonly property int toolsHeight: (deviceTools.item?.implicitHeight
+            || root.design.targetComfortable * 2 + root.design.space3) + root.design.space4 * 2
+        function focusPageAction() {
+            if (root.voicePane) voicePanel.focusAction();
+            else if (root.toolsPane && deviceTools.item) deviceTools.item.focusBack();
+        }
 
-        Layout.preferredWidth: root.voicePane ? Math.min(Kirigami.Units.gridUnit * 21, Screen.width - 24)
+        Layout.preferredWidth: root.toolsPane ? Math.min(440, Screen.width - 24)
+            : root.voicePane ? Math.min(Kirigami.Units.gridUnit * 21, Screen.width - 24)
             : root.active ? Kirigami.Units.gridUnit * 21
                                            : Kirigami.Units.gridUnit * 30
-        Layout.preferredHeight: root.voicePane ? 248 : root.active
+        Layout.preferredHeight: root.toolsPane ? expanded.toolsHeight
+            : root.voicePane ? 248 : root.active
             ? Kirigami.Units.gridUnit
                 * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails
                     || root.showMoaiDetails) ? 13 : 17)
@@ -1310,18 +1356,19 @@ PlasmoidItem {
             // behind the Horizon Bar at 4K/265% and clipped the Mo AI row.
             : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
                        Screen.height - Kirigami.Units.gridUnit * 7)
-        Layout.minimumWidth: root.voicePane ? Math.min(280, Screen.width - 24)
+        Layout.minimumWidth: root.toolsPane ? Math.min(280, Screen.width - 24)
+            : root.voicePane ? Math.min(280, Screen.width - 24)
             : root.active ? Kirigami.Units.gridUnit * 18
                                          : Math.min(400, Screen.width - 24)
-        Layout.minimumHeight: root.voicePane ? 224 : root.active
+        Layout.minimumHeight: root.toolsPane ? expanded.toolsHeight : root.voicePane ? 224 : root.active
             ? Kirigami.Units.gridUnit
                 * ((root.showRemoteDetails || root.showPrivacyDetails || root.showStoreDetails
                     || root.showMoaiDetails) ? 12 : 15)
                 + (root.multipleContexts ? 48 : 0)
             : Kirigami.Units.gridUnit * 16
-        Layout.maximumHeight: root.voicePane ? 300 : root.active
+        Layout.maximumHeight: root.voicePane ? 300 : root.active && !root.toolsPane
             ? Kirigami.Units.gridUnit * 22 + (root.multipleContexts ? 48 : 0)
-            : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
+            : root.toolsPane ? expanded.toolsHeight : Math.min(Kirigami.Units.gridUnit * root.searchSurfaceUnits,
                        Screen.height - Kirigami.Units.gridUnit * 7)
         opacity: root.motionEnabled ? 0 : 1
         scale: root.motionEnabled ? 0.96 : 1
@@ -1361,11 +1408,29 @@ PlasmoidItem {
 
         SearchView {
             anchors.fill: parent
-            visible: !root.active && !root.voicePane
+            visible: !root.active && root.contextPage
             z: 20
             controller: root
             resultModel: searchResults
             recentModel: searchRecentApps
+        }
+
+        Loader {
+            id: deviceTools
+            objectName: "islandDeviceToolsLoader"
+            anchors.fill: parent
+            anchors.margins: root.design.space4
+            active: root.expanded && root.toolsPane
+            visible: active
+            enabled: active
+            sourceComponent: IslandDeviceTools {
+                rtl: root.rtl
+                onBack: {
+                    if (root.voiceForeground && root.selectedDetailContext === "") root.openVoicePane();
+                    else root.popupPage = "context";
+                }
+            }
+            onLoaded: if (root.toolsPane && root.expanded) item.focusBack()
         }
 
         MiraVoicePanel {
@@ -1379,7 +1444,7 @@ PlasmoidItem {
             phaseLabel: root.voicePhaseLabel
             onBack: {
                 if (root.voiceForeground && root.selectedDetailContext === "") root.expanded = false;
-                else root.voicePane = false;
+                else root.popupPage = "context";
             }
             onOpenMira: root.openMoAI()
             onOpenSettings: root.openDestination("moos://ai/voice")
@@ -1393,7 +1458,7 @@ PlasmoidItem {
             anchors.margins: root.design.space4
             height: 44
             clip: true
-            visible: root.active && root.multipleContexts && !root.voicePane
+            visible: root.active && root.multipleContexts && root.contextPage
             currentIndex: root.showRemoteDetails ? 0
                 : (root.showPrivacyDetails ? 1
                     : (root.showStoreDetails ? 2 : (root.showMoaiDetails ? 3
@@ -1602,7 +1667,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showRemoteDetails && !root.voicePane
+            visible: root.showRemoteDetails && root.contextPage
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1699,7 +1764,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showPrivacyDetails && !root.voicePane
+            visible: root.showPrivacyDetails && root.contextPage
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1803,7 +1868,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showStoreDetails && !root.voicePane
+            visible: root.showStoreDetails && root.contextPage
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1902,7 +1967,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showMoaiDetails && !root.voicePane
+            visible: root.showMoaiDetails && root.contextPage
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {
@@ -1983,7 +2048,7 @@ PlasmoidItem {
             anchors.topMargin: root.multipleContexts
                 ? contextTabs.height + root.design.space5 * 2 : root.design.space5
             spacing: root.design.space4
-            visible: root.showMediaDetails && !root.voicePane
+            visible: root.showMediaDetails && root.contextPage
             layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
             RowLayout {

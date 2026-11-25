@@ -6,7 +6,7 @@
       "upstream_sha256": "469c93ee6f20a55850da30cc67800e61d482577cac9a9c9634b958fbbdcf51c0",
       "local": "MovaActionMenu.qml",
       "license": "GPL-2.0-or-later",
-      "changes": "Instance-owned menu, generic native delegate, destroyed/stale-identity delegate refusal and two existing favorite move actions."
+      "changes": "Instance-owned menu, generic native delegate, destroyed/stale-identity delegate refusal and two existing favorite move actions. Presented as an in-window, undimmed modal Plasma Components menu instead of a separate QMenu: on the V3 touch screen a finger outside the QMenu did not close it and the next tap was spent closing it. One outside press now only dismisses it. Rows take the launcher typeface, size, touch height and Arabic mirroring; an optional label hook names native action IDs in MoOS words. Action IDs, arguments and triggering stay Kicker's."
     },
     {
       "upstream": "https://invent.kde.org/plasma/plasma-desktop/-/blob/v6.8.3/applets/kicker/code/tools.js",

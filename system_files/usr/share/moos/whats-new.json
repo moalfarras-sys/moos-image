@@ -1,971 +1,984 @@
 {
-  "schema": 1,
-  "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
-  "entries": [
-    {
-      "id": "keyboard-hides-with-physical-keyboard",
-      "merged": "2026-11-24T20:00:00Z",
-      "glyph": "keyboard",
-      "title": {
-        "ar": "لوحة الشاشة تختفي مع الكيبورد الحقيقي",
-        "en": "No on-screen keyboard with a real one"
-      },
-      "body": {
-        "ar": "ما دام كيبورد حقيقي موصولًا (USB أو بلوتوث أو غطاء الجهاز) لا تظهر لوحة المفاتيح على الشاشة، وتعود حين تفصله وتلمس حقل كتابة.",
-        "en": "While a real keyboard is connected (USB, Bluetooth or the cover), the on-screen keyboard stays away; it returns when you unplug it and touch a field."
-      },
-      "route": "moos://settings/virtual-keyboard"
-    },
-    {
-      "id": "keyboard-touch-bar",
-      "merged": "2026-11-24T12:00:00Z",
-      "glyph": "keyboard",
-      "title": {
-        "ar": "شريط لمس فوق لوحة المفاتيح على الشاشة",
-        "en": "A Touch Bar over the on-screen keyboard"
-      },
-      "body": {
-        "ar": "شريط فوق الأزرار يتغير مع كتابتك: يكمل كلماتك المعتادة ويقترح الإيموجي المناسب (اكتب «قلب» فيظهر ❤️)، وبين الكلمات يعرض إيموجياتك الأخيرة. 😊 يفتح كل الإيموجي بأقسامها وألوان البشرة، و◀ ▶ تحرّك المؤشر، و⚙ للإعدادات. في كلمات المرور لا يقترح ولا يحفظ شيئًا.",
-        "en": "A strip above the keys follows your typing: it finishes the words you usually write and offers emoji that fit (type “heart” for ❤️); between words it shows your recent emoji. 😊 opens every emoji with categories and skin tones, ◀ ▶ move the cursor, ⚙ opens settings. In password fields it suggests and keeps nothing."
-      },
-      "route": "moos://settings/virtual-keyboard"
-    },
-    {
-      "id": "auto-arrange-windows",
-      "merged": "2026-11-23T18:00:00Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "الشاشة تنقسم وحدها للبرامج",
-        "en": "The screen splits itself for your programs"
-      },
-      "body": {
-        "ar": "افتح برنامجين فيأخذ كل منهما نصف الشاشة، وثلاثة فرئيسي واثنان، وأربعة فأرباع. تبقى كل نافذة في جهتها، والحوارات لا تتحرك، والبرنامج الذي لا يصغر لا يُضغط. أوقفه أو شغّله بـMeta+Alt+A أو من قائمة النافذة.",
-        "en": "Open two programs and each takes half the screen; three give one main and two, four take quarters. Windows keep their side, dialogs stay put and a program that cannot shrink is never squeezed. Toggle it with Meta+Alt+A or from the window menu."
-      }
-    },
-    {
-      "id": "meyar-arabic-tajawal",
-      "merged": "2026-11-23T16:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "خط ميار العربي بتصميم تجوال",
-        "en": "Meyar Arabic in Tajawal's design"
-      },
-      "body": {
-        "ar": "صار خط ميار العربي في كل النظام مبنيًا على خط تجوال بأوزانه السبعة: حروف أنظف وأسطر أخف. تبقى الحروف الفارسية والأردية التي لا يحملها تجوال مكتملة بوزن يطابقه، وعبارتا الإقلاع رُسمتا به.",
-        "en": "Meyar Arabic, used across the whole system, is now built on Tajawal in its seven weights: cleaner letters and lighter lines. Persian and Urdu letters Tajawal lacks stay complete at a matching weight, and the boot captions are drawn in it."
-      },
-      "route": "moos://settings/fonts"
-    },
-    {
-      "id": "hub-frosted-glass",
-      "merged": "2026-11-23T14:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "زجاج مُضبَّب حقيقي في لوحة سطح المكتب",
-        "en": "Real frosted glass on the desktop Hub"
-      },
-      "body": {
-        "ar": "بطاقات الساعة والطقس والنظام على سطح المكتب صارت فوق زجاج مُضبَّب من خلفيتك نفسها، فلا تقطع خطوط الصورة الحادة النص. عناوينها الثانوية أوضح، وأيام الأسبوع لا تتداخل مع نقاط الصفحات، وبطاقة الطقس تعرض حالة انتظار مرتبة حتى يصل التوقّع.",
-        "en": "The clock, weather and system cards on your desktop now sit on frosted glass made from your own wallpaper, so its sharp lines no longer cut through text. Their secondary labels read more clearly, the week row no longer overlaps the page dots, and the weather card waits tidily for its forecast."
-      },
-      "route": "moos://settings/wallpaper"
-    },
-    {
-      "id": "mova-home-cards-fit",
-      "merged": "2026-11-23T12:00:00Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "بطاقات الرئيسية في Mova تُقرأ كاملة",
-        "en": "Mova's Home cards read in full"
-      },
-      "body": {
-        "ar": "بطاقات الأوامر في صفحة الرئيسية بقائمة Mova صارت تأخذ ارتفاع سطرها العربي كاملًا مع هامشه، فلا يلتصق العنوان بحافة البطاقة ولا تُقص أطراف حروفه السفلى.",
-        "en": "The command cards on Mova's Home page now take the full height of their Arabic caption and its padding, so a title no longer sits on the card's edge or loses the lower strokes of its letters."
-      }
-    },
-    {
-      "id": "meyar-arabic-moos-corner",
-      "merged": "2026-11-23T12:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "زاوية MoOS في حروف ميار العربية",
-        "en": "The MoOS corner in Meyar Arabic"
-      },
-      "body": {
-        "ar": "رأس الألف واللام في خط ميار العربي صار بزاوية MoOS: طرف أيمن مربع وكتف أيسر مستدير، في كل الأوزان. يظهر أوضح في العناوين والخط الكبير، وعبارتا الترحيب والوداع في شاشة الإقلاع رُسمتا من جديد بالخط نفسه، دون أن يتغيّر عرض أي سطر.",
-        "en": "The tops of alef and lam in Meyar Arabic now carry the MoOS corner: a square right edge and a rounded left shoulder, at every weight. It shows most in headings and large text, and the boot screen's welcome and farewell captions are redrawn in the same font; no line changes width."
-      },
-      "route": "moos://settings/fonts"
-    },
-    {
-      "id": "meyar-glass-keyboard",
-      "merged": "2026-11-23T03:41:00Z",
-      "glyph": "keyboard",
-      "title": {
-        "ar": "لوحة مفاتيح زجاجية بلغاتك",
-        "en": "A glass on-screen keyboard in your languages"
-      },
-      "body": {
-        "ar": "لوحة المفاتيح على الشاشة صارت بزجاج MoOS: حروف أوضح وأكبر، وزر الإدخال بلون مظهرك، والضغط المطوّل يعرض الأحرف البديلة. تعرض لغات لوحة مفاتيحك بترتيبها، العربية أولًا، ولا تغيّر قائمة لغات اخترتها بنفسك.",
-        "en": "The on-screen keyboard now wears MoOS glass: larger, clearer letters, an Enter key in your accent, and long-press for alternate letters. It offers your keyboard's languages in their order, Arabic first, and never replaces a language list you chose yourself."
-      },
-      "route": "moos://settings/keyboard"
-    },
-    {
-      "id": "moos-corner-everywhere",
-      "merged": "2026-11-23T03:41:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "زاوية MoOS على كل بطاقة",
-        "en": "The MoOS corner on every card"
-      },
-      "body": {
-        "ar": "البطاقات والنوافذ المنبثقة وأزرار الأوامر صار لها شكل واحد: ثلاث زوايا منحنية وزاوية علوية مربعة في جهة نهاية السطر، يسارًا بالعربية ويمينًا بالإنجليزية. تراه في شاشة الدخول والمتجر والمساعد وبطاقات سطح المكتب، وحلقة التركيز تتبعه.",
-        "en": "Cards, pop-ups and command buttons now share one shape: three rounded corners and one square top corner on the side where a line ends, left in Arabic and right in English. You will see it at sign-in, in the Store, Mo AI and on desktop cards; the focus ring follows it."
-      },
-      "route": "moos://settings/appearance"
-    },
-    {
-      "id": "login-arrives-once",
-      "merged": "2026-11-21T23:30:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "شاشة دخول تظهر مرة واحدة بألوانك",
-        "en": "Sign-in appears once, in your colours"
-      },
-      "body": {
-        "ar": "تبقى الخلفية بلون الإقلاع حتى يُعرف مظهرك، ثم تظهر شاشة الدخول مرة واحدة بلا وميض. كلمة السر وزرّها كبسولة واحدة، مع تحية حسب الوقت، ورسائل البصمة والأزرار صارت بعربية سليمة.",
-        "en": "The boot colour holds until your look is known, then sign-in appears once with no flash. The password and its key form one capsule, with a greeting by time of day; fingerprint prompts and buttons now read in proper Arabic."
-      },
-      "route": "moos://settings/appearance"
-    },
-    {
-      "id": "readable-theme-colours",
-      "merged": "2026-11-21T23:30:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "ألوان أوضح للروابط والطرفية",
-        "en": "Clearer links and terminal colours"
-      },
-      "body": {
-        "ar": "الروابط والنصوص الملوّنة والتحديد في الثيمات الفاتحة صارت أوضح للقراءة، وألوان الطرفية كذلك. تتحدث ألوانك تلقائيًا ما لم تكن قد غيّرتها بنفسك.",
-        "en": "Links, coloured text and selections in the light themes read more clearly, as do terminal colours. Your colours update automatically unless you changed them yourself."
-      },
-      "route": "moos://settings/appearance"
-    },
-    {
-      "id": "liquid-glass-boot",
-      "merged": "2026-11-19T22:45:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "شاشة إقلاع من الزجاج السائل",
-        "en": "A Liquid Glass boot screen"
-      },
-      "body": {
-        "ar": "عند التشغيل تنساب قطرات زجاجية إلى عدسة يظهر فيها شعار MoOS بلمعة زجاجية، ثم يكتمل اسم MoOS بخط ميار وتظهر «مرحبًا بك». عند الإيقاف تظهر «إلى اللقاء». المشهد قصير ولا يؤخر الإقلاع.",
-        "en": "At power-on, glass droplets flow into a lens where the MoOS mark resolves in glass, then the Meyar wordmark and an Arabic welcome settle. Shutdown says goodbye in Arabic. The scene is short and never delays startup."
-      }
-    },
-    {
-      "id": "window-titles-centred",
-      "merged": "2026-11-18T16:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "أزرار موحّدة وإطار أوضح للنوافذ",
-        "en": "Clearer frames and shared window actions"
-      },
-      "body": {
-        "ar": "أزرار إطار MoOS تحمل قصّة Tidal Cut مع مساحة ضغط أكبر. العنوان يبقى في وسط الإطار بالعربية والإنجليزية، وأزرار GTK تتبع الإطار المختار. التطبيقات التي ترسم شريطها بنفسها تحتفظ بمالكها الأصلي.",
-        "en": "MoOS frame buttons share a Tidal Cut shape and larger input targets. Captions stay centered in Arabic and English, and GTK buttons follow the selected frame. Apps that draw their own bars retain their native owner."
-      },
-      "route": "moos://settings/appearance"
-    },
-    {
-      "id": "night-light-measured-policy",
-      "merged": "2026-11-18T15:00:00Z",
-      "glyph": "settings",
-      "title": {
-        "ar": "حالة الإضاءة الليلية الفعلية",
-        "en": "Measured Night Light state"
-      },
-      "body": {
-        "ar": "ميرا تقرأ إعداد الإضاءة الليلية المطبّق، وتتحقق من الوضع المطلوب بعد تغييره. عند تعذّر القراءة يظهر الرفض وتبقى اختياراتك محفوظة.",
-        "en": "Mira reads the applied Night Light policy and confirms the requested mode after a change. An unavailable read stays visible and preserves your choices."
-      }
-    },
-    {
-      "id": "app-drop-active-removal",
-      "merged": "2026-11-18T14:00:00Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "إزالة أكثر أماناً للتطبيقات",
-        "en": "Safer removal of applications"
-      },
-      "body": {
-        "ar": "عند رصد استخدام ملفات تطبيق ثبّتّه من ملف، يحتفظ المتجر به ويطلب إغلاقه بصورة عادية قبل الإزالة. إذا تعذّر التحقق، تبقى ملفاته كما هي ويمكنك إعادة المحاولة.",
-        "en": "When an app installed from a file is detected using its files, the Store keeps it and asks you to close it normally before removal. If usage cannot be checked, its files stay in place and you can retry."
-      }
-    },
-    {
-      "id": "chatgpt-window-buttons-arabic",
-      "merged": "2026-11-18T14:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "أزرار نافذة ChatGPT تعمل بالعربية",
-        "en": "ChatGPT's window buttons work in Arabic"
-      },
-      "body": {
-        "ar": "في الواجهة العربية كانت أزرار الإغلاق والتصغير والتكبير في ChatGPT تحرّك النافذة بدل أن تعمل. صارت على اليمين وتعمل، والتطبيق ما زال بالعربية. للشريط الجانبي والرجوع والتقدّم استخدم قائمة عرض أو Ctrl+Shift+S وCtrl+[. يصل التغيير مع تحديث التطبيق من المتجر.",
-        "en": "With an Arabic interface, ChatGPT's close, minimise and maximise buttons moved the window instead of working. They now sit on the right and work, and the app stays Arabic. For its sidebar, back and forward use the View menu, Ctrl+Shift+S or Ctrl+[. It arrives when you update the app in the Store."
-      }
-    },
-    {
-      "id": "meyar-in-electron-apps",
-      "merged": "2026-11-18T12:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "العربية بخط معيار في تطبيقات المتصفح",
-        "en": "Arabic in Meyar inside browser-based apps"
-      },
-      "body": {
-        "ar": "التطبيقات المبنية على Chromium وElectron المثبتة على النظام، مثل VS Code، تكتب العربية الآن بخط معيار العربي بدل خط أردي غريب، أياً كانت لغة واجهتها. اختياراتك للخطوط وخط الطرفية لم تتغير.",
-        "en": "Chromium and Electron apps installed on the system, such as VS Code, now write Arabic in Meyar Arabic instead of an unrelated Urdu face, whatever their interface language. Your own font choices and the terminal font are unchanged."
-      }
-    },
-    {
-      "id": "mova-launcher-glass",
-      "merged": "2026-11-17T21:30:00Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "مشغّل Mova أوضح وأهدأ",
-        "en": "A clearer, calmer Mova launcher"
-      },
-      "body": {
-        "ar": "اسم كل تطبيق صار تحت أيقونته مباشرة، وأيقونات الصف الواحد على مستوى واحد. البطاقة تصبح زجاجية عند المرور فوقها كمركز التحكم، والصفحة التي تكمل للأسفل تتلاشى بلطف بدل قصّ آخر صف. مفتاح الإعداد المتوقف صار واضحاً.",
-        "en": "Each app name now sits right under its icon, and every row shares one icon level. Tiles turn to glass on hover like the Control Center, pages that continue below fade softly instead of cutting their last row, and switched-off settings are clearly visible."
-      }
-    },
-    {
-      "id": "control-center-glass",
-      "merged": "2026-11-17T16:30:00Z",
-      "glyph": "settings",
-      "title": {
-        "ar": "مركز تحكم زجاجي أوضح",
-        "en": "A clearer glass Control Center"
-      },
-      "body": {
-        "ar": "أزرار واي فاي وبلوتوث وعدم الإزعاج والإضاءة الليلية والميكروفون دوائر زجاجية تمتلئ بلون الثيم عند تشغيلها. زر الإضاءة الليلية يطبّق التغيير فعلاً ويتحقق منه. الأشرطة أعرض للّمس، ورمز مركز التحكم يتحرك عند فتحه، وتتوقف الحركة عند إيقاف الرسوم المتحركة.",
-        "en": "Wi-Fi, Bluetooth, Do not disturb, Night Light and microphone are glass circles that fill with your theme colour when on. Night Light now really applies and confirms the change. Sliders are thicker for touch, the Control Center icon moves as it opens, and motion stops when animations are off."
-      }
-    },
-    {
-      "id": "session-health-readback",
-      "merged": "2026-11-09T21:20:00Z",
-      "glyph": "lock",
-      "title": {
-        "ar": "تحكّم بالمحفظة وفحص واضح للجلسة",
-        "en": "Wallet control and clear session checks"
-      },
-      "body": {
-        "ar": "فعّل محفظة كلمات المرور أو أوقفها من إعدادات MoOS مع حفظ اختيارك ومحتواها. يفحص النظام شاشة القفل والخدمات الفعلية، ويعلن تعذّر التحقق عند فشل قراءة مدير الخدمات بدل عرضها سليمة.",
-        "en": "Turn the password wallet on or off in MoOS Settings while keeping your choice and saved contents. Checks verify the lock screen and actual services, and report unavailable verification when the service manager cannot be read."
-      }
-    },
-    {
-      "id": "updates-one-place",
-      "merged": "2026-11-07T23:42:50Z",
-      "glyph": "safe-update",
-      "title": {
-        "ar": "كل التحديثات من مكان واحد",
-        "en": "Every update comes from one place"
-      },
-      "body": {
-        "ar": "تعرض صفحة التحديث النظام والتطبيقات وبرامج الجهاز، وأسماء التطبيقات التي تعذّر تحديثها وأسباب ذلك. تعمل تحديثات التطبيقات في الخلفية بعد موافقة واحدة، بما فيها التطبيقات المشتركة دون جلسة سطح مكتب مفتوحة. وتعرض برامج الجهاز ما سيثبّت قبل الموافقة.",
-        "en": "The Update page shows system, app and firmware updates, including app failures and their reasons. App updates run in the background after one confirmation; shared apps can update without an open desktop session. Firmware offers are shown before installation."
-      },
-      "route": "moos://settings/update"
-    },
-    {
-      "id": "windows-portable-data-preservation",
-      "merged": "2026-11-04T08:48:39Z",
-      "glyph": "folder",
-      "title": {
-        "ar": "حماية ملفات برامج Windows",
-        "en": "Keep Windows program data"
-      },
-      "body": {
-        "ar": "على الأجهزة التي تشغّل برامج Windows، يحفظ المتجر ملفاتها وإعداداتها عند التحديث والإزالة العادية، ويرفض استبدال الملفات المتعارضة أو التحديث أثناء تشغيل البرنامج. تبقى التثبيتات القديمة دون تعديل إذا تعذّر التحقق من ملفاتها.",
-        "en": "On PCs that can run Windows programs, Mo Store keeps their files and settings during updates and ordinary removal. Conflicting replacements and updates during use are refused. Older installations remain unchanged when their files cannot be verified."
-      },
-      "arch": [
-        "x86_64"
-      ]
-    },
-    {
-      "id": "native-control-center",
-      "merged": "2026-10-23T10:44:20Z",
-      "glyph": "settings",
-      "route": "moos://settings/overview",
-      "title": {
-        "ar": "مركز التحكم ومساحة عملك",
-        "en": "Control Center and your workspace"
-      },
-      "body": {
-        "ar": "تحكم بالصوت، واعرض الاتصال والطاقة، وافتح الإعدادات وأدوات سطح المكتب من مساحة واحدة. خلفيتا Prism الجديدتان متاحتان في مكتبة الخلفيات.",
-        "en": "Control sound, see connections and power, and open settings and desktop widgets from one place. The two new Prism wallpapers are available in the wallpaper library."
-      }
-    },
-    {
-      "id": "native-workspace-composition",
-      "merged": "2026-10-23T06:00:00Z",
-      "glyph": "ui",
-      "route": "moos://settings/overview",
-      "title": {
-        "ar": "مساحة عمل MoOS أوضح وأسهل",
-        "en": "A clearer MoOS workspace"
-      },
-      "body": {
-        "ar": "ترتيب جديد للساعة والطقس وحالة الجهاز يتكيّف مع العرض الطولي، وزر مساحة العمل لفتح نوافذك. تفتح الرئيسية تنظيم النوافذ والإعدادات وميرا، وتفتح مكتبة التطبيقات المتجر فعليًا. تجمع بداية الإعدادات الشاشة والمظهر والصوت والشبكة والطاقة والإشعارات.",
-        "en": "A portrait-ready clock, weather and device layout, plus a Workspace button for your windows. Home opens window arrangement, Settings and Mira; the app library opens Mo Store. Mira and Store shortcuts now open their actual applications. Settings groups your main device controls."
-      }
-    },
-    {
-      "id": "adaptive-native-launcher",
-      "merged": "2026-10-22T12:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "قائمة تتكيّف مع شاشتك",
-        "en": "A launcher that fits your screen"
-      },
-      "body": {
-        "ar": "تتكيّف قائمة MoOS مع الشاشات الضيقة والقصيرة، مع أزرار لمس أوضح وتنقّل أفضل بالمفاتيح ومحاذاة عربية متناسقة. تبقى التطبيقات والأماكن وإجراءات الجلسة في القائمة نفسها.",
-        "en": "The MoOS launcher fits narrow and short screens, with larger touch navigation, better keyboard focus and consistent Arabic alignment. Apps, places and session actions stay together."
-      }
-    },
-    {
-      "id": "automatic-fingerprint-sign-in",
-      "merged": "2026-10-20T08:27:15Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "الدخول التلقائي بالبصمة",
-        "en": "Automatic fingerprint sign-in"
-      },
-      "body": {
-        "ar": "بعد تسجيل بصمتك، يبدأ القارئ تلقائيًا عند ظهور حسابك في شاشة الدخول. المسه للدخول مباشرة؛ وإذا انتهت المهلة، يمكنك الدخول بكلمة المرور وحدها.",
-        "en": "Once your fingerprint is enrolled, the reader starts automatically for your account at sign-in. Touch it to enter. When the scan times out, use your password without another fingerprint request."
-      },
-      "arch": [
-        "x86_64"
-      ]
-    },
-    {
-      "id": "installed-app-launch-lifetime",
-      "merged": "2026-10-19T00:30:00Z",
-      "glyph": "install",
-      "title": {
-        "ar": "البرامج تبقى مفتوحة بعد التثبيت",
-        "en": "Apps stay open after installation"
-      },
-      "body": {
-        "ar": "عندما يفتح MoOS برنامجًا بعد تثبيته، يبقى مفتوحًا بعد انتهاء التثبيت. وإذا تعذّر فتحه، تظهر نتيجة واضحة بدل اعتباره جاهزًا.",
-        "en": "Apps opened after installation keep running when installation finishes. If an app cannot be opened, MoOS reports the failure instead of claiming it is ready."
-      }
-    },
-    {
-      "id": "v3-motion-driver-detection",
-      "merged": "2026-10-19T00:30:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "الدخول بالبصمة وفحص أجهزة V3",
-        "en": "Fingerprint sign-in and V3 device checks"
-      },
-      "body": {
-        "ar": "تدعم شاشة الدخول بصمتك المسجلة، مع بقاء كلمة المرور متاحة. يكشف فحص الأجهزة أيضًا مستشعر SMOCF05 بلا تعريف؛ هذا التنبيه لا يشغّل التدوير التلقائي.",
-        "en": "Sign in with an enrolled fingerprint or your password. Device checks also flag an unbound SMOCF05 motion sensor; the warning does not enable automatic rotation."
-      },
-      "arch": [
-        "x86_64"
-      ]
-    },
-    {
-      "id": "arm-scheduled-app-updates",
-      "arch": [
-        "aarch64"
-      ],
-      "merged": "2026-10-18T23:59:59Z",
-      "glyph": "install",
-      "route": "moos://settings/update",
-      "title": {
-        "ar": "تحديث التطبيقات تلقائيًا على أجهزة ARM",
-        "en": "Scheduled application updates on ARM"
-      },
-      "body": {
-        "ar": "تعمل جدولة تحديث التطبيقات لحسابك وللتطبيقات المشتركة بأولوية منخفضة، ولا تستدرك التطبيقات المشتركة موعدًا فات عند الإقلاع. يبقى اختيارك لإيقاف التحديث التلقائي محفوظًا، وتتأجل تحديثات الحساب إذا كان المتجر مشغولًا.",
-        "en": "App updates run on a schedule for your account and shared apps at low priority. Shared apps avoid boot catch-up. Your automatic-update choice is preserved, and account updates skip to a later run while the Store is busy."
-      }
-    },
-    {
-      "id": "mo-store-library",
-      "merged": "2026-10-17T10:50:00Z",
-      "glyph": "install",
-      "title": {
-        "ar": "متجر MoOS: كل تطبيقاتك في مكان واحد",
-        "en": "Mo Store: every app in one place"
-      },
-      "body": {
-        "ar": "64 وصفة إضافية من لينكس وويندوز وأندرويد حسب جهازك، مع ChatGPT وClaude. تصفح أسهل وأخف، ونسخ البرنامج معًا في صفحة واحدة. تعرض المكتبة التطبيقات الأصلية والمثبّتة، وتبقى التطبيقات مفتوحة بعد تشغيلها. تؤكَّد تحديثات أندرويد فعليًا، ويبدأ بحث الملفات بعد جاهزية سطح المكتب.",
-        "en": "64 more Linux, Windows and Android recipes for compatible PCs, plus ChatGPT and Claude. Lighter browsing groups product variants on one page. The library includes native installed apps. Apps outlive their launch request; Android updates confirm installed bytes. File search waits for the desktop."
-      }
-    },
-    {
-      "id": "mira-job-presence-recovery",
-      "merged": "2026-10-14T17:16:49Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "متابعة أوضح لمهام ميرا",
-        "en": "More reliable Mira task feedback"
-      },
-      "body": {
-        "ar": "تتعافى الجزيرة إذا فاتتها أول إشارة لبدء مهمة مؤكدة في ميرا، ثم تعرض النتيجة الفعلية. لا تعيد الإشارة مهمة انتهت ولا تضيف فحصًا مستمرًا عند الخمول.",
-        "en": "The Island recovers when it misses the first signal of a confirmed Mira task and then shows its actual result. Recovery does not revive finished work or continuously poll an idle desktop."
-      }
-    },
-    {
-      "id": "moplayer-direct-file-controls",
-      "merged": "2026-10-12T22:14:56Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "تحكّم صحيح بالفيديو في MoPlayer",
-        "en": "Correct video controls in MoPlayer"
-      },
-      "body": {
-        "ar": "تعرض ملفات الفيديو المحلية مدتها وأدوات التقديم والإيقاف المؤقت بدل أدوات البث المباشر. تفتح روابط الملفات ذات الأسماء العربية والمسافات، ولا تُضاف الملفات المنفصلة إلى سجل مصادر التلفاز.",
-        "en": "Local videos show their duration, seeking and pause controls instead of live-stream controls. File links with Arabic names and spaces open correctly, and standalone files stay out of television-source history."
-      }
-    },
-    {
-      "id": "material-state-atomic-transition",
-      "merged": "2026-10-12T17:10:00Z",
-      "glyph": "ui",
-      "route": "moos://settings/appearance",
-      "title": {
-        "ar": "الشفافية تتبع اختيارك",
-        "en": "Glass follows your choice"
-      },
-      "body": {
-        "ar": "يتبع الزجاج تغيير الوضوح وإيقاف الضبابية بحالة واحدة متماسكة، حتى لا تبقى الواجهة على اختيار سابق. تبقى الحالة المجهولة أو المتعارضة معتمة للقراءة.",
-        "en": "Glass follows clarity changes and blur being disabled as one consistent state, avoiding a stale choice. Unknown or conflicting state stays opaque and readable."
-      }
-    },
-    {
-      "id": "settings-launcher-account-shadow",
-      "merged": "2026-10-12T16:30:00Z",
-      "glyph": "ui",
-      "route": "moos://settings/overview",
-      "title": {
-        "ar": "إعدادات MoOS في قائمة التطبيقات",
-        "en": "MoOS Settings in the application menu"
-      },
-      "body": {
-        "ar": "تُستعاد الإعدادات إذا أخفتها نسخة قديمة معروفة داخل الحساب، وتُحفظ النسخة القديمة للرجوع إليها. يفحص النظام مدخل الإعدادات الفعلي حتى لا يخفي نجاح التحديث مدخلًا مفقودًا أو مكررًا.",
-        "en": "Settings is restored when a reviewed old account entry hides it, with the old copy preserved. The system checks the effective Settings entry so a successful update cannot conceal a missing or duplicate launcher."
-      }
-    },
-    {
-      "id": "gtk-readable-secondary-ink",
-      "merged": "2026-10-11T11:10:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "تعليمات أوضح في تطبيقات MoOS",
-        "en": "Clearer instructions in MoOS apps"
-      },
-      "body": {
-        "ar": "أصبحت النصوص الثانوية في تطبيقات MoOS أوضح؛ أزيل تخفيف إضافي كان يجعل التعليمات تبدو معطّلة، مع الحفاظ على ألوان النظام.",
-        "en": "Secondary text in MoOS apps is easier to read. An extra dimming layer made instructions look disabled; the system colours are preserved."
-      }
-    },
-    {
-      "id": "remote-sign-in-after-reboot",
-      "merged": "2026-10-11T11:00:00Z",
-      "glyph": "lock",
-      "route": "moos://settings/remote",
-      "title": {
-        "ar": "الدخول إلى MoOS من الهاتف بعد إعادة التشغيل",
-        "en": "Sign in to MoOS from your phone after reboot"
-      },
-      "body": {
-        "ar": "من Mo PC Remote يمكنك تفعيل الوصول إلى شاشة الدخول عبر رابط Tailscale الخاص، برمز مستقل وصلاحية المسؤول. تختار حسابك وتكتب كلمة مروره داخل شاشة MoOS؛ الملفات والحافظة والصوت غير متاحة قبل الدخول. زر إيقاف يلغي تفعيل شاشة الدخول أيضًا.",
-        "en": "In Mo PC Remote, enable login-screen access through your private Tailscale address with a separate PIN and administrator authorization. Select your account and enter its password inside MoOS; files, clipboard and audio are unavailable before login. Stop also disables login-screen enrollment."
-      }
-    },
-    {
-      "id": "arm-memory-pressure-monitoring",
-      "arch": [
-        "aarch64"
-      ],
-      "merged": "2026-10-11T00:30:00Z",
-      "glyph": "lock",
-      "title": {
-        "ar": "حماية ضغط الذاكرة على أجهزة ARM",
-        "en": "Memory-pressure protection on ARM devices"
-      },
-      "body": {
-        "ar": "تراقب نسخة ARM ضغط الذاكرة أثناء العمل لتحسين ثبات سطح المكتب عندما يستهلك تطبيق الذاكرة. يتحقق فحص الإقلاع من عمل المراقبة فعلًا، بدل الاكتفاء بوجود خدمة تعمل.",
-        "en": "ARM now monitors memory pressure to improve desktop stability when an application consumes memory. Boot verification checks actual monitoring, rather than only a running service."
-      }
-    },
-    {
-      "id": "audit-arm-install-before-write",
-      "merged": "2026-10-09T04:00:00Z",
-      "glyph": "lock",
-      "title": {
-        "ar": "التحقق قبل مسح قرص ARM",
-        "en": "Verify before clearing an ARM install disk"
-      },
-      "body": {
-        "ar": "مُثبّت ARM يتحقق من الصورة الموقّعة قبل مسح بيانات موجودة، ويتوقف عند تعذر قراءة القرص أو التباس اختياره. أداة التحقق محدثة ويُثبت أصل ملفها قبل تشغيله. إلغاء القائمة يخرج منها، وفشل التثبيت لا يعلن النجاح أو يعيد التشغيل. اختيار الإقلاع غير الواضح يحتاج ضبطه من UTM؛ الإصلاح غير المنفذ لا يعلن نجاحًا وهميًا.",
-        "en": "ARM installs check the signed image before erasing data, using an updated verifier checked before execution. Unreadable or ambiguous targets stop. Cancel exits; failed installs never announce completion or reboot. Ambiguous boot selection needs UTM settings; unimplemented repair never reports success."
-      }
-    },
-    {
-      "id": "audit-support-privacy",
-      "merged": "2026-10-09T04:00:00Z",
-      "glyph": "lock",
-      "title": {
-        "ar": "حماية أقوى لتقرير الدعم",
-        "en": "Stronger support-report privacy"
-      },
-      "body": {
-        "ar": "تقرير الدعم يخفي مفاتيح JSON وOAuth والمفاتيح الخاصة كاملة وعناوين IPv6 المختصرة قبل قص السجلات. الملف يُكتب بخصوصية منذ إنشائه دون اتباع رابط مؤقت متوقع.",
-        "en": "Support reports redact JSON/OAuth credentials, complete private keys and compressed IPv6 before trimming logs. Files are private from creation and avoid predictable temporary links."
-      }
-    },
-    {
-      "id": "audit-remote-fallback-codec",
-      "merged": "2026-10-09T04:00:00Z",
-      "glyph": "video",
-      "route": "moos://settings/remote",
-      "title": {
-        "ar": "ترميز احتياطي آمن للتحكم البعيد",
-        "en": "A safer Remote fallback encoder"
-      },
-      "body": {
-        "ar": "أزيلت تبعية الصور ذات النشرات الأمنية. اللقطة الاحتياطية تُحفظ مؤقتًا في مجلد خاص ثم تُحذف بعد التحويل إلى JPEG بحدود للحجم والدقة، ويُرفض الملف التالف دون تغيير مسار PipeWire الأساسي.",
-        "en": "The vulnerable image dependency is removed. Each fallback picture uses a private temporary directory and is deleted after bounded JPEG conversion. Corrupt input is refused while retaining the primary PipeWire path."
-      }
-    },
-    {
-      "id": "audit-language-transaction",
-      "merged": "2026-10-09T04:00:00Z",
-      "glyph": "globe",
-      "title": {
-        "ar": "لغة متماسكة عند بدء ميرا وتغيير الإعداد",
-        "en": "Consistent Mira startup and language changes"
-      },
-      "body": {
-        "ar": "ميرا تتبع لغة الجلسة المدعومة عند أول تشغيل، مع العربية افتراضيًا واحترام اختيارك المحفوظ. تغيير اللغة يتوقف إن كانت عملية أخرى تضبطها، بدل خلط ملفات الإعداد.",
-        "en": "Mira follows the supported session language on first launch, defaults to Arabic and preserves your saved choice. A busy language transaction stops instead of mixing configuration writes."
-      }
-    },
-    {
-      "id": "remote-pin-lockout",
-      "merged": "2026-10-07T00:00:00Z",
-      "glyph": "lock",
-      "title": {
-        "ar": "حماية موحّدة لرمز التحكم البعيد",
-        "en": "Shared protection for the Remote PIN"
-      },
-      "body": {
-        "ar": "محاولات الرمز الخاطئة عند تغييره تُحتسب مع محاولات تسجيل الدخول. بعد خمس محاولات، ينتظر التحكم البعيد دقيقتين قبل المحاولة مجددًا. تغيير الرمز الصحيح يُخرج الجلسات والأجهزة الموثوقة السابقة.",
-        "en": "Wrong PIN attempts while changing it share the login limit. After five attempts, Remote waits two minutes before another attempt. Changing the PIN signs out previous sessions and trusted devices."
-      }
-    },
-    {
-      "id": "remote-glass-console",
-      "merged": "2026-10-07T00:00:00Z",
-      "glyph": "video",
-      "route": "moos://settings/remote",
-      "title": {
-        "ar": "Mo PC Remote بواجهة جديدة كلياً",
-        "en": "A completely new Mo PC Remote"
-      },
-      "body": {
-        "ar": "ثلاثة أوضاع من شريط واحد: لمس، تراكباد، وماوس وكيبورد. في التراكباد ترتفع الصورة ويصير ما تحتها لوحة لمس. زر MoOS ينفّذ أوامر سطح المكتب بلمسة: القائمة وMira والبحث والصوت ولقطة الشاشة. الإعدادات ثلاثة أقسام: اختر الدقة ومعدّل الإطارات وشاهد استهلاك البيانات.",
-        "en": "Three modes from one dock: Touch, Trackpad, Mouse & keys. In Trackpad the picture moves up and the space below becomes a trackpad. The MoOS button runs desktop commands in one tap: launcher, Mira, search, volume, screenshot. Settings has three tabs: pick resolution and frame rate and see the data cost."
-      }
-    },
-    {
-      "id": "session-logout-startup",
-      "merged": "2026-10-06T13:30:00Z",
-      "glyph": "lock",
-      "title": {
-        "ar": "تسجيل خروج مستقر عند بدء سطح المكتب",
-        "en": "Reliable logout during desktop startup"
-      },
-      "body": {
-        "ar": "تسجيل الخروج يكتمل حتى أثناء إعداد سطح المكتب، مع بقاء مطالبات حفظ الملفات. إذا تعذّر الإغلاق، تبقى المحاولة التالية متاحة بدل تعليق الجلسة.",
-        "en": "Logout completes while the desktop is still setting up, with file-saving prompts preserved. If closing fails, you can retry without leaving the session stuck."
-      }
-    },
-    {
-      "id": "session-one-design",
-      "merged": "2026-10-06T06:00:00Z",
-      "glyph": "lock",
-      "route": "moos://settings/lock",
-      "title": {
-        "ar": "شاشة القفل والدخول والطاقة صارت تصميماً واحداً",
-        "en": "Lock, login and power screens are one design"
-      },
-      "body": {
-        "ar": "وأنت بعيد، الشاشة غلاف بساعة كبيرة. عند أول حركة تنسحب الساعة وتصعد جزيرة زجاجية فيها صورتك داخل إطار مضيء، ويدور ضوء حول حافتها ثم يستقر. كل شيء يكبر ويصغر مع حجم شاشتك، ولا يتداخل شيء مع شيء.",
-        "en": "While you are away the screen is a cover with a large clock. At the first movement the clock draws back and a glass island rises with your picture in a lit frame; a light runs round its edge, then settles. Everything scales with your screen, and nothing overlaps anything else."
-      }
-    },
-    {
-      "id": "remote-one-controller",
-      "merged": "2026-10-05T19:30:00Z",
-      "glyph": "video",
-      "route": "moos://settings/remote",
-      "title": {
-        "ar": "الشاشة ولوحة اللمس والكيبورد في Mo PC Remote",
-        "en": "Desktop, touchpad and keyboard in Mo PC Remote"
-      },
-      "body": {
-        "ar": "اختر شاشة وتحكّم، أو لوحة لمس، أو كيبورد من شريط واحد. تبقى الشاشة ظاهرة أثناء الكتابة، وتتكيف الجودة مع الاستجابة. التحكم مستقل عن تجديد البث، وكتابة كلمة المرور لا تستخدم حافظة الكمبيوتر. لوحة الكمبيوتر تتيح الوصول دون موافقة محلية، مع بقاء المصادقة وكلمة مرور الحساب لفتح القفل.",
-        "en": "Choose Desktop, Touchpad or Keyboard from one dock. The screen stays visible while typing and quality adapts to responsiveness. Input survives capture renewal; password typing avoids the PC clipboard. The PC panel offers unattended access while retaining Remote authentication and your account password for unlocking."
-      }
-    },
-    {
-      "id": "remote-pocket-safe-video",
-      "merged": "2026-10-05T07:00:00Z",
-      "glyph": "video",
-      "route": "moos://settings/remote",
-      "title": {
-        "ar": "صورة Mo PC Remote تبقى حادة بعد التنقّل بين التطبيقات",
-        "en": "Mo PC Remote stays sharp after you switch apps"
-      },
-      "body": {
-        "ar": "عندما تترك صفحة Mo PC Remote على هاتفك وتعود إليها، لم يعد الفيديو ينتقل إلى الصور الثقيلة. يتوقف فك الفيديو وأنت بعيد ويبدأ من جديد عند عودتك، فيبقى البث خفيفاً وواضحاً.",
-        "en": "Leaving Mo PC Remote on your phone and coming back no longer drops the picture to heavy images. Video decoding pauses while you are away and starts fresh when you return, so the stream stays light and clear."
-      }
-    },
-    {
-      "id": "graphite-boot-still",
-      "merged": "2026-10-05T00:00:00Z",
-      "glyph": "spark",
-      "title": {
-        "ar": "إقلاع أخف بهوية MoOS",
-        "en": "A lighter MoOS boot"
-      },
-      "body": {
-        "ar": "شعار MoOS على خلفية زجاجية موحدة مع شاشة الدخول، بحركة قصيرة تنتهي فوراً عند جاهزية النظام. شاشة الإقلاع تحمل صورة واحدة بدل فيلم متتابع.",
-        "en": "The MoOS mark shares the glass landscape of the login screen, with a brief entrance that yields immediately when ready. One image replaces the frame sequence."
-      }
-    },
-    {
-      "id": "firmware-update-results",
-      "merged": "2026-10-04T23:59:00Z",
-      "glyph": "spark",
-      "route": "moos://settings/update",
-      "title": {
-        "ar": "نتيجة تحديث الأجهزة واضحة",
-        "en": "Clear firmware update results"
-      },
-      "body": {
-        "ar": "صفحة التحديثات تعرض حالة فحص وتحديث الأجهزة وأسباب تعذّر العملية، وتكتشف العملية المنقطعة بدلاً من ترك حالة «جارٍ التحديث».",
-        "en": "The Updates page shows firmware checks and update results, explains failures, and detects interrupted work instead of leaving “Updating” indefinitely."
-      }
-    },
-    {
-      "id": "lumen-screen-controls",
-      "merged": "2026-10-04T23:58:00Z",
-      "glyph": "bulb",
-      "route": "moos://settings/assistant",
-      "title": {
-        "ar": "مزامنة الإضاءة مع الشاشة المختارة",
-        "en": "Lighting sync with your chosen screen"
-      },
-      "body": {
-        "ar": "غيّر الشاشة من صفحة الإضاءة في ميرا. مزامنة Hue تحافظ على مواقع اللمبات وتوقف تأثير Echo السابق، ويظهر عدد الأضواء المتصلة من الإجمالي.",
-        "en": "Choose the screen from Mira’s Lighting page. Hue sync keeps lamp positions, clears the previous Echo effect, and shows connected lights out of the total."
-      }
-    },
-    {
-      "id": "cloud-desktop-size",
-      "merged": "2026-10-04T13:30:00Z",
-      "glyph": "video",
-      "route": "moos://settings/remote",
-      "title": {
-        "ar": "سطح مكتب سحابي بحجم شاشتك",
-        "en": "A cloud desktop the size of your screen"
-      },
-      "body": {
-        "ar": "على جهاز بلا شاشة اختر حجم سطح المكتب: «phone» يصل الهاتف بكسلاً ببكسل فيصير النص أوضح والصورة أسلس، و«desk» أوسع للحاسوب. اطلبه من ميرا، أو من الطرفية: moos-cloud-desktop display phone. يُطبَّق عند الدخول التالي. وMo PC Remote يرسل الآن عدد الإطارات الذي اخترته بالضبط.",
-        "en": "On a machine with no monitor, choose the desktop's size: “phone” reaches a phone pixel for pixel, so text is sharper and motion smoother; “desk” gives a computer more room. Ask Mira, or run moos-cloud-desktop display phone. It applies at the next sign-in. Mo PC Remote now sends exactly the frame rate you chose."
-      }
-    },
-    {
-      "id": "light-after-days",
-      "merged": "2026-10-04T12:00:00Z",
-      "glyph": "pulse",
-      "route": "moos://settings/remote",
-      "title": {
-        "ar": "MoOS يبقى خفيفاً بعد أيام من التشغيل",
-        "en": "MoOS stays light after days of running"
-      },
-      "body": {
-        "ar": "Mo PC Remote لم يعد يترك اتصال شاشة قديماً مفتوحاً كلما أُعيد بناء الصورة، فتتوقف خدمة الصوت عن التضخم. مؤشر الخصوصية يظهر لحظة بدء الالتقاط ولا يكلّف شيئاً في السكون، ومحادثة ميرا لم تعد تستهلك الذاكرة بلا حدّ.",
-        "en": "Mo PC Remote no longer leaves an old screen connection open each time the picture is rebuilt, so the sound service stops growing. The privacy chip appears the moment a capture starts and costs nothing while idle, and Mira's chat can no longer run away with memory."
-      }
-    },
-    {
-      "id": "mira-media-title",
-      "merged": "2026-10-03T09:00:00Z",
-      "glyph": "ai",
-      "route": "moos://settings/assistant",
-      "title": {
-        "ar": "عنوان الوسائط واضح في مركز التحكم",
-        "en": "Readable media titles in the control centre"
-      },
-      "body": {
-        "ar": "صفحة الكمبيوتر في ميرا تعرض اسم المقطع والفنان كنص واضح عند التشغيل، بما في ذلك العناوين العربية.",
-        "en": "Mira’s This PC page shows the playing title and artist as readable text, including Arabic titles."
-      }
-    },
-    {
-      "id": "lumen-lighting",
-      "merged": "2026-10-03T00:00:00Z",
-      "glyph": "bulb",
-      "route": "moos://settings/assistant",
-      "title": {
-        "ar": "لومِن: كل أضواء البيت والكمبيوتر بمكان واحد",
-        "en": "Lumen: every light in the house and the PC, in one place"
-      },
-      "body": {
-        "ar": "صفحة الإضاءة في ميرا تتحكم بأضواء البيت وإضاءة الكيس واللوحة الأم معاً: غرف ومجموعات، عجلة ألوان، أبيض دافئ وبارد، مشاهد حيّة مثل الشفق والغروب، ومزامنة تخلي الأضواء تتبع اللي على الشاشة. وقولي لميرا «خلي الكيس بنفسجي» أو «شغلي مشهد السينما».",
-        "en": "Mira's Lighting page drives the house's lamps and the case and motherboard RGB together: rooms and groups, a colour wheel, warm and cool white, living scenes such as Aurora and Sunset, and Screen Sync so the lights follow the screen. Or just tell Mira “make the case violet” or “cinema scene”."
-      }
-    },
-    {
-      "id": "mira-home-centre",
-      "merged": "2026-10-03T00:00:00Z",
-      "glyph": "home",
-      "route": "moos://settings/assistant",
-      "title": {
-        "ar": "البيت في ميرا: كل جهاز بغرفته وباسمك",
-        "en": "Home in Mira: every device in its room, by your names"
-      },
-      "body": {
-        "ar": "سمِّ أي جهاز أو انقله لغرفة أو أعطه أسماء ثانية للصوت، والاسم بينحفظ بالبيت نفسه. ميرا صارت تعرف شو بيقدر يعمل كل جهاز، وعلى جهاز ما فيه مركز بيت بكبسة وحدة بيصير الكمبيوتر مركز البيت وبيكتشف أجهزتك لحاله.",
-        "en": "Rename any device, move it to a room or give it other names for your voice, saved in the home itself. Mira knows what each device can do, and one button makes a computer without a hub your home hub that finds your devices by itself."
-      }
-    },
-    {
-      "id": "remote-weak-link",
-      "merged": "2026-10-01T01:00:00Z",
-      "glyph": "video",
-      "route": "moos://settings/remote",
-      "title": {
-        "ar": "Mo PC Remote يصمد مع الاتصال الضعيف",
-        "en": "Mo PC Remote holds on a weak connection"
-      },
-      "body": {
-        "ar": "على نت ضعيف تخفّ الصورة تلقائياً ليبقى الماوس واللمس سريعين، ولا ينقطع الاتصال عند توقف قصير. خطأ عابر في الفيديو لا يحوّلك إلى صور ثقيلة، وموافقتك على التحكم لا تضيع عند تغيّر الشاشة، وأثناء طلب الموافقة يبقى سهم الهاتف فوق سهم الكمبيوتر.",
-        "en": "On a weak link the picture lightens itself so mouse and touch stay quick, and a short stall no longer drops the session. A passing video error no longer means heavy images, your approval survives a display change, and while approval is asked, the phone's pointer stays on the PC's."
-      }
-    },
-    {
-      "id": "moplayer-horizon",
-      "merged": "2026-10-01T00:00:00Z",
-      "glyph": "video",
-      "title": {
-        "ar": "MoPlayer من جديد: أسرع وبألوان MoOS ويشغّل كل السيرفرات",
-        "en": "A new MoPlayer: faster, MoOS colours, every server"
-      },
-      "body": {
-        "ar": "يفتح فوراً ولا يتجمّد مع المكتبات الكبيرة، ويستهلك من كرت الشاشة أقل بكثير. رابط get.php فيه حسابك يُقرأ كسيرفر Xtream كامل بأفلامه ومسلسلاته، وتعمل روابط M3U وبوابات MAC. القنوات تُعرض على مسرح بجانب القائمة، والألوان تتبع مظهر MoOS.",
-        "en": "Opens at once, no longer freezes on large libraries and uses far less graphics memory. A get.php link with your account is read as the full Xtream server with films and series; M3U links and MAC portals work too. Channels play on a stage beside the list, in your MoOS colours."
-      }
-    },
-    {
-      "id": "mira-assistant",
-      "merged": "2026-09-30T00:00:00Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "ميرا صارت مساعدة MoOS",
-        "en": "Mira is now your MoOS assistant"
-      },
-      "body": {
-        "ar": "افتحها بـ Meta+Space. في نافذتها صفحات الكمبيوتر والتطبيقات والنظام والورشة والاتصال والعقل، وتحفظ محادثاتك (Ctrl+H)، وتسألك قبل أن يكتب وكيل البرمجة ملفاً أو يشغّل أمراً. التثبيت والتحديث والإصلاح ينتظر موافقتك في بطاقة، وتسمّي لك كل مكان بالكلمات التي تراها في نافذتها.",
-        "en": "Open her with Meta+Space. Her window has pages for This PC, Apps, System, Workbench, Connect and Brain, keeps your chats (Ctrl+H) and asks you before her coding agent writes a file or runs a command. Installs, updates and repairs wait for your yes on a card, and she names every place by the words her window shows."
-      },
-      "route": "moos://settings/assistant"
-    },
-    {
-      "id": "mira-computer-actions",
-      "merged": "2026-09-30T00:00:00Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "ميرا تعيد التشغيل وتفحص التحديثات وتدير Mo PC Remote",
-        "en": "Mira restarts, checks for updates and runs Mo PC Remote"
-      },
-      "body": {
-        "ar": "اسألها «في تحديث؟» فتفحص دون أن تغيّر شيئاً، أو اطلب منها إعادة التشغيل، أو تشغيل Mo PC Remote وإيقافه والاتصال السريع، أو تثبيت وكلاء البرمجة وحزمة RPM من التنزيلات أو سطح المكتب. بطاقاتها وخطواتها بلغتك، وتقول ماذا سيحدث بعد موافقتك.",
-        "en": "Ask her “is there an update?” and she checks without changing anything, or ask her to restart, to turn Mo PC Remote on or off, to use Fast Remote, or to install coding agents and an RPM from Downloads or your desktop. Her cards and steps speak your language and say what happens after your yes."
-      }
-    },
-    {
-      "id": "mira-in-plasma",
-      "merged": "2026-09-30T00:00:00Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "ميرا في كل مكان من MoOS",
-        "en": "Mira everywhere in MoOS"
-      },
-      "body": {
-        "ar": "انقر بزر الفأرة الأيمن على ملف في مدير الملفات (Dolphin) واختر «اسأل ميرا عن هذا»، أو على مجلد لتضيفه إلى مشاريع الورشة. وفي بحث الجزيرة يسألها Ctrl+Enter، ومن إعداداتها تستطيع أن تجعلها تبدأ بهدوء في شريط النظام مع تسجيل الدخول.",
-        "en": "Right-click a file in the file manager (Dolphin) and choose “Ask Mira about this”, or a folder to add it to your Workbench projects. Ctrl+Enter in the Island search asks her, and her Settings can start her quietly in the tray when you sign in."
-      }
-    },
-    {
-      "id": "moai-desktop-hands",
-      "merged": "2026-09-28T12:00:00Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "ميرا صارت تتحكم بالنوافذ وأسطح المكتب",
-        "en": "Mira can now run your windows and desktops"
-      },
-      "body": {
-        "ar": "اطلب من ميرا أن تُظهر نافذة أو تصغّرها أو تكبّرها أو تغلقها بالاسم، أو تنقلها بين أسطح المكتب، أو توقف الموسيقى، أو تقفل الشاشة، أو تضبط تذكيراً، أو تفتح صفحة أو مجلداً. تعرض ما ستفعله، وإغلاق نافذة يسألك أولاً.",
-        "en": "Ask Mira to bring a window forward, minimize, maximize or close it by name, move it between desktops, pause the music, lock the screen, set a reminder, or open a page or folder. She shows what she will do, and closing a window asks first."
-      },
-      "route": "moos://settings/assistant"
-    },
-    {
-      "id": "remote-clipboard-auto-quality",
-      "merged": "2026-09-27T23:02:33Z",
-      "glyph": "video",
-      "title": {
-        "ar": "نسخ ولصق أوضح وصورة تتكيف أسرع",
-        "en": "Clearer copy and paste, faster picture adaptation"
-      },
-      "body": {
-        "ar": "في Mo PC Remote، ينقل زر النسخ النص المحدد من الكمبيوتر إلى جهازك، وينقل زر اللصق نص جهازك إلى الكمبيوتر قبل لصقه. إذا منع المتصفح الوصول للحافظة، تظهر طريقة يدوية. والعودة إلى جودة تلقائية تختار وضوحًا مناسبًا فورًا.",
-        "en": "In Mo PC Remote, Copy brings selected PC text to your device, and Paste sends your device text to the PC before pasting. If the browser blocks clipboard access, a manual path opens. Returning to Auto quality chooses a suitable picture immediately."
-      },
-      "route": "moos://settings/remote"
-    },
-    {
-      "id": "rounded-dock-material",
-      "merged": "2026-09-27T10:29:33Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "حواف ناعمة بكل درجات الزجاج",
-        "en": "Soft dock edges at every glass clarity"
-      },
-      "body": {
-        "ar": "يحتفظ الدوك العائم بحوافه المستديرة حتى بجانب نافذة مكبّرة. ومن ثيمات MoOS جرّب الزجاج الصافي أو المتوازن أو المصمت؛ تبقى الحواف نفسها مع تغيّر وضوح السطح.",
-        "en": "The floating dock keeps its rounded edges beside a maximized window. In MoOS Themes, try Clear, Balanced or Solid glass: the surface changes while its soft edges stay the same."
-      },
-      "route": "moos://settings/themes"
-    },
-    {
-      "id": "hub-widget-reveal",
-      "merged": "2026-09-27T10:29:33Z",
-      "glyph": "spark",
-      "title": {
-        "ar": "حركة قصيرة للويجت، ثم سكون",
-        "en": "A brief widget entrance, then rest"
-      },
-      "body": {
-        "ar": "خيار حركة الويجت في ثيمات MoOS يضيف ظهورًا قصيرًا لبطاقات سطح المكتب، ثم تتوقف. اختر ثابت لإيقافها؛ ويظل تقليل حركة النظام محترمًا.",
-        "en": "Widget motion in MoOS Themes gives desktop cards one brief entrance, then stops. Choose Still to turn it off; the system’s reduced-motion setting is respected."
-      },
-      "route": "moos://settings/themes"
-    },
-    {
-      "id": "remote-current-interface",
-      "merged": "2026-09-27T10:29:33Z",
-      "glyph": "video",
-      "title": {
-        "ar": "واجهة Remote محدثة وتنقّل أوضح",
-        "en": "An up-to-date Remote interface and clearer navigation"
-      },
-      "body": {
-        "ar": "بعد التحديث يحمّل Mo PC Remote واجهته الجديدة بدل إبقاء نسخة قديمة. وأدوات التحكم المخفية لا تعترض التنقّل بلوحة المفاتيح؛ أظهرها عندما تحتاجها.",
-        "en": "After an update, Mo PC Remote loads its new interface instead of keeping an older copy. Hidden controls stay out of keyboard navigation; reveal them when you need them."
-      },
-      "route": "moos://settings/remote"
-    },
-    {
-      "id": "remote-trusted-device-opt-in",
-      "merged": "2026-09-25T17:00:00Z",
-      "glyph": "shield",
-      "title": {
-        "ar": "الثقة بجهاز Remote بقرارك",
-        "en": "You choose whether Remote trusts this device"
-      },
-      "body": {
-        "ar": "عند إعداد Mo PC Remote أو إدخال الرمز، يبدأ خيار الثقة بهذا الجهاز لمدة 30 يوماً غير محدد. فعّله فقط على جهازك الخاص إذا أردت إعادة الاتصال دون الرمز.",
-        "en": "When setting up Mo PC Remote or entering the PIN, 30-day device trust starts unchecked. Select it on your own device if you want to reconnect without the PIN."
-      },
-      "route": "moos://settings/remote"
-    },
-    {
-      "id": "moos-settings-group",
-      "merged": "2026-09-25T09:00:00Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "لـ MoOS مجموعته في إعدادات النظام",
-        "en": "MoOS has its own group in System Settings"
-      },
-      "body": {
-        "ar": "النظرة العامة والتحديث وما الجديد وMo AI وMo PC Remote والاستعادة صارت صفحات في إعدادات النظام، أولها في الشريط الجانبي بجانب الشاشة والصوت والشبكة. في قائمة التطبيقات مدخل واحد اسمه إعدادات MoOS، ويفتحه Meta+I أيضاً.",
-        "en": "Overview, Update, What's new, Mo AI, Mo PC Remote and Recovery are now pages of System Settings, first in its sidebar next to display, sound and network. The app menu has one MoOS Settings entry, and Meta+I opens it too."
-      },
-      "route": "moos://settings/overview"
-    },
-    {
-      "id": "moai-settings-in-system-settings",
-      "merged": "2026-09-25T09:00:00Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "إعدادات Mo AI في إعدادات النظام",
-        "en": "Mo AI's settings are in System Settings"
-      },
-      "body": {
-        "ar": "عقل Mo AI ومفتاحه وقنوات الهاتف والصلاحيات صارت صفحة واحدة: إعدادات النظام ← MoOS ← Mo AI. زر الإعدادات في Mo AI يفتحها، والمفتاح الذي تكتبه لا يُعرض مرة أخرى.",
-        "en": "Mo AI's brain, key, phone channels and permissions are now one page: System Settings, MoOS, Mo AI. The gear in Mo AI opens it, and a key you type is never shown again."
-      },
-      "route": "moos://settings/assistant"
-    },
-    {
-      "id": "moos-themes-in-settings",
-      "merged": "2026-09-25T09:00:00Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "ثيمات MoOS داخل الإعدادات",
-        "en": "MoOS Themes lives in Settings"
-      },
-      "body": {
-        "ar": "اختر واحداً من مظاهر MoOS الستة عشر وصورة سطح المكتب ووضوح الزجاج وحركة الخلفية من صفحة واحدة تحت المظهر والأسلوب. يُعلَّم المظهر بعد أن يؤكده سطح المكتب فقط، والتراجع يعيد السابق.",
-        "en": "Choose one of the sixteen MoOS looks, your desktop image, glass clarity and wallpaper motion on one page under Appearance & Style. A look is marked only once the desktop confirms it, and Undo brings the previous one back."
-      },
-      "route": "moos://settings/themes"
-    },
-    {
-      "id": "moai-desktop-control",
-      "merged": "2026-09-25T09:00:00Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "Mo AI يرتّب سطح المكتب ويفتح أي إعداد",
-        "en": "Mo AI arranges your desktop and opens any setting"
-      },
-      "body": {
-        "ar": "اطلب من Mo AI عرض كل النوافذ أو ترتيبها أنصافاً أو أثلاثاً، أو تبديل سطح المكتب، أو عدم الإزعاج، أو كتم الميكروفون، أو تغيير لغة لوحة المفاتيح. ويفتح لك الصفحة الصحيحة من الإعدادات مباشرة، ويخبرك إن لم يستطع.",
-        "en": "Ask Mo AI to show all windows, arrange them in halves or thirds, switch desktops, turn on do not disturb, mute the microphone or change the keyboard language. It opens the exact settings page you need, and tells you when it cannot."
-      }
-    }
-  ]
+ "schema": 1,
+ "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
+ "entries": [
+  {
+   "id": "mova-library-touch-and-words",
+   "merged": "2026-11-25T09:00:00Z",
+   "glyph": "grid",
+   "title": {
+    "ar": "مكتبة التطبيقات أوضح باللمس",
+    "en": "A clearer app library by touch"
+   },
+   "body": {
+    "ar": "أسماء الفئات مثل «الكل» و«الأدوات» كاملة في وسط أزرارها. قائمة الضغط المطوّل على تطبيق صارت عربية كلها بخط أكبر وصفوف تناسب الإصبع، ولمسة خارجها تغلقها دون أن تفتح ما تحتها. وأزرار الجلسة تظهر بأسمائها.",
+    "en": "Category names such as “All” and “Tools” sit whole in the middle of their buttons. The press-and-hold menu on an app is fully translated, with larger words and finger-sized rows; a touch outside only closes it. Session buttons show their names."
+   }
+  },
+  {
+   "id": "keyboard-hides-with-physical-keyboard",
+   "merged": "2026-11-24T20:00:00Z",
+   "glyph": "keyboard",
+   "title": {
+    "ar": "لوحة الشاشة تختفي مع الكيبورد الحقيقي",
+    "en": "No on-screen keyboard with a real one"
+   },
+   "body": {
+    "ar": "ما دام كيبورد حقيقي موصولًا (USB أو بلوتوث أو غطاء الجهاز) لا تظهر لوحة المفاتيح على الشاشة، وتعود حين تفصله وتلمس حقل كتابة.",
+    "en": "While a real keyboard is connected (USB, Bluetooth or the cover), the on-screen keyboard stays away; it returns when you unplug it and touch a field."
+   },
+   "route": "moos://settings/virtual-keyboard"
+  },
+  {
+   "id": "keyboard-touch-bar",
+   "merged": "2026-11-24T12:00:00Z",
+   "glyph": "keyboard",
+   "title": {
+    "ar": "شريط لمس فوق لوحة المفاتيح على الشاشة",
+    "en": "A Touch Bar over the on-screen keyboard"
+   },
+   "body": {
+    "ar": "شريط فوق الأزرار يتغير مع كتابتك: يكمل كلماتك المعتادة ويقترح الإيموجي المناسب (اكتب «قلب» فيظهر ❤️)، وبين الكلمات يعرض إيموجياتك الأخيرة. 😊 يفتح كل الإيموجي بأقسامها وألوان البشرة، و◀ ▶ تحرّك المؤشر، و⚙ للإعدادات. في كلمات المرور لا يقترح ولا يحفظ شيئًا.",
+    "en": "A strip above the keys follows your typing: it finishes the words you usually write and offers emoji that fit (type “heart” for ❤️); between words it shows your recent emoji. 😊 opens every emoji with categories and skin tones, ◀ ▶ move the cursor, ⚙ opens settings. In password fields it suggests and keeps nothing."
+   },
+   "route": "moos://settings/virtual-keyboard"
+  },
+  {
+   "id": "auto-arrange-windows",
+   "merged": "2026-11-23T18:00:00Z",
+   "glyph": "grid",
+   "title": {
+    "ar": "الشاشة تنقسم وحدها للبرامج",
+    "en": "The screen splits itself for your programs"
+   },
+   "body": {
+    "ar": "افتح برنامجين فيأخذ كل منهما نصف الشاشة، وثلاثة فرئيسي واثنان، وأربعة فأرباع. تبقى كل نافذة في جهتها، والحوارات لا تتحرك، والبرنامج الذي لا يصغر لا يُضغط. أوقفه أو شغّله بـMeta+Alt+A أو من قائمة النافذة.",
+    "en": "Open two programs and each takes half the screen; three give one main and two, four take quarters. Windows keep their side, dialogs stay put and a program that cannot shrink is never squeezed. Toggle it with Meta+Alt+A or from the window menu."
+   }
+  },
+  {
+   "id": "meyar-arabic-tajawal",
+   "merged": "2026-11-23T16:00:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "خط ميار العربي بتصميم تجوال",
+    "en": "Meyar Arabic in Tajawal's design"
+   },
+   "body": {
+    "ar": "صار خط ميار العربي في كل النظام مبنيًا على خط تجوال بأوزانه السبعة: حروف أنظف وأسطر أخف. تبقى الحروف الفارسية والأردية التي لا يحملها تجوال مكتملة بوزن يطابقه، وعبارتا الإقلاع رُسمتا به.",
+    "en": "Meyar Arabic, used across the whole system, is now built on Tajawal in its seven weights: cleaner letters and lighter lines. Persian and Urdu letters Tajawal lacks stay complete at a matching weight, and the boot captions are drawn in it."
+   },
+   "route": "moos://settings/fonts"
+  },
+  {
+   "id": "hub-frosted-glass",
+   "merged": "2026-11-23T14:00:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "زجاج مُضبَّب حقيقي في لوحة سطح المكتب",
+    "en": "Real frosted glass on the desktop Hub"
+   },
+   "body": {
+    "ar": "بطاقات الساعة والطقس والنظام على سطح المكتب صارت فوق زجاج مُضبَّب من خلفيتك نفسها، فلا تقطع خطوط الصورة الحادة النص. عناوينها الثانوية أوضح، وأيام الأسبوع لا تتداخل مع نقاط الصفحات، وبطاقة الطقس تعرض حالة انتظار مرتبة حتى يصل التوقّع.",
+    "en": "The clock, weather and system cards on your desktop now sit on frosted glass made from your own wallpaper, so its sharp lines no longer cut through text. Their secondary labels read more clearly, the week row no longer overlaps the page dots, and the weather card waits tidily for its forecast."
+   },
+   "route": "moos://settings/wallpaper"
+  },
+  {
+   "id": "mova-home-cards-fit",
+   "merged": "2026-11-23T12:00:00Z",
+   "glyph": "grid",
+   "title": {
+    "ar": "بطاقات الرئيسية في Mova تُقرأ كاملة",
+    "en": "Mova's Home cards read in full"
+   },
+   "body": {
+    "ar": "بطاقات الأوامر في صفحة الرئيسية بقائمة Mova صارت تأخذ ارتفاع سطرها العربي كاملًا مع هامشه، فلا يلتصق العنوان بحافة البطاقة ولا تُقص أطراف حروفه السفلى.",
+    "en": "The command cards on Mova's Home page now take the full height of their Arabic caption and its padding, so a title no longer sits on the card's edge or loses the lower strokes of its letters."
+   }
+  },
+  {
+   "id": "meyar-arabic-moos-corner",
+   "merged": "2026-11-23T12:00:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "زاوية MoOS في حروف ميار العربية",
+    "en": "The MoOS corner in Meyar Arabic"
+   },
+   "body": {
+    "ar": "رأس الألف واللام في خط ميار العربي صار بزاوية MoOS: طرف أيمن مربع وكتف أيسر مستدير، في كل الأوزان. يظهر أوضح في العناوين والخط الكبير، وعبارتا الترحيب والوداع في شاشة الإقلاع رُسمتا من جديد بالخط نفسه، دون أن يتغيّر عرض أي سطر.",
+    "en": "The tops of alef and lam in Meyar Arabic now carry the MoOS corner: a square right edge and a rounded left shoulder, at every weight. It shows most in headings and large text, and the boot screen's welcome and farewell captions are redrawn in the same font; no line changes width."
+   },
+   "route": "moos://settings/fonts"
+  },
+  {
+   "id": "meyar-glass-keyboard",
+   "merged": "2026-11-23T03:41:00Z",
+   "glyph": "keyboard",
+   "title": {
+    "ar": "لوحة مفاتيح زجاجية بلغاتك",
+    "en": "A glass on-screen keyboard in your languages"
+   },
+   "body": {
+    "ar": "لوحة المفاتيح على الشاشة صارت بزجاج MoOS: حروف أوضح وأكبر، وزر الإدخال بلون مظهرك، والضغط المطوّل يعرض الأحرف البديلة. تعرض لغات لوحة مفاتيحك بترتيبها، العربية أولًا، ولا تغيّر قائمة لغات اخترتها بنفسك.",
+    "en": "The on-screen keyboard now wears MoOS glass: larger, clearer letters, an Enter key in your accent, and long-press for alternate letters. It offers your keyboard's languages in their order, Arabic first, and never replaces a language list you chose yourself."
+   },
+   "route": "moos://settings/keyboard"
+  },
+  {
+   "id": "moos-corner-everywhere",
+   "merged": "2026-11-23T03:41:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "زاوية MoOS على كل بطاقة",
+    "en": "The MoOS corner on every card"
+   },
+   "body": {
+    "ar": "البطاقات والنوافذ المنبثقة وأزرار الأوامر صار لها شكل واحد: ثلاث زوايا منحنية وزاوية علوية مربعة في جهة نهاية السطر، يسارًا بالعربية ويمينًا بالإنجليزية. تراه في شاشة الدخول والمتجر والمساعد وبطاقات سطح المكتب، وحلقة التركيز تتبعه.",
+    "en": "Cards, pop-ups and command buttons now share one shape: three rounded corners and one square top corner on the side where a line ends, left in Arabic and right in English. You will see it at sign-in, in the Store, Mo AI and on desktop cards; the focus ring follows it."
+   },
+   "route": "moos://settings/appearance"
+  },
+  {
+   "id": "login-arrives-once",
+   "merged": "2026-11-21T23:30:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "شاشة دخول تظهر مرة واحدة بألوانك",
+    "en": "Sign-in appears once, in your colours"
+   },
+   "body": {
+    "ar": "تبقى الخلفية بلون الإقلاع حتى يُعرف مظهرك، ثم تظهر شاشة الدخول مرة واحدة بلا وميض. كلمة السر وزرّها كبسولة واحدة، مع تحية حسب الوقت، ورسائل البصمة والأزرار صارت بعربية سليمة.",
+    "en": "The boot colour holds until your look is known, then sign-in appears once with no flash. The password and its key form one capsule, with a greeting by time of day; fingerprint prompts and buttons now read in proper Arabic."
+   },
+   "route": "moos://settings/appearance"
+  },
+  {
+   "id": "readable-theme-colours",
+   "merged": "2026-11-21T23:30:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "ألوان أوضح للروابط والطرفية",
+    "en": "Clearer links and terminal colours"
+   },
+   "body": {
+    "ar": "الروابط والنصوص الملوّنة والتحديد في الثيمات الفاتحة صارت أوضح للقراءة، وألوان الطرفية كذلك. تتحدث ألوانك تلقائيًا ما لم تكن قد غيّرتها بنفسك.",
+    "en": "Links, coloured text and selections in the light themes read more clearly, as do terminal colours. Your colours update automatically unless you changed them yourself."
+   },
+   "route": "moos://settings/appearance"
+  },
+  {
+   "id": "liquid-glass-boot",
+   "merged": "2026-11-19T22:45:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "شاشة إقلاع من الزجاج السائل",
+    "en": "A Liquid Glass boot screen"
+   },
+   "body": {
+    "ar": "عند التشغيل تنساب قطرات زجاجية إلى عدسة يظهر فيها شعار MoOS بلمعة زجاجية، ثم يكتمل اسم MoOS بخط ميار وتظهر «مرحبًا بك». عند الإيقاف تظهر «إلى اللقاء». المشهد قصير ولا يؤخر الإقلاع.",
+    "en": "At power-on, glass droplets flow into a lens where the MoOS mark resolves in glass, then the Meyar wordmark and an Arabic welcome settle. Shutdown says goodbye in Arabic. The scene is short and never delays startup."
+   }
+  },
+  {
+   "id": "window-titles-centred",
+   "merged": "2026-11-18T16:00:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "أزرار موحّدة وإطار أوضح للنوافذ",
+    "en": "Clearer frames and shared window actions"
+   },
+   "body": {
+    "ar": "أزرار إطار MoOS تحمل قصّة Tidal Cut مع مساحة ضغط أكبر. العنوان يبقى في وسط الإطار بالعربية والإنجليزية، وأزرار GTK تتبع الإطار المختار. التطبيقات التي ترسم شريطها بنفسها تحتفظ بمالكها الأصلي.",
+    "en": "MoOS frame buttons share a Tidal Cut shape and larger input targets. Captions stay centered in Arabic and English, and GTK buttons follow the selected frame. Apps that draw their own bars retain their native owner."
+   },
+   "route": "moos://settings/appearance"
+  },
+  {
+   "id": "night-light-measured-policy",
+   "merged": "2026-11-18T15:00:00Z",
+   "glyph": "settings",
+   "title": {
+    "ar": "حالة الإضاءة الليلية الفعلية",
+    "en": "Measured Night Light state"
+   },
+   "body": {
+    "ar": "ميرا تقرأ إعداد الإضاءة الليلية المطبّق، وتتحقق من الوضع المطلوب بعد تغييره. عند تعذّر القراءة يظهر الرفض وتبقى اختياراتك محفوظة.",
+    "en": "Mira reads the applied Night Light policy and confirms the requested mode after a change. An unavailable read stays visible and preserves your choices."
+   }
+  },
+  {
+   "id": "app-drop-active-removal",
+   "merged": "2026-11-18T14:00:00Z",
+   "glyph": "grid",
+   "title": {
+    "ar": "إزالة أكثر أماناً للتطبيقات",
+    "en": "Safer removal of applications"
+   },
+   "body": {
+    "ar": "عند رصد استخدام ملفات تطبيق ثبّتّه من ملف، يحتفظ المتجر به ويطلب إغلاقه بصورة عادية قبل الإزالة. إذا تعذّر التحقق، تبقى ملفاته كما هي ويمكنك إعادة المحاولة.",
+    "en": "When an app installed from a file is detected using its files, the Store keeps it and asks you to close it normally before removal. If usage cannot be checked, its files stay in place and you can retry."
+   }
+  },
+  {
+   "id": "chatgpt-window-buttons-arabic",
+   "merged": "2026-11-18T14:00:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "أزرار نافذة ChatGPT تعمل بالعربية",
+    "en": "ChatGPT's window buttons work in Arabic"
+   },
+   "body": {
+    "ar": "في الواجهة العربية كانت أزرار الإغلاق والتصغير والتكبير في ChatGPT تحرّك النافذة بدل أن تعمل. صارت على اليمين وتعمل، والتطبيق ما زال بالعربية. للشريط الجانبي والرجوع والتقدّم استخدم قائمة عرض أو Ctrl+Shift+S وCtrl+[. يصل التغيير مع تحديث التطبيق من المتجر.",
+    "en": "With an Arabic interface, ChatGPT's close, minimise and maximise buttons moved the window instead of working. They now sit on the right and work, and the app stays Arabic. For its sidebar, back and forward use the View menu, Ctrl+Shift+S or Ctrl+[. It arrives when you update the app in the Store."
+   }
+  },
+  {
+   "id": "meyar-in-electron-apps",
+   "merged": "2026-11-18T12:00:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "العربية بخط معيار في تطبيقات المتصفح",
+    "en": "Arabic in Meyar inside browser-based apps"
+   },
+   "body": {
+    "ar": "التطبيقات المبنية على Chromium وElectron المثبتة على النظام، مثل VS Code، تكتب العربية الآن بخط معيار العربي بدل خط أردي غريب، أياً كانت لغة واجهتها. اختياراتك للخطوط وخط الطرفية لم تتغير.",
+    "en": "Chromium and Electron apps installed on the system, such as VS Code, now write Arabic in Meyar Arabic instead of an unrelated Urdu face, whatever their interface language. Your own font choices and the terminal font are unchanged."
+   }
+  },
+  {
+   "id": "mova-launcher-glass",
+   "merged": "2026-11-17T21:30:00Z",
+   "glyph": "grid",
+   "title": {
+    "ar": "مشغّل Mova أوضح وأهدأ",
+    "en": "A clearer, calmer Mova launcher"
+   },
+   "body": {
+    "ar": "اسم كل تطبيق صار تحت أيقونته مباشرة، وأيقونات الصف الواحد على مستوى واحد. البطاقة تصبح زجاجية عند المرور فوقها كمركز التحكم، والصفحة التي تكمل للأسفل تتلاشى بلطف بدل قصّ آخر صف. مفتاح الإعداد المتوقف صار واضحاً.",
+    "en": "Each app name now sits right under its icon, and every row shares one icon level. Tiles turn to glass on hover like the Control Center, pages that continue below fade softly instead of cutting their last row, and switched-off settings are clearly visible."
+   }
+  },
+  {
+   "id": "control-center-glass",
+   "merged": "2026-11-17T16:30:00Z",
+   "glyph": "settings",
+   "title": {
+    "ar": "مركز تحكم زجاجي أوضح",
+    "en": "A clearer glass Control Center"
+   },
+   "body": {
+    "ar": "أزرار واي فاي وبلوتوث وعدم الإزعاج والإضاءة الليلية والميكروفون دوائر زجاجية تمتلئ بلون الثيم عند تشغيلها. زر الإضاءة الليلية يطبّق التغيير فعلاً ويتحقق منه. الأشرطة أعرض للّمس، ورمز مركز التحكم يتحرك عند فتحه، وتتوقف الحركة عند إيقاف الرسوم المتحركة.",
+    "en": "Wi-Fi, Bluetooth, Do not disturb, Night Light and microphone are glass circles that fill with your theme colour when on. Night Light now really applies and confirms the change. Sliders are thicker for touch, the Control Center icon moves as it opens, and motion stops when animations are off."
+   }
+  },
+  {
+   "id": "session-health-readback",
+   "merged": "2026-11-09T21:20:00Z",
+   "glyph": "lock",
+   "title": {
+    "ar": "تحكّم بالمحفظة وفحص واضح للجلسة",
+    "en": "Wallet control and clear session checks"
+   },
+   "body": {
+    "ar": "فعّل محفظة كلمات المرور أو أوقفها من إعدادات MoOS مع حفظ اختيارك ومحتواها. يفحص النظام شاشة القفل والخدمات الفعلية، ويعلن تعذّر التحقق عند فشل قراءة مدير الخدمات بدل عرضها سليمة.",
+    "en": "Turn the password wallet on or off in MoOS Settings while keeping your choice and saved contents. Checks verify the lock screen and actual services, and report unavailable verification when the service manager cannot be read."
+   }
+  },
+  {
+   "id": "updates-one-place",
+   "merged": "2026-11-07T23:42:50Z",
+   "glyph": "safe-update",
+   "title": {
+    "ar": "كل التحديثات من مكان واحد",
+    "en": "Every update comes from one place"
+   },
+   "body": {
+    "ar": "تعرض صفحة التحديث النظام والتطبيقات وبرامج الجهاز، وأسماء التطبيقات التي تعذّر تحديثها وأسباب ذلك. تعمل تحديثات التطبيقات في الخلفية بعد موافقة واحدة، بما فيها التطبيقات المشتركة دون جلسة سطح مكتب مفتوحة. وتعرض برامج الجهاز ما سيثبّت قبل الموافقة.",
+    "en": "The Update page shows system, app and firmware updates, including app failures and their reasons. App updates run in the background after one confirmation; shared apps can update without an open desktop session. Firmware offers are shown before installation."
+   },
+   "route": "moos://settings/update"
+  },
+  {
+   "id": "windows-portable-data-preservation",
+   "merged": "2026-11-04T08:48:39Z",
+   "glyph": "folder",
+   "title": {
+    "ar": "حماية ملفات برامج Windows",
+    "en": "Keep Windows program data"
+   },
+   "body": {
+    "ar": "على الأجهزة التي تشغّل برامج Windows، يحفظ المتجر ملفاتها وإعداداتها عند التحديث والإزالة العادية، ويرفض استبدال الملفات المتعارضة أو التحديث أثناء تشغيل البرنامج. تبقى التثبيتات القديمة دون تعديل إذا تعذّر التحقق من ملفاتها.",
+    "en": "On PCs that can run Windows programs, Mo Store keeps their files and settings during updates and ordinary removal. Conflicting replacements and updates during use are refused. Older installations remain unchanged when their files cannot be verified."
+   },
+   "arch": [
+    "x86_64"
+   ]
+  },
+  {
+   "id": "native-control-center",
+   "merged": "2026-10-23T10:44:20Z",
+   "glyph": "settings",
+   "route": "moos://settings/overview",
+   "title": {
+    "ar": "مركز التحكم ومساحة عملك",
+    "en": "Control Center and your workspace"
+   },
+   "body": {
+    "ar": "تحكم بالصوت، واعرض الاتصال والطاقة، وافتح الإعدادات وأدوات سطح المكتب من مساحة واحدة. خلفيتا Prism الجديدتان متاحتان في مكتبة الخلفيات.",
+    "en": "Control sound, see connections and power, and open settings and desktop widgets from one place. The two new Prism wallpapers are available in the wallpaper library."
+   }
+  },
+  {
+   "id": "native-workspace-composition",
+   "merged": "2026-10-23T06:00:00Z",
+   "glyph": "ui",
+   "route": "moos://settings/overview",
+   "title": {
+    "ar": "مساحة عمل MoOS أوضح وأسهل",
+    "en": "A clearer MoOS workspace"
+   },
+   "body": {
+    "ar": "ترتيب جديد للساعة والطقس وحالة الجهاز يتكيّف مع العرض الطولي، وزر مساحة العمل لفتح نوافذك. تفتح الرئيسية تنظيم النوافذ والإعدادات وميرا، وتفتح مكتبة التطبيقات المتجر فعليًا. تجمع بداية الإعدادات الشاشة والمظهر والصوت والشبكة والطاقة والإشعارات.",
+    "en": "A portrait-ready clock, weather and device layout, plus a Workspace button for your windows. Home opens window arrangement, Settings and Mira; the app library opens Mo Store. Mira and Store shortcuts now open their actual applications. Settings groups your main device controls."
+   }
+  },
+  {
+   "id": "adaptive-native-launcher",
+   "merged": "2026-10-22T12:00:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "قائمة تتكيّف مع شاشتك",
+    "en": "A launcher that fits your screen"
+   },
+   "body": {
+    "ar": "تتكيّف قائمة MoOS مع الشاشات الضيقة والقصيرة، مع أزرار لمس أوضح وتنقّل أفضل بالمفاتيح ومحاذاة عربية متناسقة. تبقى التطبيقات والأماكن وإجراءات الجلسة في القائمة نفسها.",
+    "en": "The MoOS launcher fits narrow and short screens, with larger touch navigation, better keyboard focus and consistent Arabic alignment. Apps, places and session actions stay together."
+   }
+  },
+  {
+   "id": "automatic-fingerprint-sign-in",
+   "merged": "2026-10-20T08:27:15Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "الدخول التلقائي بالبصمة",
+    "en": "Automatic fingerprint sign-in"
+   },
+   "body": {
+    "ar": "بعد تسجيل بصمتك، يبدأ القارئ تلقائيًا عند ظهور حسابك في شاشة الدخول. المسه للدخول مباشرة؛ وإذا انتهت المهلة، يمكنك الدخول بكلمة المرور وحدها.",
+    "en": "Once your fingerprint is enrolled, the reader starts automatically for your account at sign-in. Touch it to enter. When the scan times out, use your password without another fingerprint request."
+   },
+   "arch": [
+    "x86_64"
+   ]
+  },
+  {
+   "id": "installed-app-launch-lifetime",
+   "merged": "2026-10-19T00:30:00Z",
+   "glyph": "install",
+   "title": {
+    "ar": "البرامج تبقى مفتوحة بعد التثبيت",
+    "en": "Apps stay open after installation"
+   },
+   "body": {
+    "ar": "عندما يفتح MoOS برنامجًا بعد تثبيته، يبقى مفتوحًا بعد انتهاء التثبيت. وإذا تعذّر فتحه، تظهر نتيجة واضحة بدل اعتباره جاهزًا.",
+    "en": "Apps opened after installation keep running when installation finishes. If an app cannot be opened, MoOS reports the failure instead of claiming it is ready."
+   }
+  },
+  {
+   "id": "v3-motion-driver-detection",
+   "merged": "2026-10-19T00:30:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "الدخول بالبصمة وفحص أجهزة V3",
+    "en": "Fingerprint sign-in and V3 device checks"
+   },
+   "body": {
+    "ar": "تدعم شاشة الدخول بصمتك المسجلة، مع بقاء كلمة المرور متاحة. يكشف فحص الأجهزة أيضًا مستشعر SMOCF05 بلا تعريف؛ هذا التنبيه لا يشغّل التدوير التلقائي.",
+    "en": "Sign in with an enrolled fingerprint or your password. Device checks also flag an unbound SMOCF05 motion sensor; the warning does not enable automatic rotation."
+   },
+   "arch": [
+    "x86_64"
+   ]
+  },
+  {
+   "id": "arm-scheduled-app-updates",
+   "arch": [
+    "aarch64"
+   ],
+   "merged": "2026-10-18T23:59:59Z",
+   "glyph": "install",
+   "route": "moos://settings/update",
+   "title": {
+    "ar": "تحديث التطبيقات تلقائيًا على أجهزة ARM",
+    "en": "Scheduled application updates on ARM"
+   },
+   "body": {
+    "ar": "تعمل جدولة تحديث التطبيقات لحسابك وللتطبيقات المشتركة بأولوية منخفضة، ولا تستدرك التطبيقات المشتركة موعدًا فات عند الإقلاع. يبقى اختيارك لإيقاف التحديث التلقائي محفوظًا، وتتأجل تحديثات الحساب إذا كان المتجر مشغولًا.",
+    "en": "App updates run on a schedule for your account and shared apps at low priority. Shared apps avoid boot catch-up. Your automatic-update choice is preserved, and account updates skip to a later run while the Store is busy."
+   }
+  },
+  {
+   "id": "mo-store-library",
+   "merged": "2026-10-17T10:50:00Z",
+   "glyph": "install",
+   "title": {
+    "ar": "متجر MoOS: كل تطبيقاتك في مكان واحد",
+    "en": "Mo Store: every app in one place"
+   },
+   "body": {
+    "ar": "64 وصفة إضافية من لينكس وويندوز وأندرويد حسب جهازك، مع ChatGPT وClaude. تصفح أسهل وأخف، ونسخ البرنامج معًا في صفحة واحدة. تعرض المكتبة التطبيقات الأصلية والمثبّتة، وتبقى التطبيقات مفتوحة بعد تشغيلها. تؤكَّد تحديثات أندرويد فعليًا، ويبدأ بحث الملفات بعد جاهزية سطح المكتب.",
+    "en": "64 more Linux, Windows and Android recipes for compatible PCs, plus ChatGPT and Claude. Lighter browsing groups product variants on one page. The library includes native installed apps. Apps outlive their launch request; Android updates confirm installed bytes. File search waits for the desktop."
+   }
+  },
+  {
+   "id": "mira-job-presence-recovery",
+   "merged": "2026-10-14T17:16:49Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "متابعة أوضح لمهام ميرا",
+    "en": "More reliable Mira task feedback"
+   },
+   "body": {
+    "ar": "تتعافى الجزيرة إذا فاتتها أول إشارة لبدء مهمة مؤكدة في ميرا، ثم تعرض النتيجة الفعلية. لا تعيد الإشارة مهمة انتهت ولا تضيف فحصًا مستمرًا عند الخمول.",
+    "en": "The Island recovers when it misses the first signal of a confirmed Mira task and then shows its actual result. Recovery does not revive finished work or continuously poll an idle desktop."
+   }
+  },
+  {
+   "id": "moplayer-direct-file-controls",
+   "merged": "2026-10-12T22:14:56Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "تحكّم صحيح بالفيديو في MoPlayer",
+    "en": "Correct video controls in MoPlayer"
+   },
+   "body": {
+    "ar": "تعرض ملفات الفيديو المحلية مدتها وأدوات التقديم والإيقاف المؤقت بدل أدوات البث المباشر. تفتح روابط الملفات ذات الأسماء العربية والمسافات، ولا تُضاف الملفات المنفصلة إلى سجل مصادر التلفاز.",
+    "en": "Local videos show their duration, seeking and pause controls instead of live-stream controls. File links with Arabic names and spaces open correctly, and standalone files stay out of television-source history."
+   }
+  },
+  {
+   "id": "material-state-atomic-transition",
+   "merged": "2026-10-12T17:10:00Z",
+   "glyph": "ui",
+   "route": "moos://settings/appearance",
+   "title": {
+    "ar": "الشفافية تتبع اختيارك",
+    "en": "Glass follows your choice"
+   },
+   "body": {
+    "ar": "يتبع الزجاج تغيير الوضوح وإيقاف الضبابية بحالة واحدة متماسكة، حتى لا تبقى الواجهة على اختيار سابق. تبقى الحالة المجهولة أو المتعارضة معتمة للقراءة.",
+    "en": "Glass follows clarity changes and blur being disabled as one consistent state, avoiding a stale choice. Unknown or conflicting state stays opaque and readable."
+   }
+  },
+  {
+   "id": "settings-launcher-account-shadow",
+   "merged": "2026-10-12T16:30:00Z",
+   "glyph": "ui",
+   "route": "moos://settings/overview",
+   "title": {
+    "ar": "إعدادات MoOS في قائمة التطبيقات",
+    "en": "MoOS Settings in the application menu"
+   },
+   "body": {
+    "ar": "تُستعاد الإعدادات إذا أخفتها نسخة قديمة معروفة داخل الحساب، وتُحفظ النسخة القديمة للرجوع إليها. يفحص النظام مدخل الإعدادات الفعلي حتى لا يخفي نجاح التحديث مدخلًا مفقودًا أو مكررًا.",
+    "en": "Settings is restored when a reviewed old account entry hides it, with the old copy preserved. The system checks the effective Settings entry so a successful update cannot conceal a missing or duplicate launcher."
+   }
+  },
+  {
+   "id": "gtk-readable-secondary-ink",
+   "merged": "2026-10-11T11:10:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "تعليمات أوضح في تطبيقات MoOS",
+    "en": "Clearer instructions in MoOS apps"
+   },
+   "body": {
+    "ar": "أصبحت النصوص الثانوية في تطبيقات MoOS أوضح؛ أزيل تخفيف إضافي كان يجعل التعليمات تبدو معطّلة، مع الحفاظ على ألوان النظام.",
+    "en": "Secondary text in MoOS apps is easier to read. An extra dimming layer made instructions look disabled; the system colours are preserved."
+   }
+  },
+  {
+   "id": "remote-sign-in-after-reboot",
+   "merged": "2026-10-11T11:00:00Z",
+   "glyph": "lock",
+   "route": "moos://settings/remote",
+   "title": {
+    "ar": "الدخول إلى MoOS من الهاتف بعد إعادة التشغيل",
+    "en": "Sign in to MoOS from your phone after reboot"
+   },
+   "body": {
+    "ar": "من Mo PC Remote يمكنك تفعيل الوصول إلى شاشة الدخول عبر رابط Tailscale الخاص، برمز مستقل وصلاحية المسؤول. تختار حسابك وتكتب كلمة مروره داخل شاشة MoOS؛ الملفات والحافظة والصوت غير متاحة قبل الدخول. زر إيقاف يلغي تفعيل شاشة الدخول أيضًا.",
+    "en": "In Mo PC Remote, enable login-screen access through your private Tailscale address with a separate PIN and administrator authorization. Select your account and enter its password inside MoOS; files, clipboard and audio are unavailable before login. Stop also disables login-screen enrollment."
+   }
+  },
+  {
+   "id": "arm-memory-pressure-monitoring",
+   "arch": [
+    "aarch64"
+   ],
+   "merged": "2026-10-11T00:30:00Z",
+   "glyph": "lock",
+   "title": {
+    "ar": "حماية ضغط الذاكرة على أجهزة ARM",
+    "en": "Memory-pressure protection on ARM devices"
+   },
+   "body": {
+    "ar": "تراقب نسخة ARM ضغط الذاكرة أثناء العمل لتحسين ثبات سطح المكتب عندما يستهلك تطبيق الذاكرة. يتحقق فحص الإقلاع من عمل المراقبة فعلًا، بدل الاكتفاء بوجود خدمة تعمل.",
+    "en": "ARM now monitors memory pressure to improve desktop stability when an application consumes memory. Boot verification checks actual monitoring, rather than only a running service."
+   }
+  },
+  {
+   "id": "audit-arm-install-before-write",
+   "merged": "2026-10-09T04:00:00Z",
+   "glyph": "lock",
+   "title": {
+    "ar": "التحقق قبل مسح قرص ARM",
+    "en": "Verify before clearing an ARM install disk"
+   },
+   "body": {
+    "ar": "مُثبّت ARM يتحقق من الصورة الموقّعة قبل مسح بيانات موجودة، ويتوقف عند تعذر قراءة القرص أو التباس اختياره. أداة التحقق محدثة ويُثبت أصل ملفها قبل تشغيله. إلغاء القائمة يخرج منها، وفشل التثبيت لا يعلن النجاح أو يعيد التشغيل. اختيار الإقلاع غير الواضح يحتاج ضبطه من UTM؛ الإصلاح غير المنفذ لا يعلن نجاحًا وهميًا.",
+    "en": "ARM installs check the signed image before erasing data, using an updated verifier checked before execution. Unreadable or ambiguous targets stop. Cancel exits; failed installs never announce completion or reboot. Ambiguous boot selection needs UTM settings; unimplemented repair never reports success."
+   }
+  },
+  {
+   "id": "audit-support-privacy",
+   "merged": "2026-10-09T04:00:00Z",
+   "glyph": "lock",
+   "title": {
+    "ar": "حماية أقوى لتقرير الدعم",
+    "en": "Stronger support-report privacy"
+   },
+   "body": {
+    "ar": "تقرير الدعم يخفي مفاتيح JSON وOAuth والمفاتيح الخاصة كاملة وعناوين IPv6 المختصرة قبل قص السجلات. الملف يُكتب بخصوصية منذ إنشائه دون اتباع رابط مؤقت متوقع.",
+    "en": "Support reports redact JSON/OAuth credentials, complete private keys and compressed IPv6 before trimming logs. Files are private from creation and avoid predictable temporary links."
+   }
+  },
+  {
+   "id": "audit-remote-fallback-codec",
+   "merged": "2026-10-09T04:00:00Z",
+   "glyph": "video",
+   "route": "moos://settings/remote",
+   "title": {
+    "ar": "ترميز احتياطي آمن للتحكم البعيد",
+    "en": "A safer Remote fallback encoder"
+   },
+   "body": {
+    "ar": "أزيلت تبعية الصور ذات النشرات الأمنية. اللقطة الاحتياطية تُحفظ مؤقتًا في مجلد خاص ثم تُحذف بعد التحويل إلى JPEG بحدود للحجم والدقة، ويُرفض الملف التالف دون تغيير مسار PipeWire الأساسي.",
+    "en": "The vulnerable image dependency is removed. Each fallback picture uses a private temporary directory and is deleted after bounded JPEG conversion. Corrupt input is refused while retaining the primary PipeWire path."
+   }
+  },
+  {
+   "id": "audit-language-transaction",
+   "merged": "2026-10-09T04:00:00Z",
+   "glyph": "globe",
+   "title": {
+    "ar": "لغة متماسكة عند بدء ميرا وتغيير الإعداد",
+    "en": "Consistent Mira startup and language changes"
+   },
+   "body": {
+    "ar": "ميرا تتبع لغة الجلسة المدعومة عند أول تشغيل، مع العربية افتراضيًا واحترام اختيارك المحفوظ. تغيير اللغة يتوقف إن كانت عملية أخرى تضبطها، بدل خلط ملفات الإعداد.",
+    "en": "Mira follows the supported session language on first launch, defaults to Arabic and preserves your saved choice. A busy language transaction stops instead of mixing configuration writes."
+   }
+  },
+  {
+   "id": "remote-pin-lockout",
+   "merged": "2026-10-07T00:00:00Z",
+   "glyph": "lock",
+   "title": {
+    "ar": "حماية موحّدة لرمز التحكم البعيد",
+    "en": "Shared protection for the Remote PIN"
+   },
+   "body": {
+    "ar": "محاولات الرمز الخاطئة عند تغييره تُحتسب مع محاولات تسجيل الدخول. بعد خمس محاولات، ينتظر التحكم البعيد دقيقتين قبل المحاولة مجددًا. تغيير الرمز الصحيح يُخرج الجلسات والأجهزة الموثوقة السابقة.",
+    "en": "Wrong PIN attempts while changing it share the login limit. After five attempts, Remote waits two minutes before another attempt. Changing the PIN signs out previous sessions and trusted devices."
+   }
+  },
+  {
+   "id": "remote-glass-console",
+   "merged": "2026-10-07T00:00:00Z",
+   "glyph": "video",
+   "route": "moos://settings/remote",
+   "title": {
+    "ar": "Mo PC Remote بواجهة جديدة كلياً",
+    "en": "A completely new Mo PC Remote"
+   },
+   "body": {
+    "ar": "ثلاثة أوضاع من شريط واحد: لمس، تراكباد، وماوس وكيبورد. في التراكباد ترتفع الصورة ويصير ما تحتها لوحة لمس. زر MoOS ينفّذ أوامر سطح المكتب بلمسة: القائمة وMira والبحث والصوت ولقطة الشاشة. الإعدادات ثلاثة أقسام: اختر الدقة ومعدّل الإطارات وشاهد استهلاك البيانات.",
+    "en": "Three modes from one dock: Touch, Trackpad, Mouse & keys. In Trackpad the picture moves up and the space below becomes a trackpad. The MoOS button runs desktop commands in one tap: launcher, Mira, search, volume, screenshot. Settings has three tabs: pick resolution and frame rate and see the data cost."
+   }
+  },
+  {
+   "id": "session-logout-startup",
+   "merged": "2026-10-06T13:30:00Z",
+   "glyph": "lock",
+   "title": {
+    "ar": "تسجيل خروج مستقر عند بدء سطح المكتب",
+    "en": "Reliable logout during desktop startup"
+   },
+   "body": {
+    "ar": "تسجيل الخروج يكتمل حتى أثناء إعداد سطح المكتب، مع بقاء مطالبات حفظ الملفات. إذا تعذّر الإغلاق، تبقى المحاولة التالية متاحة بدل تعليق الجلسة.",
+    "en": "Logout completes while the desktop is still setting up, with file-saving prompts preserved. If closing fails, you can retry without leaving the session stuck."
+   }
+  },
+  {
+   "id": "session-one-design",
+   "merged": "2026-10-06T06:00:00Z",
+   "glyph": "lock",
+   "route": "moos://settings/lock",
+   "title": {
+    "ar": "شاشة القفل والدخول والطاقة صارت تصميماً واحداً",
+    "en": "Lock, login and power screens are one design"
+   },
+   "body": {
+    "ar": "وأنت بعيد، الشاشة غلاف بساعة كبيرة. عند أول حركة تنسحب الساعة وتصعد جزيرة زجاجية فيها صورتك داخل إطار مضيء، ويدور ضوء حول حافتها ثم يستقر. كل شيء يكبر ويصغر مع حجم شاشتك، ولا يتداخل شيء مع شيء.",
+    "en": "While you are away the screen is a cover with a large clock. At the first movement the clock draws back and a glass island rises with your picture in a lit frame; a light runs round its edge, then settles. Everything scales with your screen, and nothing overlaps anything else."
+   }
+  },
+  {
+   "id": "remote-one-controller",
+   "merged": "2026-10-05T19:30:00Z",
+   "glyph": "video",
+   "route": "moos://settings/remote",
+   "title": {
+    "ar": "الشاشة ولوحة اللمس والكيبورد في Mo PC Remote",
+    "en": "Desktop, touchpad and keyboard in Mo PC Remote"
+   },
+   "body": {
+    "ar": "اختر شاشة وتحكّم، أو لوحة لمس، أو كيبورد من شريط واحد. تبقى الشاشة ظاهرة أثناء الكتابة، وتتكيف الجودة مع الاستجابة. التحكم مستقل عن تجديد البث، وكتابة كلمة المرور لا تستخدم حافظة الكمبيوتر. لوحة الكمبيوتر تتيح الوصول دون موافقة محلية، مع بقاء المصادقة وكلمة مرور الحساب لفتح القفل.",
+    "en": "Choose Desktop, Touchpad or Keyboard from one dock. The screen stays visible while typing and quality adapts to responsiveness. Input survives capture renewal; password typing avoids the PC clipboard. The PC panel offers unattended access while retaining Remote authentication and your account password for unlocking."
+   }
+  },
+  {
+   "id": "remote-pocket-safe-video",
+   "merged": "2026-10-05T07:00:00Z",
+   "glyph": "video",
+   "route": "moos://settings/remote",
+   "title": {
+    "ar": "صورة Mo PC Remote تبقى حادة بعد التنقّل بين التطبيقات",
+    "en": "Mo PC Remote stays sharp after you switch apps"
+   },
+   "body": {
+    "ar": "عندما تترك صفحة Mo PC Remote على هاتفك وتعود إليها، لم يعد الفيديو ينتقل إلى الصور الثقيلة. يتوقف فك الفيديو وأنت بعيد ويبدأ من جديد عند عودتك، فيبقى البث خفيفاً وواضحاً.",
+    "en": "Leaving Mo PC Remote on your phone and coming back no longer drops the picture to heavy images. Video decoding pauses while you are away and starts fresh when you return, so the stream stays light and clear."
+   }
+  },
+  {
+   "id": "graphite-boot-still",
+   "merged": "2026-10-05T00:00:00Z",
+   "glyph": "spark",
+   "title": {
+    "ar": "إقلاع أخف بهوية MoOS",
+    "en": "A lighter MoOS boot"
+   },
+   "body": {
+    "ar": "شعار MoOS على خلفية زجاجية موحدة مع شاشة الدخول، بحركة قصيرة تنتهي فوراً عند جاهزية النظام. شاشة الإقلاع تحمل صورة واحدة بدل فيلم متتابع.",
+    "en": "The MoOS mark shares the glass landscape of the login screen, with a brief entrance that yields immediately when ready. One image replaces the frame sequence."
+   }
+  },
+  {
+   "id": "firmware-update-results",
+   "merged": "2026-10-04T23:59:00Z",
+   "glyph": "spark",
+   "route": "moos://settings/update",
+   "title": {
+    "ar": "نتيجة تحديث الأجهزة واضحة",
+    "en": "Clear firmware update results"
+   },
+   "body": {
+    "ar": "صفحة التحديثات تعرض حالة فحص وتحديث الأجهزة وأسباب تعذّر العملية، وتكتشف العملية المنقطعة بدلاً من ترك حالة «جارٍ التحديث».",
+    "en": "The Updates page shows firmware checks and update results, explains failures, and detects interrupted work instead of leaving “Updating” indefinitely."
+   }
+  },
+  {
+   "id": "lumen-screen-controls",
+   "merged": "2026-10-04T23:58:00Z",
+   "glyph": "bulb",
+   "route": "moos://settings/assistant",
+   "title": {
+    "ar": "مزامنة الإضاءة مع الشاشة المختارة",
+    "en": "Lighting sync with your chosen screen"
+   },
+   "body": {
+    "ar": "غيّر الشاشة من صفحة الإضاءة في ميرا. مزامنة Hue تحافظ على مواقع اللمبات وتوقف تأثير Echo السابق، ويظهر عدد الأضواء المتصلة من الإجمالي.",
+    "en": "Choose the screen from Mira’s Lighting page. Hue sync keeps lamp positions, clears the previous Echo effect, and shows connected lights out of the total."
+   }
+  },
+  {
+   "id": "cloud-desktop-size",
+   "merged": "2026-10-04T13:30:00Z",
+   "glyph": "video",
+   "route": "moos://settings/remote",
+   "title": {
+    "ar": "سطح مكتب سحابي بحجم شاشتك",
+    "en": "A cloud desktop the size of your screen"
+   },
+   "body": {
+    "ar": "على جهاز بلا شاشة اختر حجم سطح المكتب: «phone» يصل الهاتف بكسلاً ببكسل فيصير النص أوضح والصورة أسلس، و«desk» أوسع للحاسوب. اطلبه من ميرا، أو من الطرفية: moos-cloud-desktop display phone. يُطبَّق عند الدخول التالي. وMo PC Remote يرسل الآن عدد الإطارات الذي اخترته بالضبط.",
+    "en": "On a machine with no monitor, choose the desktop's size: “phone” reaches a phone pixel for pixel, so text is sharper and motion smoother; “desk” gives a computer more room. Ask Mira, or run moos-cloud-desktop display phone. It applies at the next sign-in. Mo PC Remote now sends exactly the frame rate you chose."
+   }
+  },
+  {
+   "id": "light-after-days",
+   "merged": "2026-10-04T12:00:00Z",
+   "glyph": "pulse",
+   "route": "moos://settings/remote",
+   "title": {
+    "ar": "MoOS يبقى خفيفاً بعد أيام من التشغيل",
+    "en": "MoOS stays light after days of running"
+   },
+   "body": {
+    "ar": "Mo PC Remote لم يعد يترك اتصال شاشة قديماً مفتوحاً كلما أُعيد بناء الصورة، فتتوقف خدمة الصوت عن التضخم. مؤشر الخصوصية يظهر لحظة بدء الالتقاط ولا يكلّف شيئاً في السكون، ومحادثة ميرا لم تعد تستهلك الذاكرة بلا حدّ.",
+    "en": "Mo PC Remote no longer leaves an old screen connection open each time the picture is rebuilt, so the sound service stops growing. The privacy chip appears the moment a capture starts and costs nothing while idle, and Mira's chat can no longer run away with memory."
+   }
+  },
+  {
+   "id": "mira-media-title",
+   "merged": "2026-10-03T09:00:00Z",
+   "glyph": "ai",
+   "route": "moos://settings/assistant",
+   "title": {
+    "ar": "عنوان الوسائط واضح في مركز التحكم",
+    "en": "Readable media titles in the control centre"
+   },
+   "body": {
+    "ar": "صفحة الكمبيوتر في ميرا تعرض اسم المقطع والفنان كنص واضح عند التشغيل، بما في ذلك العناوين العربية.",
+    "en": "Mira’s This PC page shows the playing title and artist as readable text, including Arabic titles."
+   }
+  },
+  {
+   "id": "lumen-lighting",
+   "merged": "2026-10-03T00:00:00Z",
+   "glyph": "bulb",
+   "route": "moos://settings/assistant",
+   "title": {
+    "ar": "لومِن: كل أضواء البيت والكمبيوتر بمكان واحد",
+    "en": "Lumen: every light in the house and the PC, in one place"
+   },
+   "body": {
+    "ar": "صفحة الإضاءة في ميرا تتحكم بأضواء البيت وإضاءة الكيس واللوحة الأم معاً: غرف ومجموعات، عجلة ألوان، أبيض دافئ وبارد، مشاهد حيّة مثل الشفق والغروب، ومزامنة تخلي الأضواء تتبع اللي على الشاشة. وقولي لميرا «خلي الكيس بنفسجي» أو «شغلي مشهد السينما».",
+    "en": "Mira's Lighting page drives the house's lamps and the case and motherboard RGB together: rooms and groups, a colour wheel, warm and cool white, living scenes such as Aurora and Sunset, and Screen Sync so the lights follow the screen. Or just tell Mira “make the case violet” or “cinema scene”."
+   }
+  },
+  {
+   "id": "mira-home-centre",
+   "merged": "2026-10-03T00:00:00Z",
+   "glyph": "home",
+   "route": "moos://settings/assistant",
+   "title": {
+    "ar": "البيت في ميرا: كل جهاز بغرفته وباسمك",
+    "en": "Home in Mira: every device in its room, by your names"
+   },
+   "body": {
+    "ar": "سمِّ أي جهاز أو انقله لغرفة أو أعطه أسماء ثانية للصوت، والاسم بينحفظ بالبيت نفسه. ميرا صارت تعرف شو بيقدر يعمل كل جهاز، وعلى جهاز ما فيه مركز بيت بكبسة وحدة بيصير الكمبيوتر مركز البيت وبيكتشف أجهزتك لحاله.",
+    "en": "Rename any device, move it to a room or give it other names for your voice, saved in the home itself. Mira knows what each device can do, and one button makes a computer without a hub your home hub that finds your devices by itself."
+   }
+  },
+  {
+   "id": "remote-weak-link",
+   "merged": "2026-10-01T01:00:00Z",
+   "glyph": "video",
+   "route": "moos://settings/remote",
+   "title": {
+    "ar": "Mo PC Remote يصمد مع الاتصال الضعيف",
+    "en": "Mo PC Remote holds on a weak connection"
+   },
+   "body": {
+    "ar": "على نت ضعيف تخفّ الصورة تلقائياً ليبقى الماوس واللمس سريعين، ولا ينقطع الاتصال عند توقف قصير. خطأ عابر في الفيديو لا يحوّلك إلى صور ثقيلة، وموافقتك على التحكم لا تضيع عند تغيّر الشاشة، وأثناء طلب الموافقة يبقى سهم الهاتف فوق سهم الكمبيوتر.",
+    "en": "On a weak link the picture lightens itself so mouse and touch stay quick, and a short stall no longer drops the session. A passing video error no longer means heavy images, your approval survives a display change, and while approval is asked, the phone's pointer stays on the PC's."
+   }
+  },
+  {
+   "id": "moplayer-horizon",
+   "merged": "2026-10-01T00:00:00Z",
+   "glyph": "video",
+   "title": {
+    "ar": "MoPlayer من جديد: أسرع وبألوان MoOS ويشغّل كل السيرفرات",
+    "en": "A new MoPlayer: faster, MoOS colours, every server"
+   },
+   "body": {
+    "ar": "يفتح فوراً ولا يتجمّد مع المكتبات الكبيرة، ويستهلك من كرت الشاشة أقل بكثير. رابط get.php فيه حسابك يُقرأ كسيرفر Xtream كامل بأفلامه ومسلسلاته، وتعمل روابط M3U وبوابات MAC. القنوات تُعرض على مسرح بجانب القائمة، والألوان تتبع مظهر MoOS.",
+    "en": "Opens at once, no longer freezes on large libraries and uses far less graphics memory. A get.php link with your account is read as the full Xtream server with films and series; M3U links and MAC portals work too. Channels play on a stage beside the list, in your MoOS colours."
+   }
+  },
+  {
+   "id": "mira-assistant",
+   "merged": "2026-09-30T00:00:00Z",
+   "glyph": "ai",
+   "title": {
+    "ar": "ميرا صارت مساعدة MoOS",
+    "en": "Mira is now your MoOS assistant"
+   },
+   "body": {
+    "ar": "افتحها بـ Meta+Space. في نافذتها صفحات الكمبيوتر والتطبيقات والنظام والورشة والاتصال والعقل، وتحفظ محادثاتك (Ctrl+H)، وتسألك قبل أن يكتب وكيل البرمجة ملفاً أو يشغّل أمراً. التثبيت والتحديث والإصلاح ينتظر موافقتك في بطاقة، وتسمّي لك كل مكان بالكلمات التي تراها في نافذتها.",
+    "en": "Open her with Meta+Space. Her window has pages for This PC, Apps, System, Workbench, Connect and Brain, keeps your chats (Ctrl+H) and asks you before her coding agent writes a file or runs a command. Installs, updates and repairs wait for your yes on a card, and she names every place by the words her window shows."
+   },
+   "route": "moos://settings/assistant"
+  },
+  {
+   "id": "mira-computer-actions",
+   "merged": "2026-09-30T00:00:00Z",
+   "glyph": "ai",
+   "title": {
+    "ar": "ميرا تعيد التشغيل وتفحص التحديثات وتدير Mo PC Remote",
+    "en": "Mira restarts, checks for updates and runs Mo PC Remote"
+   },
+   "body": {
+    "ar": "اسألها «في تحديث؟» فتفحص دون أن تغيّر شيئاً، أو اطلب منها إعادة التشغيل، أو تشغيل Mo PC Remote وإيقافه والاتصال السريع، أو تثبيت وكلاء البرمجة وحزمة RPM من التنزيلات أو سطح المكتب. بطاقاتها وخطواتها بلغتك، وتقول ماذا سيحدث بعد موافقتك.",
+    "en": "Ask her “is there an update?” and she checks without changing anything, or ask her to restart, to turn Mo PC Remote on or off, to use Fast Remote, or to install coding agents and an RPM from Downloads or your desktop. Her cards and steps speak your language and say what happens after your yes."
+   }
+  },
+  {
+   "id": "mira-in-plasma",
+   "merged": "2026-09-30T00:00:00Z",
+   "glyph": "ai",
+   "title": {
+    "ar": "ميرا في كل مكان من MoOS",
+    "en": "Mira everywhere in MoOS"
+   },
+   "body": {
+    "ar": "انقر بزر الفأرة الأيمن على ملف في مدير الملفات (Dolphin) واختر «اسأل ميرا عن هذا»، أو على مجلد لتضيفه إلى مشاريع الورشة. وفي بحث الجزيرة يسألها Ctrl+Enter، ومن إعداداتها تستطيع أن تجعلها تبدأ بهدوء في شريط النظام مع تسجيل الدخول.",
+    "en": "Right-click a file in the file manager (Dolphin) and choose “Ask Mira about this”, or a folder to add it to your Workbench projects. Ctrl+Enter in the Island search asks her, and her Settings can start her quietly in the tray when you sign in."
+   }
+  },
+  {
+   "id": "moai-desktop-hands",
+   "merged": "2026-09-28T12:00:00Z",
+   "glyph": "ai",
+   "title": {
+    "ar": "ميرا صارت تتحكم بالنوافذ وأسطح المكتب",
+    "en": "Mira can now run your windows and desktops"
+   },
+   "body": {
+    "ar": "اطلب من ميرا أن تُظهر نافذة أو تصغّرها أو تكبّرها أو تغلقها بالاسم، أو تنقلها بين أسطح المكتب، أو توقف الموسيقى، أو تقفل الشاشة، أو تضبط تذكيراً، أو تفتح صفحة أو مجلداً. تعرض ما ستفعله، وإغلاق نافذة يسألك أولاً.",
+    "en": "Ask Mira to bring a window forward, minimize, maximize or close it by name, move it between desktops, pause the music, lock the screen, set a reminder, or open a page or folder. She shows what she will do, and closing a window asks first."
+   },
+   "route": "moos://settings/assistant"
+  },
+  {
+   "id": "remote-clipboard-auto-quality",
+   "merged": "2026-09-27T23:02:33Z",
+   "glyph": "video",
+   "title": {
+    "ar": "نسخ ولصق أوضح وصورة تتكيف أسرع",
+    "en": "Clearer copy and paste, faster picture adaptation"
+   },
+   "body": {
+    "ar": "في Mo PC Remote، ينقل زر النسخ النص المحدد من الكمبيوتر إلى جهازك، وينقل زر اللصق نص جهازك إلى الكمبيوتر قبل لصقه. إذا منع المتصفح الوصول للحافظة، تظهر طريقة يدوية. والعودة إلى جودة تلقائية تختار وضوحًا مناسبًا فورًا.",
+    "en": "In Mo PC Remote, Copy brings selected PC text to your device, and Paste sends your device text to the PC before pasting. If the browser blocks clipboard access, a manual path opens. Returning to Auto quality chooses a suitable picture immediately."
+   },
+   "route": "moos://settings/remote"
+  },
+  {
+   "id": "rounded-dock-material",
+   "merged": "2026-09-27T10:29:33Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "حواف ناعمة بكل درجات الزجاج",
+    "en": "Soft dock edges at every glass clarity"
+   },
+   "body": {
+    "ar": "يحتفظ الدوك العائم بحوافه المستديرة حتى بجانب نافذة مكبّرة. ومن ثيمات MoOS جرّب الزجاج الصافي أو المتوازن أو المصمت؛ تبقى الحواف نفسها مع تغيّر وضوح السطح.",
+    "en": "The floating dock keeps its rounded edges beside a maximized window. In MoOS Themes, try Clear, Balanced or Solid glass: the surface changes while its soft edges stay the same."
+   },
+   "route": "moos://settings/themes"
+  },
+  {
+   "id": "hub-widget-reveal",
+   "merged": "2026-09-27T10:29:33Z",
+   "glyph": "spark",
+   "title": {
+    "ar": "حركة قصيرة للويجت، ثم سكون",
+    "en": "A brief widget entrance, then rest"
+   },
+   "body": {
+    "ar": "خيار حركة الويجت في ثيمات MoOS يضيف ظهورًا قصيرًا لبطاقات سطح المكتب، ثم تتوقف. اختر ثابت لإيقافها؛ ويظل تقليل حركة النظام محترمًا.",
+    "en": "Widget motion in MoOS Themes gives desktop cards one brief entrance, then stops. Choose Still to turn it off; the system’s reduced-motion setting is respected."
+   },
+   "route": "moos://settings/themes"
+  },
+  {
+   "id": "remote-current-interface",
+   "merged": "2026-09-27T10:29:33Z",
+   "glyph": "video",
+   "title": {
+    "ar": "واجهة Remote محدثة وتنقّل أوضح",
+    "en": "An up-to-date Remote interface and clearer navigation"
+   },
+   "body": {
+    "ar": "بعد التحديث يحمّل Mo PC Remote واجهته الجديدة بدل إبقاء نسخة قديمة. وأدوات التحكم المخفية لا تعترض التنقّل بلوحة المفاتيح؛ أظهرها عندما تحتاجها.",
+    "en": "After an update, Mo PC Remote loads its new interface instead of keeping an older copy. Hidden controls stay out of keyboard navigation; reveal them when you need them."
+   },
+   "route": "moos://settings/remote"
+  },
+  {
+   "id": "remote-trusted-device-opt-in",
+   "merged": "2026-09-25T17:00:00Z",
+   "glyph": "shield",
+   "title": {
+    "ar": "الثقة بجهاز Remote بقرارك",
+    "en": "You choose whether Remote trusts this device"
+   },
+   "body": {
+    "ar": "عند إعداد Mo PC Remote أو إدخال الرمز، يبدأ خيار الثقة بهذا الجهاز لمدة 30 يوماً غير محدد. فعّله فقط على جهازك الخاص إذا أردت إعادة الاتصال دون الرمز.",
+    "en": "When setting up Mo PC Remote or entering the PIN, 30-day device trust starts unchecked. Select it on your own device if you want to reconnect without the PIN."
+   },
+   "route": "moos://settings/remote"
+  },
+  {
+   "id": "moos-settings-group",
+   "merged": "2026-09-25T09:00:00Z",
+   "glyph": "grid",
+   "title": {
+    "ar": "لـ MoOS مجموعته في إعدادات النظام",
+    "en": "MoOS has its own group in System Settings"
+   },
+   "body": {
+    "ar": "النظرة العامة والتحديث وما الجديد وMo AI وMo PC Remote والاستعادة صارت صفحات في إعدادات النظام، أولها في الشريط الجانبي بجانب الشاشة والصوت والشبكة. في قائمة التطبيقات مدخل واحد اسمه إعدادات MoOS، ويفتحه Meta+I أيضاً.",
+    "en": "Overview, Update, What's new, Mo AI, Mo PC Remote and Recovery are now pages of System Settings, first in its sidebar next to display, sound and network. The app menu has one MoOS Settings entry, and Meta+I opens it too."
+   },
+   "route": "moos://settings/overview"
+  },
+  {
+   "id": "moai-settings-in-system-settings",
+   "merged": "2026-09-25T09:00:00Z",
+   "glyph": "ai",
+   "title": {
+    "ar": "إعدادات Mo AI في إعدادات النظام",
+    "en": "Mo AI's settings are in System Settings"
+   },
+   "body": {
+    "ar": "عقل Mo AI ومفتاحه وقنوات الهاتف والصلاحيات صارت صفحة واحدة: إعدادات النظام ← MoOS ← Mo AI. زر الإعدادات في Mo AI يفتحها، والمفتاح الذي تكتبه لا يُعرض مرة أخرى.",
+    "en": "Mo AI's brain, key, phone channels and permissions are now one page: System Settings, MoOS, Mo AI. The gear in Mo AI opens it, and a key you type is never shown again."
+   },
+   "route": "moos://settings/assistant"
+  },
+  {
+   "id": "moos-themes-in-settings",
+   "merged": "2026-09-25T09:00:00Z",
+   "glyph": "ui",
+   "title": {
+    "ar": "ثيمات MoOS داخل الإعدادات",
+    "en": "MoOS Themes lives in Settings"
+   },
+   "body": {
+    "ar": "اختر واحداً من مظاهر MoOS الستة عشر وصورة سطح المكتب ووضوح الزجاج وحركة الخلفية من صفحة واحدة تحت المظهر والأسلوب. يُعلَّم المظهر بعد أن يؤكده سطح المكتب فقط، والتراجع يعيد السابق.",
+    "en": "Choose one of the sixteen MoOS looks, your desktop image, glass clarity and wallpaper motion on one page under Appearance & Style. A look is marked only once the desktop confirms it, and Undo brings the previous one back."
+   },
+   "route": "moos://settings/themes"
+  },
+  {
+   "id": "moai-desktop-control",
+   "merged": "2026-09-25T09:00:00Z",
+   "glyph": "ai",
+   "title": {
+    "ar": "Mo AI يرتّب سطح المكتب ويفتح أي إعداد",
+    "en": "Mo AI arranges your desktop and opens any setting"
+   },
+   "body": {
+    "ar": "اطلب من Mo AI عرض كل النوافذ أو ترتيبها أنصافاً أو أثلاثاً، أو تبديل سطح المكتب، أو عدم الإزعاج، أو كتم الميكروفون، أو تغيير لغة لوحة المفاتيح. ويفتح لك الصفحة الصحيحة من الإعدادات مباشرة، ويخبرك إن لم يستطع.",
+    "en": "Ask Mo AI to show all windows, arrange them in halves or thirds, switch desktops, turn on do not disturb, mute the microphone or change the keyboard language. It opens the exact settings page you need, and tells you when it cannot."
+   }
+  }
+ ]
 }

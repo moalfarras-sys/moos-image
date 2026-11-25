@@ -76,7 +76,7 @@ def main():
     if nvr != NVR:
         parser.error('native Plymouth libraries differ from the reviewed source RPM')
     # Even a malformed compiler/runtime failure must not leave host coredumps.
-    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
     output = args.output.resolve()
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
     vendor = output / 'srpm'

@@ -79,7 +79,14 @@ class IslandVoiceActivation(unittest.TestCase):
                               f'<servicedir>{services}</servicedir><policy context="default">'
                               '<allow send_destination="*"/><allow receive_sender="*"/><allow own="*"/>'
                               '</policy></busconfig>')
+            # The shell paints against its native Plasma theme. Use the matching source
+            # palette, icons and background here even when the host uses another look.
+            share = ROOT / "system_files/usr/share"
+            (tmp / "plasmarc").write_text("[Theme]\nname=MoOSUI2Bloom\n")
+            colors = (share / "color-schemes/MoOSUI2Bloom.colors").read_text()
+            (tmp / "kdeglobals").write_text(colors + "\n[Icons]\nTheme=MoOSUI2Bloom\n")
             env = {"PATH": os.environ.get("PATH", "/usr/bin"), "HOME": folder,
+                   "XDG_CONFIG_HOME": folder, "XDG_DATA_DIRS": f"{share}:/usr/share",
                    "XDG_RUNTIME_DIR": folder, "QT_QPA_PLATFORM": "offscreen",
                    "DBUS_SYSTEM_BUS_ADDRESS": f"unix:path={tmp}/no-system-bus"}
             run = subprocess.run(["dbus-run-session", f"--config-file={config}", "--",

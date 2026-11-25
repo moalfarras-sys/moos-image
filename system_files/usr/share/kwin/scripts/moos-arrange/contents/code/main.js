@@ -252,8 +252,16 @@ function centre(window) {
     return {x: g.x + g.width / 2, y: g.y + g.height / 2};
 }
 
-function byX(a, b) { return centre(a).x - centre(b).x; }
-function byY(a, b) { return centre(a).y - centre(b).y; }
+// In a row both windows can have the same y; in a column they share x.
+// Break those ties spatially so rotating back retains each window's side.
+function byX(a, b) {
+    const first = centre(a), second = centre(b);
+    return first.x - second.x || first.y - second.y;
+}
+function byY(a, b) {
+    const first = centre(a), second = centre(b);
+    return first.y - second.y || first.x - second.x;
+}
 // Resolve the rows first. A tolerance-based pairwise sort can form cycles
 // when three centres straddle the tolerance, moving a window across both axes.
 function inQuarterOrder(windows) {
@@ -338,6 +346,29 @@ function watch(window) {
     }
 }
 
+// KWin emits screensChanged after rebuilding the work areas and restoring
+// window positions. An output's earlier geometryChanged still sees the old
+// work area. Reflow only the output whose logical bounds actually changed.
+let outputBounds = new Map();
+function updateOutputs() {
+    const previous = outputBounds;
+    outputBounds = new Map();
+    for (const output of workspace.screens) {
+        const bounds = output.geometry;
+        // The Qt rectangle follows the live output. Retain its numeric values.
+        outputBounds.set(output, {x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height});
+        const old = previous.get(output);
+        if (old && (old.x !== bounds.x || old.y !== bounds.y ||
+                    old.width !== bounds.width || old.height !== bounds.height)) {
+            autoArrangeOn(output, workspace.activeWindow);
+        }
+    }
+}
+
+if (workspace.screensChanged && workspace.screensChanged.connect) {
+    updateOutputs();
+    workspace.screensChanged.connect(updateOutputs);
+}
 if (workspace.windowAdded && workspace.windowAdded.connect) {
     workspace.windowAdded.connect(function (window) {
         watch(window);

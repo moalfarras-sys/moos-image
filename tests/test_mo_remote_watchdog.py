@@ -31,6 +31,7 @@ This gate drives the real script with a stubbed systemctl and asserts exactly
 that, because the whole value of the unit is in which of these it does NOT do.
 """
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -60,16 +61,24 @@ exit 0
 """
 
 
-def run(enabled="yes", failed="no", start_rc="0"):
+def run(enabled="yes", failed="no", start_rc="0", compositor=True):
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         bindir = tmp / "bin"; bindir.mkdir()
         stub = bindir / "systemctl"
         stub.write_text(STUB); stub.chmod(0o755)
         calls = tmp / "calls.txt"; calls.write_text("")
+        # The shared resolver, stubbed: it records being asked and answers
+        # whether a compositor accepted a connection.
+        resolver = tmp / "moos-wayland-display"
+        resolver.write_text("#!/usr/bin/env bash\n"
+                            "printf 'resolve\\n' >> \"$CALLS\"\n"
+                            f"{'echo wayland-1' if compositor else 'exit 1'}\n")
+        resolver.chmod(0o755)
         env = dict(os.environ)
         env.update(PATH=f"{bindir}:/usr/bin:/bin", CALLS=str(calls),
-                   ENABLED=enabled, FAILED=failed, START_RC=start_rc)
+                   ENABLED=enabled, FAILED=failed, START_RC=start_rc,
+                   MO_REMOTE_WAYLAND_RESOLVER=str(resolver))
         proc = subprocess.run(["bash", str(SCRIPT)], env=env,
                               capture_output=True, text=True, timeout=60)
         return proc, calls.read_text()
@@ -100,6 +109,24 @@ class Watchdog(unittest.TestCase):
         self.assertNotIn("start mo-remote-personal", calls,
                          "`disable` is the persistent off switch")
 
+    def test_a_healthy_remote_never_runs_the_resolver(self):
+        """The resolver connects to a socket; it belongs on the rare failed
+        path, not on every once-a-minute firing."""
+        proc, calls = run(enabled="yes", failed="no")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("resolve", calls)
+
+    def test_no_restart_without_a_live_compositor(self):
+        """After a logout the manager can still hold WAYLAND_DISPLAY while no
+        compositor listens. Starting Remote then starts its portal with no
+        compositor, the abort the unit's guard exists to prevent."""
+        proc, calls = run(enabled="yes", failed="yes", compositor=False)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("resolve", calls)
+        self.assertNotIn("reset-failed", calls)
+        self.assertNotIn("start mo-remote-personal", calls)
+        self.assertIn("no Wayland compositor answers", proc.stdout)
+
     def test_a_failed_restart_does_not_fail_the_unit(self):
         """A failed oneshot would add a second failed unit to a session that
         already has a problem; the timer is the retry."""
@@ -124,12 +151,67 @@ class Watchdog(unittest.TestCase):
         ignoring' and the guard never applies. That exact mistake fired this
         watchdog's ancestor 12.65s into the session, before the Wayland session
         existed, and took xdg-desktop-portal-kde down with SIGABRT every boot."""
+        unit_section = self._unit_section()
+        self.assertIn("ConditionEnvironment=WAYLAND_DISPLAY", unit_section,
+                      "the graphical-session guard must be in [Unit], and the "
+                      "WAYLAND_DISPLAY Plasma imports is what 'the session is "
+                      "up' means -- %t/bus exists before it")
+        self.assertNotRegex(unit_section, r"(?m)^Condition\w*=.*wayland-\d",
+                            "a fixed socket name is a guess: the V3's KWin "
+                            "listens on wayland-1, and wayland-0 skipped this "
+                            "watchdog on every firing there")
+
+    def test_a_minute_timer_keeps_its_recovery_messages_only(self):
+        """2,880 Starting/Finished lines a day pushed real evidence out of a
+        500 MB journal. The script's own messages must stay at a level that
+        LogLevelMax keeps, or a recovery would vanish with the noise."""
+        service = SERVICE.read_text().split("\n[Service]\n", 1)[1]
+        self.assertRegex(service, r"(?m)^LogLevelMax=notice$")
+        self.assertRegex(service, r"(?m)^SyslogLevel=notice$",
+                         "stdout at the default info level would be dropped "
+                         "by LogLevelMax=notice, hiding every recovery")
+
+    @staticmethod
+    def _unit_section():
         text = SERVICE.read_text()
-        unit_section = text.split("[Unit]\n", 1)[1].split("\n[Service]\n", 1)[0]
-        self.assertIn("ConditionPathExists=%t/wayland-0", unit_section,
-                      "the graphical-session guard must be in [Unit], and "
-                      "%t/wayland-0 is what 'the session is up' means -- "
-                      "%t/bus exists before it")
+        return text.split("[Unit]\n", 1)[1].split("\n[Service]\n", 1)[0]
+
+    def _evaluate(self, conditions, wayland_display):
+        """Ask systemd itself to evaluate Condition* lines in a private runtime
+        directory holding only wayland-1, the V3's measured socket."""
+        analyze = shutil.which("systemd-analyze")
+        if analyze is None:
+            self.skipTest("systemd-analyze unavailable: native condition "
+                          "control not executed")
+        with tempfile.TemporaryDirectory() as runtime:
+            (Path(runtime) / "wayland-1").write_text("")
+            env = {"PATH": "/usr/bin:/bin", "XDG_RUNTIME_DIR": runtime}
+            if wayland_display:
+                env["WAYLAND_DISPLAY"] = wayland_display
+            proc = subprocess.run([analyze, "--user", "condition", *conditions],
+                                  env=env, capture_output=True, text=True,
+                                  timeout=30)
+        self.assertIn("test.service: Condition", proc.stdout + proc.stderr,
+                      f"systemd-analyze evaluated nothing: {proc.stderr}")
+        return proc.returncode
+
+    def test_native_condition_runs_on_a_non_zero_wayland_socket(self):
+        """Executed old/fixed control, by systemd itself: the historical
+        wayland-0 guard is skipped on a session whose socket is wayland-1, the
+        unit's actual guard is met there, and it stays unmet before a session
+        has published WAYLAND_DISPLAY."""
+        # ConditionUser depends on who runs the test (root in an image build).
+        session = [line for line in self._unit_section().splitlines()
+                   if line.startswith("Condition")
+                   and not line.startswith("ConditionUser=")]
+        self.assertTrue(session, "no session condition left to evaluate")
+        self.assertNotEqual(
+            self._evaluate(["ConditionPathExists=%t/wayland-0"], "wayland-1"), 0,
+            "negative control: the old guard must be skipped on wayland-1")
+        self.assertEqual(self._evaluate(session, "wayland-1"), 0,
+                         f"{session} must run in a wayland-1 session")
+        self.assertNotEqual(self._evaluate(session, None), 0,
+                            f"{session} must not run before a session exists")
 
     def test_every_edition_enables_it(self):
         """The whole point is that ARM, generic x86, NVIDIA and cloud stop

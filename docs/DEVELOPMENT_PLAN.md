@@ -28,8 +28,11 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-Nov24, V3 workspace. With the cover attached the owner wants the Touch Bar
-on text focus. Detaching keeps the bar above the full native keyboard. The
+Nov25, V3 development branch. With an attached hardware keyboard, the device
+policy suppresses automatic key rows. Device tools stay accessible from the Island
+and from the Touch Bar when the input panel is open. Both use the same KWin window search through KRunner,
+System Settings, Mira and active media player actions. Detaching permits the bar
+above the full native keyboard. The
 desktop panel follows KWin posture and keyboard visibility preferences. An
 unknown posture or a protected field keeps the full keypad. At 1200×800 the
 native Wayland mask changed from 52 to 292 logical pixels and back, including
@@ -37,6 +40,13 @@ the manual keys and settings journeys. In a strict form the released Arabic
 layout left the field empty after ten presses. The reviewed layout entered
 0123456789. Check cover hotplug again on the personal session and signed image.
 The Places and Mira work uses the existing Dolphin, Plasma and Mira services.
+In a private V3 Plasma session the Arabic device pane painted four 99×52
+logical-pixel targets. The English light portrait pane returned to search with
+reduced motion. A private GStreamer player paused and resumed through Plasma's
+MPRIS owner. Invoking Overview crashed the private GPU-backed compositor. The
+device button uses KRunner’s Windows provider to find an existing KWin window.
+A private KWin run kept both halves and four quarters inside the
+48-pixel panel margin after rotation, 125% scale and restoration.
 On the physical V3, four independent applications occupied four quarters and
 returned to two halves when two closed. A separate native decorated-window
 control refused the old minimum-size calculation. The next visual M1 journey
@@ -60,7 +70,7 @@ apply to every card and frame. The interface scales to each screen's size,
 resolution and scale. Plasma, KWin and Wayland stay the owners. Windows arrange
 themselves: two programs take halves, four take quarters, and frames and programs
 adapt to their cells. The tablet behaves as a tablet when the keyboard is detached,
-showing the full keys then. Nov24 steering retains the Touch Bar on text focus with the cover attached.
+showing the full keys then. Nov24 evening steering suppresses automatic keyboard popups while a physical keyboard is attached. The Island remains an entry point for device tools.
 Delivered in source so far: Meyar Arabic on Tajawal (PR325), real Hub frost
 (PR325) and automatic arrangement (feat/v3-auto-arrange-20261123, P2.18). The
 remaining slices are P2.18 frames and P5.3 tablet keyboard. Research inputs (to be
@@ -572,7 +582,7 @@ M0 evidence as measured performance or require another local VM image.
 | P2.5 | Visual, contrast, scale and reduced-motion matrix | Nov23 source batch: the MoOS corner (square top-trailing, mirrored) owns Design Core, shared surfaces, 46 app/plasmoid cards, shared and hand-drawn command buttons (17 in installer/Welcome), session surfaces and all 18 popup/desktop-card FrameSvgs with matching blur masks; plasma-keyboard 6.8.3 wears Meyar Glass with layout-following languages (private-compositor evidence, `tests/test_moos_corner.py`; signed delivery and physical touch remain open). Codex's unmerged wide-screen account-beside-prompt session card (same preserved branch) fails the maker's-mark gate and replaces the accent glyph tile with a bare glyph; it awaits an owner design decision, and its keyboard-rotation stale-key report is not yet reproduced here. Merged source includes Quiet Glass, native Control Center/Mova and PR307 frame centring; user-local copies and signed1162 remain distinct. Historical480 atomic material transitions and signed1034/763 proofs remain in receipts. Current full AR/EN/scale/contrast/reduced-motion and installed connected workspace acceptance remain open; window PR309/310 stay with their owner | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |
 | P2.7 | Horizon feedback, clock input and system sound | Nov11 shared-role Quiet Lift KWin effect passes native open/close/reversal/reduced/broken controls and is session-loaded on V3; complete source/signed/default/frame-time qualification pending. Existing shell and sound acceptance remain open. See docs/reviews/2026-11-11-native-motion-qt-workloads.json | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
-| P2.8 | MoOS Bar, Search and Island as one shell | Merged source unifies native Control Center and Mova through existing tray/Kicker/Milou/KWin owners, retaining old/fixed/input controls. Recorded user-local packages on signed1162 are not immutable delivery. Nov23 source: Mova Home commands take their native caption height; the real native driver refuses the old 66px card (Arabic label 37+32px) and passes the fixed view in its four AR/EN viewports, with scrolled before/after captures. Original Island keyboard/token proofs and installed inventories remain historical evidence; owner portrait/touch/Orca and full connected launcher/panel acceptance remain open Nov24 independent source adds KDE-native section headings and a two-pane Files action to Mova Places. Private V3 Plasma verifies keyboard focus and fit in four Arabic/English viewports. The source action opens real Dolphin with both panes visible; removable-volume touch, screen reader and signed installed acceptance remain open. | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
+| P2.8 | MoOS Bar, Search and Island as one shell | Nov25 Mova library: centred chip labels, an in-window touch menu (one-touch dismiss, focus back to its tile, MoOS words, Arabic mirroring), lifted-finger hover and named session buttons pass the native gate with refused mutants and live V3 touch; signed delivery pending. Merged source unifies native Control Center and Mova through existing tray/Kicker/Milou/KWin owners, retaining old/fixed/input controls. Recorded user-local packages on signed1162 are not immutable delivery. Nov23 source: Mova Home commands take their native caption height; the real native driver refuses the old 66px card (Arabic label 37+32px) and passes the fixed view in its four AR/EN viewports, with scrolled before/after captures. Original Island keyboard/token proofs and installed inventories remain historical evidence; owner portrait/touch/Orca and full connected launcher/panel acceptance remain open Nov24 independent source adds KDE-native section headings and a two-pane Files action to Mova Places. Private V3 Plasma verifies keyboard focus and fit in four Arabic/English viewports. The source action opens real Dolphin with both panes visible; removable-volume touch, screen reader and signed installed acceptance remain open. | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
 | P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains. Nov19 Liquid Glass boot scene passes source/native-pixel review; owner acceptance, image initramfs and signed boot pending | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
 | P2.10 | Readable text and glyph contrast on every palette | Nov23 native review: the common keyboard outline uses the scheme’s DecorationFocus colour. Measured on Window in all 18 looks, Daylight improves from 1.88:1 to 3.13:1. The Arabic desktop scene rendered on the V3 in 18 private Plasma sessions. Physical tablet and signed-session acceptance remain open. Nov22 source: every KDE text role, focus mark, selected ink, Konsole ANSI 1-6 and libadwaita accent pair in all 18 looks meets WCAG (test_theme_role_contrast); retired light-family links/visited/terminal/GTK accent values fail the same predicate. Existing desktops receive only exact retired values via moos-color-roles. Daylight selection vs view stays 2.98:1 (the accent itself). Installed frames and owner review pending | All schemes meet role-specific contrast; actual glyph/card/pointer frames instead of token names. |
 | P2.11 | Visible, bilingual update changes | Implemented/delivered within recorded scope; wider acceptance remains | Readable current entries and working routes, delivered update/notification readback. |

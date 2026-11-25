@@ -22,3 +22,11 @@ Type=oneshot
 ExecStart=/usr/bin/openclaw-idle
 # It only reads Ollama's /api/ps and shells `systemctl --user stop`.
 NoNewPrivileges=true
+# Every five minutes all session long, the manager's Starting/Finished lines
+# were 576 journal entries a day in a 500 MB journal that already loses the
+# previous boot. The script's own record of a sleep is `logger` at notice and
+# its output is raised to notice; only the manager's info chatter is dropped.
+# Measured 2026-11-24 on the V3 user manager with a transient unit: the logger
+# line, stdout and stderr survived, Starting/Finished did not.
+SyslogLevel=notice
+LogLevelMax=notice

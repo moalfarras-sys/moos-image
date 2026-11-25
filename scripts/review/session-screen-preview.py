@@ -140,7 +140,7 @@ sys.exit(app.exec())
 
 def no_core() -> None:
     import resource
-    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
 
 
 def main() -> int:

@@ -35,6 +35,38 @@ QtObject {
         function dbustabletModeChanged() { state.tablet.updateAll() }
     }
 
+    // Only the focused surface's capability is exposed here. Surrounding text
+    // and candidate insertion belong to the focused input method.
+    readonly property DBus.Properties inputPanel: DBus.Properties {
+        busType: DBus.BusType.Session
+        service: state.service.registered ? "org.kde.KWin" : ""
+        path: "/VirtualKeyboard"
+        iface: "org.kde.kwin.VirtualKeyboard"
+    }
+    readonly property DBus.SignalWatcher inputEvents: DBus.SignalWatcher {
+        busType: DBus.BusType.Session
+        service: "org.kde.KWin"
+        path: "/VirtualKeyboard"
+        iface: "org.kde.kwin.VirtualKeyboard"
+        enabled: state.service.registered
+        function dbusactiveClientSupportsTextInputChanged() { state.inputPanel.updateAll() }
+        function dbusvisibleChanged() { state.inputPanel.updateAll() }
+    }
+    readonly property DBus.DBusServiceWatcher keyboardPolicy: DBus.DBusServiceWatcher {
+        busType: DBus.BusType.Session
+        watchedService: "org.moos.KeyboardPolicy"
+    }
+    readonly property DBus.Properties presence: DBus.Properties {
+        busType: DBus.BusType.Session
+        service: state.keyboardPolicy.registered ? "org.moos.KeyboardPolicy" : ""
+        path: "/KeyboardPolicy"
+        iface: "org.moos.KeyboardPolicy"
+    }
+    readonly property bool desktopTextFocus: service.registered && keyboardPolicy.registered
+        && presence.properties.PhysicalKeyboard === true && !greeter
+        && inputPanel.properties.activeClientSupportsTextInput === true
+        && inputPanel.properties.visible === false
+
     readonly property Settings appearance: Settings {
         location: StandardPaths.writableLocation(StandardPaths.GenericConfigLocation) + "/moos-keyboardrc"
         category: "Appearance"

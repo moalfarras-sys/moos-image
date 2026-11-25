@@ -8,7 +8,8 @@ if [ ! -e /run/.containerenv ] && [ ! -e /.dockerenv ]; then
  echo "Refusing to render against the owner desktop; use the review SDK" >&2
  exit 2
 fi
-ulimit -c 0
+# RLIMIT_CORE=1 byte: the kernel aborts a piped core before the host's collector.
+prlimit --pid "$$" --core=1:1 2>/dev/null || ulimit -c 0
 THEME_SOURCE=${THEME_SOURCE:-/repo/system_files/usr/share/plymouth/themes/moos}
 ARTIFACT_DIR=${ARTIFACT_DIR:-/evidence}
 mkdir -p /review/theme /review/lib "$ARTIFACT_DIR"

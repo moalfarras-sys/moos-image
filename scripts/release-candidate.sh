@@ -130,13 +130,24 @@ dispatch() {
 #   proof and is never adopted.
 wait_run() {
     local id="$1" label="$2" adopt="${3:-}" state="" try
+    local minutes="${MOOS_RELEASE_WAIT_MINUTES:-720}"
+    case "$minutes" in ''|*[!0-9]*) minutes=720 ;; esac
+    [ "$minutes" -ge 1 ] && [ "$minutes" -le 1440 ] || minutes=720
     gh run watch "$id" --exit-status --interval 60 >/dev/null 2>&1 || true
     # `gh run watch` also exits non-zero when the API is unreachable. The
     # 2026-09-17 W2 release printed FAIL for two QCOW2 proofs that had in fact
     # succeeded, only because the host lost api.github.com while watching. The
     # verdict is therefore the run's own recorded status, re-read until the API
     # answers and the run is complete — never the watcher's exit code.
-    for try in $(seq 1 120); do
+    #
+    # The re-read must outlast the run, not a guess at it. It was 120 minutes:
+    # on 2026-11-25 the watcher returned early, the dispatched build of 2964e832
+    # sat queued for 2 h 55 min behind the push build of the same revision
+    # (build.yml queues, it never cancels), and the cycle printed
+    # "FAIL signed x86 build (state: in_progress 1)" for a build that was still
+    # running. A readable queued/in_progress state is not a failure; the bound
+    # (12 h) covers a queued build plus its own, and stays finite.
+    for try in $(seq 1 "$minutes"); do
         state="$(gh_read run view "$id" --json status,conclusion,attempt \
             --jq '.status + " " + (.conclusion // "") + " " + (.attempt|tostring)' 2>/dev/null)" || state=""
         case "$state" in
@@ -205,8 +216,22 @@ build_id="$(gh_read run list --workflow build.yml --json databaseId,headSha,stat
 if [ -n "$build_id" ] && [ "$build_id" != "null" ]; then
     echo "signed build: reusing run $build_id (already built $revision)"
 else
-    build_id="$(dispatch build.yml)"
-    echo "signed build: run $build_id"
+    # A dispatched first attempt of this revision may still be queued or running —
+    # for instance after an earlier cycle stopped waiting for it. Wait on that run;
+    # a second dispatch would only queue a duplicate build of the same commit.
+    active_id="$(gh_read run list --workflow build.yml --json databaseId,headSha,status,attempt,event \
+        --jq "[.[] | select(.headSha == \"$revision\" and .status != \"completed\"
+               and .attempt == 1 and .event == \"workflow_dispatch\")][0].databaseId")" || {
+        echo "release-candidate: active signed build listing is unreadable; refusing duplicate dispatch" >&2
+        exit 1
+    }
+    if [ -n "$active_id" ] && [ "$active_id" != "null" ]; then
+        build_id="$active_id"
+        echo "signed build: waiting on existing run $build_id ($revision)"
+    else
+        build_id="$(dispatch build.yml)"
+        echo "signed build: run $build_id"
+    fi
     wait_run "$build_id" "signed x86 build" adopt || exit 1
 fi
 # If the dispatched build was superseded on this exact revision, the artifacts —

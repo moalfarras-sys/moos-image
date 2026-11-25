@@ -1518,6 +1518,10 @@ A completed process is a transaction result, not physical firmware readback.
 Use the native loader, drain jobs before release and keep HOME/XDG/session state
 private. Negative native crash probes must disable coredumps and fail on unexpected
 signals; test-container execution alone does not isolate the host coredump collector.
+A zero core limit does not disable it either: the pipe ignores 0, and each crash left
+a DrKonqi launcher in the owner's session (eight, ~50 MB each, alive 5-13 h on V3).
+Set RLIMIT_CORE to exactly 1 byte (`prlimit --core=1:1` in shell; `ulimit -c 1` is
+1 KiB), which the kernel uses to abort a piped core; `test_crash_probe_hygiene.py`.
 
 **A queued result is not a finished worker.** Mira page tests must join their
 workers and drain queued follow-up reads before releasing the Qt page or removing

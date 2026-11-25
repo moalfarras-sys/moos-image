@@ -25,6 +25,8 @@ parser.add_argument("--broken-folders", action="store_true")
 parser.add_argument("--broken-home-focus", action="store_true")
 parser.add_argument("--broken-runner-preferences", action="store_true")
 parser.add_argument("--broken-popup-reopen", action="store_true")
+parser.add_argument("--broken-chip-label", action="store_true")
+parser.add_argument("--broken-menu-dismiss", action="store_true")
 args=parser.parse_args()
 if args.broken_popup_reopen and not args.native_popup:
     parser.error("--broken-popup-reopen requires --native-popup")
@@ -91,6 +93,11 @@ def one(width,height,language,light,reduced):
         if args.broken_category:
             body=body.replace('view.launcher.appsModelRow = row;',
                               'view.launcher.appsModelRow = 1;',1)
+        if args.broken_chip_label:
+            # The stock edge alignment the V3 showed before the chip owned its label.
+            seam='objectName: "launcherCategoryLabel"'
+            assert body.count(seam)==1
+            body=body.replace(seam,seam+'\n                                    Component.onCompleted: horizontalAlignment = Text.AlignLeft',1)
         if args.broken_home_focus:
             seam='onActiveFocusChanged: if (activeFocus) homeScroll.reveal(command)'
             assert body.count(seam)==1
@@ -99,6 +106,12 @@ def one(width,height,language,light,reduced):
             seam='&& tile.visible && view.visible && view.launcher.expanded'
             assert body.count(seam)==1
             body=body.replace(seam,'&& tile.visible && view.visible',1)
+        if args.broken_menu_dismiss:
+            menu=package/'contents/ui/MovaActionMenu.qml'
+            menu_body=menu.read_text()
+            seam='                modal: true\n'
+            assert menu_body.count(seam)==1
+            menu.write_text(menu_body.replace(seam,'                modal: false\n',1))
         main=package/'contents/ui/main.qml'
         main_body=main.read_text()
         if args.broken_order_snapshot:

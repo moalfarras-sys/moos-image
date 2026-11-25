@@ -433,7 +433,7 @@ class AFailedBuild(unittest.TestCase):
 
             def run(bounded: bool) -> subprocess.CompletedProcess:
                 def apply() -> None:
-                    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+                    resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
                     if bounded:
                         resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
                 environment = {key: value for key, value in os.environ.items()

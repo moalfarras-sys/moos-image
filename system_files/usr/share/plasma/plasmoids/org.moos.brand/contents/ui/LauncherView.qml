@@ -82,7 +82,10 @@ Item {
     readonly property bool compact: width < 640
     readonly property bool narrow: width < 480
     readonly property bool shortLayout: height < 520
-    readonly property int touchTarget: design.targetControl
+    // A finger gets no tooltip, so a wide launcher names its session and
+    // theme buttons instead of leaving seven bare glyphs to guess.
+    readonly property bool sessionLabels: !compact && width >= 1180
+    readonly property int touchTarget: design.targetComfortable
     readonly property int canvasMargin: compact ? space3 : space5
 
     function appColumns(availableWidth) {
@@ -97,6 +100,20 @@ Item {
         const room = Math.max(1, Math.floor(availableHeight));
         const rows = Math.max(1, Math.floor(room / minimum));
         return Math.max(minimum, Math.floor(room / rows));
+    }
+    // Some XDG menu directories supply only an English display name.
+    // Preserve native translations and custom folders; Kicker still owns the row.
+    readonly property var arabicCategoryLabels: ({
+        "Accessories": "الأدوات", "Utilities": "الأدوات المساعدة", "Development": "التطوير",
+        "Education": "التعليم", "Games": "الألعاب", "Graphics": "الرسومات", "Internet": "الإنترنت",
+        "Multimedia": "الوسائط المتعددة", "Office": "المكتب", "Science & Math": "العلوم والرياضيات",
+        "Settings": "الإعدادات", "System": "النظام", "Other": "أخرى"
+    })
+    function categoryLabel(row, display) {
+        if (row === 1) return view.local("الكل", "All");
+        const name = String(display || "");
+        return view.rtl && Object.prototype.hasOwnProperty.call(arabicCategoryLabels, name)
+            ? arabicCategoryLabels[name] : name;
     }
     function selectCategory(row) {
         const catalogue = view.launcher.appRootModel;
@@ -123,7 +140,61 @@ Item {
                 "hibernate", "reboot", "shutdown"].indexOf(String(actionId)) >= 0;
     }
 
-    MovaActionMenu { id: appActions; objectName: "movaAppActions" }
+    MovaActionMenu {
+        id: appActions
+        objectName: "movaAppActions"
+        fontFamily: view.uiFontFamily
+        fontPixelSize: view.typeEmphasis
+        rowHeight: view.touchTarget
+        labelFor: view.actionLabel
+        mirrored: view.rtl
+    }
+
+    // Kicker owns these action IDs and what they do; Mova only names them in
+    // the words the rest of MoOS uses. Mova's own catalogue carries no copy of
+    // Kicker's translations, so "Add to Favorites" appeared in English inside
+    // an Arabic menu, and «حرّر التّطبيق» / «أزل أو أدر الإضافات» did not say
+    // what they open. An unknown ID keeps its native label.
+    function actionLabel(actionItem) {
+        const argument = actionItem.actionArgument || {};
+        switch (String(actionItem.actionId || "")) {
+        case "_kicker_favorite_add":
+            return view.local("أضف إلى المفضّلة", "Add to Favorites");
+        case "_kicker_favorite_remove":
+            return view.local("أزل من المفضّلة", "Remove from Favorites");
+        case "_kicker_favorite_set_to_activity":
+        case "_kicker_favorite_remove_from_activity":
+            if (argument.favoriteActivity === "")
+                return view.local("في كل الأنشطة", "On all activities");
+            break;
+        case "addToDesktop":
+            return view.local("أضف اختصاراً إلى سطح المكتب", "Add a shortcut to the desktop");
+        case "addToTaskManager":
+            return view.local("ثبّت في شريط التطبيقات", "Pin to the dock");
+        case "addToPanel":
+            return view.local("أضف إلى الشريط كأداة", "Add to the panel as a widget");
+        case "editApplication":
+            return view.local("عدّل اسم التطبيق وأيقونته…", "Edit name and icon…");
+        case "manageApplication":
+            return view.local("أزل التطبيق أو أدِره في المتجر…", "Remove or manage in the Store…");
+        case "hideApplication":
+            return view.local("أخفِ من القائمة", "Hide from the menu");
+        case "_kicker_forgetRecentDocuments":
+            return view.local("امسح قائمة الملفات الأخيرة", "Clear recent files");
+        case "_kicker_fileItem_openWith":
+            return view.local("افتح باستخدام…", "Open with…");
+        case "_kicker_fileItem_properties":
+            return view.local("الخصائص", "Properties");
+        }
+        const subActions = actionItem.subActions || [];
+        if (subActions.length > 0 && subActions[0].actionArgument
+                && subActions[0].actionArgument.favoriteModel !== undefined)
+            return view.local("أظهر في المفضّلة", "Show in Favorites");
+        if (String(actionItem.text || "") === "On the Current Activity")
+            return view.local("في النشاط الحالي", "On the current activity");
+        return "";
+    }
+
     function openAppActions(tile) {
         if (!tile || tile.index < 0) return;
         const actions = tile.model.hasActionList === true ? tile.model.actionList : [];
@@ -131,12 +202,21 @@ Item {
             view.favoritesModel, String(tile.model.favoriteId || ""));
         if (tile.favoriteSurface) {
             const extra = Array.from(appActions.actionList || []);
+            // Earlier is the logical start: right in Arabic, left in English.
             extra.push({type: "separator"},
-                {text: view.local("نقل للخلف", "Move earlier"), actionId: "_mova_move_earlier", enabled: tile.index > 0},
-                {text: view.local("نقل للأمام", "Move later"), actionId: "_mova_move_later", enabled: tile.index < view.favoritesModel.count - 1});
+                {text: view.local("قدّمه في الترتيب", "Move earlier"),
+                 icon: view.rtl ? "go-next-symbolic" : "go-previous-symbolic",
+                 actionId: "_mova_move_earlier", enabled: tile.index > 0},
+                {text: view.local("أخّره في الترتيب", "Move later"),
+                 icon: view.rtl ? "go-previous-symbolic" : "go-next-symbolic",
+                 actionId: "_mova_move_later", enabled: tile.index < view.favoritesModel.count - 1});
             appActions.actionList = extra;
         }
         if (!appActions.actionList || appActions.actionList.length === 0) return;
+        // The menu hands focus back to whatever held it when it opened. Let
+        // that be the tile: returning it to the search field after a finger
+        // dismissed the menu raised the on-screen keyboard (V3, 2026-11-25).
+        tile.forceActiveFocus();
         appActions.visualParent = tile;
         appActions.delegate = tile;
         appActions.favoriteIdentity = tile.favoriteId;
@@ -224,6 +304,23 @@ Item {
             "shutdown": "moos-power-symbolic"
         };
         return icons[String(actionId)] || "moos-power-symbolic";
+    }
+
+    // Shown as words once the session row has room. The native Arabic
+    // catalogue says «علّق» (hang) for Suspend and bare imperatives for the
+    // rest; these are the names a person reads on a power control. The
+    // native model still owns which actions exist and what each one does.
+    function sessionLabel(actionId, nativeLabel) {
+        const labels = {
+            "lock-screen": view.local("قفل الشاشة", "Lock"),
+            "switch-user": view.local("تبديل المستخدم", "Switch user"),
+            "logout": view.local("تسجيل الخروج", "Log out"),
+            "suspend": view.local("سكون", "Sleep"),
+            "hibernate": view.local("سبات", "Hibernate"),
+            "reboot": view.local("إعادة التشغيل", "Restart"),
+            "shutdown": view.local("إيقاف التشغيل", "Shut down")
+        };
+        return labels[String(actionId)] || String(nativeLabel || "");
     }
 
     function focusSearch() {
@@ -1165,15 +1262,55 @@ Item {
                             onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
                             QQC2.ScrollBar.horizontal: QQC2.ScrollBar { interactive: false }
 
+                            // The chip owns its label. Plasma's stock delegate
+                            // content aligned Arabic names to one edge and was
+                            // measured narrower than the painted Meyar text, so
+                            // «الأدوات» lost its first letter under the border and
+                            // «الوسائط المتعددة» ran past both edges (V3, 1191).
                             delegate: PC3.ItemDelegate {
                                 id: category
+                                leftPadding: view.space4
+                                rightPadding: view.space4
+                                topPadding: 0
+                                bottomPadding: 0
+                                // Width of the selected (DemiBold) label, so
+                                // choosing a category never shifts the strip.
+                                // Measured by the same text layout that paints
+                                // it: font advance alone came up ~1px short.
+                                implicitWidth: Math.ceil(Math.max(categoryBoldLabel.implicitWidth,
+                                        contentItem.implicitWidth))
+                                    + leftPadding + rightPadding
+                                Text {
+                                    id: categoryBoldLabel
+                                    visible: false
+                                    text: category.text
+                                    textFormat: Text.PlainText
+                                    font.family: view.uiFontFamily
+                                    font.pixelSize: view.typeBody
+                                    font.weight: Font.DemiBold
+                                }
+                                contentItem: Text {
+                                    objectName: "launcherCategoryLabel"
+                                    text: category.text
+                                    textFormat: Text.PlainText
+                                    color: Kirigami.Theme.textColor
+                                    font.family: view.uiFontFamily
+                                    font.pixelSize: view.typeBody
+                                    font.weight: category.checked ? Font.DemiBold : Font.Medium
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideNone
+                                }
+                                // Qt keeps a control's own hovered set after a
+                                // finger lifts; the handler clears on release.
+                                HoverHandler { id: categoryHover }
                                 required property int index
                                 required property var model
                                 objectName: "launcherCategory" + index
                                 visible: index > 0 && model.hasChildren === true
                                 width: visible ? Math.max(view.touchTarget, implicitWidth) : 0
                                 height: view.touchTarget
-                                text: index === 1 ? view.local("الكل", "All") : String(model.display || "")
+                                text: view.categoryLabel(index, model.display)
                                 checked: view.launcher.appsModelRow === index
                                 hoverEnabled: true
                                 activeFocusOnTab: visible
@@ -1201,7 +1338,7 @@ Item {
                                     radius: view.radiusM
                                     color: category.checked
                                         ? Qt.alpha(Kirigami.Theme.highlightColor, 0.26)
-                                        : Qt.alpha(Kirigami.Theme.textColor, category.hovered ? 0.14 : 0.06)
+                                        : Qt.alpha(Kirigami.Theme.textColor, categoryHover.hovered ? 0.14 : 0.06)
                                     border.width: category.activeFocus ? 2 : 1
                                     border.color: category.activeFocus
                                         ? Kirigami.Theme.highlightColor
@@ -1706,11 +1843,14 @@ Item {
                 Layout.minimumHeight: view.targetSize
                 text: view.local("ثيمات MoOS", "MoOS Themes")
                 icon.name: "moos-ui-symbolic"
-                display: PC3.AbstractButton.IconOnly
+                display: view.sessionLabels ? PC3.AbstractButton.TextBesideIcon
+                    : PC3.AbstractButton.IconOnly
+                font.family: view.uiFontFamily
+                font.pixelSize: view.typeSecondary
                 // The MoOS Themes page lives in MoOS Settings (Appearance).
                 onClicked: view.launcher.openRoute("moos://settings/themes")
                 PC3.ToolTip.text: text
-                PC3.ToolTip.visible: hovered && text.length > 0
+                PC3.ToolTip.visible: hovered && text.length > 0 && !view.sessionLabels
                 PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
             }
 
@@ -1727,16 +1867,25 @@ Item {
                 text: view.local("الجلسة والطاقة", "Session & power")
                 icon.name: "moos-power-symbolic"
                 onClicked: sessionMenu.popup()
-                QQC2.Menu {
+                PC3.Menu {
                     id: sessionMenu
+                    // A popup sits outside the launcher's inherited mirroring.
+                    locale: Qt.locale(view.rtl ? "ar" : "en_US")
+                    // A dismissing tap must not also press what lies beneath.
+                    modal: true
+                    dim: false
                     Instantiator {
                         model: view.sessionModel
-                        delegate: QQC2.MenuItem {
+                        delegate: PC3.MenuItem {
+                            LayoutMirroring.enabled: view.rtl
+                            LayoutMirroring.childrenInherit: true
+                            font.family: view.uiFontFamily
+                            font.pixelSize: view.typeBody
                             required property int index
                             required property var model
                             visible: view.sessionActionShown(model.favoriteId)
                             height: visible ? Math.max(implicitHeight, view.touchTarget) : 0
-                            text: model.display
+                            text: view.sessionLabel(model.favoriteId, model.display)
                             icon.name: view.sessionIcon(model.favoriteId)
                             onTriggered: view.launcher.triggerEntry(view.sessionModel, index)
                         }
@@ -1761,12 +1910,15 @@ Item {
                     Layout.preferredWidth: shown ? Math.max(view.targetSize, implicitWidth) : 0
                     Layout.maximumWidth: shown ? Math.max(view.targetSize, implicitWidth) : 0
                     Layout.minimumHeight: shown ? view.targetSize : 0
-                    text: model.display
+                    text: view.sessionLabel(model.favoriteId, model.display)
                     icon.name: view.sessionIcon(model.favoriteId)
-                    display: PC3.AbstractButton.IconOnly
+                    display: view.sessionLabels ? PC3.AbstractButton.TextBesideIcon
+                        : PC3.AbstractButton.IconOnly
+                    font.family: view.uiFontFamily
+                    font.pixelSize: view.typeSecondary
                     onClicked: view.launcher.triggerEntry(view.sessionModel, index)
                     PC3.ToolTip.text: text
-                    PC3.ToolTip.visible: hovered && text.length > 0
+                    PC3.ToolTip.visible: hovered && text.length > 0 && !view.sessionLabels
                     PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                 }
             }
@@ -1821,6 +1973,10 @@ Item {
         leftPadding: view.narrow ? view.space1 : view.space3
         rightPadding: leftPadding
         hoverEnabled: true
+        // Qt leaves a control's own hovered set after a finger lifts
+        // (measured on the V3, Qt 6.11); a HoverHandler clears on release.
+        HoverHandler { id: navHover }
+        readonly property bool pointerOver: navHover.hovered
         // A keyboard user must be able to Tab to the sidebar and see where the
         // focus sits — the background already draws an activeFocus edge.
         activeFocusOnTab: true
@@ -1865,7 +2021,7 @@ Item {
             event.accepted = true;
         }
         PC3.ToolTip.text: nav.label
-        PC3.ToolTip.visible: view.narrow && hovered
+        PC3.ToolTip.visible: view.narrow && nav.pointerOver
         PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
 
         background: Rectangle {
@@ -1879,7 +2035,7 @@ Item {
             color: view.launcher.activePage === nav.page && !view.searching
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.26)
                 : Qt.alpha(Kirigami.Theme.textColor,
-                    nav.hovered || nav.activeFocus ? 0.14 : 0.0)
+                    nav.pointerOver || nav.activeFocus ? 0.14 : 0.0)
             border.width: nav.activeFocus ? 2 : 0
             border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.78)
             Behavior on color { ColorAnimation { duration: view.motionFast } }
@@ -1902,7 +2058,8 @@ Item {
             spacing: view.narrow ? 0 : view.space3
 
             Kirigami.Icon {
-                Layout.alignment: view.narrow ? Qt.AlignHCenter : Qt.AlignVCenter
+                visible: !view.narrow
+                Layout.alignment: Qt.AlignVCenter
                 Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
                 Layout.preferredHeight: width
                 source: nav.iconName
@@ -1913,9 +2070,8 @@ Item {
             Text {
                 Layout.fillWidth: true
                 text: nav.label
-                visible: !view.narrow
                 textFormat: Text.PlainText
-                horizontalAlignment: Text.AlignLeft
+                horizontalAlignment: view.narrow ? Text.AlignHCenter : Text.AlignLeft
                 color: Kirigami.Theme.textColor
                 font.family: view.uiFontFamily
                 font.pixelSize: view.typeSecondary
@@ -1983,6 +2139,10 @@ Item {
 
         enabled: model.disabled !== true
         hoverEnabled: true
+        // Qt leaves a control's own hovered set after a finger lifts
+        // (measured on the V3, Qt 6.11); a HoverHandler clears on release.
+        HoverHandler { id: tileHover }
+        readonly property bool pointerOver: tileHover.hovered
         Accessible.name: String(model.display || "")
         Accessible.description: String(model.description || "")
         Accessible.role: Accessible.Button
@@ -2120,7 +2280,7 @@ Item {
         //
         // The publisher icon and label identify each application. A surface
         // appears on interaction, leaving the library calm at rest.
-        readonly property bool lit: tile.down || tile.hovered || tile.activeFocus
+        readonly property bool lit: tile.down || tile.pointerOver || tile.activeFocus
             || reorderDrop.containsDrag
         background: Rectangle {
             objectName: "movaTileCard"
@@ -2158,7 +2318,7 @@ Item {
             // The lift. A card that only changes colour on hover feels painted;
             // one that rises feels like an object. Transform only — no shadow
             // layer, no shader, nothing per-frame once settled.
-            transform: Translate { y: tile.hovered && view.motionFast > 0 ? -2 : 0
+            transform: Translate { y: tile.pointerOver && view.motionFast > 0 ? -2 : 0
                 Behavior on y {
                     NumberAnimation { duration: view.motionFast; easing.type: Easing.OutCubic }
                 }
@@ -2174,7 +2334,7 @@ Item {
                 id: tileFeedback
                 active: tile.visible && view.visible
                 targetScale: tile.down ? view.design.pressScale
-                    : tile.hovered ? view.design.hoverScale : 1
+                    : tile.pointerOver ? view.design.hoverScale : 1
             }
 
             // Icon and name travel as one group centred in the cell. Without
@@ -2221,7 +2381,7 @@ Item {
             width: view.targetSize
             height: view.targetSize
             z: 4
-            visible: (tile.hovered || tile.activeFocus || tileActionsButton.activeFocus || view.launcher.editMode)
+            visible: (tile.pointerOver || tile.activeFocus || tileActionsButton.activeFocus || view.launcher.editMode)
                 && tile.favoriteId.length > 0
             icon.name: "overflow-menu"
             text: String(tile.model.compactName || tile.model.display || "")
@@ -2244,6 +2404,10 @@ Item {
 
         enabled: model.disabled !== true
         hoverEnabled: true
+        // Qt leaves a control's own hovered set after a finger lifts
+        // (measured on the V3, Qt 6.11); a HoverHandler clears on release.
+        HoverHandler { id: recentHover }
+        readonly property bool pointerOver: recentHover.hovered
         Accessible.name: String(model.display || "")
         Accessible.description: String(model.description || "")
         Accessible.role: Accessible.Button
@@ -2254,11 +2418,11 @@ Item {
         Keys.onSpacePressed: event => { recent.activate(); event.accepted = true; }
         background: Rectangle {
             radius: view.radiusM
-            color: recent.hovered || recent.activeFocus || recent.ListView.isCurrentItem
+            color: recent.pointerOver || recent.activeFocus || recent.ListView.isCurrentItem
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
                 : "transparent"
             border.width: recent.activeFocus ? 2
-                : recent.hovered || recent.ListView.isCurrentItem ? 1 : 0
+                : recent.pointerOver || recent.ListView.isCurrentItem ? 1 : 0
             border.color: Qt.alpha(Kirigami.Theme.highlightColor,
                 recent.activeFocus ? 0.82 : 0.34)
             // Ease the hover like every sibling row (FavoriteTile/nav/search) —
@@ -2308,6 +2472,10 @@ Item {
         height: 52
         enabled: model.disabled !== true
         hoverEnabled: true
+        // Qt leaves a control's own hovered set after a finger lifts
+        // (measured on the V3, Qt 6.11); a HoverHandler clears on release.
+        HoverHandler { id: placeHover }
+        readonly property bool pointerOver: placeHover.hovered
         Accessible.name: String(model.display || "")
         Accessible.description: String(model.description || "")
         Accessible.role: Accessible.Button
@@ -2321,11 +2489,11 @@ Item {
             // isCurrentItem is the keyboard selection: the Places list drives
             // currentIndex from the arrow keys, so the row under it must read as
             // chosen even with no pointer and no delegate focus.
-            color: place.hovered || place.activeFocus || place.ListView.isCurrentItem
+            color: place.pointerOver || place.activeFocus || place.ListView.isCurrentItem
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.085)
                 : "transparent"
             border.width: place.activeFocus ? 2
-                : place.hovered || place.ListView.isCurrentItem ? 1 : 0
+                : place.pointerOver || place.ListView.isCurrentItem ? 1 : 0
             border.color: Qt.alpha(Kirigami.Theme.highlightColor,
                 place.activeFocus ? 0.82 : 0.34)
             // Same eased-hover parity as the Favorite/Recent/nav rows.
@@ -2382,11 +2550,15 @@ Item {
         height: 56
         enabled: model.enabled !== false
         hoverEnabled: true
+        // Qt leaves a control's own hovered set after a finger lifts
+        // (measured on the V3, Qt 6.11); a HoverHandler clears on release.
+        HoverHandler { id: resultHover }
+        readonly property bool pointerOver: resultHover.hovered
         Accessible.name: String(model.display || "")
         Accessible.description: String(model.subtext || "")
         Accessible.role: Accessible.ListItem
-        onHoveredChanged: {
-            if (hovered) {
+        onPointerOverChanged: {
+            if (pointerOver) {
                 result.ListView.view.currentIndex = index;
             }
         }
@@ -2396,7 +2568,7 @@ Item {
             radius: view.radiusM
             color: result.ListView.isCurrentItem
                 ? Qt.alpha(Kirigami.Theme.highlightColor, result.down ? 0.18 : 0.105)
-                : result.hovered
+                : result.pointerOver
                     ? Qt.alpha(Kirigami.Theme.textColor, 0.055)
                     : "transparent"
             border.width: result.activeFocus ? 2
@@ -2466,6 +2638,10 @@ Item {
         signal activated()
 
         hoverEnabled: true
+        // Qt leaves a control's own hovered set after a finger lifts
+        // (measured on the V3, Qt 6.11); a HoverHandler clears on release.
+        HoverHandler { id: commandHover }
+        readonly property bool pointerOver: commandHover.hovered
         // Inset the content off the card edge. Without this the eyebrow ran
         // flush into the rounded corner and clipped in RTL — "اكتشف" rendered
         // as "كتشف" at 150% (docs/DEVELOPMENT_PLAN.md P2.5: no clipped RTL
@@ -2503,7 +2679,7 @@ Item {
             topRightRadius: LayoutMirroring.enabled ? radius : Math.min(radius, design.radiusSquare)
             color: command.down
                 ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
-                : command.hovered || command.activeFocus
+                : command.pointerOver || command.activeFocus
                     ? Qt.alpha(Kirigami.Theme.highlightColor, 0.24)
                     : Qt.alpha(Kirigami.Theme.textColor, 0.11)
             // Rim scale (THEME_REV 32): resting ≤0.22; keyboard focus is the
@@ -2517,7 +2693,7 @@ Item {
             Behavior on border.color { ColorAnimation { duration: view.motionFast } }
 
             transform: Translate {
-                y: command.hovered && view.motionFast > 0 ? -2 : 0
+                y: command.pointerOver && view.motionFast > 0 ? -2 : 0
                 Behavior on y {
                     NumberAnimation {
                         duration: view.motionFast
@@ -2532,11 +2708,11 @@ Item {
                     bottom: parent.bottom
                     leftMargin: view.radiusL
                 }
-                width: command.featured || command.hovered ? 42 : 18
+                width: command.featured || command.pointerOver ? 42 : 18
                 height: 2
                 radius: 1
                 color: Kirigami.Theme.highlightColor
-                opacity: command.featured || command.hovered ? 0.94 : 0.55
+                opacity: command.featured || command.pointerOver ? 0.94 : 0.55
                 Behavior on width {
                     NumberAnimation {
                         duration: view.motionMedium

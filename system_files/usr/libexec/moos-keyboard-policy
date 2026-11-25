@@ -33,6 +33,8 @@ VK_PATH, VK_IFACE = "/VirtualKeyboard", "org.kde.kwin.VirtualKeyboard"
 DEVICES_PATH, DEVICES_IFACE = "/org/kde/KWin/InputDevice", "org.kde.KWin.InputDeviceManager"
 DEVICE_IFACE = "org.kde.KWin.InputDevice"
 TABLET_PATH, TABLET_IFACE = "/org/kde/KWin", "org.kde.KWin.TabletModeManager"
+PRESENCE = "org.moos.KeyboardPolicy"
+PRESENCE_PATH = "/KeyboardPolicy"
 NEVER, TOUCH = 0, 1
 BUS_USB, BUS_BLUETOOTH, BUS_VIRTUAL = 0x03, 0x05, 0x06
 
@@ -93,6 +95,15 @@ class Policy:
         self.config = Path(os.environ.get("XDG_CONFIG_HOME") or home / ".config")
         self.state_path = Path(os.environ.get("XDG_STATE_HOME") or home / ".local/state") / "moos/keyboard-policy.json"
         self.pending = 0
+        self.keyboard_present = False
+        schema = Gio.DBusNodeInfo.new_for_xml(
+            f'<node><interface name="{PRESENCE}"><property name="PhysicalKeyboard" '
+            'type="b" access="read"/></interface></node>')
+        self.bus.register_object(PRESENCE_PATH, schema.interfaces[0], None,
+                                 lambda *_: GLib.Variant("b", self.keyboard_present), None)
+        self.name_id = Gio.bus_own_name_on_connection(self.bus, PRESENCE, Gio.BusNameOwnerFlags.NONE, None, None)
+        self.bus.signal_subscribe(KWIN, "org.freedesktop.DBus.Properties", "PropertiesChanged", None,
+                                  DEVICE_IFACE, Gio.DBusSignalFlags.NONE, self.device_changed, None)
         for path, iface, member in ((DEVICES_PATH, DEVICES_IFACE, "deviceAdded"),
                                     (DEVICES_PATH, DEVICES_IFACE, "deviceRemoved"),
                                     (TABLET_PATH, TABLET_IFACE, "tabletModeChanged")):
@@ -102,6 +113,11 @@ class Policy:
                                   "/org/freedesktop/DBus", KWIN, Gio.DBusSignalFlags.NONE,
                                   lambda *args: self.schedule(), None)
         self.schedule()
+
+    def device_changed(self, connection, sender, path, interface, signal, parameters, data):
+        _, changed, invalidated = parameters.unpack()
+        if "enabled" in changed or "enabled" in invalidated:
+            self.schedule()
 
     def schedule(self):
         # Coalesce a burst (a receiver adds several devices at once) into one read.
@@ -127,10 +143,19 @@ class Policy:
         temporary.write_text(json.dumps(state) + "\n")
         os.replace(temporary, self.state_path)
 
+    def publish_presence(self, present):
+        if self.keyboard_present == present:
+            return
+        self.keyboard_present = present
+        properties = {"PhysicalKeyboard": self.GLib.Variant("b", present)}
+        self.bus.emit_signal(None, PRESENCE_PATH, "org.freedesktop.DBus.Properties", "PropertiesChanged",
+                             self.GLib.Variant("(sa{sv}as)", (PRESENCE, properties, [])))
+
     def evaluate(self):
         self.pending = 0
         try:
             state = self.read_state()
+            keyboard = False
             if not enabled_by_owner(self.config):
                 mode, state = decide(self.get(VK_PATH, VK_IFACE, "mode"), False, state)
             else:
@@ -142,6 +167,7 @@ class Policy:
                 tablet = bool(self.get(TABLET_PATH, TABLET_IFACE, "tabletMode"))
                 keyboard = physical_keyboard(devices, tablet)
                 mode, state = decide(int(self.get(VK_PATH, VK_IFACE, "mode")), keyboard, state)
+            self.publish_presence(keyboard)
             if mode is not None:
                 self.bus.call_sync(KWIN, VK_PATH, "org.freedesktop.DBus.Properties", "Set",
                                    self.GLib.Variant("(ssv)", (VK_IFACE, "mode", self.GLib.Variant("i", mode))),
@@ -149,6 +175,7 @@ class Policy:
                 print(f"moos-keyboard-policy: on-screen keyboard mode {mode}", flush=True)
             self.write_state(state)
         except Exception as error:  # KWin away or restarting: its NameOwnerChanged re-arms us
+            self.publish_presence(False)
             print(f"moos-keyboard-policy: {error}", file=sys.stderr, flush=True)
         return False
 

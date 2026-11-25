@@ -49,6 +49,8 @@ Item {
     signal resetKeys()
     signal feedback()
 
+    property bool systemTools: false
+    readonly property bool showSystemTools: systemTools && !toolsOpen && !sensitive && !greeter
     property bool sheetOpen: false
     property bool settingsOpen: false
     property int activeCandidate: -1
@@ -157,7 +159,7 @@ Item {
     onSettingsOpenChanged: if (settingsOpen) sheetOpen = false
     Component.onCompleted: vocabulary = Logic.parseWords(store.learnedWords)
     onEmojiAllowedChanged: if (!emojiAllowed) sheetOpen = false
-    onHintsChanged: { sheetOpen = false; settingsOpen = false }
+    onHintsChanged: { sheetOpen = false; settingsOpen = false; systemTools = false }
     onDesktopBarChanged: { sheetOpen = false; settingsOpen = false; resetKeys() }
 
     Connections {
@@ -180,6 +182,7 @@ Item {
             if (!root.Window.window.visible) {
                 root.sheetOpen = false
                 root.settingsOpen = false
+                root.systemTools = false
                 root.resetKeys()
             }
         }
@@ -246,7 +249,7 @@ Item {
                 RowLayout {
                     anchors.fill: parent
                     spacing: 0
-                    enabled: root.composing && !root.toolsOpen
+                    enabled: root.composing && !root.toolsOpen && !root.showSystemTools
                     opacity: enabled ? 1 : 0
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
@@ -336,6 +339,27 @@ Item {
                     }
                 }
 
+                Loader {
+                    anchors.fill: parent
+                    active: root.showSystemTools
+                    enabled: active
+                    sourceComponent: SystemStrip {
+                        rtl: root.rightToLeft
+                        language: root.language
+                        compact: true
+                        inInputPanel: true
+                        opacity: 0
+                        Component.onCompleted: appear.start()
+                        NumberAnimation on opacity {
+                            id: appear
+                            running: false
+                            from: 0; to: 1
+                            duration: Kirigami.Units.shortDuration
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+
                 // Between words: an emoji scrubber.
                 ListView {
                     id: scrubber
@@ -343,7 +367,7 @@ Item {
                     anchors.fill: parent
                     orientation: ListView.Horizontal
                     boundsBehavior: Flickable.StopAtBounds
-                    enabled: !root.composing && !root.toolsOpen && root.emojiAllowed
+                    enabled: !root.composing && !root.toolsOpen && !root.showSystemTools && root.emojiAllowed
                     opacity: enabled ? 1 : 0
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: Kirigami.Units.shortDuration } }
@@ -400,10 +424,29 @@ Item {
 
             // The cursor keys keep their screen direction in either language.
             Row {
+                visible: !root.showSystemTools || bar.width >= 420
                 Layout.fillHeight: true
                 LayoutMirroring.enabled: false
                 LayoutMirroring.childrenInherit: true
                 spacing: Math.round(root.barHeight * 0.06)
+                Repeater {
+                    model: !root.desktopBar && !root.toolsOpen && !root.showSystemTools
+                           && !root.sensitive && !root.greeter && bar.width >= 18 * root.barHeight
+                           ? [Qt.Key_Home, Qt.Key_End] : []
+                    TouchBarButton {
+                        required property int modelData
+                        width: Math.round(root.barHeight * 1.15)
+                        height: parent.height
+                        theme: root.theme
+                        rightToLeft: root.rightToLeft
+                        readonly property bool start: modelData === Qt.Key_Home
+                        objectName: start ? "moosTouchBarHome" : "moosTouchBarEnd"
+                        iconName: start !== root.rightToLeft ? "go-first-symbolic" : "go-last-symbolic"
+                        accessibleName: start ? (root.language === "ar" ? "أول السطر" : "Start of line")
+                                              : (root.language === "ar" ? "آخر السطر" : "End of line")
+                        onActivated: root.sendKey(modelData)
+                    }
+                }
                 TouchBarButton {
                     objectName: "moosTouchBarLeft"
                     width: Math.round(root.barHeight * 1.15)
@@ -425,6 +468,24 @@ Item {
                     repeats: true
                     accessibleName: root.language === "ar" ? "تحريك المؤشر يمينًا" : "Move cursor right"
                     onActivated: root.sendKey(Qt.Key_Right)
+                }
+            }
+            TouchBarButton {
+                objectName: "moosTouchBarSystem"
+                visible: !root.greeter && !root.sensitive
+                Layout.preferredWidth: root.barHeight
+                Layout.fillHeight: true
+                theme: root.theme
+                rightToLeft: root.rightToLeft
+                iconName: "moos-system-symbolic"
+                selected: root.showSystemTools
+                accessibleName: root.language === "ar" ? "أدوات النظام" : "System tools"
+                onActivated: {
+                    root.feedback()
+                    const open = !root.showSystemTools
+                    root.sheetOpen = false
+                    root.settingsOpen = false
+                    root.systemTools = open
                 }
             }
             TouchBarButton {

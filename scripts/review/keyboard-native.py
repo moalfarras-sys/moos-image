@@ -67,7 +67,7 @@ sys.exit(app.exec())
 
 def no_core() -> None:
     import resource
-    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_CORE, (1, 1))
 
 
 def main() -> int:
@@ -521,6 +521,20 @@ def main() -> int:
                     time.sleep(0.6)
                     capture("settings-sheet.png")
                     tap((gear if args.locales.startswith("ar") else lw - gear) / lw, bar_y)
+                    # The system button is adjacent to Settings on this tablet layout.
+                    # Inspect a central band away from the toggle's own pressed state.
+                    tools_x = inset + round(bar * 1.15) + round(bar * 0.1) + bar / 2
+                    tools_x = (tools_x if args.locales.startswith("ar") else lw - tools_x) / lw
+                    tap(tools_x, bar_y)
+                    time.sleep(0.4)
+                    tools_frame = capture("system-tools.png")
+                    tap(tools_x, bar_y)
+                    time.sleep(0.4)
+                    text_frame = capture("restored-text-tools.png")
+                    band_rect = (int(pw * 0.32), int(ph * bar_y - bar * args.scale * 0.28),
+                                 int(pw * 0.38), max(1, round(bar * args.scale * 0.56)))
+                    if tools_frame.copy(*band_rect) == text_frame.copy(*band_rect):
+                        raise RuntimeError("device tools did not replace the central input targets")
                 finally:
                     eis.close()
                     private.close_sync(None)

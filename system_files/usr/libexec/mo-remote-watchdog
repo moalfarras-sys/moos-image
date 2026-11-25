@@ -55,6 +55,7 @@
 set -uo pipefail
 
 UNIT=mo-remote-personal.service
+resolver="${MO_REMOTE_WAYLAND_RESOLVER:-/usr/libexec/moos-wayland-display}"
 
 # Nothing to recover if the owner never asked for Remote in the first place.
 # `disable` is the persistent off switch (moos-cloud-desktop uses it); honour it.
@@ -62,6 +63,16 @@ systemctl --user is-enabled --quiet "$UNIT" 2>/dev/null || exit 0
 
 # Only a crash. An inactive unit was stopped on purpose — leave it alone.
 systemctl --user is-failed --quiet "$UNIT" 2>/dev/null || exit 0
+
+# Only into a live session. The unit's ConditionEnvironment=WAYLAND_DISPLAY says
+# a session published a compositor at some point; after a logout the manager can
+# still hold that value while nothing listens. Restarting Remote then would start
+# its portal without a compositor -- the abort this unit's guard exists to stop.
+# The resolver connects to the socket; it runs only on this rare failed path.
+if ! timeout --foreground --signal=TERM 5s "$resolver" >/dev/null 2>&1; then
+    echo "mo-remote-watchdog: ${UNIT} is failed but no Wayland compositor answers; will retry"
+    exit 0
+fi
 
 echo "mo-remote-watchdog: ${UNIT} is failed — clearing the start limit and restarting it"
 systemctl --user reset-failed "$UNIT" 2>/dev/null || true

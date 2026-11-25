@@ -132,6 +132,7 @@ Item {
                     horizontalAlignment: panel.rtl ? Text.AlignRight : Text.AlignLeft
                     Accessible.ignored: false
                     Accessible.name: text
+                    onTextChanged: if (visible && panel.Window.window?.visible) Accessible.announce(text)
                 }
             }
         }
@@ -155,6 +156,7 @@ Item {
             font.pixelSize: panel.design.typeLabel
             font.weight: Font.DemiBold
             enabled: !panel.busy
+            Accessible.description: panel.currentLabel
             onClicked: {
                 if (panel.needsSettings && !panel.live) panel.openSettings();
                 else panel.connection.request();
