@@ -176,6 +176,15 @@ class ReleaseCandidateScript(unittest.TestCase):
         self.assertGreaterEqual(len(selections), 2, "the run-selection queries moved")
         for block in selections:
             query = block[:block.index('][0].databaseId"')]
+            if '.status != \\"completed\\"' in query:
+                # A still-active dispatched run is only WAITED on: wait_run passes it on
+                # nothing but "completed success 1", the same bar promotion applies.
+                for condition in ('.headSha == \\"$revision\\"', ".attempt == 1",
+                                  '.event == \\"workflow_dispatch\\"'):
+                    self.assertIn(condition, query,
+                                  f"the active-run query accepts runs promotion refuses: {condition}")
+                self.assertIn('if [ "$state" = "completed success 1" ]; then', self.text)
+                continue
             for condition in ('.status == \\"completed\\"', '.conclusion == \\"success\\"',
                               ".attempt == 1", '.event == \\"workflow_dispatch\\"'):
                 self.assertIn(condition, query,
@@ -411,8 +420,87 @@ sleep() { printf 'sleep %s\n' "$1" >> "$work/calls"; }
         # readable evidence that a signed build is absent.
         old = block.replace('gh_read run list', 'gh run list')
         old = old.replace('|| {\n    echo "release-candidate: signed build listing is unreadable; refusing duplicate dispatch" >&2\n    exit 1\n}', '|| build_id=""')
+        old = old.replace('|| {\n        echo "release-candidate: active signed build listing is unreadable; refusing duplicate dispatch" >&2\n        exit 1\n    }', '|| active_id=""')
         result, calls = self.metadata_fixture('wait_run() { return 0; }\n' + old, failures=9)
         self.assertIn('workflow run', calls, 'the restored old fallback must expose duplicate dispatch')
+
+    def wait_fixture(self, states, minutes=None):
+        """Execute the real wait_run: the watcher fails at once (as on 2026-11-25), then
+        each status read returns the next scripted state. No network or Actions call."""
+        begin = self.text.index('wait_run() {')
+        end = self.text.index('\n}\n', begin) + 3
+        function = self.text[begin:end]
+        with tempfile.TemporaryDirectory(prefix="moos-release-wait-") as work:
+            Path(work, 'states').write_text('\n'.join(states) + '\n')
+            env = {**os.environ, "MOOS_WAIT_TEST_WORK": work}
+            if minutes is not None:
+                env["MOOS_RELEASE_WAIT_MINUTES"] = str(minutes)
+            stub = r'''
+set -euo pipefail
+work="$MOOS_WAIT_TEST_WORK"; revision=abc
+gh() { [ "$1:$2" = run:watch ] && return 1; return 9; }
+gh_read() {
+    local n=0 state
+    [ ! -f "$work/n" ] || n="$(cat "$work/n")"
+    n=$((n + 1)); echo "$n" > "$work/n"
+    state="$(sed -n "${n}p" "$work/states")"
+    [ -n "$state" ] || state="$(tail -n1 "$work/states")"
+    printf '%s\n' "$state"
+}
+sleep() { :; }
+'''
+            result = subprocess.run(["bash", "-c", stub + function + '\nwait_run 77 "signed x86 build"'],
+                                    env=env, capture_output=True, text=True, timeout=60)
+            reads = int(Path(work, 'n').read_text()) if Path(work, 'n').exists() else 0
+            return result, reads
+
+    def test_a_queued_build_longer_than_two_hours_is_still_awaited(self):
+        """2026-11-25: the dispatched build queued 2 h 55 min behind the push build of
+        the same revision and the cycle printed FAIL for a run that was still working."""
+        states = ["queued  1"] * 175 + ["in_progress  1"] * 150 + ["completed success 1"]
+        result, reads = self.wait_fixture(states)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PASS signed x86 build (run 77)", result.stdout)
+        self.assertEqual(reads, 326)
+        # Negative control: the former 120-minute bound fails this same run.
+        old = self.text.replace('for try in $(seq 1 "$minutes"); do', 'for try in $(seq 1 120); do')
+        self.assertNotEqual(old, self.text)
+        saved, self.text = self.text, old
+        try:
+            result, reads = self.wait_fixture(states)
+        finally:
+            self.text = saved
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("FAIL signed x86 build (run 77, state: queued  1)", result.stdout)
+
+    def test_the_wait_stays_finite_and_failures_stay_failures(self):
+        result, reads = self.wait_fixture(["in_progress  1"], minutes=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(reads, 30, "the wait must stop at its bound")
+        result, reads = self.wait_fixture(["in_progress  1"] * 3 + ["completed failure 1"])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("state: completed failure 1", result.stdout)
+        result, reads = self.wait_fixture(["completed success 1"], minutes="junk")
+        self.assertEqual(result.returncode, 0)
+
+    def test_an_active_dispatched_build_is_awaited_not_duplicated(self):
+        begin = self.text.index('build_id="$(gh_read run list --workflow build.yml')
+        end = self.text.index('\n# If the dispatched build was superseded', begin)
+        block = self.text[begin:end]
+        # First listing (completed success) is empty; the second names an active run.
+        command = ('wait_run() { echo "waited $1"; }\n'
+                   'gh_read() { printf \'%s %s\\n\' "$1" "$2" >> "$work/calls"; '
+                   'n=$(( $(cat "$work/count" 2>/dev/null || echo 0) + 1 )); echo $n > "$work/count"; '
+                   '[ "$n" -eq 1 ] && echo null || echo 45506192446; }\n' + block)
+        result, calls = self.metadata_fixture(command, failures=0)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("signed build: waiting on existing run 45506192446", result.stdout)
+        self.assertIn("waited 45506192446", result.stdout)
+        self.assertNotIn('workflow run', calls, "an active build must not be dispatched again")
+        # With no active run the cycle still dispatches its own build.
+        command = command.replace('|| echo 45506192446', '|| echo null')
+        result, calls = self.metadata_fixture(command, failures=0)
+        self.assertIn('workflow run', calls)
 
 
 if __name__ == "__main__":
