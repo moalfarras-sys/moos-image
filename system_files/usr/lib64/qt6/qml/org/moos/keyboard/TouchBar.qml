@@ -422,24 +422,6 @@ Item {
                 }
             }
 
-            TouchBarButton {
-                objectName: "moosTouchBarSystem"
-                visible: !root.greeter && !root.sensitive
-                Layout.preferredWidth: root.barHeight
-                Layout.fillHeight: true
-                theme: root.theme
-                rightToLeft: root.rightToLeft
-                iconName: "preferences-system-symbolic"
-                selected: root.showSystemTools
-                accessibleName: root.language === "ar" ? "أدوات النظام" : "System tools"
-                onActivated: {
-                    root.feedback()
-                    const open = !root.showSystemTools
-                    root.sheetOpen = false
-                    root.settingsOpen = false
-                    root.systemTools = open
-                }
-            }
             // The cursor keys keep their screen direction in either language.
             Row {
                 visible: !root.showSystemTools || bar.width >= 420
@@ -468,6 +450,24 @@ Item {
                     repeats: true
                     accessibleName: root.language === "ar" ? "تحريك المؤشر يمينًا" : "Move cursor right"
                     onActivated: root.sendKey(Qt.Key_Right)
+                }
+            }
+            TouchBarButton {
+                objectName: "moosTouchBarSystem"
+                visible: !root.greeter && !root.sensitive
+                Layout.preferredWidth: root.barHeight
+                Layout.fillHeight: true
+                theme: root.theme
+                rightToLeft: root.rightToLeft
+                iconName: "moos-system-symbolic"
+                selected: root.showSystemTools
+                accessibleName: root.language === "ar" ? "أدوات النظام" : "System tools"
+                onActivated: {
+                    root.feedback()
+                    const open = !root.showSystemTools
+                    root.sheetOpen = false
+                    root.settingsOpen = false
+                    root.systemTools = open
                 }
             }
             TouchBarButton {

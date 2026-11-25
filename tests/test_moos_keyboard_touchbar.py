@@ -302,6 +302,17 @@ def probe() -> int:
     tap(named_point("moosTouchBarSystem"))
     check(not bar.property("showSystemTools") and scrubber.isEnabled(), "closing the strip restores text tools")
 
+    win.setWidth(360)
+    QTest.qWait(120)
+    toggle = named_point("moosTouchBarSystem")
+    tap(toggle)
+    check(named_point("moosTouchBarSystem") == toggle, "the system switch stays put on a narrow display")
+    tap(toggle)
+    check(not bar.property("showSystemTools") and left.isVisible() and right.isVisible(),
+          "the same touch restores both cursor controls on a narrow display")
+    win.setWidth(1100)
+    QTest.qWait(100)
+
     # A finished word is learned, then offered for its first letters.
     call("type", "سلام")
     call("press", int(Qt.Key_Space), " ")

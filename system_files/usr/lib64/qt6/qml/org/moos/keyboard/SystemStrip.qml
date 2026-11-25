@@ -65,6 +65,10 @@ Item {
                     visible: modelData.key !== "media" || strip.mediaAvailable
                     height: row.height
                     width: (row.width - (strip.toolCount - 1) * row.spacing) / strip.toolCount
+                    Binding on font.pixelSize {
+                        when: strip.inInputPanel
+                        value: Math.max(Kirigami.Units.gridUnit * 0.82, Math.round(command.height * 0.35))
+                    }
                     text: refused ? strip.label("تعذّر الفتح", "Unavailable") : actionLabel
                     readonly property string actionLabel: modelData.key === "media"
                         ? (strip.playing ? strip.label("إيقاف مؤقت", "Pause") : strip.label("تشغيل", "Play")) : strip.label(modelData.ar, modelData.en)
