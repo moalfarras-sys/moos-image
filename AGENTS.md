@@ -7,9 +7,11 @@ Owner26Oct typography steering: the experimental from-scratch Meyar Arabic is re
 Owner28Oct product steering: build one Arabic-first MoOS for desktop/tablet,
 with distinctive Meyar typography, a coherent native Liquid Glass interface,
 and Linux/Windows/Android applications through the existing Store/engine owners.
-Use `docs/DEVELOPMENT_PLAN.md` → Product direction, Ordered execution and P0–P6
-as the only queue; dated conversation handoffs do not override current measured
-state or later owner steering. Strength means tested daily journeys, explicit
+Read the [engineering skill](skills/moos-engineering/SKILL.md) and [measured project state](PROJECT_STATE.md).
+Use the [active batch](docs/DEVELOPMENT_PLAN.md#active-delivery-and-acceptance-batch) for current checks and
+[ordered execution](docs/DEVELOPMENT_PLAN.md#ordered-execution) for milestone order.
+P0–P6 in that plan form the only queue. Dated handoffs give way to current measurements and later owner decisions.
+Follow the [release contract](RELEASE.md) for signing and promotion. Strength means tested daily journeys, explicit
 compatibility scope and repeatable performance, not catalogue counts or universal
 claims. For cross-engine/system work load the engineering skill's
 `references/integrated-compatibility.md`; identify one integration owner, disjoint
