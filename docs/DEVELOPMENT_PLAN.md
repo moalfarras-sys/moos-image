@@ -1,9 +1,11 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-24. This is the single execution backlog. `PROJECT_STATE.md`
-records measured state; `AGENTS.md` defines invariants; the engineering skill
-selects the workflow. Dated handoffs and Git history preserve earlier work,
-not competing instructions about what to do next.
+Updated 2026-11-25. Start with the [active batch](#active-delivery-and-acceptance-batch)
+for the next checks and [ordered execution](#ordered-execution) for milestones M0–M5.
+The P0–P6 rows below hold each task’s acceptance criteria.
+[Project state](../PROJECT_STATE.md) records measured results. [Agent instructions](../AGENTS.md),
+the [engineering skill](../skills/moos-engineering/SKILL.md) and the [release contract](../RELEASE.md)
+define how to qualify a change. Dated entries below preserve earlier evidence.
 
 ## Product direction and success criteria
 
@@ -28,6 +30,16 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+**25 نوفمبر 2026 · V3 يعمل على الإصدار الموقّع 1191.** أكّد المالك أن الإقلاع تحسّن وطلب إغلاق الفحص المرئي من حركة MoOS إلى شاشة الدخول على الشاشة الداخلية (P2.9 وP2.16). يجمع P5.4 قياسات الأداء المتكررة، وتتبع اختبارات المصادقة والاسترداد صفوفها أدناه.
+
+| الأولوية | الاختبار المفتوح | متى يُغلق |
+| --- | --- | --- |
+| M0 · الإصدار (P0.2، P0.6، P0.7) | [فشل بناء قرص استرداد ARM](https://github.com/moalfarras-sys/moos-image/actions/runs/45638609259) على `df2d4e4f`. اندمج إصلاحه وتحسين سحب أدوات الجزيرة بالعربية في [#338](https://github.com/moalfarras-sys/moos-image/pull/338). نجح [إقلاع قرص الاسترداد وترقية ARM](https://github.com/moalfarras-sys/moos-image/actions/runs/45692449726) على نسخة الدمج `b3c16458`. | بعد فحوص المصدر والصورتين، يقلع قرص الاسترداد المعبّأ وتظهر قائمة المثبّت. ثم تُستكمل أدلة x86 وISO وARM للنسخة نفسها والتوقيع والترقية والتحقق على V3 وفق [تعليمات الإصدار](../RELEASE.md). |
+| M1 · الإدخال والنوافذ (P2.8، P2.18، P5.3) | مع لوحة مفاتيح فعلية، اكتب في تطبيق عادي وافحص اقتراحات الجزيرة. افصل الغطاء وأعد توصيله والخانة نشطة. جرّب إطارات النوافذ باللمس بعد تدوير الشاشة. | تُحدَّث الاقتراحات للكلمة الحالية وتختفي عند تغيير التركيز أو الانتقال إلى كلمة سر. يظهر شريط الأدوات مع لوحة الشاشة عند فصل الغطاء، وتظل مقابض الإطارات قابلة للمس في الوضع العمودي. |
+| M1 · الملفات والتطبيقات (P4.1، P4.3–P4.5، P5.6) | انسخ ملفاً باسم عربي ولاتيني من وسيط خارجي، ثم افتحه وأخرج الوسيط بأمان. افحص أيضاً وسيطاً للقراءة فقط. جرّب تطبيقاً يومياً من كل من Linux وWindows وAndroid عبر المتجر. | تفتح النسخة المحفوظة بعد إخراج الوسيط. تُسجَّل نسخة كل تطبيق ومعماريته ونتيجة تثبيته وتشغيله واستخدامه وتحديثه وإزالته. |
+
+### Recent evidence
+
 Nov25, V3 development branch. With an attached hardware keyboard, the device
 policy suppresses automatic key rows. Device tools stay accessible from the Island
 and from the Touch Bar when the input panel is open. Both use the same KWin window search through KRunner,
@@ -49,8 +61,7 @@ A private KWin run kept both halves and four quarters inside the
 48-pixel panel margin after rotation, 125% scale and restoration.
 On the physical V3, four independent applications occupied four quarters and
 returned to two halves when two closed. A separate native decorated-window
-control refused the old minimum-size calculation. The next visual M1 journey
-is the internal panel from Plymouth through login. Preserve the 1187 receipts
+control refused the old minimum-size calculation. Preserve the 1187 receipts
 and boot rollback while qualifying this batch.
 
 Nov24. PR328 (a6577cd8) reached signed production on x86 and ARM. V3 booted
@@ -59,7 +70,7 @@ checks. The open PR tips for the Arabic theme names, glass, quarter layout and
 Meyar variants (#327, #324, #326, #323 and #322) are ancestors of this release.
 PR329 changes the optional engineering profile and is outside this revision.
 The V3 later completed the four-application landscape journey recorded above.
-Physical cover hotplug with a focused field, portrait frame interaction and the internal-panel login handoff remain active M1 checks.
+Physical cover hotplug with a focused field and portrait frame interaction remain active M1 checks.
 Record the attached display, scaling and orientation for each journey.
 [Signed x86 promotion](https://github.com/moalfarras-sys/moos-image/actions/runs/45314040906).
 [ARM build, packaged recovery boot and promotion](https://github.com/moalfarras-sys/moos-image/actions/runs/45259218792).
@@ -94,7 +105,7 @@ qualify it before the next signed cycle.
 PR318 contains the Arabic session keys from PR317, the selected-look handoff,
 and the light-theme contrast fixes. On V3, check the native fingerprint prompt,
 keyboard input, refusal and accessible action names after signed installation.
-1178 supplied the earlier visual baseline; V3 now runs 1187.
+1178 supplied the visual baseline for the subsequent 1187 review.
 
 V3 session qualification follows the signed 1178 baseline. Check the twelve
 session symbols, password entry, lock/unlock and power confirmation on the
@@ -102,8 +113,7 @@ signed successor in the selected light and dark themes. The signed 1178 baseline
 10.505s, KWin selected DRM at 11.787s, and the greeter signalled readiness at
 13.209s. On eDP-1 at 1.45 scale the owner requested larger glyphs and text.
 The revision enlarges the drawn symbols by 12% and increases caption size by
-one reference point. Compare the successor's cold boot and visible handoff
-with the owner's observation on the same internal panel.
+one reference point. The current V3 visual result is recorded in the active batch.
 
 Nov21 login handoff (owner: "black for a second or two, then a heavy, badly
 designed login"). On 1178 KWin takes 11.53→12.59 s before its clients start;
@@ -113,9 +123,8 @@ dark Bloom appearance arrived (13.55 s). The successor waits for the selected
 appearance (≤900 ms, latched), paints the splash ground meanwhile, and draws
 one password capsule with a time-of-day greeting. A warm QML disk cache made no
 measurable difference in the private harness (cold/warm first paint 0.41/0.42 s),
-so the boot-time greeter cache purge is unchanged. Acceptance: a cold boot of the
-signed successor on eDP-1 with the owner's observation; KWin's own first black
-frame is not removed by this change. whats-new.json reached 65,476/65,536 bytes;
+so the boot-time greeter cache purge is unchanged. The Nov21 review requested a physical eDP-1 observation. KWin still owned its first black
+frame in that review. whats-new.json reached 65,476/65,536 bytes;
 Nov23 retired the five entries merged before 2026-09-25 (62,502 bytes after two
 new entries). Keep retiring the oldest history rather than raising the cap.
 
@@ -221,8 +230,7 @@ prune or worktree removal is authorized by an inventory.
 On Nov19 V3 booted signed 1173 in 22.202 s. The only other deployment is 1162 for rollback.
 The owner authorized retiring 1152 and 1078 after their local settings and origin metadata
 were archived privately and checked against the originals. The locally retained 1139 offline ISO
-previously passed full-byte checksum and detached-signature checks. The successor 1.8 s Liquid Glass scene passed native render, early handoff, and Arabic passphrase checks. Qualify the scene
-in the signed successor and verify its appearance on the physical screen. The historical user qualification
+previously passed full-byte checksum and detached-signature checks. The successor 1.8 s Liquid Glass scene passed native render, early handoff, and Arabic passphrase checks. At that checkpoint, signed-image and physical-screen qualification were still due. The historical user qualification
 159 failure has a preserved log and was cleared after the d8 source pass.
 The V3 service reproduced exit 1 while ddcutil could not locate its dynamic
 sleep cache. A private systemd runtime cache restored a completed, inactive
@@ -404,35 +412,21 @@ For every task:
 
 ## Ordered execution
 
-Nov24 product review uses main `a6577cd8` and the physical V3 booted on
-signed 1178. ARM run [45259218792](https://github.com/moalfarras-sys/moos-image/actions/runs/45259218792)
-passed the separately packaged recovery installer, desktop UEFI and promotion
-steps. The matching x86 signing run
-[45286488796](https://github.com/moalfarras-sys/moos-image/actions/runs/45286488796)
-was still building at review. Keep personal-file restore and automatic recovery
-after a deliberately failed boot open under P5.6 and P0.4. In M1, exercise
-Places → Files → copy and reopen an Arabic/Latin filename from a removable
-volume, then check safe removal and read-only media. For application acceptance,
-publish evidence from one daily Linux, Windows and Android app before expanding
-the P4.5 matrix. Keep P2.12 and P5.3 in the existing milestone order.
+Use the [active batch](#active-delivery-and-acceptance-batch) for this cycle.
+Boot, security and data-loss defects take priority throughout M0–M5. P0.4 still
+needs automatic fallback after a deliberately failed boot and a forward return.
+P5.6 still needs a personal-file restore from an off-device backup to a separate
+destination. P2.12 covers the combined OS, app and firmware update view.
 
-
-The owner-authorized complete integration above is the current entry point.
-Boot/security/data-loss fixes still preempt the same M0→M1→M2/M3→M4→M5 queue.
-Oracle coordinated PR313. V3 completed the later PR328 delivery and booted 1187. PR313 includes d5d4897a and the preserved Oracle
-maintenance ancestry; all269 known refs are covered. Keep constituent component
-and V3 proofs with their actual sources; freeze one final combined candidate,
-then preserve its source/tree/attempt/signature and release admission.
-[PR313 branch audit](reviews/2026-11-18-unified-oracle-integration.json).
-
-Owner permission for automated qualification is now granted. Freeze the complete
-source for its tests and image/CI. Preserve original refused runs and use a fresh
-first-attempt candidate after any source repair; host reboot remains separate.
+The [PR313 branch audit](reviews/2026-11-18-unified-oracle-integration.json)
+and [PR328 ARM recovery and promotion](https://github.com/moalfarras-sys/moos-image/actions/runs/45259218792)
+record earlier cycles. Freeze each candidate's reviewed source, verify its first-attempt
+proofs and admit the merge SHA under the [release contract](../RELEASE.md).
 
 | Order / milestone | Outcome and implementation focus | Rows | Exit evidence |
 | --- | --- | --- | --- |
-| 1 · M0 current delivery | Qualify the stock-input repair and coherent native UI batch | P0.1–P0.2, P0.6–P0.7, P2.5, P2.8, P6.7 | Full exact-source/image/CI, signed3×QCOW2+offline ISO+ARM proofs, separate recovery qualification, promotion and physical readback; live copies retire by recorded bytes |
-| 2 · M1 daily Arabic workspace | One coherent desktop/typography journey and one daily app per engine through Store/native launchers | P2.3–P2.5, P2.7–P2.10, P4.1, P4.3–P4.4, P5.4 | Installed Arabic/English whole-workspace review, files/clipboard/input, reduced motion/accessibility and baseline performance; owner feedback |
+| 1 · M0 current delivery | Qualify the current native UI and ARM recovery changes | P0.1–P0.2, P0.6–P0.7, P2.5, P2.8, P6.7 | Full exact-source/image/CI, signed3×QCOW2+offline ISO+ARM proofs, separate recovery qualification, promotion and physical readback; live copies retire by recorded bytes |
+| 2 · M1 daily Arabic workspace | One coherent desktop/typography journey and one daily app per engine through Store/native launchers | P2.3–P2.5, P2.7–P2.10, P2.18, P4.1, P4.3–P4.4, P5.3–P5.4 | Installed Arabic/English whole-workspace review, files/clipboard/input, reduced motion/accessibility and baseline performance; owner feedback |
 | 3 · M2 first run and M3 integration | Onboarding, login/lock/power, Settings/Store/Mira and shared jobs/API | P1.6–P1.7, P2.1–P2.2, P2.12, P2.16, P3.1–P3.7, P4.1–P4.2 | Clean/upgraded/offline profiles; real auth, cancel/retry/failure/readback, preferences and data survive update |
 | 4 · M4 compatibility and hardware | Expand three app suites and qualify device/tablet/GPU/performance tiers | P0.3–P0.5, P4.3–P4.5, P5.1–P5.8 | Version/architecture/GPU matrix, ten Windows+ten Android+ten Linux journeys, physical tablet input/rotation/suspend, measured performance/recovery |
 | 5 · M5 sustainable product | Reproducible inputs, security cadence, staged rollout, support/migration | P6.1–P6.6, P6.9 | Proven rollout/halt/recovery, digest-linked provenance, support scope and maintainer/user docs |
@@ -523,24 +517,9 @@ M0 evidence as measured performance or require another local VM image.
 
 ## التسليم للإيجنت المنفّذ التالي
 
-هذه النقاط سجلّ تسليم سابق. للتنفيذ الحالي ابدأ بفقرة 24 نوفمبر وأدلة الإصدار 1187 أعلاه.
-
-1. اقرأ الحالة والفروع والـPRs والعمليات الحقيقية. root علىV3 يملك الدمج الكامل
-   منPR311/1df01483 معApp Drop98fed279 وNight Light016e518d. لا تعِد دمج
-   PR308/309/310 منفردة، ولا تغيّر مصدر إثباتاتOracle الجارية.
-2. المالك وافق صراحة على الفحوص الآلية؛ شغّل بوابات المصدر والصورة وCI
-   علىSHA ثابت، ونسّق حفظ المحررات قبلإعادة تشغيل الجهاز الفعلي.
-3. فرّق نتيجة913f الكاملة السابقة عن الشجرة المجمعة الجديدة. أصلح توقع32/20
-   القديم إلى عقد44 الأصلي المقاس دون إسقاط تغطية الرسوم/الحالات/الهوية.
-4. احفظ كلcommit أصلي والأرشيف والعمل الخاص. لا تدفع أسرارًا أو صورًا خاصة
-   أوbuild trees. تحقق من الأسلاف والمالك والملفات المفتوحة قبل تقاعد شجرة عمل.
-5. أقلع V3 إلى 1173 الموقّع وبقي 1162 للرجوع. أُزيلت 1152 و1078 بعد التحقق من
-   أرشيفَي الإعدادات المحليين. يلزم فحص الحركة الجديدة على الجهاز بعد إصدارها.
-6. بعد البوابات المعتمدة، ادمج مرة واحدة وجمّدSHA الفعلي عبر`--expected-revision`.
-   كلتوقيع/digest/tree/attempt وإثباتx86/ISO/ARM وrecovery المنفصل لازم. التحديث
-   والإقلاع الفعلي وقراءة الجهاز مرحلة أخرى؛ نسّق حفظ المحررات قبل إعادة التشغيل.
-7. تابع صفوفP القائمة والرحلات غير المحجوبة؛ لا تسمّ الاختبار أوالكتالوج أوفرع
-   المصدر نظامًا منشورًا، ولا تصف الاستقرار بأنه خال من كل العيوب دون دليل.
+ابدأ من [الدفعة الحالية](#active-delivery-and-acceptance-batch)، ثم اختر الاختبار التالي من [ترتيب المراحل](#ordered-execution).
+تحقّق من نسخة الجهاز ومن آخر commit ونتائج GitHub قبل بدء أي بناء. إذا كان الفحص جارياً، تابع نتيجته على نفس commit.
+احفظ أعمال الفروع والأشجار المفتوحة. تفاصيل دمج الفروع السابقة في [تدقيق PR313](reviews/2026-11-18-unified-oracle-integration.json)، وخطوات التوقيع والتحديث في [عقد الإصدار](../RELEASE.md).
 
 ## P0 — Release qualification
 
@@ -583,14 +562,14 @@ M0 evidence as measured performance or require another local VM image.
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |
 | P2.7 | Horizon feedback, clock input and system sound | Nov11 shared-role Quiet Lift KWin effect passes native open/close/reversal/reduced/broken controls and is session-loaded on V3; complete source/signed/default/frame-time qualification pending. Existing shell and sound acceptance remain open. See docs/reviews/2026-11-11-native-motion-qt-workloads.json | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
 | P2.8 | MoOS Bar, Search and Island as one shell | Nov25 Mova library: centred chip labels, an in-window touch menu (one-touch dismiss, focus back to its tile, MoOS words, Arabic mirroring), lifted-finger hover and named session buttons pass the native gate with refused mutants and live V3 touch; signed delivery pending. Merged source unifies native Control Center and Mova through existing tray/Kicker/Milou/KWin owners, retaining old/fixed/input controls. Recorded user-local packages on signed1162 are not immutable delivery. Nov23 source: Mova Home commands take their native caption height; the real native driver refuses the old 66px card (Arabic label 37+32px) and passes the fixed view in its four AR/EN viewports, with scrolled before/after captures. Original Island keyboard/token proofs and installed inventories remain historical evidence; owner portrait/touch/Orca and full connected launcher/panel acceptance remain open Nov24 independent source adds KDE-native section headings and a two-pane Files action to Mova Places. Private V3 Plasma verifies keyboard focus and fit in four Arabic/English viewports. The source action opens real Dolphin with both panes visible; removable-volume touch, screen reader and signed installed acceptance remain open. | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
-| P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains. Nov19 Liquid Glass boot scene passes source/native-pixel review; owner acceptance, image initramfs and signed boot pending | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
+| P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains. Nov19 Liquid Glass boot scene passed native-pixel review. The owner accepted the visible boot on V3 on Nov25. Per-image initramfs and boot checks apply to each candidate | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
 | P2.10 | Readable text and glyph contrast on every palette | Nov23 native review: the common keyboard outline uses the scheme’s DecorationFocus colour. Measured on Window in all 18 looks, Daylight improves from 1.88:1 to 3.13:1. The Arabic desktop scene rendered on the V3 in 18 private Plasma sessions. Physical tablet and signed-session acceptance remain open. Nov22 source: every KDE text role, focus mark, selected ink, Konsole ANSI 1-6 and libadwaita accent pair in all 18 looks meets WCAG (test_theme_role_contrast); retired light-family links/visited/terminal/GTK accent values fail the same predicate. Existing desktops receive only exact retired values via moos-color-roles. Daylight selection vs view stays 2.98:1 (the accent itself). Installed frames and owner review pending | All schemes meet role-specific contrast; actual glyph/card/pointer frames instead of token names. |
 | P2.11 | Visible, bilingual update changes | Implemented/delivered within recorded scope; wider acceptance remains | Readable current entries and working routes, delivered update/notification readback. |
-| P2.12 | One update surface for OS, apps and firmware | Open / acceptance not complete | OS image, Flatpak apps and firmware share truthful pending/failure/unsupported/finished states. |
+| P2.12 | One update surface for OS, apps and firmware | Nov25 V3: the scheduled Store publisher update recorded an in-use refusal. A later read-only check still found one available update with automatic updates enabled. Verify a retry after normal application exit, the installed version and the status shown to the user | OS image, Flatpak apps and firmware share truthful pending/failure/unsupported/finished states. |
 | P2.13 | MoPlayer performance and server/stream compatibility | Native ARM installed MPEG4 plays and advances 2.93→8.07 s (~447 MiB RSS), but exposed direct-file live controls. Independent fix accepts encoded Arabic file URIs, finite local/explicit movie URLs and no catalogue records; 258 Flutter tests/native ARM build pass. Native source bundle proves 20 s MPRIS length/CanSeek, paused +5 s seek and rendered frames/controls; restored all-live factory fails the new test. Final local image/9 hashes, all PR CI and signed .1034/.763 delivery pass. Oracle signed .763 native boot/installed small MPEG4/seek/frame journey pass; wider server/hardware/codec/endurance acceptance remains | Installed playback/reopen/stop and memory on real server kinds, MAC portal, HEVC/interlaced samples. |
 | P2.14 | Remote input, recovery and mobile/WAN video | Nov9 main NVIDIA gate preserves a missing restarted-frame refusal. Packet-bound actual codec fixes the native withheld/stale-metadata class; old negative,51 portal/394 total assertions and six real encoded/transported/decoded frames pass. Full source/image/new signed and installed acceptance pending; earlier delivered input remains scoped | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
 | P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Signed installed delivery passes on both hosts; physical unmuted voice/device acceptance remains open. |
-| P2.16 | Shared login, lock and power experience | Nov21 source: login appears once in the selected look (bounded settled appearance, splash ground meanwhile), one password capsule, time-of-day greeting; real greeter/lock frames on a private KWin. Cold boot pending. Delivered within earlier recorded scope; private Arabic lock/power/wrong/correct-password controls pass, login buttons remain English. PR227 maintenance scoping is integrated through PR228 with both native PR image CIs, owner/greeter conditions, 17 theme tests and final local ARM/three unit hashes passing. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; ordinary-login/hardware acceptance remains; authentication stays upstream. Nov13 Arabic unlock21 native frames/18 tests remove measured prompt/bullet overlap, keeping normal artwork bytes; final initramfs/encrypted input/cold boot remain pending | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
+| P2.16 | Shared login, lock and power experience | The V3 owner accepted the improved boot-to-login handoff on Nov25. The Nov21 private KWin review covered the selected look, splash ground, single password capsule and time-of-day greeting. Delivered within earlier recorded scope; private Arabic lock/power/wrong/correct-password controls pass, login buttons remain English. PR227 maintenance scoping is integrated through PR228 with both native PR image CIs, owner/greeter conditions, 17 theme tests and final local ARM/three unit hashes passing. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; ordinary-login/hardware acceptance remains; authentication stays upstream. Nov13 Arabic unlock21 native frames/18 tests remove measured prompt/bullet overlap while preserving the artwork. Encrypted cold-boot input and exact initramfs acceptance are separate checks | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
 | P2.17 | Mo PC Remote before account login after reboot | Greeter KDE environment and actual three-group EIS keymap correction is signed in .1044/.773 and retained in .1046/.775. Source/29 controls and actual device old/fixed proof pass; owner ordinary password login/account handoff passed on .1044, and .1046 now boots with 54 selfchecks/2 notes, 55 post-update/0 failures and 19 hashes/player. Temporary bundle retired after replacement/no-holder proof. Oracle pre-login remains off; repeated native wrong/correct PIN/password/cold-boot, phone/WAN/multi-account/endurance acceptance remains  Native1072 additionally measures first-owner localhost8765 binding before old greeter Remote stops, one SIGABRT/managed restart then active; bounded account-owned startup/handoff controls and qualified repair remain, not a reason to change PIN/PAM or steal another account listener. | Explicit opt-in, authenticated PIN/trusted-device/private TLS; native greeter capture/input with upstream PAM and no saved account password; real wrong/correct PIN/password, bounded handoff/logout/account isolation; default-disabled/native NVIDIA and ARM reboot evidence. |
 | P2.18 | Windows that arrange themselves, with frames that fit | Nov23 source: MoOS Arrange splits the screen by itself on KWin's own signals: halves (portrait: rows), main and two, quarters, a floating fifth window, a lone survivor taking the area. Order follows position, so no reading direction is assumed. A window whose minSize cannot fit its cell refuses the layout, and dialogs never move. Meta+Alt+A, a checkable window-menu item and System Settings → KWin Scripts toggle it. The native KWin 6.8.3 and Node checks include exact halves/quarters, a forced-off negative and decorated client limits. Four applications on the active V3 output filled the quarters and returned to halves when two closed. Open: KWin native tile objects so neighbours resize together, a Snap-Layouts-style picker on the maximise button, frames (Aurorae corner, title-bar density) tuned to cells and scale, tablet rules (two cells at most, follow rotation), and physical multi-monitor/touch acceptance | Two/three/four real programs arrange on the installed V3 in landscape and portrait, with neighbours resizing together, keyboard and touch, and Arabic and English; no window is squeezed below its minimum. |
 
@@ -640,9 +619,9 @@ M0 evidence as measured performance or require another local VM image.
 | --- | --- | --- | --- |
 | P6.1 | Resolve immutable base inputs once per release | x86 source pins the reviewed manifest for all three editions and records it in each candidate receipt. Signed matrix readback and ARM remain open. | Immutable base inputs recorded once and consumed consistently by all same-architecture editions. |
 | P6.2 | Produce SBOM and provenance for each image | Open / acceptance not complete | Exact digest-linked SBOM/provenance on a separately budgeted workflow, not release-critical disk exhaustion. |
-| P6.3 | Security-release cadence for all editions | Open / acceptance not complete | The cadence of release cycles is the security cadence of MoOS: schedules only build candidates. Triage upstream advisories daily; target a qualified cycle weekly and start urgent affected-input qualification within24h. Publish affected editions, mitigation and delivery status; an unproven candidate never bypasses gates to meet a deadline. |
+| P6.3 | Security-release cadence for all editions | Nov25 triage found one open medium [Dependabot alert #21](https://github.com/moalfarras-sys/moos-image/security/dependabot/21) for minimatch in the workstation analysis-tools lockfile. A fresh source-profile install resolves the optional caller to 11.0.1 and preserves the publisher archive. Verify the GitHub alert closes on main and the running workstation selects the repaired generation | The cadence of release cycles is the security cadence of MoOS: schedules only build candidates. Triage upstream advisories daily; target a qualified cycle weekly and start urgent affected-input qualification within24h. Publish affected editions, mitigation and delivery status; an unproven candidate never bypasses gates to meet a deadline. |
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
-| P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted. Oct17 open Dependabot/secret alerts are0; Code Scanning returns no analysis (404), so static-analysis acceptance is unproven | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
+| P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted. The Oct17 audit found zero open Dependabot/secret alerts and no Code Scanning analysis (404). See P6.3 for the Nov25 dependency alert. Static-analysis acceptance remains open | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
 | P6.7 | Reviewed Plasma seams before upstream transitions | Nov18 V3 boots signed1162 with Plasma/KWin6.8.3 and fixed native QtQuick6.11.2-3.1; earlier Qt/KWin old/fixed/seam/kernel controls remain in their receipts. Current build transition is stock7.3.4 plus composed-base EFI signature: PR308 must qualify exact bytes without widening gates. Canary libkgapi/kio-gdrive ABI refusal, physical hotplug/screen-removal and new-architecture/input acceptance remain separate | Actual matching stack, registered seams and native controls, complete native SDK/image, signed boot and installed acceptance on each architecture; unknown inputs refuse, never widen pins to bypass a failure. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
