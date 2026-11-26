@@ -118,7 +118,8 @@
       "windows_bundle": "5.13.2",
       "reported_qalc_version": "5.13.0",
       "scope": "The installed 1198 recipe returned publisher HTTP 404. The existing Store installed the pinned replacement using the reviewed worktree catalogue. With 60-digit precision the Windows CLI returned the exact integer 2^128. Its default display rounds to 3.402823669E38.",
-      "store_launch": "A separate launch via the installed Store opened the Windows Qt calculator with its keypad and expression field."
+      "store_launch": "A separate launch via the installed Store opened the Windows Qt calculator with its keypad and expression field.",
+      "pin_verification": "The Qt release and core release serve identical bytes. The core-release URL was refused by the image catalogue gate. The final recipe uses the Qt release origin required by that gate. Full download verified SHA-256 6e8a39df926d6eae4e9139472b550a8e72a359888fd2f5ab6f060acc73fa677a and 64556496 bytes."
     }
   },
   "file_manager_to_consent": {
