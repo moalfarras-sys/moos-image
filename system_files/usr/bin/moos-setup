@@ -69,24 +69,32 @@ fi
 # their first five minutes were exactly the ones Mo Store could never remove afterwards,
 # and none of them produced an Island job row. One call installs the whole selection as
 # one job, in the scope the rest of MoOS uses.
+install_status=0
 if [ "${#SELECTED[@]}" -gt 0 ]; then
     echo -e "${B}Installing ${SELECTED[*]}...${N}"
-    if summary="$(moos-storectl install "${SELECTED[@]}" 2>/dev/null | tail -n 1)"; then
-        printf '%s\n' "$summary" | python3 -c 'import json, sys
+    summary="$(moos-storectl install "${SELECTED[@]}" | tail -n 1)" || install_status=$?
+    if ! printf '%s\n' "$summary" | python3 -c 'import json, sys
 try:
     document = json.loads(sys.stdin.read())
 except ValueError:
-    document = {}
-message = " ".join(str((document or {}).get("message") or "").split())
-print(message or "Installed.")' || true
-    else
-        echo "Some apps did not install; open Mo Store to finish."
+    sys.exit(1)
+if not isinstance(document, dict):
+    sys.exit(1)
+message = document.get("message")
+if isinstance(message, str) and message.strip():
+    print(" ".join(message.split()))
+sys.exit(0 if document.get("state") == "success" else 1)'; then
+        if [ "$install_status" -eq 0 ]; then install_status=1; fi
     fi
 fi
 # Bazaar may have just been installed system-wide. It is Mo Store's engine, not
 # a second storefront — hide its launcher for this user (moos-one-store is a
 # no-op when Bazaar is absent).
 /usr/bin/moos-one-store 2>/dev/null || true
+if [ "$install_status" -ne 0 ]; then
+    echo "لم يكتمل الإعداد. راجع نتيجة التثبيت في متجر MoOS. | Setup incomplete. Check the installation in Mo Store." >&2
+    exit "$install_status"
+fi
 if [ "${#SELECTED[@]}" -eq 0 ]; then
     echo -e "${G}✓ التطبيقات الأساسية موجودة بالفعل | Essential apps are already installed${N}"
 fi

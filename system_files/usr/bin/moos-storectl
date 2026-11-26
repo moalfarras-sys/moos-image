@@ -5253,6 +5253,9 @@ def parser() -> argparse.ArgumentParser:
         "auto-updates", help="turn the scheduled app updates on or off")
     auto_updates.add_argument("state", choices=("on", "off"))
     commands.add_parser("refresh-index", help="refresh the Flathub app index")
+    game = commands.add_parser("game-compatibility", help="look up a Steam title's MoOS compatibility")
+    game.add_argument("steam_app_id")
+    game.add_argument("--with-valve", action="store_true", help="also request Valve's Steam Deck rating")
     engine = commands.add_parser("open-engine", help="open a store engine")
     engine.add_argument("name", choices=tuple(ENGINE_COMMANDS))
     cancel = commands.add_parser("cancel", help="cancel the active job")
@@ -5308,6 +5311,13 @@ def main(
             code, document = controller.check_updates()
         elif options.command == "refresh-index":
             code, document = controller.refresh_index()
+        elif options.command == "game-compatibility":
+            try:
+                document = controller._app_engine().game_compatibility(
+                    options.steam_app_id, with_valve=options.with_valve)
+            except ValueError as error:
+                raise StoreError(str(error)) from error
+            code = 0
         elif options.command == "open-engine":
             code, document = controller.open_engine(options.name)
         elif options.command == "install-file":

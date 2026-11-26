@@ -55,8 +55,8 @@ OFFICE_ID="org.libreoffice.LibreOffice"
 # machine that could already run it.
 ENGINE_TOOL="${MOOS_APP_ENGINE:-/usr/libexec/moos-app-engine}"
 
-engine() {  # engine <file> <jq-ish key>  -> value, or empty
-    "$ENGINE_TOOL" resolve "$1" 2>/dev/null | python3 -c '
+engine_field() {  # Read a field from the single decision for this launch.
+    python3 -c '
 import json, sys
 try:
     document = json.load(sys.stdin)
@@ -83,13 +83,8 @@ elif key == "preflight_architecture":
 else:
     value = document.get(key)
     print("" if value is None else ("yes" if value is True else ("" if value is False else value)))
-' "$2" 2>/dev/null
+' "$2" <<<"$1" 2>/dev/null
 }
-
-# The two halves of the engine's display name. Never a runtime's brand: a person
-# who downloaded a .exe wants "Windows programs", not a lesson about Wine.
-engine_ar() { engine "$1" name | cut -d"|" -f1; }
-engine_en() { engine "$1" name | cut -d"|" -f2; }
 
 # A MoOS notification filed under Mo Store, where the program came from: the desktop-entry
 # hint lets System Settings › Notifications list and mute it. kdialog is only the fallback.
@@ -335,23 +330,28 @@ usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk> | --app <id
 # only text that reaches a person.
 # ---------------------------------------------------------------------------------
 run_with_engine() {
-    local target="$1" ar en chosen sandboxed preflight_reason architecture route
-    ar="$(engine_ar "$target")"; en="$(engine_en "$target")"
+    local target="$1" decision names ar en chosen sandboxed preflight_reason architecture route
+    if ! decision="$("$ENGINE_TOOL" resolve "$target" 2>/dev/null)"; then
+        notify "تعذّر تحديد طريقة فتح الملف | Could not determine how to open this file"
+        exit 2
+    fi
+    names="$(engine_field "$decision" name)"
+    ar="${names%%|*}"; en="${names#*|}"
     [ -n "$en" ] || { notify "لا يعرف MoOS كيف يفتح هذا الملف | MoOS cannot open this file"; exit 2; }
 
-    preflight_reason="$(engine "$target" preflight_reason)"
+    preflight_reason="$(engine_field "$decision" preflight_reason)"
     if [ -n "$preflight_reason" ]; then
         notify "$preflight_reason"
         exit 2
     fi
 
-    if [ "$(engine "$target" ready)" = "yes" ]; then
-        chosen="$(engine "$target" chosen)"
-        sandboxed="$(engine "$target" sandboxed)"
-        architecture="$(engine "$target" preflight_architecture)"
+    if [ "$(engine_field "$decision" ready)" = "yes" ]; then
+        chosen="$(engine_field "$decision" chosen)"
+        sandboxed="$(engine_field "$decision" sandboxed)"
+        architecture="$(engine_field "$decision" preflight_architecture)"
         if [ "$chosen" = "wine" ] && [ "$architecture" = "x86" ] \
                 && ! native_x86_ready; then
-            route="$(engine "$target" provision_route)"
+            route="$(engine_field "$decision" provision_route)"
             if [ -n "$route" ] && ask "هذا برنامج Windows أقدم ويحتاج دعم توافق اختياريًا (تنزيل كبير لمرة واحدة). لم يُشغّل الملف.\n\nنجهّز الدعم الآن؟\n\nThis older Windows program needs optional compatibility support (a large one-time download). The file was not launched.\n\nSet it up now?"; then
                 moos-open "$route"
             fi
@@ -395,8 +395,8 @@ run_with_engine() {
         exit 0
     fi
 
-    if [ "$(engine "$target" needs_setup)" = "yes" ]; then
-        local route; route="$(engine "$target" provision_route)"
+    if [ "$(engine_field "$decision" needs_setup)" = "yes" ]; then
+        local route; route="$(engine_field "$decision" provision_route)"
         if [ -n "$route" ] && ask "هذا من $ar. لتشغيله يحتاج MoOS تجهيزًا لمرة واحدة (تنزيل كبير).\n\nنجهّزه الآن؟\n\nThis is one of your $en. Running it needs a one-time setup (a large download).\n\nSet it up now?"; then
             moos-open "$route"
         fi

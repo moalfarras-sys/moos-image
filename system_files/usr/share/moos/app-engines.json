@@ -109,6 +109,17 @@
 
   "unsupported": [
     {
+      "id": "ea-sports-fc-26",
+      "steam_app_id": 3405690,
+      "name": {"ar": "EA SPORTS FC 26", "en": "EA SPORTS FC 26"},
+      "reason": {
+        "ar": "تتطلب EA SPORTS FC 26 حماية EA Javelin على ويندوز. يصنّفها Steam غير مدعومة على Steam Deck. تشغيلها محلياً عبر توافق ألعاب ويندوز في MoOS غير مدعوم حالياً.",
+        "en": "EA SPORTS FC 26 requires EA Javelin on Windows. Steam rates it Unsupported on Steam Deck. Local play through Windows game compatibility on MoOS is currently unsupported."
+      },
+      "source": "https://store.steampowered.com/app/3405690/",
+      "checked": "2026-11-26"
+    },
+    {
       "id": "macos",
       "name": {
         "ar": "تطبيقات ماك",

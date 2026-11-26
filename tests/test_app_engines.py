@@ -98,6 +98,59 @@ class WindowsFilePreflight(unittest.TestCase):
         cpu.start()
         self.addCleanup(cpu.stop)
 
+    def test_steam_lookup_keeps_external_ratings_separate_from_moos(self):
+        import io
+        with mock.patch.object(self.engine, "REGISTRY", REGISTRY), mock.patch(
+                "urllib.request.urlopen") as fetch:
+            offline = self.engine.game_compatibility("3405690")
+            self.assertEqual(offline["moos"]["status"], "unsupported")
+            self.assertNotIn("steam_deck", offline)
+            for invalid in ("0", "042", "-1", "٤٢", "4294967296", "steam://run/620"):
+                with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                    self.engine.game_compatibility(invalid, with_valve=True)
+            fetch.assert_not_called()
+            for data, expected in (
+                ({"success": 1, "results": {"appid": 620, "resolved_category": 3}}, "verified"),
+                ({"success": 1, "results": []}, "unrated"),
+                ({"success": 1, "results": {"appid": 42, "resolved_category": 3}}, "unavailable"),
+                ({"success": 1, "results": {"appid": 620, "resolved_category": True}}, "unavailable"),
+                ({"success": 1, "results": {"appid": 620, "resolved_category": 7}}, "unavailable"),
+                ({"success": 0, "results": []}, "unavailable"),
+            ):
+                with self.subTest(data=data):
+                    fetch.return_value = io.BytesIO(json.dumps(data).encode())
+                    report = self.engine.game_compatibility("620", with_valve=True)
+                    self.assertEqual(report["moos"]["status"], "not-assessed")
+                    self.assertEqual(report["steam_deck"]["rating"], expected)
+            for payload in (b"{}", b"bad json", b" " * 65537):
+                fetch.return_value = io.BytesIO(payload)
+                self.assertEqual(self.engine.game_compatibility("620", with_valve=True)
+                                 ["steam_deck"]["rating"], "unavailable")
+            fetch.side_effect = TimeoutError()
+            self.assertEqual(self.engine.game_compatibility("3405690", with_valve=True)["moos"],
+                             offline["moos"])
+
+    def test_file_launcher_uses_one_decision_and_preserves_folder_consent(self):
+        target = self.root / "program.exe"
+        target.touch()
+        calls = self.root / "calls"
+        for name, script in {
+            "resolve-once": """echo resolve >> "$MOOS_TEST_CALLS"
+echo '{"name":{"ar":"اختبار","en":"Test"},"ready":true,"chosen":{"id":"com.usebottles.bottles","sandboxed":true},"preflight":{"status":"unknown","architecture":"x86_64"}}'
+""",
+            "kdialog": 'echo consent >> "$MOOS_TEST_CALLS"; exit 0',
+            "flatpak": 'echo unexpected-launch >> "$MOOS_TEST_CALLS"; exit 1',
+        }.items():
+            executable = self.root / name
+            executable.write_text("#!/bin/sh\n" + script + "\n")
+            executable.chmod(0o755)
+        result = subprocess.run([str(RUNNER), str(target)], capture_output=True, timeout=10,
+                                env={**os.environ, "PATH": str(self.root) + ":/usr/bin:/bin",
+                                     "MOOS_TEST_CALLS": str(calls),
+                                     "MOOS_APP_ENGINE": str(self.root / "resolve-once")})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(calls.read_text().splitlines(), ["resolve", "consent"])
+
     def test_android_readiness_requires_a_successful_known_status(self):
         for code, stdout, stderr, ready in (
             (0, 'Session:\tSTOPPED\nVendor type:\tMAINLINE\n', '', True),
@@ -732,9 +785,9 @@ class TheImageAndTheRunnerAgree(unittest.TestCase):
         # The old shape: a hardcoded runtime id driving the decision.
         self.assertNotIn('BOTTLES_ID=', source,
                          "the runner still carries a hardcoded runtime constant")
-        self.assertIn('engine "$target" preflight_reason', source,
+        self.assertIn('engine_field "$decision" preflight_reason', source,
                       "the resolver can block an incompatible file, but the runner hides why")
-        self.assertIn('engine "$target" preflight_architecture', source,
+        self.assertIn('engine_field "$decision" preflight_architecture', source,
                       "the runner cannot gate the real PE32 capability without the parsed header")
         self.assertIn('native_x86_ready', source,
                       "payload presence alone did not prove that PE32 mappings work")

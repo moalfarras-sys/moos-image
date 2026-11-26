@@ -104,14 +104,44 @@ class Availability(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertFalse(result.stdout)
 
+    def test_fc26_lookup_explains_the_publisher_constraint(self):
+        result = self.cli('--app', 'ea-sports-fc-26')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['apps'], [])
+        self.assertEqual(report['summary']['total_apps'], 0)
+        self.assertEqual([entry['id'] for entry in report['unsupported']], ['ea-sports-fc-26'])
+        for language in ('ar', 'en'):
+            self.assertIn('EA Javelin', report['unsupported'][0]['reason'][language])
+
     def test_filtered_summary_matches_the_selected_app(self):
         result = self.cli('--app', 'notepad-plus-plus')
         self.assertEqual(result.returncode, 0, result.stderr)
         matrix = json.loads(result.stdout)
         self.assertEqual(len(matrix['apps']), 1)
+        self.assertEqual(matrix['unsupported'], [])
         self.assertEqual(matrix['summary']['total_apps'], 1)
         self.assertEqual(matrix['summary']['by_edition']['moos'], 1)
         self.assertEqual(matrix['summary']['by_edition']['moos-arm'], 0)
+
+    def test_store_game_query_is_read_only_and_uses_the_same_registry(self):
+        with tempfile.TemporaryDirectory() as home:
+            env = {**os.environ, "HOME": home, "XDG_CACHE_HOME": home, "MOOS_APP_ENGINES": str(ENGINES)}
+            command = [sys.executable, str(TOOL.with_name('moos-storectl')), 'game-compatibility']
+            for app, code, expected in (("3405690", 0, "unsupported"), ("620", 0, "not-assessed"),
+                                        ("not-an-id", 2, None)):
+                result = subprocess.run([*command, app], text=True, capture_output=True,
+                                        env=env, timeout=10)
+                self.assertEqual(result.returncode, code, result.stderr)
+                data = json.loads(result.stdout)
+                if expected:
+                    self.assertEqual(data["schema"], 1)
+                    self.assertEqual(data["steam_app_id"], int(app))
+                    self.assertEqual(data["moos"]["status"], expected)
+                    self.assertNotIn("steam_deck", data)
+                else:
+                    self.assertEqual(data["state"], "failed")
+            self.assertEqual(list(Path(home).iterdir()), [])
 
     def test_mac_explanation_comes_from_the_registry(self):
         expected = json.loads(ENGINES.read_text())['unsupported']
