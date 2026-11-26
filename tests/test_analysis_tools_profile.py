@@ -27,6 +27,14 @@ class ProfileFileControls(unittest.TestCase):
     def setUp(self):
         tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup);self.root=Path(tmp.name)
 
+    def test_reviewed_lock_respects_the_workstation_matcher_override(self):
+        package = json.loads((M.INPUTS / 'package.json').read_text())
+        manifest = json.loads((M.INPUTS / 'manifest.json').read_text())
+        records = M.reviewed_lock(manifest)['packages']
+        versions = {row['version'] for path, row in records.items()
+                    if path.endswith('/node_modules/minimatch') or path == 'node_modules/minimatch'}
+        self.assertEqual(versions, {package['overrides']['minimatch']})
+
     def zip(self,name,body=b'vendor payload',mode=0o100755):
         archive=self.root/'release.zip'
         with zipfile.ZipFile(archive,'w') as zipped:

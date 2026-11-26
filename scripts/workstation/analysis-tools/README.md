@@ -119,3 +119,11 @@ a local tool update, not a signed OS update or a new provider/Ghidra GUI journey
 [Bounded native evidence](../../../docs/reviews/2026-11-04-analysis-profile-generations.json).
 
 The November 23 V3 update uses REA 6.10.1 with the existing compatible Node 24.22.2 and Ghidra 12.2. The installed launcher completed MCP initialization and listed 263 tools. The publisher shrinkwrap installs Minimatch 10.2.5 under the optional Frida dependency despite the root override. The registry audit reports a moderate advisory there. A lock-only replacement did not change the installed dependency version.
+
+For 6.10.1 the reviewed outer lock supplies Minimatch 11.0.1 to the optional
+Frida caller. Its entry for REA omits npm's `hasShrinkwrap` re-expansion flag.
+With that flag set, a clean npm ci reread the publisher shrinkwrap and installed
+10.2.5 even with the outer lock set to 11.0.1. The shrinkwrap shipped in the
+publisher archive remains byte-verified along with every other archive file.
+When updating REA, check the resolved version from the caller after a fresh
+install and repeat the archive verification.
