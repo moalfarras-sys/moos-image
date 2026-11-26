@@ -147,8 +147,17 @@
     "scope": "The measurements cover Windows payloads on this AMD V3. A Steam library match, 4K performance, anti-cheat multiplayer, ARM and NVIDIA machines each need separate qualification.",
     "project_warlock_demo": {
       "app_id": 907740,
+      "title": "Project Warlock Arctic Attack",
+      "steam_build": 3795622,
+      "title_screen_version": "1.0.0.5 Steam",
       "publisher": "https://store.steampowered.com/app/893680/",
-      "scope": "The desktop client received the install URI and its launch returned AppError_18. No local game manifest at the time of review. Valve SteamCMD also refused anonymous installation with No subscription. No play result."
+      "installed_download_bytes": 1400776832,
+      "windows_program": "pw_aa_x64.exe, x86-64 PE",
+      "runtime": "Steam-owned Proton Experimental, experimental-11.0-20261112-x86_64",
+      "renderer": "Unity 5.6.2f1, Direct3D 11.0 feature level 11.1, Radeon 780M RADV",
+      "journey": "Installed in the desktop Steam library, launched through the actual client, selected Start, entered E2M1 Polar Tundra – Ellesmere, walked forward and picked up the Warlock Staff and ammunition. Checked distinct before/after level frames on V3.",
+      "earlier_results": "Before installation, a personal-client launch returned AppError_18 and anonymous SteamCMD refused with No subscription. After installation the desktop client completed its normal launch.",
+      "scope": "Single-player opening level and input. No controlled FPS measurement or complete campaign."
     }
   },
   "windows_catalogue": {
