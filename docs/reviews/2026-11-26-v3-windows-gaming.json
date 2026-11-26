@@ -63,7 +63,12 @@
       "seconds": 101.58,
       "fps": 349.81,
       "one_second_min_fps": 182,
-      "repeats": "One complete 1080p sample. A separate 720p repeat timed out."
+      "repeats": "One complete 1080p sample. A separate 720p repeat timed out.",
+      "offline_match": {
+        "arena": "Stormkeep",
+        "client": "Windows xonotic.exe, 1280x720, loopback only, online statistics disabled",
+        "observed": "Joined a deathmatch, verified the first-person HUD, a changing scoreboard and six active players including five bots."
+      }
     },
     "supertuxkart": {
       "version": "1.5",
@@ -106,12 +111,14 @@
     },
     "peazip": {
       "version": "11.3.0",
-      "scope": "Installed through the booted Mo Store. Ran its receipt-verified Windows 7z backend in the app prefix, created and tested an archive, then extracted the Arabic-named file and compared its 48000 bytes."
+      "scope": "Installed through the booted Mo Store. Ran its receipt-verified Windows 7z backend in the app prefix, created and tested an archive, then extracted the Arabic-named file and compared its 48000 bytes.",
+      "store_launch": "A separate launch via the installed Store opened the Windows PeaZip GUI."
     },
     "qalculate": {
       "windows_bundle": "5.13.2",
       "reported_qalc_version": "5.13.0",
-      "scope": "The installed 1198 recipe returned publisher HTTP 404. The existing Store installed the pinned replacement using the reviewed worktree catalogue. With 60-digit precision the Windows CLI returned the exact integer 2^128. Its default display rounds to 3.402823669E38."
+      "scope": "The installed 1198 recipe returned publisher HTTP 404. The existing Store installed the pinned replacement using the reviewed worktree catalogue. With 60-digit precision the Windows CLI returned the exact integer 2^128. Its default display rounds to 3.402823669E38.",
+      "store_launch": "A separate launch via the installed Store opened the Windows Qt calculator with its keypad and expression field."
     }
   },
   "file_manager_to_consent": {
@@ -136,6 +143,17 @@
       "steamos_category": 1,
       "local": "Unsupported. Publisher requires EA Javelin kernel anti-cheat. No local match was played."
     },
-    "scope": "The measurements cover Windows payloads on this AMD V3. A Steam library match, 4K performance, anti-cheat multiplayer, ARM and NVIDIA machines each need separate qualification."
+    "scope": "The measurements cover Windows payloads on this AMD V3. A Steam library match, 4K performance, anti-cheat multiplayer, ARM and NVIDIA machines each need separate qualification.",
+    "project_warlock_demo": {
+      "app_id": 907740,
+      "publisher": "https://store.steampowered.com/app/893680/",
+      "scope": "The desktop client received the install URI and its launch returned AppError_18. No local game manifest at the time of review. Valve SteamCMD also refused anonymous installation with No subscription. No play result."
+    }
+  },
+  "windows_catalogue": {
+    "checked": 20,
+    "http_200": 20,
+    "content_length_matches_pin": 20,
+    "method": "HTTPS HEAD against each x86_64 Windows recipe after the Qalculate fix. This checks the published URL and size. The Store verified the downloaded bytes for the two fresh installations."
   }
 }
