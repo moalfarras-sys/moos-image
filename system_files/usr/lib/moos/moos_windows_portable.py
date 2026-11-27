@@ -154,6 +154,43 @@ def read_receipt(path: Path) -> dict:
         os.close(fd)
 
 
+def installed_record(data: Path, app_id: str, *, unlisted: bool = False) -> dict:
+    """Read Windows metadata using the transaction's receipt limit and ownership checks.
+
+    Old catalogue receipts may omit their id or launcher. Outside the catalogue
+    require the complete Store identity, executable, prefix and launcher marker.
+    """
+    if not ID.fullmatch(app_id):
+        return {}
+    folder = data / "moos/windows-apps"
+    base = folder / app_id
+    try:
+        _directory(base / "app")
+        record = read_receipt(folder / f"{app_id}.json")
+        if record.get("id", app_id) != app_id or record.get("catalog_id", app_id) != app_id:
+            return {}
+        if unlisted:
+            desktop = f"org.moos.windows.{app_id}.desktop"
+            exe = record.get("exe")
+            if (record.get("schema") != 1 or record.get("id") != app_id
+                    or record.get("launcher") != desktop or not _relative(exe)):
+                return {}
+            program = base / "app" / exe
+            _directory(program.parent)
+            _owned(program.lstat())
+            _directory(base / "prefix")
+            _owned((base / "prefix/system.reg").lstat())
+            launcher = data / "applications" / desktop
+            _directory(launcher.parent)
+            with os.fdopen(_open_source(launcher.parent, desktop), "rb") as stream:
+                contents = stream.read(65537)
+            if len(contents) > 65536 or f"X-MoOS-WindowsApp={app_id}".encode() not in contents.splitlines():
+                return {}
+        return {k: v for k, v in record.items() if k != "publisher_files"}
+    except (OSError, Error, RecursionError):
+        return {}
+
+
 def _relative(name: str) -> bool:
     return (isinstance(name, str) and bool(name) and len(name) <= 4096
             and not any(c in name for c in "\\\0") and not name.startswith("/")

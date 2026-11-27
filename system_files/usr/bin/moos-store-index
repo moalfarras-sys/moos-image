@@ -3285,18 +3285,18 @@ def android_apk_is_pin(package: str, pin: str, size: int | None,
     return apk is not None and digests.sha256(apk, size) == pin
 
 
-@functools.lru_cache(maxsize=1)
-def android_inventory_module():
+@functools.lru_cache(maxsize=2)
+def lifecycle_library(name):
     import importlib
     library = str(Path(__file__).resolve().parent.parent / "lib/moos")
     if library not in sys.path:
         sys.path.insert(0, library)
-    return importlib.import_module("moos_android_inventory")
+    return importlib.import_module(name)
 
 
 def android_store_record(package: str) -> tuple[dict | None, bool]:
     """Share the executor's strict, bounded receipt reader."""
-    return android_inventory_module().read_record(data_home(), package)
+    return lifecycle_library("moos_android_inventory").read_record(data_home(), package)
 
 
 def portable_update_available(record: dict, pin: str | None, version: str | None) -> bool:
@@ -3364,10 +3364,8 @@ def catalog_install_state(entry: dict, arch: str | None = None,
         # A record whose program folder is gone is not installed (Install repairs it), and
         # moos-storectl reads it the same way before it offers or runs an update.
         folder = data_home() / "moos/windows-apps"
-        record = read_record(folder / f"{app_id}.json")
-        if record and record.get("id", app_id) == app_id \
-                and record.get("catalog_id", app_id) == app_id \
-                and (folder / app_id / "app").is_dir():
+        record = lifecycle_library("moos_windows_portable").installed_record(data_home(), app_id)
+        if record:
             state["installed"] = True
             state["version"] = record_text(record, "version", 64) or None
             state["update"] = portable_update_available(record, pin, install.get("version"))
@@ -3496,9 +3494,20 @@ def lifecycle_snapshot(catalog: dict, apk_digests: ApkDigests | None = None) -> 
         if catalog_kind(entry) == "vendor":
             # Offered here: its own entry shows its record, intact or not.
             vendors.add(entry["id"])
+    windows = []
+    directory = data_home() / "moos/windows-apps"
+    for path in sorted(directory.glob("*.json")):
+        app_id = path.stem
+        if app_id in states:
+            continue
+        record = lifecycle_library("moos_windows_portable").installed_record(data_home(), app_id, unlisted=True)
+        if record:
+            windows.append({"id": app_id, "name": record_text(record, "name", 80) or app_id,
+                            "version": record_text(record, "version", 64),
+                            "icon": home_file_icon(str(directory / app_id / "icon.png"))})
     return {"catalog": states, "dropped": dropped_records(claimed),
-            "vendor": vendor_orphans(vendors),
-            "android": android_inventory_module().unlisted(data_home(), android)}
+            "vendor": vendor_orphans(vendors), "windows": windows,
+            "android": lifecycle_library("moos_android_inventory").unlisted(data_home(), android)}
 
 
 # ── flatpak's deploy data ────────────────────────────────────────────────────
@@ -3756,14 +3765,14 @@ def dropped_entry(record: dict, app_id: str) -> dict:
     }
 
 
-def vendor_orphan_entry(record: dict) -> dict:
+def unlisted_program(record: dict, kind: str) -> dict:
     """A publisher's app MoOS installed whose catalogue entry is not offered here any more:
     listed only as installed, so it can still be opened and removed by its id."""
 
     return {
         "id": record["id"],
         "source": "moos",
-        "kind": "vendor",
+        "kind": kind,
         "origin": "moos",
         "scope": "user",
         "installable": False,
@@ -3792,7 +3801,7 @@ def vendor_orphan_entry(record: dict) -> dict:
     }
 
 
-LIFECYCLE_KEYS = ("installed_origin", "installed_scope", "installed_scopes")
+LIFECYCLE_KEYS = ("installed_origin", "installed_scope", "installed_scopes", "adopted")
 
 
 def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
@@ -3842,6 +3851,8 @@ def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
                 state = catalog_install_state(entry, catalog.get("arch"))
             state = state or {}
             app["installed"] = bool(state.get("installed"))
+            if state.get("adopted") and app["installed"]:
+                app["adopted"] = True
             app["installed_version"] = state.get("version") if app["installed"] else None
             app["update_available"] = bool(state.get("update")) and app["installed"]
             app["icon"] = state.get("icon") if app["installed"] else None
@@ -3875,18 +3886,19 @@ def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
         entry["eol"] = False
         extra.append(finish_app(entry))
         taken.add(app_id)
-    for record in snapshot.get("vendor", []):
-        if record["id"] in taken:
-            continue
-        entry = vendor_orphan_entry(record)
-        entry["installed_version"] = entry["version"] or None
-        entry["update_available"] = False
-        entry["eol"] = False
-        extra.append(finish_app(entry))
-        taken.add(record["id"])
+    for kind in ("vendor", "windows"):
+        for record in snapshot.get(kind, []):
+            if record["id"] in taken:
+                continue
+            entry = unlisted_program(record, kind)
+            entry["installed_version"] = entry["version"] or None
+            entry["update_available"] = False
+            entry["eol"] = False
+            extra.append(finish_app(entry))
+            taken.add(record["id"])
     for record in snapshot.get("android", []):
         package = record["package"]
-        app_id = android_inventory_module().record_id(package)
+        app_id = lifecycle_library("moos_android_inventory").record_id(package)
         if app_id in taken:
             continue
         name = clean_text(record.get("file", ""), 160)

@@ -637,6 +637,25 @@ class StoreLifecycleContract(unittest.TestCase):
                 self.assertIn(f"STORE WALK DONE {len(steps)}", result.stderr)
                 self.assertEqual(problems(result.stderr), [], result.stderr[-6000:])
 
+    def test_library_explains_how_each_installation_is_managed(self):
+        steps = []
+        for item, ar, en in [
+            ({"kind": "native", "management": "external"}, "خارج المتجر", "outside the Store"),
+            ({"kind": "windows", "listed": False}, "أو إزالته", "or remove"),
+            ({"kind": "android", "adopted": True}, "ملف الإصدار", "newer file"),
+        ]:
+            entry = dict(item, id="review-example", name="Sample", installed=True)
+            steps.append({"label": en, "do": "app.openDetails(" + json.dumps(entry) + ")",
+                          "until": "harness.byName('storeUpdateSource').visible && "
+                                   "harness.byName('storeUpdateSource').text.includes(app.local("
+                                   + json.dumps(ar) + "," + json.dumps(en) + "))",
+                          "settle": 100, "timeout": 3000})
+        for locale in ("ar", "en"):
+            with self.subTest(locale=locale), tempfile.TemporaryDirectory() as directory:
+                result = run_walk(dict(VARIANTS[0], language=locale), STORE, Path(directory) / "store", steps=steps)
+                self.assertEqual(result.returncode, 0, result.stderr[-5000:])
+                self.assertEqual(problems(result.stderr), [], result.stderr[-5000:])
+
     def test_windows_games_action_tracks_machine_and_installation(self):
         steps = [
             {"label": "Games", "do": "app.navigate('games'); app.machineArch = 'x86_64'; app.indexEngines = ['linux','windows']; app.appMap = Object.assign({}, app.appMap, {'com.valvesoftware.Steam': {id:'com.valvesoftware.Steam',installed:false}})",

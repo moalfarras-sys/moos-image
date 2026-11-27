@@ -86,6 +86,7 @@ X86_ONLY_DOWNLOADS = {
     "xournalpp-windows", "notepad4-windows",
     # The executable selected by each Nov27 Store recipe is AMD64 PE32+.
     "notepadnext-windows", "qview-windows", "supertuxkart-windows",
+    "endless-sky-windows", "libresprite-windows", "powder-toy-windows",
 }
 X86_ONLY = NO_ARM_BUILD | X86_ONLY_DOWNLOADS
 

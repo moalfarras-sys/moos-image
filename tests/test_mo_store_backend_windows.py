@@ -215,6 +215,20 @@ class WindowsFixture(Isolated):
                                  catalog_path=path, opener=self.opener)
 
 class WindowsPortable(WindowsFixture):
+    def test_program_outlives_its_catalogue_recipe(self):
+        recipe = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe()}))
+        controller = self.controller(recipe)
+        self.assertEqual(controller.install([APP])[0], 0)
+        controller.catalog_path.write_text('{"apps": []}')
+        self.assertEqual(controller.run(APP)[0], 0)
+        self.assertEqual(self.runtime.spawned[-1], [MODULE.RUN_FOREIGN, "--app", APP])
+        with self.assertRaises(MODULE.StoreError) as error:
+            controller.update(APP)
+        self.assertEqual(error.exception.message_key, "unsupported_kind")
+        self.assertEqual(controller.remove(APP)[0], 0)
+        self.assertFalse((self.windows / f"{APP}.json").exists())
+        self.assertTrue((self.windows / APP / "prefix/system.reg").is_file())
+
     def test_a_64bit_program_gets_its_own_prefix_launcher_and_record(self):
         recipe = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe(), "TinyTerm/readme.txt": b"hi"}))
         code, result = self.controller(recipe).install([APP])

@@ -5,6 +5,8 @@ Linux apps, web apps, Windows programs and Android apps. This file is the contra
 its parts. `docs/DEVELOPMENT_PLAN.md` (P4.x and the "Every app, one verb" table) owns what is
 still open; `PROJECT_STATE.md` owns what is measured.
 
+The [Arabic maintainer guide](README-MO-STORE.ar.md) records admitted application libraries, physical V3 workloads, declined packages and how to repeat the checks.
+
 ## The rules that do not move
 
 - **Every change of state is a `moos-storectl` job.** The Store window is pure QML and acts only

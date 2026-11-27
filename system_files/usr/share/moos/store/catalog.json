@@ -446,6 +446,36 @@
         "cadcraft",
         "gridcraft"
       ]
+    },
+    {
+      "id": "music-workbench",
+      "en": "From tuning to recording",
+      "ar": "من ضبط النغمة إلى التسجيل",
+      "glyph": "music",
+      "desc_en": "Tune an instrument, write the score and record the performance.",
+      "desc_ar": "اضبط نغمة الآلة ودوّن اللحن وسجّل عزفك.",
+      "apps": [
+        "de.moekadu.tuner",
+        "org.kde.minuet",
+        "org.musescore.MuseScore",
+        "org.ardour.Ardour",
+        "org.audacityteam.Audacity"
+      ]
+    },
+    {
+      "id": "study-toolkit",
+      "en": "A desk for learning",
+      "ar": "مكتب للتعلّم",
+      "glyph": "bulb",
+      "desc_en": "Practise fractions, explore geometry and review your vocabulary.",
+      "desc_ar": "تدرّب على الكسور وجرّب الأشكال الهندسية وراجع مفرداتك.",
+      "apps": [
+        "org.kde.kbruch",
+        "org.kde.kig",
+        "org.kde.kwordquiz",
+        "org.kde.kiten",
+        "com.ichi2.anki"
+      ]
     }
   ],
   "featured": [
@@ -7172,6 +7202,559 @@
         "requires_review": true,
         "external": true
       }
+    },
+    {
+      "id": "org.y20k.transistor",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "audio",
+      "en": "Transistor · Android",
+      "ar": "ترانزستور · أندرويد",
+      "desc_en": "Save internet radio stations and listen to live broadcasts.",
+      "desc_ar": "احفظ محطات الراديو واستمع إلى بثها المباشر.",
+      "developer": "y20k",
+      "accent": "#305683",
+      "engine": "android",
+      "keywords_en": [
+        "radio"
+      ],
+      "keywords_ar": [
+        "راديو"
+      ],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.y20k.transistor/en-US/icon_XnM_HqswaEhC6q8FE0MZj_v9uWdubb9cv_3kbE4T25M=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.y20k.transistor_118.apk",
+        "sha256": "569b2b701722485b88ac798e05ea9c27512f439a29ca96a98f273280567e92c6",
+        "size": 3459359,
+        "version": "4.3.11",
+        "signer": "7f243da1293c36806e8cd37d1f61a0e317322d55dc49554a38b97eb2ccaec8dc",
+        "package": "org.y20k.transistor",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "de.moekadu.tuner",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "music",
+      "en": "Tuner · Android",
+      "ar": "تيونر لضبط الآلات · أندرويد",
+      "desc_en": "Tune musical instruments using pitch measured by the microphone.",
+      "desc_ar": "اضبط أوتار آلتك الموسيقية بقياس النغمة من الميكروفون.",
+      "developer": "Michael Moessner",
+      "accent": "#653b80",
+      "engine": "android",
+      "keywords_en": [
+        "pitch"
+      ],
+      "keywords_ar": [
+        "نغمات"
+      ],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "icon_url": "https://f-droid.org/repo/de.moekadu.tuner/en-US/icon_FA711SEf7Zp3sNce-k_14YdP5NvN0MCopvzXuPZ3TZ4=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/de.moekadu.tuner_50.apk",
+        "sha256": "3ba7da9486fb8ea5860057d430877e7e0b12fd46ed4927dcfd3d96d8ea5265c5",
+        "size": 3205921,
+        "version": "9.2.0",
+        "signer": "d1ac7f2ff89e6dc1a1049d6eea22eda05a0d91dc4c973cd6b5d7c698d95a9b02",
+        "package": "de.moekadu.tuner",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "org.petero.droidfish",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "gaming",
+      "en": "DroidFish Chess · Android",
+      "ar": "درويد فيش للشطرنج · أندرويد",
+      "desc_en": "Play chess, study positions and import games in PGN format.",
+      "desc_ar": "العب الشطرنج وحلّل المواقف وافتح المباريات المحفوظة بصيغة PGN.",
+      "developer": "Peter Österlund",
+      "accent": "#80501b",
+      "engine": "android",
+      "keywords_en": [
+        "chess"
+      ],
+      "keywords_ar": [
+        "شطرنج"
+      ],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "v3_test": {
+        "sha256": "7c07233fe461a56dbfa6bc83b2c0d0d7cd3cd45a285db6563829d3ceecaa5aa9",
+        "en": "Opened the chessboard offline. Move entry with the desktop mouse still needs verification.",
+        "ar": "ظهرت رقعة الشطرنج دون اتصال. يحتاج إدخال النقلات بفأرة سطح المكتب إلى تحقق إضافي."
+      },
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.petero.droidfish_100.apk",
+        "sha256": "7c07233fe461a56dbfa6bc83b2c0d0d7cd3cd45a285db6563829d3ceecaa5aa9",
+        "size": 65756441,
+        "version": "1.90",
+        "signer": "667627ffe56b46d76ecc5fa2264ca5747373c7fb93d5d4f199302f521b4aeabc",
+        "package": "org.petero.droidfish",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "org.woheller69.omweather",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "globe",
+      "en": "Cirrus Weather · Android",
+      "ar": "سيروس للطقس · أندرويد",
+      "desc_en": "Check weather forecasts for the places you choose.",
+      "desc_ar": "تصفّح توقعات الطقس للمدن التي تختارها.",
+      "developer": "woheller69",
+      "accent": "#1f6569",
+      "engine": "android",
+      "keywords_en": [
+        "forecast"
+      ],
+      "keywords_ar": [
+        "طقس"
+      ],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.woheller69.omweather/en-US/icon_E3rAVMKaoXV3S6EdjZbr8Ah3yVuGV4teI7GOx4SRxl4=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.woheller69.omweather_50.apk",
+        "sha256": "05bca980edcb78035afd8c92597ddfbf149bf3441b9f2c797e82e4f54b7eabc7",
+        "size": 11421115,
+        "version": "5.0",
+        "signer": "7cb8326b359fcf06101cf0337b56af89e3952b711c9a00ffdc7f7b2f8c09d85b",
+        "package": "org.woheller69.omweather",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "org.metabrainz.android",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "search",
+      "en": "MusicBrainz · Android",
+      "ar": "ميوزك براينز · أندرويد",
+      "desc_en": "Look up artists, releases and recording credits in the music database.",
+      "desc_ar": "ابحث عن الفنانين والألبومات والمشاركين في تسجيل الأغاني.",
+      "developer": "MetaBrainz Foundation",
+      "accent": "#755300",
+      "engine": "android",
+      "keywords_en": [
+        "recordings"
+      ],
+      "keywords_ar": [
+        "ألبومات"
+      ],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.metabrainz.android/en-US/icon_ER4KUKy7REqOCQzy7ODx0Jw2dXsx8WV_npQ_AeuWVUY=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.metabrainz.android_56.apk",
+        "sha256": "252b5e13af9131417a75c34acf50ea8da70e02cf1d1727cbc980b349d89ea807",
+        "size": 50143246,
+        "version": "7.0.0",
+        "signer": "d02e035ffd98eb997eb40fdd3dbb131c1404228f6851114b6a1f3247a67eb8f9",
+        "package": "org.metabrainz.android",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "org.y20k.trackbook",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "compass",
+      "en": "Trackbook · Android",
+      "ar": "تراك بوك للمسارات · أندرويد",
+      "desc_en": "Record a route with location access and review it on a map.",
+      "desc_ar": "سجّل مسارك بإذن الموقع ثم راجعه على الخريطة.",
+      "developer": "y20k",
+      "accent": "#126646",
+      "engine": "android",
+      "keywords_en": [
+        "routes"
+      ],
+      "keywords_ar": [
+        "مسارات"
+      ],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.y20k.trackbook/en-US/icon_f6AHUlGQuywiZCtyEb_HWQ_QgqstO17v5l3X4gkHTV0=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.y20k.trackbook_62.apk",
+        "sha256": "b88a74d3901dc7a0a9bccc597199864c23d0e655f64ecd1f0e8ee508f3fd7379",
+        "size": 41988952,
+        "version": "2.5.2",
+        "signer": "ee00b55e7f1562a5ae52574a755c094a88786fecee1eb1da99634d569a4e6f54",
+        "package": "org.y20k.trackbook",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "org.briarproject.briar.android",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "chat",
+      "en": "Briar Messenger · Android",
+      "ar": "براير للمراسلة · أندرويد",
+      "desc_en": "Exchange private messages and take part in group conversations.",
+      "desc_ar": "تبادل الرسائل الخاصة وشارك في المحادثات الجماعية.",
+      "developer": "Briar Project",
+      "accent": "#48652b",
+      "engine": "android",
+      "keywords_en": [
+        "messaging"
+      ],
+      "keywords_ar": [
+        "مراسلة"
+      ],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.briarproject.briar.android_10524.apk",
+        "sha256": "fd01d439040c5964a3c986250cdcd4ff549405194f69ef8b972dc6aefd6f3ff7",
+        "size": 50686498,
+        "version": "1.5.24",
+        "signer": "501ddf14a6ecf904fb20285c56a565cb987a867f91572ee33c2d43771cca4e37",
+        "package": "org.briarproject.briar.android",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "de.grobox.liberario",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "car",
+      "en": "Transportr · Android",
+      "ar": "ترانسبورتر للمواصلات · أندرويد",
+      "desc_en": "Plan public transport journeys using timetables for supported regions.",
+      "desc_ar": "خطّط رحلات النقل العام واعرض مواعيد الخطوط في المناطق المدعومة.",
+      "developer": "Torsten Grote",
+      "accent": "#285b75",
+      "engine": "android",
+      "keywords_en": [
+        "transit"
+      ],
+      "keywords_ar": [
+        "مواصلات"
+      ],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "icon_url": "https://f-droid.org/repo/de.grobox.liberario/en-US/icon_uq4KvLkKy1JRKWFDk5BCsNl7jAU2LWi3ZNqegNX4tPY=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/de.grobox.liberario_131.apk",
+        "sha256": "00ebcff767b548c1a836e2ca270a80cc04f7cab22ca5ae76a349b42856fb06f6",
+        "size": 43964416,
+        "version": "2.2.7",
+        "signer": "663743a0e4d563eab4ae5b4b87478a8a359285c15ad8957ee1781598c60d978f",
+        "package": "de.grobox.liberario",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "powder-toy-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "gaming",
+      "en": "The Powder Toy · Windows",
+      "ar": "مختبر باودر توي · ويندوز",
+      "desc_en": "Experiment with heat, pressure and materials in a physics sandbox.",
+      "desc_ar": "جرّب الحرارة والضغط وتفاعل المواد داخل مختبر محاكاة.",
+      "developer": "The Powder Toy contributors",
+      "accent": "#41557f",
+      "engine": "windows",
+      "keywords_en": [
+        "physics"
+      ],
+      "keywords_ar": [
+        "فيزياء"
+      ],
+      "arch": [
+        "x86_64"
+      ],
+      "v3_test": {
+        "sha256": "df32b616b31dabae10b82028731ebdfd6867c872198b81f29d418cbafbf460c3",
+        "en": "Placed dust with the mouse and saw the particles fall in the simulation.",
+        "ar": "أُضيف الغبار بالفأرة وظهرت حبيباته وهي تسقط في المحاكاة."
+      },
+      "install": {
+        "kind": "windows-portable",
+        "version": "100.1.400",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/The-Powder-Toy/The-Powder-Toy/releases/download/v100.1.400/powder-v100.1.400-x86_64-windows-mingw.exe",
+            "size": 8690342,
+            "sha256": "df32b616b31dabae10b82028731ebdfd6867c872198b81f29d418cbafbf460c3"
+          }
+        },
+        "exe": "powder-v100.1.400-x86_64-windows-mingw.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "endless-sky-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "gaming",
+      "en": "Endless Sky · Windows",
+      "ar": "إندلس سكاي · ويندوز",
+      "desc_en": "Pilot a spacecraft, trade cargo and explore distant star systems.",
+      "desc_ar": "قُد مركبة فضائية وتاجر بالبضائع واستكشف أنظمة النجوم البعيدة.",
+      "developer": "Endless Sky contributors",
+      "accent": "#41557f",
+      "engine": "windows",
+      "keywords_en": [
+        "space"
+      ],
+      "keywords_ar": [
+        "فضاء"
+      ],
+      "arch": [
+        "x86_64"
+      ],
+      "v3_test": {
+        "sha256": "d795bf08472089ade412fa3d1167bb6f0ee0cb553025a930328d635de6364ccc",
+        "en": "Opened the game menu and its control settings on the external display.",
+        "ar": "فُتحت قائمة اللعبة وإعدادات التحكّم على الشاشة الخارجية."
+      },
+      "install": {
+        "kind": "windows-portable",
+        "version": "0.11.4",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/endless-sky/endless-sky/releases/download/v0.11.4/EndlessSky-win64-v0.11.4.zip",
+            "size": 370965835,
+            "sha256": "d795bf08472089ade412fa3d1167bb6f0ee0cb553025a930328d635de6364ccc"
+          }
+        },
+        "exe": "Endless Sky.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "libresprite-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "pen",
+      "en": "LibreSprite · Windows",
+      "ar": "ليبر سبرايت · ويندوز",
+      "desc_en": "Draw pixel art and animate sprites frame by frame.",
+      "desc_ar": "ارسم بالبكسل وحرّك شخصيات الألعاب إطاراً بعد إطار.",
+      "developer": "LibreSprite contributors",
+      "accent": "#893d55",
+      "engine": "windows",
+      "keywords_en": [
+        "sprites"
+      ],
+      "keywords_ar": [
+        "بكسل"
+      ],
+      "arch": [
+        "x86_64"
+      ],
+      "v3_test": {
+        "sha256": "8408d2f962121948e9fbee053756b5e1e7e88d6d645120574d13fca66d475874",
+        "en": "Opened and re-exported a pixel drawing with all pixels preserved.",
+        "ar": "فُتح رسم بكسلي وأُعيد تصديره مع تطابق جميع البكسلات."
+      },
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.3",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/LibreSprite/LibreSprite/releases/download/v1.3/libresprite-v1.3-windows-x86_64.zip",
+            "sha256": "8408d2f962121948e9fbee053756b5e1e7e88d6d645120574d13fca66d475874",
+            "size": 43595037
+          }
+        },
+        "exe": "libresprite.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "org.kde.kbruch",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "bulb",
+      "en": "KBruch",
+      "ar": "كي بروخ للكسور",
+      "desc_en": "Practise fractions and compare your answers with worked exercises.",
+      "desc_ar": "تدرّب على الكسور وقارن إجاباتك بحلول التمارين.",
+      "developer": "KBruch contributors",
+      "keywords_en": [
+        "fractions"
+      ],
+      "keywords_ar": [
+        "كسور"
+      ]
+    },
+    {
+      "id": "org.kde.kwordquiz",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "document",
+      "en": "WordQuiz",
+      "ar": "وورد كويز للمفردات",
+      "desc_en": "Create vocabulary flashcards and quiz yourself on new words.",
+      "desc_ar": "أنشئ بطاقات للمفردات واختبر حفظك للكلمات الجديدة.",
+      "developer": "WordQuiz contributors",
+      "keywords_en": [
+        "flashcards"
+      ],
+      "keywords_ar": [
+        "مفردات"
+      ]
+    },
+    {
+      "id": "org.kde.kig",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "target",
+      "en": "Kig Geometry",
+      "ar": "كيغ للهندسة",
+      "desc_en": "Construct geometric figures and explore how their parts move together.",
+      "desc_ar": "ارسم أشكالاً هندسية واستكشف كيف تتغيّر عند تحريك نقاطها.",
+      "developer": "Kig contributors",
+      "keywords_en": [
+        "geometry"
+      ],
+      "keywords_ar": [
+        "هندسة"
+      ]
+    },
+    {
+      "id": "org.kde.kiten",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "search",
+      "en": "Kiten",
+      "ar": "كيتن لليابانية",
+      "desc_en": "Look up Japanese words and explore kanji readings.",
+      "desc_ar": "ابحث عن الكلمات اليابانية وتعرّف إلى قراءات رموز الكانجي.",
+      "developer": "Kiten contributors",
+      "keywords_en": [
+        "dictionary"
+      ],
+      "keywords_ar": [
+        "قاموس"
+      ]
+    },
+    {
+      "id": "org.musescore.MuseScore",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "music",
+      "en": "MuseScore Studio",
+      "ar": "ميوزسكور ستوديو",
+      "desc_en": "Write sheet music and hear your score played back.",
+      "desc_ar": "اكتب النوتة الموسيقية واستمع إلى اللحن أثناء تأليفه.",
+      "developer": "MuseScore contributors",
+      "keywords_en": [
+        "notation"
+      ],
+      "keywords_ar": [
+        "نوتة"
+      ]
+    },
+    {
+      "id": "org.kde.kile",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "pen",
+      "en": "Kile",
+      "ar": "كايل لتحرير المستندات",
+      "desc_en": "Write LaTeX documents and navigate their sections in one editor.",
+      "desc_ar": "حرّر مستندات لاتك وتنقّل بين فصولها من مكان واحد.",
+      "developer": "Kile contributors",
+      "keywords_en": [
+        "latex"
+      ],
+      "keywords_ar": [
+        "مستندات"
+      ]
+    },
+    {
+      "id": "org.gnome.Maps",
+      "source": "flathub",
+      "cat": "util",
+      "glyph": "compass",
+      "en": "Maps",
+      "ar": "الخرائط",
+      "desc_en": "Explore places and plan routes on an interactive map.",
+      "desc_ar": "استكشف الأماكن وخطّط مساراتك على خريطة تفاعلية.",
+      "developer": "Maps contributors",
+      "keywords_en": [
+        "directions"
+      ],
+      "keywords_ar": [
+        "اتجاهات"
+      ]
+    },
+    {
+      "id": "org.kde.minuet",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "music",
+      "en": "Minuet",
+      "ar": "مينويت للتدريب السمعي",
+      "desc_en": "Train your ear to recognise musical intervals, chords and scales.",
+      "desc_ar": "درّب أذنك على تمييز المسافات الموسيقية والتآلفات والسلالم.",
+      "developer": "Minuet contributors",
+      "keywords_en": [
+        "ear training"
+      ],
+      "keywords_ar": [
+        "تدريب سمعي"
+      ]
     }
   ]
 }
