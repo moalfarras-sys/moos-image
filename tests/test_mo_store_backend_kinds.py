@@ -704,7 +704,7 @@ class AndroidRecords(Kinds):
         controller = self.controller([self.recipe(b"PK\x03\x04publisher APK")])
         self.opener.files[f"https://f-droid.example/{self.PACKAGE}.apk"] = b"PK\x03\x04publisher APK"
         with mock.patch.object(controller, "_android_keeps_pin", return_value=False), \
-                mock.patch.object(MODULE, "ANDROID_READBACK_SECONDS", 0):
+                mock.patch.object(MODULE, "ANDROID_INSTALL_CONFIRM_SECONDS", 0):
             code, result = controller.install([self.PACKAGE])
         self.assertEqual((code, result["state"]), (1, "failed"), result)
         self.assertFalse(MODULE.android_record_path(self.PACKAGE).exists())
@@ -772,12 +772,21 @@ class AndroidRecords(Kinds):
         value = json.loads(record.read_text())
         self.assertEqual((value["version"], value["sha256"]), ("2.2", hashlib.sha256(path.read_bytes()).hexdigest()))
 
+    def test_dropped_apk_waits_for_delayed_android_package_publication(self):
+        path, controller = self.file_update_fixture()
+        with mock.patch.object(controller, "_android_packages", side_effect=[set(), {self.PACKAGE}]), \
+                mock.patch.object(MODULE.time, "sleep"):
+            code, result = controller.install_file(str(path))
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual(json.loads(MODULE.android_record_path(self.PACKAGE).read_text())["sha256"],
+                         hashlib.sha256(path.read_bytes()).hexdigest())
+
     def test_silent_file_update_refusal_preserves_exact_existing_receipt(self):
         path, controller = self.file_update_fixture()
         record = self.local_record()
         before = record.read_bytes()
         with mock.patch.object(controller, "_android_keeps_pin", return_value=False), \
-                mock.patch.object(MODULE, "ANDROID_READBACK_SECONDS", 0):
+                mock.patch.object(MODULE, "ANDROID_INSTALL_CONFIRM_SECONDS", 0):
             code, result = controller.install_file(str(path))
         self.assertEqual((code, result["state"]), (1, "failed"), result)
         self.assertEqual(record.read_bytes(), before)

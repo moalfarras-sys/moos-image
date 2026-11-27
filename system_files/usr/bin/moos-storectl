@@ -105,6 +105,7 @@ VENDOR_CHECK_SECONDS = 45
 # install's answer can come before Android has the new APK in place, so it is asked again this
 # often, for at most this long.
 ANDROID_READBACK_SECONDS = 5.0
+ANDROID_INSTALL_CONFIRM_SECONDS = 15.0
 ANDROID_READBACK_STEP = 0.25
 
 # moos_vendor_rpm's stable failure codes, each with the key the window says it in (jobPhrases holds
@@ -3402,9 +3403,9 @@ class Controller:
             return None
 
     # ── Android ─────────────────────────────────────────────────────────────────────────────────
-    def _android_packages(self) -> set[str] | None:
+    def _android_packages(self, *, timeout: float = 60) -> set[str] | None:
         """The packages the Android container reports, or None when it could not say."""
-        result = self.runner.capture([WAYDROID, "app", "list"], timeout=60)
+        result = self.runner.capture([WAYDROID, "app", "list"], timeout=timeout)
         if result.returncode:
             return None
         return set(re.findall(
@@ -3468,8 +3469,7 @@ class Controller:
                 # old-record policy, before publishing any new receipt.
                 self._android_update_landed(job, app_id, recipe, prior_record)
             else:
-                kept = self._wait_android_pin(job, app_id, package, pin)
-                if kept is False or (kept is None and package not in (self._android_packages() or set())):
+                if not self._confirm_android_install(job, app_id, package, pin):
                     raise StoreError("Android did not confirm installation; the existing record was kept",
                                      message_key="android_install_unconfirmed")
             self._write_android_record(package, sha256=pin.sha256, source="catalog",
@@ -4116,12 +4116,8 @@ class Controller:
                 raise appdrop.DropError("cancelled")
             if result.returncode or re.search(r"\b(?:error|failed)\b", result.reason, re.IGNORECASE):
                 raise appdrop.DropError("failed", result.reason or "Android installation failed")
-            installed = self._android_packages()
-            if installed is None or facts.package not in installed:
-                raise appdrop.DropError("failed", "Could not confirm the Android package was installed")
             pin = PinnedArtifact("", facts.sha256, snapshot.stat().st_size)
-            kept = self._wait_android_pin(job, plan.slug, facts.package, pin)
-            if kept is False:
+            if not self._confirm_android_install(job, plan.slug, facts.package, pin):
                 raise appdrop.DropError("failed", "Android did not accept this APK; its existing record was kept")
             version = facts.version_name or ""
             if version and not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_~+-]{0,63}", version):
@@ -4439,7 +4435,8 @@ class Controller:
         return self._android_apk().kept(data_home() / "waydroid" / "data", package, pin.size,
                                         unsized_limit=UNSIZED_DOWNLOAD_CAP)
 
-    def _android_keeps_pin(self, package: str, pin: PinnedArtifact) -> bool | None:
+    def _android_keeps_pin(self, package: str, pin: PinnedArtifact, *,
+                           remembered: dict | None = None) -> bool | None:
         """True when the one APK Android keeps for `package` is the pin byte for byte; False for
         another build, two copies or none; None when Android's app folder cannot be read."""
         apk = self._android_apk()
@@ -4448,7 +4445,8 @@ class Controller:
             return None
         if len(folders) != 1:
             return False
-        facts = apk.read_apk(folders[0] / "base.apk", pin.size, unsized_limit=UNSIZED_DOWNLOAD_CAP)
+        facts = apk.read_apk(folders[0] / "base.apk", pin.size, unsized_limit=UNSIZED_DOWNLOAD_CAP,
+                             remembered=remembered)
         return facts is not None and facts.sha256 == pin.sha256
 
     def _wait_android_pin(self, job: Job, app_id: str, package: str,
@@ -4464,6 +4462,26 @@ class Controller:
                 time.sleep(ANDROID_READBACK_STEP)
                 kept = self._android_keeps_pin(package, pin)
         return kept
+
+    def _confirm_android_install(self, job: Job, app_id: str, package: str,
+                                 pin: PinnedArtifact) -> bool:
+        """Wait for Android to publish the launcher and, where readable, the exact APK.
+
+        Waydroid may return before PackageManager publishes an install. Its app list
+        briefly wakes an idle container through Waydroid's own session policy.
+        """
+        deadline = time.monotonic() + ANDROID_INSTALL_CONFIRM_SECONDS
+        remembered = {}
+        while True:
+            if self._cancelled(job):
+                raise CancelledError("Cancelled")
+            remaining = deadline - time.monotonic()
+            if (package in (self._android_packages(timeout=max(0.1, min(3.0, remaining))) or set())
+                    and self._android_keeps_pin(package, pin, remembered=remembered) is not False):
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(ANDROID_READBACK_STEP)
 
     def _android_update_landed(self, job: Job, app_id: str, recipe: dict[str, Any],
                                before: bytes | None) -> None:

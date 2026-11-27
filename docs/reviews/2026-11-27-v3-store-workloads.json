@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-27",
+  "base": "bdb009a4ad57702b8d6a94dc08ee8701ac6b55d7",
+  "hardware": "Minisforum V3, Radeon 780M, Plasma Wayland, external 3840x2160 at 250 percent",
+  "signed_boot": "44.20261126.1198",
+  "rollback": "44.20261125.1191",
+  "scope": "Worktree Store backend and catalogue on the installed OS, canonical per-user launchers, source Store page on the installed Qt runtime. This is not a signed delivery of the catalogue.",
+  "catalogue": {
+    "curated_entries": 274,
+    "android": 51,
+    "windows_portable": 23,
+    "added_android": [
+      "io.anuke.mindustry",
+      "net.minetest.minetest",
+      "de.rwth_aachen.phyphox",
+      "net.sourceforge.opencamera",
+      "org.kde.kdeconnect_tp"
+    ],
+    "added_windows": [
+      "qview-windows",
+      "notepadnext-windows",
+      "supertuxkart-windows"
+    ],
+    "source_checks": "Downloaded complete APKs. Checked F-Droid index bytes, APK sizes, hashes, signatures and ABIs. Matched Windows release archives to the publishers’ SHA-256, size and executable path. All eight packages installed through the existing Store backend.",
+    "windows_abi": "Read the installed executable selected by each of the three recipes: PE machine 0x8664, optional-header magic 0x020b. The multi-architecture kart ZIP selects its build-x86_64 program."
+  },
+  "android": {
+    "engine": "Waydroid 1.6.3, Android 13 x86_64, OpenGL ES 3.2 on the physical Radeon 780M (radeonsi). The cover and external screen were connected.",
+    "installation": "An early Waydroid return left an imported large game and Markor present despite a reported failure. Repeated native package-list and kept-APK checks resolve delayed publication without changing an existing receipt on a refused update.",
+    "krita": {
+      "source": "Signed upstream KDE Android APK, x86_64",
+      "version": "5.3.5",
+      "sha256": "2793f891696f58b97170c5726df37fb706e3246469d09b6fe9dce3e69ada8695",
+      "journey": "Confirmed scale with the mouse, opened the Android document picker with Ctrl+O, opened a 2400 by 1600 PNG, painted a visible mark and used Ctrl+S and the PNG export dialog. Reopen and touch on the physical panel remain unverified."
+    },
+    "supertuxkart": {
+      "version": "1.5",
+      "apk_sha256": "e1f2f49152abfb8f3ed0ced47981e84096758bff9758563aa3b917111a2a3cbd",
+      "journey": "Rendered the desert tutorial in full Android UI; desktop Escape paused it and a guest-injected Android tap resumed the race. Scoped mouse-to-touch to org.supertuxkart.stk. Host synthetic touch alone did not resume the race. Restored the existing multi-window policy."
+    },
+    "mindustry": "Launched from the Store to the F-Droid game menu. Maximizing on this external output left the game small and distorted. Campaign, internal-screen touch and sustained performance are open.",
+    "other_new_android": "Installed and checked exact package receipts. No peripheral or gameplay acceptance is inferred."
+  },
+  "windows": {
+    "qview": "7.1. Store launch opened the welcome screen. Rendered the full 2400 by 1600 reference image using the installed executable and its leased prefix.",
+    "notepad_next": "0.15. Opened a private UTF-8 Arabic file in the Store-installed prefix, edited it with the keyboard, saved and confirmed the new character in the file.",
+    "supertuxkart": "1.5. The Store installed the publisher ZIP and launched the x86_64 executable in its own prefix. The exact archive has a measured ten-kart race in the Windows gaming review. Two stereo assets logged positional-audio warnings. Audio was not qualified.",
+    "dosbox_staging": "With Wine 11.21, Windows 0.83.1 wrote the expected DOS output, then stopped on an unimplemented KERNEL32 time conversion. Withheld this Windows recipe and retired the review install using the original recipe with keep-data. Native /usr/bin/dosbox independently completed the same write and exit on MoOS."
+  },
+  "linux": "The installed Gwenview opened the reference image and reported 2400 by 1600 in its native window.",
+  "upstream": [
+    "https://f-droid.org/repo/",
+    "https://github.com/jurplel/qView/releases/tag/7.1",
+    "https://github.com/dail8859/NotepadNext/releases/tag/v0.15",
+    "https://github.com/supertuxkart/stk-code/releases/tag/1.5",
+    "https://docs.waydro.id/usage/waydroid-prop-options"
+  ],
+  "open": [
+    "Internal touchscreen and physical multi-input endurance",
+    "Mindustry campaign and external-screen maximization",
+    "ARM and other editions, signed release and post-boot acceptance"
+  ]
+}

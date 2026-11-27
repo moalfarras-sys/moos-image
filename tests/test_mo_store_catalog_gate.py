@@ -104,7 +104,7 @@ class TheShippedCatalogue(unittest.TestCase):
 
     def test_every_android_pin_records_its_signer_and_every_download_its_size(self):
         android = [a for a in SHIPPED["apps"] if (a.get("install") or {}).get("kind") == "android"]
-        self.assertEqual(len(android), 46)
+        self.assertEqual(len(android), 51)
         for entry in android:
             with self.subTest(app=entry["id"]):
                 self.assertRegex(entry["install"]["signer"], r"^[0-9a-f]{64}$")
@@ -375,6 +375,13 @@ class EveryNewCatalogueRuleBites(unittest.TestCase):
             downloads = app(c, "photocraft")["install"]["downloads"]
             downloads["aarch64"]["sha256"] = downloads["x86_64"]["sha256"]
         self.refused(copied, "two architectures pin the same SHA-256")
+
+    def test_observed_workload_belongs_to_the_exact_package(self):
+        def change_download(catalog):
+            app(catalog, "peazip-windows")["install"]["downloads"]["x86_64"]["sha256"] = "0" * 64
+        self.refused(change_download, "v3_test must match the reviewed V3 download")
+        self.refused(lambda c: app(c, "openscad-windows")["v3_test"].update(ar="English"),
+                     "v3_test.ar must be written in Arabic")
 
     def test_a_windows_program_is_one_64_bit_exe(self):
         self.refused(lambda c: app(c, "putty")["install"]["downloads"].update(
