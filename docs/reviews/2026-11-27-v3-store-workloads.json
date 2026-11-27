@@ -21,7 +21,8 @@
       "notepadnext-windows",
       "supertuxkart-windows"
     ],
-    "source_checks": "Downloaded complete APKs. Checked F-Droid index bytes, APK sizes, hashes, signatures and ABIs. Matched Windows release archives to the publishers’ SHA-256, size and executable path. All eight packages installed through the existing Store backend."
+    "source_checks": "Downloaded complete APKs. Checked F-Droid index bytes, APK sizes, hashes, signatures and ABIs. Matched Windows release archives to the publishers’ SHA-256, size and executable path. All eight packages installed through the existing Store backend.",
+    "windows_abi": "Read the installed executable selected by each of the three recipes: PE machine 0x8664, optional-header magic 0x020b. The multi-architecture kart ZIP selects its build-x86_64 program."
   },
   "android": {
     "engine": "Waydroid 1.6.3, Android 13 x86_64, OpenGL ES 3.2 on the physical Radeon 780M (radeonsi). The cover and external screen were connected.",
