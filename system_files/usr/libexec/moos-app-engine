@@ -240,6 +240,56 @@ def engine_for(document: dict, target: str) -> dict | None:
     return None
 
 
+def steam_deck_rating(number: int, url: str) -> str:
+    import http.client
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            body = response.read(65537)
+        if len(body) > 65536:
+            return "unavailable"
+        data = json.loads(body)
+    except (OSError, ValueError, http.client.HTTPException, RecursionError):
+        return "unavailable"
+    if not isinstance(data, dict) or type(data.get("success")) is not int or data["success"] != 1:
+        return "unavailable"
+    entry = data.get("results")
+    if entry == []:
+        return "unrated"
+    if (not isinstance(entry, dict) or type(entry.get("appid")) is not int
+            or entry["appid"] != number or type(entry.get("resolved_category")) is not int):
+        return "unavailable"
+    return {0: "unrated", 1: "unsupported", 2: "playable", 3: "verified"}.get(
+        entry["resolved_category"], "unavailable")
+
+
+def game_compatibility(app_id: str, *, with_valve: bool = False) -> dict:
+    """Return local qualification and, if requested, Valve's separate Deck rating."""
+    if not re.fullmatch(r"[1-9][0-9]{0,9}", app_id) or int(app_id) > 4294967295:
+        raise ValueError("Expected a positive numeric Steam App ID (uint32)")
+    number = int(app_id)
+    registry = load()
+    row = next((item for item in registry["unsupported"]
+                if item.get("steam_app_id") == number), None)
+    local = {"status": "not-assessed"}
+    if row:
+        local = {"status": "unsupported", **{key: row[key]
+                 for key in ("name", "reason", "checked", "source")}}
+    else:
+        tested = next((item for item in registry.get("tested_steam_games", [])
+                       if item["steam_app_id"] == number), None)
+        if tested:
+            local = {"status": "tested", **{key: tested[key] for key in
+                     ("build_id", "name", "scope", "checked", "source")}}
+    report = {"schema": 1, "steam_app_id": number, "moos": local}
+    if with_valve:
+        url = ("https://store.steampowered.com/saleaction/"
+               f"ajaxgetdeckappcompatibilityreport?nAppID={number}")
+        report["steam_deck"] = {"rating": steam_deck_rating(number, url), "source": url}
+    return report
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__.strip(), file=sys.stderr)

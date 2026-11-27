@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+"""Check or prepare the single optional Windows gaming profile through its owner."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import platform
+import subprocess
+import sys
+
+APP = "com.usebottles.bottles"
+PROFILE = "MoOS Windows"
+CLI = ["flatpak", "run", "--command=bottles-cli", APP]
+
+
+def profile_state():
+    probe = subprocess.run([*CLI, "-j", "list", "bottles"], capture_output=True, timeout=25)
+    if probe.returncode or not probe.stdout.strip():
+        # On a first launch the manager cannot enumerate a library it has yet to create.
+        # Only its observed missing library error is an empty state.
+        error = probe.stderr.decode(errors="replace").splitlines()
+        missing = next((line for line in reversed(error) if "FileNotFoundError:" in line), "")
+        if (missing.endswith("/bottles/bottles'") and "[Errno 2]" in missing):
+            return "absent"
+        return "unavailable"
+    document = json.loads(probe.stdout)
+    if not isinstance(document, dict):
+        return "unavailable"
+    if PROFILE not in document:
+        if any(isinstance(item, dict) and item.get("Path") == "MoOS-Windows"
+               for item in document.values()):
+            return "conflict"
+        return "absent"
+    row = document[PROFILE]
+    if not isinstance(row, dict) or not isinstance(row.get("Parameters"), dict):
+        return "conflict"
+    if (row.get("Name") == PROFILE and row.get("Environment") == "Gaming"
+            and row.get("Arch") == "win64" and all(row.get(key) for key in ("Runner", "DXVK", "VKD3D"))
+            and row["Parameters"].get("dxvk") is True
+            and row["Parameters"].get("vkd3d") is True):
+        return "ready"
+    return "conflict"
+
+
+def main(args):
+    if args not in (["check"], ["prepare"]) or platform.machine().lower() not in ("amd64", "x86_64"):
+        return 2
+    try:
+        if args == ["check"]:
+            return 0 if profile_state() == "ready" else 1
+        with (Path(os.environ["XDG_RUNTIME_DIR"]) / "moos-windows-game-profile.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            state = profile_state()
+            if state == "ready":
+                return 0
+            if state != "absent":
+                return 1
+            subprocess.run([*CLI, "new", "--bottle-name", PROFILE, "--environment", "gaming",
+                            "--arch", "win64"], check=True, timeout=900)
+            return 0 if profile_state() == "ready" else 1
+    except (KeyError, ValueError, OSError, subprocess.SubprocessError):
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

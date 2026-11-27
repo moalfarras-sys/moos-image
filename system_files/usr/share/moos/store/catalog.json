@@ -6136,12 +6136,12 @@
       ],
       "install": {
         "kind": "windows-portable",
-        "version": "5.13.1b",
+        "version": "5.13.2",
         "downloads": {
           "x86_64": {
-            "url": "https://github.com/Qalculate/qalculate-qt/releases/download/v5.13.0/qalculate-5.13.1b-x64.zip",
-            "sha256": "b3ddb431f6242165bedca33694403809fcc69cab45371d90dcf0e8bb5a187b96",
-            "size": 70792677
+            "url": "https://github.com/Qalculate/qalculate-qt/releases/download/v5.13.0/qalculate-5.13.2-x64.zip",
+            "sha256": "6e8a39df926d6eae4e9139472b550a8e72a359888fd2f5ab6f060acc73fa677a",
+            "size": 64556496
           }
         },
         "exe": "qalculate/qalculate-qt.exe",

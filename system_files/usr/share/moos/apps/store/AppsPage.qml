@@ -61,6 +61,21 @@ Item {
         anchors.topMargin: appsPage.design.space2
         spacing: appsPage.design.space3
 
+        ActionButton {
+            id: steamLibrary
+            objectName: "gamesLibraryAction"
+            win: appsPage.win
+            readonly property var steam: appsPage.games ? win.appById("com.valvesoftware.Steam") : null
+            visible: appsPage.games && steam !== null && win.machineArch === "x86_64"
+                     && win.curatedRunsHere({ engine: "windows" })
+            enabled: visible && !win.jobIsActive()
+            glyphName: "gaming"
+            label: win.isInstalled(steam) ? win.local("مكتبتي في Steam", "My Steam library")
+                                          : win.local("تجهيز ألعاب ويندوز", "Set up Windows games")
+            readonly property string destination: win.isInstalled(steam) ? "steam-library" : "setup-gaming"
+            triggered: function() { win.openSystemRoute(destination) }
+        }
+
         // ── heading ──
         // A heading only for a narrowed view (a collection, a category, a kind): unfiltered, the
         // header already says "Apps" and the kind chips carry the count.

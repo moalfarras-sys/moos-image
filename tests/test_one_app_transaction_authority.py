@@ -15,7 +15,10 @@ the ones Mo Store could never remove afterwards.
 A comment cannot hold a rule. This gate can.
 """
 from pathlib import Path
+import os
 import re
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +53,33 @@ def sources():
 
 
 class OneAuthority(unittest.TestCase):
+    def test_gaming_setup_preserves_the_store_result(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            private = Path(tmp)
+            for name, script in {
+                "flatpak": 'case "$1" in remotes) echo flathub ;; *) exit 1 ;; esac',
+                "moos-storectl": 'echo "$RECEIPT"; exit "$STORE_STATUS"',
+                "kbuildsycoca6": "exit 0",
+            }.items():
+                stub = private / name
+                stub.write_text("#!/bin/sh\n" + script + "\n")
+                stub.chmod(0o700)
+            env = dict(os.environ, HOME=tmp, XDG_DATA_HOME=tmp, XDG_CONFIG_HOME=tmp,
+                       XDG_RUNTIME_DIR=tmp, XDG_CACHE_HOME=tmp, PATH=tmp + ":" + os.environ["PATH"],
+                       DBUS_SESSION_BUS_ADDRESS="unix:path=" + tmp + "/absent", DISPLAY="", WAYLAND_DISPLAY="")
+            for status, receipt, expected in [
+                (0, '{"state":"success","message":"ready"}', 0),
+                (75, '{"state":"busy"}', 75), (130, '{"state":"cancelled"}', 130),
+                (0, '{"state":"partial"}', 1), (0, 'null', 1), (0, 'invalid', 1),
+            ]:
+                with self.subTest(status=status, receipt=receipt):
+                    result = subprocess.run(
+                        [BIN / "moos-setup", "--gaming"], text=True, capture_output=True, timeout=20,
+                        env=dict(env, STORE_STATUS=str(status), RECEIPT=receipt),
+                    )
+                    self.assertEqual(result.returncode, expected, result.stderr)
+                    self.assertEqual("Setup complete" in result.stdout, expected == 0)
+
     def test_nothing_outside_the_store_backend_changes_what_is_installed(self):
         offenders = []
         for path, text in sources():

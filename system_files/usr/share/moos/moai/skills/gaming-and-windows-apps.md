@@ -17,4 +17,7 @@ use_when: The person wants to play games, run a Windows program or an .exe, or u
 ## Be honest
 - `os_state` names the ARM edition (`moos-arm`): Steam, Proton and Windows programs are built for x86 PCs, and `setup_gaming` refuses on ARM. Say so, then offer Linux apps from Mo Store instead.
 - Not every Windows program or game works. Games with kernel-level anti-cheat usually do not. Say so before the person spends an evening on it.
+- For an exact Steam App ID, `moos-storectl game-compatibility <id>` reads the reviewed MoOS result offline. Add `--with-valve` to check the Steam Deck rating online. A Deck rating applies to Valve’s hardware.
+- Ask for the exact game and edition. EA SPORTS FC 26 lists EA Javelin Anticheat and an unsupported Steam Deck rating. Treat that title as unsupported locally through Proton. Another FIFA edition needs its own check. [Publisher listing](https://store.steampowered.com/app/3405690/)
+- After gaming setup, distinguish installed launchers, an available compatibility tool and a game reaching playable content. For performance, report the game's Windows build, GPU, rendering API, resolution, settings and measured frames.
 - A game that stutters on a healthy system is usually set too high for the card; say which card `gpu_report` found.

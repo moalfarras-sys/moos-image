@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Service
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin
+MimeType=application/vnd.microsoft.portable-executable;application/x-msdownload;application/x-dosexec;application/x-ms-dos-executable;
+X-KDE-Protocols=file
+X-KDE-RequiredNumberOfUrls=1
+Actions=moosPlayWindows;
+
+[Desktop Action moosPlayWindows]
+Name=Play as a Windows game
+Name[ar]=تشغيل كلعبة ويندوز
+Name[de]=Als Windows-Spiel starten
+Icon=applications-games
+Exec=moos-run-foreign --game %f

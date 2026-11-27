@@ -107,7 +107,32 @@
     }
   ],
 
+  "tested_steam_games": [
+    {
+      "steam_app_id": 907740,
+      "build_id": 3795622,
+      "name": {"ar": "Project Warlock Arctic Attack", "en": "Project Warlock Arctic Attack"},
+      "scope": {
+        "ar": "على جهاز V3 بمعالج رسوم Radeon 780M، فُتحت المرحلة الأولى من الديمو عبر Steam واستجابت لحركة اللاعب والتقاط الأدوات.",
+        "en": "The Steam demo opened its first level on a V3 with Radeon 780M graphics. Player movement and item pickup were verified."
+      },
+      "checked": "2026-11-26",
+      "source": "https://github.com/moalfarras-sys/moos-image/blob/862fcc66c85de38c979d5bbabbe13439baaaca80/docs/reviews/2026-11-26-v3-windows-gaming.json"
+    }
+  ],
+
   "unsupported": [
+    {
+      "id": "ea-sports-fc-26",
+      "steam_app_id": 3405690,
+      "name": {"ar": "EA SPORTS FC 26", "en": "EA SPORTS FC 26"},
+      "reason": {
+        "ar": "تتطلب EA SPORTS FC 26 حماية EA Javelin على ويندوز. يصنّفها Steam غير مدعومة على Steam Deck. تشغيلها محلياً عبر توافق ألعاب ويندوز في MoOS غير مدعوم حالياً.",
+        "en": "EA SPORTS FC 26 requires EA Javelin on Windows. Steam rates it Unsupported on Steam Deck. Local play through Windows game compatibility on MoOS is currently unsupported."
+      },
+      "source": "https://store.steampowered.com/app/3405690/",
+      "checked": "2026-11-26"
+    },
     {
       "id": "macos",
       "name": {

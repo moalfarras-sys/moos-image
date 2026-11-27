@@ -1,0 +1,179 @@
+{
+  "date": "2026-11-26",
+  "source_base": "06f3c17c4e8d51d9569afaa21ee6e726ec9784c5",
+  "reviewed_game_api_and_launcher": "88381969dfa9250b737af5b71bc0cbb0d367f138",
+  "physical_host": {
+    "model": "Minisforum V3",
+    "edition": "MoOS desktop x86_64",
+    "booted": "44.20261126.1198",
+    "booted_image": "sha256:4b29aaf794d80c848b173c5d23b0a5abbca05510420f4a6eab0184748ab04749",
+    "rollback": "44.20261125.1191",
+    "cpu": "Ryzen 7 8840U",
+    "gpu": "Radeon 780M",
+    "session": "Plasma Wayland, external 3840x2160 60 Hz at 250 percent",
+    "power": "AC, performance profile",
+    "native_wine": "11.21",
+    "native_mesa": "26.2.7"
+  },
+  "runtime": {
+    "delivery": "Per-user Steam, Bottles, Lutris and ProtonUp-Qt installed through Mo Store on the booted image. The candidate Store API and launcher were exercised from the worktree.",
+    "steam_tool": "GE-Proton11-14, Steam Flatpak extension, Mesa 26.2.5",
+    "bottles": "MoOS Windows gaming environment, sys-wine-11.0, DXVK 3.1.1, VKD3D-Proton 3.1"
+  },
+  "windows_workloads": {
+    "stalker_call_of_pripyat": {
+      "publisher": "https://cop.stalker-game.com/cms.php?page=benchmark",
+      "installer_sha256": "8c810fba1bbb9c58fc01f4f602479886680c9f4b491dd0afe935e27083f54845",
+      "scope": "Publisher stand-alone benchmark, Windows xrEngine, scripted camera, four publisher weather scripts, one pass each. No campaign, multiplayer or input judgement.",
+      "settings": "DX11 renderer_r4, base configuration with Medium preset, windowed, VSync off. Requested 1600x900. DXVK swapchain readback 1542x844.",
+      "results": {
+        "day": {
+          "average_fps": 66.64,
+          "min_fps": 24.33,
+          "max_fps": 156.21,
+          "frame_samples": 7810
+        },
+        "rain": {
+          "average_fps": 78.41,
+          "min_fps": 23.87,
+          "max_fps": 189.03,
+          "frame_samples": 9212
+        },
+        "sunshafts": {
+          "average_fps": 65.91,
+          "min_fps": 16.54,
+          "max_fps": 152.19,
+          "frame_samples": 7744
+        },
+        "night": {
+          "average_fps": 56.04,
+          "min_fps": 10.01,
+          "max_fps": 202.93,
+          "frame_samples": 6616
+        }
+      },
+      "runtime_note": "Wine logged long critical-section waits and an unavailable EDID. Each scene wrote its own complete general and per-frame results. The desktop was in normal use and background test activity varied."
+    },
+    "xonotic": {
+      "version": "0.8.6",
+      "publisher": "https://xonotic.org/download/",
+      "archive_sha512": "cb39879e96f19abb2877588c2d50c5d3e64dd68153bec3dd1bebedf4d765e506afa419c28381d7005aed664cb1a042571c132b5b319e4308cab67745d996c2a6",
+      "scope": "Windows xonotic.exe, timed demo demos/the-big-keybench.dem via native Wine, effects-high, requested 1920x1080, windowed, VSync off",
+      "frames": 35534,
+      "seconds": 101.58,
+      "fps": 349.81,
+      "one_second_min_fps": 182,
+      "repeats": "One complete 1080p sample. A separate 720p repeat timed out.",
+      "offline_match": {
+        "arena": "Stormkeep",
+        "client": "Windows xonotic.exe, 1280x720, loopback only, online statistics disabled",
+        "observed": "Joined a deathmatch, verified the first-person HUD, a changing scoreboard and six active players including five bots."
+      }
+    },
+    "supertuxkart": {
+      "version": "1.5",
+      "publisher": "https://github.com/supertuxkart/stk-code/releases/tag/1.5",
+      "archive_sha256": "9df7e2d67e8562127a3bb633030f1bd4ee77fa9e7f0ae110897473025af8acdc",
+      "scope": "Windows executable, Wine, Vulkan, windowed 1920x1080, 10-kart automated Black Forest race, sound disabled",
+      "frames": 5402,
+      "seconds": 52.794,
+      "fps": 102.32
+    },
+    "gravitymark": {
+      "version": "1.89",
+      "publisher": "https://gravitymark.tellusim.com/",
+      "msi_sha256": "38e32b475cf93eca2085334f7421fc738fb605c5b37f35e90e06d73a54169c8f",
+      "settings": "Windows benchmark via Steam Flatpak Proton runinprefix, 1920x1080, 100000 asteroids, temporal AA, VSync off. One entire pass per API, roughly 167 seconds per scene.",
+      "results": {
+        "d3d11": {
+          "translation": "DXVK",
+          "fps": 44.8,
+          "p95_frame_ms": 28.22,
+          "median_gpu_busy_percent": 96,
+          "maximum_sampled_gpu_celsius": 75.0
+        },
+        "d3d12": {
+          "translation": "VKD3D-Proton",
+          "fps": 49.2,
+          "p95_frame_ms": 25.98,
+          "median_gpu_busy_percent": 99,
+          "maximum_sampled_gpu_celsius": 79.0
+        }
+      },
+      "controls": "WineD3D fallback averaged 30.9 FPS. A plain Wine D3D11 attempt failed to compile a shader. A direct Proton run outside a game session did not reach the scene. The successful runs selected the compatibility tool’s native graphics DLLs only for the test prefix."
+    },
+    "openscad": {
+      "version": "2021.01",
+      "scope": "Windows CAD console under the installed Store lease and prefix. CGAL export of an Arabic-named source via the native short path. The triangles match the previous export regardless of ordering.",
+      "seconds": 59.628,
+      "stl_bytes": 6829172,
+      "stl_triangles": 35552
+    },
+    "peazip": {
+      "version": "11.3.0",
+      "scope": "Installed through the booted Mo Store. Ran its receipt-verified Windows 7z backend in the app prefix, created and tested an archive, then extracted the Arabic-named file and compared its 48000 bytes.",
+      "store_launch": "A separate launch via the installed Store opened the Windows PeaZip GUI."
+    },
+    "qalculate": {
+      "windows_bundle": "5.13.2",
+      "reported_qalc_version": "5.13.0",
+      "scope": "The installed 1198 recipe returned publisher HTTP 404. The existing Store installed the pinned replacement using the reviewed worktree catalogue. With 60-digit precision the Windows CLI returned the exact integer 2^128. Its default display rounds to 3.402823669E38.",
+      "store_launch": "A separate launch via the installed Store opened the Windows Qt calculator with its keypad and expression field.",
+      "pin_verification": "The Qt release and core release serve identical bytes. The core-release URL was refused by the image catalogue gate. The final recipe uses the Qt release origin required by that gate. Full download verified SHA-256 6e8a39df926d6eae4e9139472b550a8e72a359888fd2f5ab6f060acc73fa677a and 64556496 bytes."
+    }
+  },
+  "file_manager_to_consent": {
+    "scope": "Seven interleaved runs per revision after one warmup each, actual Windows game PE and installed resolver. The same test dialogue declined folder access. This measures dispatch until consent, excluding game startup.",
+    "results": {
+      "previous": {
+        "resolver_calls": 7,
+        "median_ms": 775.47
+      },
+      "development": {
+        "resolver_calls": 1,
+        "median_ms": 313.58
+      }
+    }
+  },
+  "steam": {
+    "fc26": {
+      "app_id": 3405690,
+      "publisher": "https://store.steampowered.com/app/3405690/",
+      "valve": "https://store.steampowered.com/saleaction/ajaxgetdeckappcompatibilityreport?nAppID=3405690",
+      "deck_category": 1,
+      "steamos_category": 1,
+      "local": "Unsupported. Publisher requires EA Javelin kernel anti-cheat. No local match was played."
+    },
+    "scope": "The measurements cover the recorded Windows builds on this AMD V3. Competitive online play, 4K performance, ARM and NVIDIA machines each need separate qualification.",
+    "project_warlock_demo": {
+      "app_id": 907740,
+      "title": "Project Warlock Arctic Attack",
+      "steam_build": 3795622,
+      "title_screen_version": "1.0.0.5 Steam",
+      "publisher": "https://store.steampowered.com/app/893680/",
+      "installed_download_bytes": 1400776832,
+      "windows_program": "pw_aa_x64.exe, x86-64 PE",
+      "runtime": "Steam-owned Proton Experimental, experimental-11.0-20261112-x86_64",
+      "renderer": "Unity 5.6.2f1, Direct3D 11.0 feature level 11.1, Radeon 780M RADV",
+      "journey": "Installed in the desktop Steam library, launched through the actual client, selected Start, entered E2M1 Polar Tundra – Ellesmere, walked forward and picked up the Warlock Staff and ammunition. Checked distinct before/after level frames on V3.",
+      "earlier_results": "Before installation, a personal-client launch returned AppError_18 and anonymous SteamCMD refused with No subscription. After installation the desktop client completed its normal launch.",
+      "scope": "Single-player opening level and input. No controlled FPS measurement or complete campaign."
+    }
+  },
+  "windows_catalogue": {
+    "checked": 20,
+    "http_200": 20,
+    "content_length_matches_pin": 20,
+    "method": "HTTPS HEAD against each x86_64 Windows recipe after the Qalculate fix. This checks the published URL and size. The Store verified the downloaded bytes for the two fresh installations."
+  },
+  "desktop_integration": {
+    "date": "2026-11-27",
+    "reviewed_revision": "c3dcfb5315e26c978718f9368f8c8fb6d2279cc5",
+    "installation": "Signed 1198 on V3, with the two changed Store views and the standalone KIO game action loaded from a recorded user-local development copy.",
+    "store": "The installed Store desktop ID exposed the Games action and the native Arabic Games page showed the Steam library button. Pressing that button through its native accessibility action delivered steam://open/games to the actual Steam desktop client.",
+    "standalone_game": "Dolphin selected the Xonotic 0.8.6 Windows executable. A native KFileItemActions client triggered the enabled KIO Service action for that PE file. The running per-user gaming profile opened the Windows Xonotic main menu on V3; the window class and the captured frame matched the game.",
+    "profile": "Preparing the existing Gaming/win64 profile and checking it again succeeded. The before and after bottle.yml SHA-256 values matched.",
+    "source_ui": "Seven native Store UI tests passed. The Games control covers first-time setup, installed Steam, cloud and ARM.",
+    "scope": "The measured standalone journey ends at the rendered menu. The earlier Xonotic bot match and Steam Project Warlock level entry are separate game runs. Signed delivery of these desktop changes needs a later image."
+  }
+}

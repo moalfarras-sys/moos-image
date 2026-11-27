@@ -133,7 +133,8 @@ def main():
         matrix = generate_matrix(args.catalog, args.engines)
         if args.app:
             matrix['apps'] = [a for a in matrix['apps'] if a['id'] == args.app]
-            if not matrix['apps']:
+            matrix['unsupported'] = [entry for entry in matrix['unsupported'] if entry['id'] == args.app]
+            if not matrix['apps'] and not matrix['unsupported']:
                 parser.error('Unknown catalogue application')
             matrix['summary'] = summarize(matrix['apps'])
     except (OSError, ValueError, KeyError, TypeError) as error:

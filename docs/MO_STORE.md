@@ -340,3 +340,17 @@ upstream authentication components.
 `moos-compat-matrix` reads the same sanitized catalogue and installability policy as Mo Store. Use `--format human --language ar` or `--format json`, and optionally `--app <id>`. Its edition profiles describe shipped engines, not the current machine. Pinned recipe versions are catalogue versions, not a claim of newest upstream releases. Each row explicitly leaves application testing unassessed; an available recipe is not proof of a full install/run/update/remove journey. NVIDIA-only Android software graphics and the registry's unsupported-platform explanation remain visible. Missing inputs, rejected entries and unknown app IDs fail instead of silently publishing a partial or empty report.
 
 When a publisher uses the identical reverse-DNS ID for Linux and Android, the untyped action cannot safely select both. Finamp and Shattered Pixel Dungeon therefore prefer their verified native Linux repository recipes on both architectures. Existing APK receipts remain unlisted Android applications under the existing namespaced inventory; they are not adopted as Linux apps. `test_platform_identity.py` executes the backend action and rejects the former wrong-platform success. Additional overlapping catalogue IDs require an explicit typed-identity design, not another implicit override.
+
+
+### Windows games on Steam
+
+`moos-storectl game-compatibility 3405690` returns a schema-1 JSON record for the exact Steam App ID. The offline `moos.status` field reports the reviewed local compatibility status. An unassessed title returns `not-assessed`. A known unsupported title includes a dated source and the reason in Arabic and English.
+
+Pass `--with-valve` to request Valve’s current Steam Deck rating. The independent `steam_deck.rating` field can report `verified`, `playable`, `unsupported`, `unrated` or `unavailable`. A connection failure retains the offline MoOS result. The lookup requires no Steam sign-in.
+
+
+On an x86 desktop, the Games page offers the Steam library when Steam is installed. The same button routes a first-time setup through MoOS. The Store launcher's Games action opens that page directly.
+
+For a standalone Windows game, select **Play as a Windows game** in Dolphin’s file menu. Gaming setup creates the optional per-user gaming profile through its runtime and reads the result back. On launch the file manager asks before sharing the executable’s folder read-only for that session so the game can load its adjacent data. Catalogue programs keep their own Store profile and launcher.
+
+A `tested` game result includes the Steam build ID, the device and interaction scope, a date and the evidence link. App ID `907740` covers the Arctic Attack demo.

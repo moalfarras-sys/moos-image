@@ -21,7 +21,7 @@ MimeType=x-scheme-handler/appstream;
 Keywords=store;apps;install;moos;shop;
 Keywords[ar]=متجر;تطبيقات;تثبيت;
 # The pinned dock icon's right-click list: straight to updates or to everything installed.
-Actions=updates;library;
+Actions=updates;library;games;
 
 [Desktop Action updates]
 Name=Updates
@@ -32,3 +32,10 @@ Exec=moos-store --page=updates
 Name=My apps
 Name[ar]=تطبيقاتي
 Exec=moos-store --page=library
+
+
+[Desktop Action games]
+Name=Games
+Name[ar]=الألعاب
+Icon=applications-games
+Exec=moos-store --page=games

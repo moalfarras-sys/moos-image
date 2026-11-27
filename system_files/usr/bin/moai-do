@@ -974,7 +974,12 @@ do_setup_gaming() {
     echo "${D}يثبّت ما ينقص فقط: Steam وLutris ودعم توافق الألعاب — ويتخطّى المثبّت مسبقاً.${N}"
     echo "${D}Installs only what is missing: Steam, Lutris and game compatibility support — skips what you have.${N}"
     confirm || return 0
-    moos-setup --gaming
+    moos-setup --gaming || return $?
+    if ! /usr/libexec/moos-windows-game-profile prepare; then
+        echo "${Y}تعذّر تجهيز بيئة ألعاب ويندوز. | Could not prepare the Windows gaming environment.${N}"
+        return 1
+    fi
+    echo "${G}✓ افتح لعبة من مكتبة Steam أو اختر «تشغيل كلعبة ويندوز» من قائمة الملف. | Open your Steam library or choose Play as a Windows game in the file menu.${N}"
 }
 
 # smart-setup — install the essential apps the device plan says this machine is missing.
