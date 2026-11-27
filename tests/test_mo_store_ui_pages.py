@@ -610,9 +610,9 @@ class StoreLifecycleContract(unittest.TestCase):
     def test_windows_games_action_tracks_machine_and_installation(self):
         steps = [
             {"label": "Games", "do": "app.navigate('games'); app.machineArch = 'x86_64'; app.indexEngines = ['linux','windows']; app.appMap = Object.assign({}, app.appMap, {'com.valvesoftware.Steam': {id:'com.valvesoftware.Steam',installed:false}})",
-             "settle": 150, "until": "harness.shown('gamesLibraryAction') && harness.byName('gamesLibraryAction').label === app.local('تجهيز ألعاب ويندوز','Set up Windows games')"},
+             "settle": 150, "until": "harness.shown('gamesLibraryAction') && harness.byName('gamesLibraryAction').label === app.local('تجهيز ألعاب ويندوز','Set up Windows games') && app.systemRoutes[harness.byName('gamesLibraryAction').destination] === 'moos://do/setup-gaming'"},
             {"label": "Installed Steam", "do": "app.installedOverrides = {'com.valvesoftware.Steam':true}",
-             "settle": 150, "until": "harness.shown('gamesLibraryAction') && harness.byName('gamesLibraryAction').label === app.local('مكتبتي في Steam','My Steam library')"},
+             "settle": 150, "until": "harness.shown('gamesLibraryAction') && harness.byName('gamesLibraryAction').label === app.local('مكتبتي في Steam','My Steam library') && app.systemRoutes[harness.byName('gamesLibraryAction').destination] === 'steam://open/games'"},
             {"label": "Cloud edition", "do": "app.indexEngines = ['linux']",
              "settle": 150, "until": "!harness.shown('gamesLibraryAction')"},
             {"label": "ARM", "do": "app.machineArch = 'aarch64'; app.indexEngines = ['linux','windows']",

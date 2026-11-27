@@ -72,10 +72,8 @@ Item {
             glyphName: "gaming"
             label: win.isInstalled(steam) ? win.local("مكتبتي في Steam", "My Steam library")
                                           : win.local("تجهيز ألعاب ويندوز", "Set up Windows games")
-            triggered: function() {
-                if (win.isInstalled(steam)) win.runSelected(steam)
-                else Qt.openUrlExternally("moos://do/setup-gaming")
-            }
+            readonly property string destination: win.isInstalled(steam) ? "steam-library" : "setup-gaming"
+            triggered: function() { win.openSystemRoute(destination) }
         }
 
         // ── heading ──

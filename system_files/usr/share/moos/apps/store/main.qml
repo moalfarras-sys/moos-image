@@ -2396,6 +2396,8 @@ ApplicationWindow {
         "firmware": "moos://settings/update",
         "task-manager": "moos://app/task-manager",
         "setup-windows": "moos://do/setup-windows",
+        "setup-gaming": "moos://do/setup-gaming",
+        "steam-library": "steam://open/games",
         "setup-android": "moos://do/setup-waydroid"
     })
 
