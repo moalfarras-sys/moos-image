@@ -104,6 +104,11 @@ Top level: `_comment`, `categories[]`, `collections[]`, `featured[]`, `bundles[]
   search words each, e.g. PhotoCraft: `photoshop`, `psd`; `فوتوشوب`), `accent` ("#rrggbb"),
   `icon_url` (https, allowlisted publisher hosts only — the index uses it when there is no local
   icon; the window loads it only when the person allows app pictures from the internet).
+- A pinned Android or Windows entry may carry `v3_test` with the tested download’s
+  `sha256` and an `ar` and `en` description of the observed task. Record the V3 workload
+  in the development plan’s linked evidence. The detail page labels the version, host and
+  scope of that run. Replace or remove its evidence when the archive changes. Machine
+  requirements and installed state remain independent.
 - `install` for `source:"moos"`:
   - `webapp`: `{kind, url (https), hosts[≤24, "*." prefix allowed], identity ⊆ {google,
     microsoft, apple, github}, permissions ⊆ {notifications, microphone, camera, location,

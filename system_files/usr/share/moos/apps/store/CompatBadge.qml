@@ -28,7 +28,7 @@ Rectangle {
     border.width: 1
     border.color: win.tint(badge.ink, 0.28)
     Accessible.role: Accessible.StaticText
-    Accessible.name: win.compatTitle(badge.compat.verdict)
+    Accessible.name: win.compatTitle(badge.compat.verdict, badge.app)
 
     RowLayout {
         id: badgeRow
@@ -43,7 +43,7 @@ Rectangle {
             Layout.preferredHeight: badge.compact ? badge.win.fs(13) : badge.win.fs(16)
         }
         Text {
-            text: badge.win.compatTitle(badge.compat.verdict)
+            text: badge.win.compatTitle(badge.compat.verdict, badge.app)
             color: badge.ink
             font.family: badge.win.uiFont
             font.pixelSize: badge.compact ? badge.win.typePx(11) : badge.win.typePx(13)

@@ -612,8 +612,12 @@ ApplicationWindow {
         return { known: true, verdict: verdict, reasons: limits, notes: notes }
     }
 
-    function compatTitle(verdict) {
+    function compatTitle(verdict, app) {
         if (verdict === "blocked") return win.local("غير متاح هنا", "Not available here")
+        const kind = win.appKind(app)
+        if (kind === "android" || kind === "windows")
+            return verdict === "warn" ? win.local("راجع متطلبات التشغيل", "Check requirements")
+                                      : win.local("يلبّي متطلبات التشغيل", "Meets requirements")
         if (verdict === "warn") return win.local("يعمل مع بعض القيود", "Works with limits")
         return win.local("يعمل على هذا الجهاز", "Works on this PC")
     }

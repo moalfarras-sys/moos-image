@@ -27,6 +27,15 @@ Item {
     readonly property string kind: win.appKind(appPage.app)
     readonly property bool installed: win.isInstalled(appPage.app)
     readonly property var compat: win.compatOf(appPage.app)
+    readonly property var curated: app && win.curatedMap[app.id] || null
+    readonly property var recipe: curated && curated.install
+    readonly property bool pinnedApp: !!recipe && (recipe.kind === "android" || recipe.kind === "windows-portable")
+    readonly property string testedJourney: {
+        if (!pinnedApp || !curated.v3_test) return ""
+        const archive = recipe.kind === "android" ? recipe : (recipe.downloads || {}).x86_64
+        if (!archive || !archive.sha256 || archive.sha256 !== curated.v3_test.sha256) return ""
+        return win.local(curated.v3_test.ar, curated.v3_test.en)
+    }
     readonly property color brand: win.appColour(appPage.app)
     readonly property color base: win.plateColour(appPage.brand)
     readonly property color ink: win.inkOn(appPage.base)
@@ -113,7 +122,7 @@ Item {
         var win = appPage.win
         var out = []
         if (appPage.compat.known)
-            out.push({ caption: win.local("على هذا الجهاز", "On this PC"), value: win.compatTitle(appPage.compat.verdict),
+            out.push({ caption: win.local("على هذا الجهاز", "On this PC"), value: win.compatTitle(appPage.compat.verdict, app),
                        detail: appPage.compat.reasons.length ? win.compatReasonText(appPage.compat.reasons[0]) : "",
                        glyph: appPage.compat.verdict === "blocked" ? "danger" : appPage.compat.verdict === "warn" ? "warning" : "check",
                        tone: appPage.compat.verdict === "blocked" ? win.dangerInk : appPage.compat.verdict === "warn" ? win.warningInk : win.positiveInk })
@@ -432,6 +441,22 @@ Item {
                         }
                     }
                 }
+            }
+
+            Text {
+                objectName: "storeTestedJourney"
+                Layout.fillWidth: true
+                visible: appPage.pinnedApp
+                text: appPage.testedJourney
+                      ? appPage.win.local("اختُبر الإصدار %1 على MoOS بجهاز V3. ", "Version %1 was tested on a MoOS V3. ")
+                            .arg(appPage.recipe.version) + appPage.testedJourney
+                      : appPage.win.local("لم يُسجّل اختبار تشغيل لهذا الإصدار على MoOS بعد.",
+                                          "This version has no recorded MoOS run yet.")
+                textFormat: Text.PlainText
+                color: appPage.win.txt
+                font.family: appPage.win.uiFont
+                font.pixelSize: appPage.win.typePx(14)
+                wrapMode: Text.WordWrap
             }
 
             // ── screenshots ──

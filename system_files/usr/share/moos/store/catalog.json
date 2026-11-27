@@ -6093,6 +6093,11 @@
         "مجسمات",
         "ثلاثي الأبعاد"
       ],
+      "v3_test": {
+        "sha256": "fb0caabf5bbc89f8f2f80c10b79ae64d697aaff6efd58b2756f5d6270edb7ba7",
+        "ar": "صُدّر نموذج ثلاثي الأبعاد يحوي 35,552 مثلثاً.",
+        "en": "Exported a 3D model with 35,552 triangles."
+      },
       "install": {
         "kind": "windows-portable",
         "version": "2021.01",
@@ -6175,6 +6180,11 @@
         "ضغط",
         "ملفات"
       ],
+      "v3_test": {
+        "sha256": "3fb15b9852c94ba5ee8d1af5568fad0cad0999854225b4432b9c98b315a4f768",
+        "ar": "فُتحت الواجهة، وضُغط ملف باسم عربي واستُعيد بمحتواه الأصلي.",
+        "en": "Opened the app and verified an archive round trip with an Arabic filename."
+      },
       "install": {
         "kind": "windows-portable",
         "version": "11.3.0",
@@ -6837,6 +6847,331 @@
         "بيانات",
         "رسوم بيانية"
       ]
+    },
+    {
+      "id": "io.anuke.mindustry",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "gaming",
+      "en": "Mindustry",
+      "ar": "مايندستري",
+      "desc_en": "Build supply lines and defend an automated factory.",
+      "desc_ar": "ابنِ خطوط إمداد ودافع عن مصنع آلي.",
+      "developer": "Anuken",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "games",
+        "mindustry"
+      ],
+      "keywords_ar": [
+        "ألعاب",
+        "مايندستري"
+      ],
+      "icon_url": "https://f-droid.org/repo/io.anuke.mindustry/en-US/icon_Eno3XvqCZUcHRm3eMjiUleAxgzLopPe6-hkI7BHx1lU=.png",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "v3_test": {
+        "sha256": "fca4c9d9d2218eb6f9d0a810abb0f8bf66863abcc5362319882e5a7c3cee0290",
+        "ar": "ظهرت القائمة الرئيسية، وبقي عرض اللعبة صغيراً بعد التكبير على الشاشة الخارجية.",
+        "en": "Reached the main menu. The game window was too small after maximizing on the external display."
+      },
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/io.anuke.mindustry_1116.apk",
+        "sha256": "fca4c9d9d2218eb6f9d0a810abb0f8bf66863abcc5362319882e5a7c3cee0290",
+        "size": 78190876,
+        "package": "io.anuke.mindustry",
+        "version": "8-fdroid-160.8",
+        "signer": "fbd07935ef2e2ada5d918aea62ec25dd7dda7407492c6c3d1582b59b6cb84bed",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "net.minetest.minetest",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "gaming",
+      "en": "Luanti · Android",
+      "ar": "لوانتي · أندرويد",
+      "desc_en": "Download a game in Luanti to explore and build voxel worlds.",
+      "desc_ar": "نزّل لعبة من داخل لوانتي لاستكشاف العوالم المكعّبة والبناء فيها.",
+      "developer": "Luanti contributors",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "games",
+        "luanti"
+      ],
+      "keywords_ar": [
+        "ألعاب",
+        "لوانتي"
+      ],
+      "icon_url": "https://f-droid.org/repo/net.minetest.minetest/en-US/icon_3pxoIlzJ_qVQcZm_B8IMT9n_tzwE6mUa81ifVOdGbB0=.png",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/net.minetest.minetest_5180000.apk",
+        "sha256": "56789725333bed954dae3cc5e8d0ac281a821d962856ce2ade2fe5a12b9f8090",
+        "size": 43630259,
+        "package": "net.minetest.minetest",
+        "version": "5.18.0",
+        "signer": "e7d6047c1d75719811b317964a4ab1c0ad3b003bc3b8b3d72925b4d605ca45ee",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "de.rwth_aachen.phyphox",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "cpu",
+      "en": "phyphox",
+      "ar": "في فوكس",
+      "desc_en": "Record physics experiments using the sensors exposed to Android.",
+      "desc_ar": "سجّل تجارب فيزيائية بالحساسات المتاحة لأندرويد.",
+      "developer": "RWTH Aachen University",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "science",
+        "phyphox"
+      ],
+      "keywords_ar": [
+        "علوم",
+        "في فوكس"
+      ],
+      "icon_url": "https://f-droid.org/repo/de.rwth_aachen.phyphox/en-US/icon_hvY5k90m7Ep9budZBIoMoESf1kpbW1pIhfpH0tFSPrE=.png",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/de.rwth_aachen.phyphox_1020105.apk",
+        "sha256": "a73edd3c770a771889ec74bc8ee56d9795ef93504ec63a69964c850c36e16a33",
+        "size": 11496542,
+        "package": "de.rwth_aachen.phyphox",
+        "version": "1.2.1",
+        "signer": "de2141760030164a6e2b155f91843b91f060cb16644809542addbb04cac2f30c",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "net.sourceforge.opencamera",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "camera",
+      "en": "Open Camera",
+      "ar": "أوبن كاميرا",
+      "desc_en": "Set exposure and focus on cameras available to Android.",
+      "desc_ar": "اضبط التعريض والتركيز للكاميرات المتاحة لأندرويد.",
+      "developer": "Mark Harman",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "photography",
+        "open camera"
+      ],
+      "keywords_ar": [
+        "تصوير",
+        "أوبن كاميرا"
+      ],
+      "icon_url": "https://f-droid.org/repo/net.sourceforge.opencamera/en-US/icon_9frkGlPo9C52FJi_DpMJOAc-8F_tSLxW2hNmHPLL2yw=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/net.sourceforge.opencamera_96.apk",
+        "sha256": "ca5672ca8c7174554ca0b07b5b26e505817a05142f571cf2abe67e790c30249c",
+        "size": 4973923,
+        "package": "net.sourceforge.opencamera",
+        "version": "1.56.2",
+        "signer": "438991c968e8d308ca34078d37511c90c502d596baf9f0d0c5fbd1c9bf67df6d",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.kde.kdeconnect_tp",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "network",
+      "en": "KDE Connect · Android",
+      "ar": "كيدي كونكت · أندرويد",
+      "desc_en": "Pair Android with a reachable device to share files and links.",
+      "desc_ar": "أقرن أندرويد بجهاز يمكن الوصول إليه لتبادل الملفات والروابط.",
+      "developer": "Albert Vaca and contributors",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "connectivity",
+        "device pairing"
+      ],
+      "keywords_ar": [
+        "اتصال",
+        "اقتران الأجهزة"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.kde.kdeconnect_tp/en-US/icon_XJXXjUP0BrUH-hGNaCgoKnwUsJ0c2QNgTdISfc_KivI=.png",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.kde.kdeconnect_tp_13703.apk",
+        "sha256": "95842916f30215c56b051d2068b258cfb156de93984a4ea79e7ce250bb22e14f",
+        "size": 7356072,
+        "package": "org.kde.kdeconnect_tp",
+        "version": "1.37.3",
+        "signer": "79b50031486746dffbc746f48fb0eb62fc7bb0ae7b976e7d6507b2c078840d92",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "qview-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "image",
+      "en": "qView · Windows",
+      "ar": "كيو فيو · ويندوز",
+      "desc_en": "Browse and zoom images using a lightweight viewer.",
+      "desc_ar": "تصفّح الصور وكبّرها باستخدام عارض خفيف.",
+      "developer": "jurplel",
+      "accent": "#23527c",
+      "engine": "windows",
+      "keywords_en": [
+        "pictures",
+        "qview"
+      ],
+      "keywords_ar": [
+        "صور",
+        "كيو فيو"
+      ],
+      "arch": [
+        "x86_64"
+      ],
+      "v3_test": {
+        "sha256": "dce9dc09be15c003d5bf4a73971b7e66790c66692db163813b9f266341bcaa25",
+        "ar": "عُرضت صورة بدقة 2400 × 1600 داخل البرنامج.",
+        "en": "Opened a 2400 × 1600 image in the viewer."
+      },
+      "install": {
+        "kind": "windows-portable",
+        "version": "7.1",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/jurplel/qView/releases/download/7.1/qView-7.1-win64.zip",
+            "size": 37959993,
+            "sha256": "dce9dc09be15c003d5bf4a73971b7e66790c66692db163813b9f266341bcaa25"
+          }
+        },
+        "exe": "qView/qView.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "notepadnext-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "document",
+      "en": "Notepad Next · Windows",
+      "ar": "نوتباد نكست · ويندوز",
+      "desc_en": "Edit text and source code with tabs and syntax highlighting.",
+      "desc_ar": "حرّر النصوص والشيفرة بألسنة وتلوين للصيغ.",
+      "developer": "Notepad Next contributors",
+      "accent": "#23527c",
+      "engine": "windows",
+      "keywords_en": [
+        "editor",
+        "notepad next"
+      ],
+      "keywords_ar": [
+        "تحرير",
+        "نوتباد نكست"
+      ],
+      "arch": [
+        "x86_64"
+      ],
+      "v3_test": {
+        "sha256": "148aa88d706bb67a7c1f3727953ed686204be52876336971634b0223e6ed2148",
+        "ar": "فُتح ملف نصي عربي وحُفظ تعديل بلوحة المفاتيح.",
+        "en": "Opened an Arabic text file and saved a keyboard edit."
+      },
+      "install": {
+        "kind": "windows-portable",
+        "version": "0.15",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/dail8859/NotepadNext/releases/download/v0.15/NotepadNext-v0.15-win64.zip",
+            "size": 14671502,
+            "sha256": "148aa88d706bb67a7c1f3727953ed686204be52876336971634b0223e6ed2148"
+          }
+        },
+        "exe": "NotepadNext.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "supertuxkart-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "gaming",
+      "en": "SuperTuxKart · Windows",
+      "ar": "سوبر تكس كارت · ويندوز",
+      "desc_en": "Race karts on colourful tracks and compete against other drivers.",
+      "desc_ar": "سابق منافسيك على حلبات ملوّنة واختر عربة السباق المناسبة لك.",
+      "developer": "SuperTuxKart Team",
+      "accent": "#23527c",
+      "engine": "windows",
+      "keywords_en": [
+        "kart",
+        "racing",
+        "supertuxkart"
+      ],
+      "keywords_ar": [
+        "سباق",
+        "سيارات",
+        "سوبر تكس كارت"
+      ],
+      "arch": [
+        "x86_64"
+      ],
+      "v3_test": {
+        "sha256": "9df7e2d67e8562127a3bb633030f1bd4ee77fa9e7f0ae110897473025af8acdc",
+        "ar": "اكتمل سباق آلي شاركت فيه عشر عربات.",
+        "en": "Completed an automated race with ten karts."
+      },
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.5",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/supertuxkart/stk-code/releases/download/1.5/SuperTuxKart-1.5-win.zip",
+            "size": 922430727,
+            "sha256": "9df7e2d67e8562127a3bb633030f1bd4ee77fa9e7f0ae110897473025af8acdc"
+          }
+        },
+        "exe": "SuperTuxKart-1.5-win/stk-code/build-x86_64/bin/supertuxkart.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
     }
   ]
 }

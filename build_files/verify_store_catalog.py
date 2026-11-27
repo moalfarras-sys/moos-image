@@ -107,7 +107,7 @@ CATEGORY_IDS = {"ess", "comm", "work", "art", "media", "fun", "dev", "ai", "edu"
 TOP_LEVEL_KEYS = {"_comment", "categories", "collections", "featured", "bundles", "apps"}
 APP_KEYS = {"id", "source", "cat", "glyph", "en", "ar", "desc_en", "desc_ar", "developer",
             "keywords_en", "keywords_ar", "accent", "icon_url", "arch", "engine", "popular",
-            "preselect", "install"}
+            "preselect", "install", "v3_test"}
 FREEDESKTOP_MAIN_CATEGORIES = {"AudioVideo", "Audio", "Video", "Development", "Education",
                                "Game", "Graphics", "Network", "Office", "Science", "Settings",
                                "System", "Utility"}
@@ -259,6 +259,9 @@ DOWNLOAD_RULES = {
     'explorerplusplus-windows': ("github.com", r"/derceg/explorerplusplus/releases/download/version\-{v}/explorerpp_x64\.zip", {"x86_64": ("", "")}),
     'nomacs-windows': ("github.com", r"/nomacs/nomacs/releases/download/{v}/nomacs\-portable\-win\.zip", {"x86_64": ("", "")}),
     'xournalpp-windows': ("github.com", r"/xournalpp/xournalpp/releases/download/v{v}/xournalpp\-{v}\-windows\-portable\-AMD64\.zip", {"x86_64": ("", "")}),
+    'qview-windows': ("github.com", r"/jurplel/qView/releases/download/{v}/qView-{v}-win64\.zip", {"x86_64": ("", "")}),
+    'notepadnext-windows': ("github.com", r"/dail8859/NotepadNext/releases/download/v{v}/NotepadNext-v{v}-win64\.zip", {"x86_64": ("", "")}),
+    'supertuxkart-windows': ("github.com", r"/supertuxkart/stk-code/releases/download/{v}/SuperTuxKart-{v}-win\.zip", {"x86_64": ("", "")}),
     'notepad4-windows': ("github.com", r"/zufuliu/notepad4/releases/download/v{v}/Notepad4_i18n_x64_v{v}\.zip", {"x86_64": ("", "")}),
 }
 # Android APKs come from the main F-Droid repository only, never a mirror: mirrors lag and drop
@@ -784,6 +787,25 @@ def check_catalog(catalog, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR,
         if engine is not None:
             require(engine in {"windows", "android"},
                     f"{label}.engine must be 'windows' or 'android', not {engine!r}")
+        if "v3_test" in app:
+            review = app["v3_test"]
+            require(kind_hint in {"android", "windows-portable"},
+                    f"{label}.v3_test requires a pinned Android or Windows recipe")
+            if isinstance(review, dict):
+                require(set(review) == {"sha256", "ar", "en"}, f"{label}.v3_test has invalid fields")
+                reviewed_digest = required_text(review, "sha256", f"{label}.v3_test", SHA256_RE)
+                package = inst if isinstance(inst, dict) else {}
+                if kind_hint == "windows-portable":
+                    downloads = package.get("downloads")
+                    package = downloads.get("x86_64") if isinstance(downloads, dict) else None
+                require(isinstance(package, dict) and reviewed_digest == package.get("sha256"),
+                        f"{label}.v3_test must match the reviewed V3 download")
+                for field in ("ar", "en"):
+                    where = f"{label}.v3_test"
+                    text_rules(required_text(review, field, where), f"{where}.{field}",
+                               arabic=field == "ar", limit=160)
+            else:
+                require(False, f"{label}.v3_test must be an object")
         if "accent" in app:
             accent_rule(app["accent"], f"{label}.accent", 3.0)
 

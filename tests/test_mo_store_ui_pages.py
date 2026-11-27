@@ -607,6 +607,36 @@ def lifecycle_contract_walk() -> list[dict]:
 
 @unittest.skipUnless(RUNTIME, "requires the native MoOS Qt runtime (moos-qml-shell)")
 class StoreLifecycleContract(unittest.TestCase):
+    def test_observed_workload_follows_archive_in_both_languages(self):
+        fixture = json.loads((ROOT / "system_files/usr/share/moos/store/catalog.json").read_text())
+        item = next(app for app in fixture["apps"] if app["id"] == "peazip-windows")
+        archive = item["install"]["downloads"]["x86_64"]
+        def present(entry):
+            return "app.curatedMap = { 'peazip-windows': " + json.dumps(entry) + " }; "
+        review = item["v3_test"]
+        current = present(item)
+        archive["sha256"] = "0" * 64
+        changed = present(item)
+        label = "harness.byName('storeTestedJourney')"
+        steps = [
+            {"label": "Observed Windows journey", "do": current + "app.openDetails(app.curatedMap['peazip-windows'])",
+             "until": f"{label}.visible && {label}.text.includes(app.local("
+                      + json.dumps(review["ar"]) + "," + json.dumps(review["en"]) + "))"},
+            {"label": "New archive has no previous acceptance", "do": changed,
+             "until": f"{label}.visible && {label}.text.includes(app.local('لم يُسجّل','no recorded'))"},
+            {"label": "No workload notice on Linux page", "do": "app.openDetails(app.appById('org.example.Paint'))",
+             "until": f"!{label}.visible"},
+        ]
+        for step in steps:
+            step.update(settle=150, timeout=5000)
+        for locale in ("ar", "en"):
+            with self.subTest(locale=locale), tempfile.TemporaryDirectory() as directory:
+                variant = dict(VARIANTS[0], language=locale)
+                result = run_walk(variant, STORE, Path(directory) / "store", steps=steps)
+                self.assertEqual(result.returncode, 0, result.stderr[-6000:])
+                self.assertIn(f"STORE WALK DONE {len(steps)}", result.stderr)
+                self.assertEqual(problems(result.stderr), [], result.stderr[-6000:])
+
     def test_windows_games_action_tracks_machine_and_installation(self):
         steps = [
             {"label": "Games", "do": "app.navigate('games'); app.machineArch = 'x86_64'; app.indexEngines = ['linux','windows']; app.appMap = Object.assign({}, app.appMap, {'com.valvesoftware.Steam': {id:'com.valvesoftware.Steam',installed:false}})",
