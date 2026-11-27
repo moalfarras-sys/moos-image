@@ -129,6 +129,7 @@ class Availability(unittest.TestCase):
             env = {**os.environ, "HOME": home, "XDG_CACHE_HOME": home, "MOOS_APP_ENGINES": str(ENGINES)}
             command = [sys.executable, str(TOOL.with_name('moos-storectl')), 'game-compatibility']
             for app, code, expected in (("3405690", 0, "unsupported"), ("620", 0, "not-assessed"),
+                                        ("907740", 0, "tested"), ("893680", 0, "not-assessed"),
                                         ("not-an-id", 2, None)):
                 result = subprocess.run([*command, app], text=True, capture_output=True,
                                         env=env, timeout=10)
@@ -139,6 +140,9 @@ class Availability(unittest.TestCase):
                     self.assertEqual(data["steam_app_id"], int(app))
                     self.assertEqual(data["moos"]["status"], expected)
                     self.assertNotIn("steam_deck", data)
+                    if expected == "tested":
+                        self.assertEqual(data["moos"]["build_id"], 3795622)
+                        self.assertIn("demo", data["moos"]["scope"]["en"])
                 else:
                     self.assertEqual(data["state"], "failed")
             self.assertEqual(list(Path(home).iterdir()), [])

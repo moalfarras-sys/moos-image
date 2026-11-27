@@ -314,7 +314,7 @@ print(next((d.get("checksum", "") for d in deployments if d.get("booted")), ""))
     return 1
 }
 
-usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk> | --app <id>" >&2; exit 2; }
+usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk> | --game <file.exe> | --app <id>" >&2; exit 2; }
 
 # ---------------------------------------------------------------------------------
 # One decision for every foreign file, from the shared engine registry.
@@ -343,6 +343,35 @@ run_with_engine() {
     if [ -n "$preflight_reason" ]; then
         notify "$preflight_reason"
         exit 2
+    fi
+
+    if [ "${2:-}" = "--game" ]; then
+        architecture="$(engine_field "$decision" preflight_architecture)"
+        case "$architecture" in
+            x86|x86_64) ;;
+            *) notify "تعذّرت قراءة نوع لعبة ويندوز | Could not identify the Windows game executable"; return 2 ;;
+        esac
+        if [ "$(engine_field "$decision" chosen)" != "com.usebottles.bottles" ]; then
+            moos-open moos://do/setup-gaming
+            return $?
+        fi
+        local game_profile="${MOOS_GAME_PROFILE:-/usr/libexec/moos-windows-game-profile}"
+        if ! "$game_profile" check; then
+            if ask "تحتاج اللعبة إلى إعداد بيئة ألعاب ويندوز. قد يتطلب ذلك تنزيلاً لمرة واحدة.\n\nPrepare Windows gaming support? This may need a one-time download."; then
+                moos-open moos://do/setup-gaming
+            fi
+            return 0
+        fi
+        local directory
+        directory="$(dirname -- "$target")"
+        ask "تحتاج اللعبة إلى ملفات مجلدها. هل تسمح بقراءته خلال التشغيل؟\n\n$directory\n\nAllow this game to read its folder for this session?" || return 0
+        notify "جارٍ فتح اللعبة | Opening game"
+        if ! flatpak run --filesystem="$directory:ro" --command=bottles-cli com.usebottles.bottles \
+                run -b "MoOS Windows" -e "$target"; then
+            notify "تعذّر تشغيل اللعبة | Could not start the game"
+            return 1
+        fi
+        return 0
     fi
 
     if [ "$(engine_field "$decision" ready)" = "yes" ]; then
@@ -430,7 +459,9 @@ apk_install() {
     echo
 }
 
+game_mode=""
 case "${1:-}" in
+    --game) shift; [ "$#" -eq 1 ] || usage; game_mode=--game ;;
     --apk-install) shift; [ -n "${1:-}" ] || usage; apk_install "$1"; exit $? ;;
     --wine-run) shift; [ -n "${1:-}" ] || usage; wine_run "$1"; exit $? ;;
     --app) shift; [ "$#" -eq 1 ] || usage
@@ -448,6 +479,11 @@ esac
 
 ext="${file##*.}"
 ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+if [ -n "$game_mode" ]; then
+    [ "$ext" = exe ] || usage
+    run_with_engine "$(realpath -e -- "$file")" "$game_mode"
+    exit $?
+fi
 
 case "$ext" in
     # ── Windows ──────────────────────────────────────────────────────────────────

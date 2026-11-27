@@ -347,3 +347,10 @@ When a publisher uses the identical reverse-DNS ID for Linux and Android, the un
 `moos-storectl game-compatibility 3405690` returns a schema-1 JSON record for the exact Steam App ID. The offline `moos.status` field reports the reviewed local compatibility status. An unassessed title returns `not-assessed`. A known unsupported title includes a dated source and the reason in Arabic and English.
 
 Pass `--with-valve` to request Valve’s current Steam Deck rating. The independent `steam_deck.rating` field can report `verified`, `playable`, `unsupported`, `unrated` or `unavailable`. A connection failure retains the offline MoOS result. The lookup requires no Steam sign-in.
+
+
+On an x86 desktop, the Games page offers the Steam library when Steam is installed. The same button routes a first-time setup through MoOS. The Store launcher's Games action opens that page directly.
+
+For a standalone Windows game, select **Play as a Windows game** in Dolphin’s file menu. Gaming setup creates the optional per-user gaming profile through its runtime and reads the result back. On launch the file manager asks before sharing the executable’s folder read-only for that session so the game can load its adjacent data. Catalogue programs keep their own Store profile and launcher.
+
+A `tested` game result includes the Steam build ID, the device and interaction scope, a date and the evidence link. App ID `907740` covers the Arctic Attack demo.

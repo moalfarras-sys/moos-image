@@ -107,6 +107,20 @@
     }
   ],
 
+  "tested_steam_games": [
+    {
+      "steam_app_id": 907740,
+      "build_id": 3795622,
+      "name": {"ar": "Project Warlock Arctic Attack", "en": "Project Warlock Arctic Attack"},
+      "scope": {
+        "ar": "على جهاز V3 بمعالج رسوم Radeon 780M، فُتحت المرحلة الأولى من الديمو عبر Steam واستجابت لحركة اللاعب والتقاط الأدوات.",
+        "en": "The Steam demo opened its first level on a V3 with Radeon 780M graphics. Player movement and item pickup were verified."
+      },
+      "checked": "2026-11-26",
+      "source": "https://github.com/moalfarras-sys/moos-image/blob/862fcc66c85de38c979d5bbabbe13439baaaca80/docs/reviews/2026-11-26-v3-windows-gaming.json"
+    }
+  ],
+
   "unsupported": [
     {
       "id": "ea-sports-fc-26",

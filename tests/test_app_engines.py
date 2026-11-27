@@ -151,6 +151,63 @@ echo '{"name":{"ar":"اختبار","en":"Test"},"ready":true,"chosen":{"id":"com
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(calls.read_text().splitlines(), ["resolve", "consent"])
 
+    def test_gaming_profile_first_use_readback_and_personal_profiles(self):
+        import runpy
+        profile = runpy.run_path(str(RESOLVER.with_name("moos-windows-game-profile")))
+        ready = {"Name": "MoOS Windows", "Path": "MoOS-Windows", "Environment": "Gaming",
+                 "Arch": "win64", "Runner": "r", "DXVK": "dx", "VKD3D": "vk",
+                 "Parameters": {"dxvk": True, "vkd3d": True}}
+        def reply(rows):
+            return subprocess.CompletedProcess([], 0, json.dumps(rows).encode(), b"")
+        missing = subprocess.CompletedProcess([], 1, b"", b"FileNotFoundError: [Errno 2] No such file or directory: '/var/data/bottles/bottles'\n")
+        with mock.patch.dict(os.environ, {"XDG_RUNTIME_DIR": str(self.root)}), mock.patch(
+                "subprocess.run") as run:
+            for rows in ({'MoOS Windows': dict(ready, Environment='Application')},
+                         {'Personal': dict(ready, Name='Personal')}):
+                run.reset_mock()
+                run.return_value = reply(rows)
+                self.assertEqual(profile["main"](["prepare"]), 1)
+                self.assertEqual(run.call_count, 1)
+            run.reset_mock()
+            run.side_effect = [missing, reply({}), reply({'MoOS Windows': ready})]
+            self.assertEqual(profile["main"](["prepare"]), 0)
+            self.assertIn("new", run.call_args_list[1].args[0])
+            run.reset_mock()
+            run.side_effect = [reply({'MoOS Windows': ready})]
+            self.assertEqual(profile["main"](["prepare"]), 0)
+            self.assertEqual(run.call_count, 1)
+            run.side_effect = [reply({}), reply({}), reply({})]
+            self.assertEqual(profile["main"](["prepare"]), 1)
+
+    def test_dolphin_game_action_uses_managed_profile_only_after_folder_consent(self):
+        import configparser
+        menu = configparser.ConfigParser(interpolation=None)
+        menu.read(ROOT / 'system_files/usr/share/kio/servicemenus/moos-play-windows.desktop')
+        self.assertEqual(menu['Desktop Action moosPlayWindows']['Exec'], 'moos-run-foreign --game %f')
+        target = self.root / 'لعبة test.exe'
+        target.touch()
+        calls = self.root / "calls"
+        scripts = {"profile": 'echo "$1" >> "$CALLS"',
+                   "kdialog": 'exit "$CHOICE"',
+                   "notify-send": "exit 0",
+                   "flatpak": 'printf "%s\\n" "$@" >> "$CALLS"',
+                   "resolve": """echo '{"name":{"ar":"ويندوز","en":"Windows"},"chosen":{"id":"com.usebottles.bottles"},"preflight":{"architecture":"x86_64"}}'"""}
+        for name, script in scripts.items():
+            f = self.root / name
+            f.write_text("#!/bin/sh\n" + script + "\n")
+            f.chmod(0o755)
+        env = dict(os.environ, PATH=str(self.root) + ":/usr/bin:/bin", CALLS=str(calls),
+                   MOOS_APP_ENGINE=str(self.root/"resolve"), MOOS_GAME_PROFILE=str(self.root/"profile"))
+        for choice in ("0", "1"):
+            calls.write_text("")
+            result = subprocess.run([str(RUNNER), "--game", str(target)], env=dict(env, CHOICE=choice),
+                                    capture_output=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            expected = ["check"] if choice == "0" else [
+                "check", "run", "--filesystem=" + str(self.root) + ":ro", "--command=bottles-cli",
+                "com.usebottles.bottles", "run", "-b", "MoOS Windows", "-e", str(target)]
+            self.assertEqual(calls.read_text().splitlines(), expected)
+
     def test_android_readiness_requires_a_successful_known_status(self):
         for code, stdout, stderr, ready in (
             (0, 'Session:\tSTOPPED\nVendor type:\tMAINLINE\n', '', True),

@@ -607,6 +607,23 @@ def lifecycle_contract_walk() -> list[dict]:
 
 @unittest.skipUnless(RUNTIME, "requires the native MoOS Qt runtime (moos-qml-shell)")
 class StoreLifecycleContract(unittest.TestCase):
+    def test_windows_games_action_tracks_machine_and_installation(self):
+        steps = [
+            {"label": "Games", "do": "app.navigate('games'); app.machineArch = 'x86_64'; app.indexEngines = ['linux','windows']; app.appMap = Object.assign({}, app.appMap, {'com.valvesoftware.Steam': {id:'com.valvesoftware.Steam',installed:false}})",
+             "settle": 150, "until": "harness.shown('gamesLibraryAction') && harness.byName('gamesLibraryAction').label === app.local('تجهيز ألعاب ويندوز','Set up Windows games')"},
+            {"label": "Installed Steam", "do": "app.installedOverrides = {'com.valvesoftware.Steam':true}",
+             "settle": 150, "until": "harness.shown('gamesLibraryAction') && harness.byName('gamesLibraryAction').label === app.local('مكتبتي في Steam','My Steam library')"},
+            {"label": "Cloud edition", "do": "app.indexEngines = ['linux']",
+             "settle": 150, "until": "!harness.shown('gamesLibraryAction')"},
+            {"label": "ARM", "do": "app.machineArch = 'aarch64'; app.indexEngines = ['linux','windows']",
+             "settle": 150, "until": "!harness.shown('gamesLibraryAction')"},
+        ]
+        with tempfile.TemporaryDirectory(prefix="mo-store-windows-games-") as directory:
+            result = run_walk(VARIANTS[0], STORE, Path(directory) / "store", steps=steps)
+            self.assertEqual(result.returncode, 0, result.stderr[-6000:])
+            self.assertIn(f"STORE WALK DONE {len(steps)}", result.stderr)
+            self.assertEqual(problems(result.stderr), [], result.stderr[-6000:])
+
     def test_installed_vendor_actions_and_actual_windows_removal_choices(self):
         steps = lifecycle_contract_walk()
         with tempfile.TemporaryDirectory(prefix="mo-store-lifecycle-") as directory:

@@ -269,12 +269,19 @@ def game_compatibility(app_id: str, *, with_valve: bool = False) -> dict:
     if not re.fullmatch(r"[1-9][0-9]{0,9}", app_id) or int(app_id) > 4294967295:
         raise ValueError("Expected a positive numeric Steam App ID (uint32)")
     number = int(app_id)
-    row = next((item for item in load()["unsupported"]
+    registry = load()
+    row = next((item for item in registry["unsupported"]
                 if item.get("steam_app_id") == number), None)
     local = {"status": "not-assessed"}
     if row:
         local = {"status": "unsupported", **{key: row[key]
                  for key in ("name", "reason", "checked", "source")}}
+    else:
+        tested = next((item for item in registry.get("tested_steam_games", [])
+                       if item["steam_app_id"] == number), None)
+        if tested:
+            local = {"status": "tested", **{key: tested[key] for key in
+                     ("build_id", "name", "scope", "checked", "source")}}
     report = {"schema": 1, "steam_app_id": number, "moos": local}
     if with_valve:
         url = ("https://store.steampowered.com/saleaction/"
