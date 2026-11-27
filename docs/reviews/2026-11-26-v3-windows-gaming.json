@@ -144,7 +144,7 @@
       "steamos_category": 1,
       "local": "Unsupported. Publisher requires EA Javelin kernel anti-cheat. No local match was played."
     },
-    "scope": "The measurements cover Windows payloads on this AMD V3. A Steam library match, 4K performance, anti-cheat multiplayer, ARM and NVIDIA machines each need separate qualification.",
+    "scope": "The measurements cover the recorded Windows builds on this AMD V3. Competitive online play, 4K performance, ARM and NVIDIA machines each need separate qualification.",
     "project_warlock_demo": {
       "app_id": 907740,
       "title": "Project Warlock Arctic Attack",
@@ -165,5 +165,15 @@
     "http_200": 20,
     "content_length_matches_pin": 20,
     "method": "HTTPS HEAD against each x86_64 Windows recipe after the Qalculate fix. This checks the published URL and size. The Store verified the downloaded bytes for the two fresh installations."
+  },
+  "desktop_integration": {
+    "date": "2026-11-27",
+    "reviewed_revision": "c3dcfb5315e26c978718f9368f8c8fb6d2279cc5",
+    "installation": "Signed 1198 on V3, with the two changed Store views and the standalone KIO game action loaded from a recorded user-local development copy.",
+    "store": "The installed Store desktop ID exposed the Games action and the native Arabic Games page showed the Steam library button. Pressing that button through its native accessibility action delivered steam://open/games to the actual Steam desktop client.",
+    "standalone_game": "Dolphin selected the Xonotic 0.8.6 Windows executable. A native KFileItemActions client triggered the enabled KIO Service action for that PE file. The running per-user gaming profile opened the Windows Xonotic main menu on V3; the window class and the captured frame matched the game.",
+    "profile": "Preparing the existing Gaming/win64 profile and checking it again succeeded. The before and after bottle.yml SHA-256 values matched.",
+    "source_ui": "Seven native Store UI tests passed. The Games control covers first-time setup, installed Steam, cloud and ARM.",
+    "scope": "The measured standalone journey ends at the rendered menu. The earlier Xonotic bot match and Steam Project Warlock level entry are separate game runs. Signed delivery of these desktop changes needs a later image."
   }
 }
