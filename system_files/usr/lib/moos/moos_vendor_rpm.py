@@ -484,12 +484,19 @@ def _alpha(char: str) -> bool:
 
 
 def portable_pin_is_older(offered: object, installed: object) -> bool:
-    """Compare numeric desktop release labels, including Notepad4's dated r-revisions."""
-    pattern = r"[0-9]+(?:[.][0-9]+)*(?:r[0-9]+)?"
-    return (isinstance(offered, str) and isinstance(installed, str)
-            and re.fullmatch(pattern, offered) is not None
-            and re.fullmatch(pattern, installed) is not None
-            and rpmvercmp(offered, installed) < 0)
+    """Recognize numeric releases, dated r-revisions and lettered point releases."""
+    if not isinstance(offered, str) or not isinstance(installed, str):
+        return False
+    pattern = r"([0-9]+(?:[.][0-9]+)*)(?:r[0-9]+|([a-z]))?"
+    candidate = re.fullmatch(pattern, offered)
+    current = re.fullmatch(pattern, installed)
+    if not candidate or not current:
+        return False
+    # A letter can mean a prerelease or a publisher's patch. Only the numeric
+    # part has unambiguous order across those labels (5.13.1b versus 5.13.2).
+    if candidate[2] or current[2]:
+        return rpmvercmp(candidate[1], current[1]) < 0
+    return rpmvercmp(offered, installed) < 0
 
 
 def rpmvercmp(a: str, b: str) -> int:

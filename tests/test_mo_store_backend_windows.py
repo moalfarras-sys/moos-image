@@ -215,6 +215,18 @@ class WindowsFixture(Isolated):
                                  catalog_path=path, opener=self.opener)
 
 class WindowsPortable(WindowsFixture):
+    def test_older_lettered_catalogue_keeps_newer_windows_install(self):
+        current = self.controller(self.recipe(pe(tail=b"installed"), exe="tinyterm.exe", version="5.13.2"))
+        self.assertEqual(current.install([APP])[0], 0)
+        program = self.windows / APP / "app/tinyterm.exe"
+        receipt = self.windows / f"{APP}.json"
+        before = (program.read_bytes(), receipt.read_bytes())
+        older = self.controller(self.recipe(pe(tail=b"previous"), exe="tinyterm.exe", version="5.13.1b"))
+        self.assertIsNone(older._pin_update_row(APP, older._catalog()[APP]))
+        code, result = older.update(APP)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual((program.read_bytes(), receipt.read_bytes()), before)
+
     def test_program_outlives_its_catalogue_recipe(self):
         recipe = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe()}))
         controller = self.controller(recipe)
