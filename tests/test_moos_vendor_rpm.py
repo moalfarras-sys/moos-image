@@ -388,6 +388,13 @@ a+ a_ 0|a_ a+ 0|+a +a 0|+a _a 0|_a +a 0|+_ +_ 0|_+ +_ 0|_+ _+ 0|+ _ 0|_ + 0|1.0~
 
 
 class VersionOrder(unittest.TestCase):
+    def test_portable_letter_suffix_compares_the_numeric_release(self):
+        self.assertTrue(vendor.portable_pin_is_older("5.13.1b", "5.13.2"))
+        self.assertFalse(vendor.portable_pin_is_older("5.13.2", "5.13.1b"))
+        self.assertFalse(vendor.portable_pin_is_older("5.13.1", "5.13.1b"))
+        self.assertFalse(vendor.portable_pin_is_older("preview", "5.13.2"))
+        self.assertTrue(vendor.portable_pin_is_older("26.10r6392", "26.10r6400"))
+
     def test_rpm_table(self):
         cases = [item.split() for item in RPM_TABLE.replace("\n", "|").split("|") if item.strip()]
         self.assertEqual(len(cases), 97)

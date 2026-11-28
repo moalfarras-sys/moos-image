@@ -7299,8 +7299,8 @@
       ],
       "v3_test": {
         "sha256": "7c07233fe461a56dbfa6bc83b2c0d0d7cd3cd45a285db6563829d3ceecaa5aa9",
-        "en": "Opened the chessboard offline. Move entry with the desktop mouse still needs verification.",
-        "ar": "ظهرت رقعة الشطرنج دون اتصال. يحتاج إدخال النقلات بفأرة سطح المكتب إلى تحقق إضافي."
+        "en": "Maximized the board on the external display and played e4 with the mouse. The engine replied e5.",
+        "ar": "بعد تكبير الرقعة على الشاشة الخارجية، لُعبت e4 بالفأرة وردّ المحرّك بـ e5."
       },
       "install": {
         "kind": "android",

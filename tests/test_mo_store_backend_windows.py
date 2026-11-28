@@ -215,6 +215,18 @@ class WindowsFixture(Isolated):
                                  catalog_path=path, opener=self.opener)
 
 class WindowsPortable(WindowsFixture):
+    def test_older_lettered_catalogue_keeps_newer_windows_install(self):
+        current = self.controller(self.recipe(pe(tail=b"installed"), exe="tinyterm.exe", version="5.13.2"))
+        self.assertEqual(current.install([APP])[0], 0)
+        program = self.windows / APP / "app/tinyterm.exe"
+        receipt = self.windows / f"{APP}.json"
+        before = (program.read_bytes(), receipt.read_bytes())
+        older = self.controller(self.recipe(pe(tail=b"previous"), exe="tinyterm.exe", version="5.13.1b"))
+        self.assertIsNone(older._pin_update_row(APP, older._catalog()[APP]))
+        code, result = older.update(APP)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual((program.read_bytes(), receipt.read_bytes()), before)
+
     def test_program_outlives_its_catalogue_recipe(self):
         recipe = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe()}))
         controller = self.controller(recipe)
@@ -1097,8 +1109,8 @@ class RunForeignApp(Isolated):
 class RealRuntimeProof(Isolated):
     """Install and remove a real portable program with the image's own runtime, headless.
 
-    The program is never started: only its prefix is created, its icon read in the sandbox, and
-    everything removed again. Run on a MoOS host inside a private HOME; see the report for the
+    The program is never started: its prefix is created, its icon read in the sandbox, and a saved
+    file survives ordinary removal and reinstall until explicit data removal. Run on a MoOS host inside a private HOME; see the report for the
     measured times and sizes.
     """
 
@@ -1137,9 +1149,21 @@ class RealRuntimeProof(Isolated):
         if icon.is_file():
             self.assertEqual(icon.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
             self.assertIn(f"Icon={icon}", launcher)
+        saved = base / "prefix/drive_c/MoOS-proof.txt"
+        saved.write_text("اختبار حفظ البيانات", encoding="utf-8")
+        desktop = self.home / f".local/share/applications/org.moos.windows.{APP}.desktop"
         with mock.patch.object(appdrop, "_refresh_menu", lambda: None):
             code, result = controller.remove(APP)
-        self.assertEqual(result["state"], "success", result)
+            self.assertEqual((code, result["state"]), (0, "success"), result)
+            self.assertFalse(desktop.exists())
+            self.assertFalse((self.windows / f"{APP}.json").exists())
+            self.assertFalse((base / "app" / exe.name).exists())
+            self.assertEqual(saved.read_text(encoding="utf-8"), "اختبار حفظ البيانات")
+            code, result = controller.install([APP])
+            self.assertEqual((code, result["state"]), (0, "success"), result)
+            self.assertEqual(saved.read_text(encoding="utf-8"), "اختبار حفظ البيانات")
+            code, result = controller.remove(APP, delete_data=True)
+            self.assertEqual((code, result["state"]), (0, "success"), result)
         self.assertFalse(base.exists())
         leftovers = subprocess.run(["pgrep", "-f", str(base)], capture_output=True, text=True).stdout
         self.assertEqual(leftovers.strip(), "", "a runtime process outlived the removal")
