@@ -5,14 +5,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.moos.ui as MoUI
 
-// Mo Store — search. The header's field types here; the query is folded the way the index folds
-// its search keys (so «فيرفكس» finds Firefox and «واتساب» finds WhatsApp), and the results are
-// ranked: an exact name, a name that starts with it, a word that starts with it, the keywords,
-// then the summary. Every result says what kind of app it is. No result is never a blank page:
-// it offers words that do find something, in the person's language.
-//
-// Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
-// and the palette. This file only presents them.
+// The header owns the query. The window ranks matching editions, and the platform
+// controls narrow them before the Store chooses one row per product.
 Item {
     id: searchPage
     required property var win
@@ -22,6 +16,13 @@ Item {
     readonly property var suggestions: win.rtl
         ? ["متصفح", "واتساب", "تعديل الصور", "مكتب", "ألعاب", "القرآن", "برمجة", "ذكاء اصطناعي"]
         : ["browser", "WhatsApp", "photo editor", "office", "games", "music", "code", "AI"]
+
+    readonly property var matchedFamilies: {
+        var families = {}
+        for (var app of win.searchMatches) families[app.family] = true
+        return families
+    }
+    readonly property bool otherPlatforms: win.searchKind !== "all" && win.searchMatches.length > 0 && win.searchResults.length === 0
 
     anchors.fill: parent
     visible: win.page === "search"
@@ -34,6 +35,30 @@ Item {
         anchors.rightMargin: searchPage.padding
         anchors.topMargin: searchPage.design.space2
         spacing: searchPage.design.space4
+
+        Flow {
+            id: platformFilters
+            Layout.fillWidth: true
+            Layout.preferredHeight: implicitHeight
+            visible: searchPage.typed && (searchPage.win.searchMatches.length > 0 || searchPage.win.searchKind !== "all")
+            spacing: searchPage.design.space2
+            Repeater {
+                model: [{id: "all", ar: "الكل", en: "All", glyph: ""}].concat(searchPage.win.kindDefs)
+                delegate: KindChip {
+                    id: platform
+                    required property var modelData
+                    objectName: "searchKind-" + modelData.id
+                    win: searchPage.win
+                    visible: modelData.id === "all" || searchPage.matchedFamilies[modelData.id] === true
+                             || win.searchKind === modelData.id
+                    height: win.fs(44)
+                    label: win.localName(modelData)
+                    glyph: modelData.glyph
+                    checked: win.searchKind === modelData.id
+                    onActivated: win.searchKind = modelData.id
+                }
+            }
+        }
 
         Text {
             horizontalAlignment: Text.AlignLeft
@@ -107,7 +132,9 @@ Item {
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.maximumWidth: searchPage.width - searchPage.padding * 2
-                text: searchPage.typed
+                text: searchPage.otherPlatforms
+                    ? searchPage.win.local("لا نتائج على المنصة المختارة", "No results on this platform")
+                    : searchPage.typed
                     ? (searchPage.win.rtl ? "لا شيء باسم «" + searchPage.win.query.trim() + "» هنا"
                                           : "Nothing called “" + searchPage.win.query.trim() + "” here")
                     : searchPage.win.local("ابحث في كل تطبيقات المتجر", "Search every app in the Store")
@@ -118,9 +145,19 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
             }
+            ActionButton {
+                win: searchPage.win
+                objectName: "searchAllPlatforms"
+                Layout.alignment: Qt.AlignHCenter
+                visible: searchPage.otherPlatforms
+                label: win.local("اعرض النتائج من كل المنصات", "Show results from all platforms")
+                glyphName: "search"
+                triggered: function() { win.searchKind = "all" }
+            }
             Text {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.maximumWidth: searchPage.win.fs(560)
+                visible: !searchPage.otherPlatforms
+                Layout.maximumWidth: Math.min(searchPage.width - searchPage.padding * 2, searchPage.win.fs(560))
                 text: searchPage.typed
                     ? searchPage.win.local("جرّب كلمة أعمّ، أو اسم التطبيق بالإنجليزية، أو واحدة من هذه:",
                                            "Try a broader word, the app's name in another language, or one of these:")
@@ -134,6 +171,7 @@ Item {
             }
             Flow {
                 Layout.alignment: Qt.AlignHCenter
+                visible: !searchPage.otherPlatforms
                 Layout.maximumWidth: searchPage.win.fs(640)
                 Layout.preferredWidth: Math.min(searchPage.width - searchPage.padding * 2, searchPage.win.fs(640))
                 spacing: searchPage.design.space2

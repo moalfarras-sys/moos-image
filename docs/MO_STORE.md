@@ -299,7 +299,11 @@ honest notes for full-access and Android apps).
 - **Curated data** (`icon_url`, `accent`, `developer`, keywords, `popular`) is merged from
   `catalog.json` into each index entry by `normalizeApp`, so the index need not repeat it.
 - **Search** folds the query exactly as `moos-store-index` folds `search` and ranks name, prefix,
-  word prefix, keyword, then summary.
+  word prefix, keyword, then combined names, keywords and summaries. Curated summaries in both
+  languages participate. A final tier also matches an Arabic noun without its definite article
+  at a word start. The Latin query token `AI` requires a word match or the AI category.
+  Selecting a platform filters the full ranked list before resolving product variants.
+  The virtual result list can reach matches beyond the former 400-row cut-off.
 - **Tests.** `tests/test_mo_store_ui_pages.py` walks every page, sheet and shelf in four windows
   (Arabic dark at 2.5×, a fresh English light install, a bare machine with a live job and a
   building catalogue, the signed catalogue alone) on `tests/fixtures/mo-store/` and fails on

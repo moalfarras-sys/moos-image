@@ -93,7 +93,7 @@ class TheShippedCatalogue(unittest.TestCase):
 
     def test_it_has_the_v2_shape(self):
         self.assertEqual({c["id"] for c in SHIPPED["categories"]}, gate.CATEGORY_IDS)
-        self.assertEqual(len(SHIPPED["collections"]), 16)
+        self.assertEqual(len(SHIPPED["collections"]), 18)
         self.assertLessEqual({"craft-family", "instead-of-adobe", "music-workbench", "study-toolkit"},
                              {row["id"] for row in SHIPPED["collections"]})
         self.assertTrue(5 <= len(SHIPPED["featured"]) <= 7)
@@ -102,9 +102,21 @@ class TheShippedCatalogue(unittest.TestCase):
                              {b["id"] for b in SHIPPED["bundles"]})
         self.assertGreaterEqual(len(SHIPPED["apps"]), 140)
 
+    def test_native_ai_collections_offer_installable_application_packages(self):
+        shelves = {row["id"]: row["apps"] for row in SHIPPED["collections"]}
+        kinds = set()
+        for shelf in ("installed-model-tools", "installed-audio-image-tools"):
+            for app_id in shelves[shelf]:
+                entry = app(SHIPPED, app_id)
+                kind = "flathub" if entry["source"] == "flathub" else entry["install"]["kind"]
+                with self.subTest(shelf=shelf, app=app_id):
+                    self.assertIn(kind, {"flathub", "android", "windows-portable"})
+                kinds.add(kind)
+        self.assertEqual(kinds, {"flathub", "android", "windows-portable"})
+
     def test_every_android_pin_records_its_signer_and_every_download_its_size(self):
         android = [a for a in SHIPPED["apps"] if (a.get("install") or {}).get("kind") == "android"]
-        self.assertEqual(len(android), 59)
+        self.assertEqual(len(android), 84)
         for entry in android:
             with self.subTest(app=entry["id"]):
                 self.assertRegex(entry["install"]["signer"], r"^[0-9a-f]{64}$")

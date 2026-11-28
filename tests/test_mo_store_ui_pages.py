@@ -607,6 +607,51 @@ def lifecycle_contract_walk() -> list[dict]:
 
 @unittest.skipUnless(RUNTIME, "requires the native MoOS Qt runtime (moos-qml-shell)")
 class StoreLifecycleContract(unittest.TestCase):
+    def test_search_by_task_and_platform(self):
+        # The production window, query field, platform controls and details/back navigation.
+        rows = [
+            {"id": "io.gpt4all.gpt4all", "name": "GPT4All", "kind": "flatpak",
+             "cat": "ai", "keywords_ar": ["ذكاء اصطناعي"], "keywords_en": ["AI"],
+             "desc_ar": "حاور مستنداتك", "desc_en": "Chat with documents"},
+            {"id": "example-airshipper", "name": "Airshipper", "kind": "flatpak"},
+            {"id": "com.github.ahrm.sioyek", "name": "Sioyek", "kind": "flatpak"},
+            {"id": "sioyek-windows", "name": "Sioyek", "kind": "windows"},
+        ]
+        # A platform edition beyond the first 400 matches must still be reachable.
+        fillers = [{"id": f"reader-{i}", "name": f"Books {i}", "kind": "flatpak"}
+                   for i in range(410)]
+        late = {"id": "android-books", "name": "Books on Android", "kind": "android"}
+        cases = [
+            ("catalogue", "app.adoptCatalogue(" + json.dumps(rows + fillers + [late]) + ", {})", None),
+            ("definite article", "app.searchFor('الذكاء الاصطناعي')",
+             "app.searchResults.length === 1 && app.searchResults[0].id === 'io.gpt4all.gpt4all'"),
+            ("Latin acronym", "app.searchFor('AI')", "app.searchResults.length === 1 && app.searchResults[0].name === 'GPT4All'"),
+            ("name plus description", "app.searchFor(app.local('GPT4All مستنداتك','GPT4All documents'))",
+             "app.searchResults.length === 1 && app.searchResults[0].name === 'GPT4All'"),
+            ("other language summary", "app.searchFor(app.local('GPT4All documents','GPT4All مستنداتك'))",
+             "app.searchResults.length === 1 && app.searchResults[0].name === 'GPT4All'"),
+            ("missing word", "app.searchFor('GPT4All zzqx')", "app.searchResults.length === 0"),
+            ("all editions", "app.searchFor('Sioyek')",
+             "app.searchResults.length === 1 && app.searchResults[0].kind === 'flatpak'"),
+            ("choose Windows", "harness.byName('searchKind-windows').activated()",
+             "app.searchResults.length === 1 && app.searchResults[0].id === 'sioyek-windows'"),
+            ("open Windows", "app.openDetails(app.searchResults[0])", "app.selectedApp.id === 'sioyek-windows'"),
+            ("back to same search", "app.goBack()", "app.page === 'search' && app.searchKind === 'windows' && app.query === 'Sioyek'"),
+            ("empty platform", "app.searchFor('Books')", "harness.shown('searchAllPlatforms')"),
+            ("show all", "harness.byName('searchAllPlatforms').clicked()", "app.searchResults.length === 411"),
+            ("Android edition", "harness.byName('searchKind-android').activated()",
+             "app.searchResults.length === 1 && app.searchResults[0].id === 'android-books'"),
+            ("clear field", "app.searchFor('')", "app.searchKind === 'all' && app.searchResults.length === 0"),
+        ]
+        steps = [{"label": "initial index", "until": "app.indexReady", "settle": 160, "timeout": 10000}]
+        for label, action, predicate in cases:
+            steps.append({"label": label, "do": action, "until": predicate, "settle": 300, "timeout": 3500})
+        for variant in VARIANTS[:2]:
+            with self.subTest(language=variant["language"]), tempfile.TemporaryDirectory() as directory:
+                r = run_walk(variant, STORE, Path(directory) / "store", steps=steps)
+                self.assertEqual(r.returncode, 0, r.stderr[-4500:])
+                self.assertEqual(problems(r.stderr), [], r.stderr[-4500:])
+
     def test_observed_workload_follows_archive_in_both_languages(self):
         fixture = json.loads((ROOT / "system_files/usr/share/moos/store/catalog.json").read_text())
         item = next(app for app in fixture["apps"] if app["id"] == "peazip-windows")
