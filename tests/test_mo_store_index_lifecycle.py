@@ -524,6 +524,30 @@ class UnlistedAndroidApps(unittest.TestCase):
                 self.assertEqual(app["installed_version"], "2.1")
                 self.assertFalse(app["update_available"], "an unlisted receipt is not an update recipe")
 
+    def test_runtime_icons_appear_and_disappear_for_catalogue_and_imported_apps(self):
+        with tempfile.TemporaryDirectory() as raw:
+            machine = Machine(Path(raw))
+            self.receipt(machine, "org.example.droid", source="catalog")
+            self.receipt(machine, self.PACKAGE)
+            icons = machine.home / ".local/share/waydroid/data/icons"
+            icons.mkdir(parents=True)
+            ids = {"org.example.droid": "org.example.droid", self.PACKAGE: "android-" + self.PACKAGE}
+
+            def read_icons():
+                return {a["id"]: a["icon"] for a in machine.run()["apps"] if a["id"] in ids.values()}
+
+            self.assertEqual(read_icons(), dict.fromkeys(ids.values()))
+            paths = {app_id: icons / (package + ".png") for package, app_id in ids.items()}
+            for path in paths.values():
+                path.write_bytes(b"local icon")
+            self.assertEqual(read_icons(), {app_id: path.as_uri() for app_id, path in paths.items()})
+            other = machine.home / "other.png"
+            other.write_bytes(b"unrelated icon")
+            for path in paths.values():
+                path.unlink()
+                path.symlink_to(other)
+            self.assertEqual(read_icons(), dict.fromkeys(ids.values()))
+
     def test_a_flatpak_with_the_same_id_and_a_catalogued_apk_are_not_lost_or_duplicated(self):
         with tempfile.TemporaryDirectory() as raw:
             machine = Machine(Path(raw))

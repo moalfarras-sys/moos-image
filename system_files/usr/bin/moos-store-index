@@ -2973,6 +2973,19 @@ def home_file_icon(value: str) -> str | None:
     return Path(value).as_uri()
 
 
+def android_runtime_icon(package: str) -> str | None:
+    """Use the installed package's exported PNG from the local Android runtime."""
+    if not ANDROID_PACKAGE_RE.fullmatch(package):
+        return None
+    try:
+        icon = data_home().resolve() / "waydroid/data/icons" / (package + ".png")
+        if icon.resolve(strict=True) != icon:
+            return None
+        return home_file_icon(str(icon))
+    except (OSError, RuntimeError):
+        return None
+
+
 def launcher_for_record(record: dict, slug: str) -> Path | None:
     """The launcher App Drop wrote for a record, inside the person's applications."""
 
@@ -3390,6 +3403,7 @@ def catalog_install_state(entry: dict, arch: str | None = None,
         if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package) \
                 and (data_home() / "waydroid/data/data" / package).is_dir():
             state["installed"] = True
+            state["icon"] = android_runtime_icon(package)
             record, invalid = android_store_record(package)
             if invalid:
                 return state
@@ -3505,9 +3519,12 @@ def lifecycle_snapshot(catalog: dict, apk_digests: ApkDigests | None = None) -> 
             windows.append({"id": app_id, "name": record_text(record, "name", 80) or app_id,
                             "version": record_text(record, "version", 64),
                             "icon": home_file_icon(str(directory / app_id / "icon.png"))})
+    unlisted_android = lifecycle_library("moos_android_inventory").unlisted(data_home(), android)
+    for record in unlisted_android:
+        record["icon"] = android_runtime_icon(record["package"])
     return {"catalog": states, "dropped": dropped_records(claimed),
             "vendor": vendor_orphans(vendors), "windows": windows,
-            "android": lifecycle_library("moos_android_inventory").unlisted(data_home(), android)}
+            "android": unlisted_android}
 
 
 # ── flatpak's deploy data ────────────────────────────────────────────────────
@@ -3911,7 +3928,7 @@ def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
             "installable": False, "listed": False, "flatpak_ref": None, "branch": None,
             "name": name, "name_en": name, "summary": "", "description": "",
             "developer": "", "license": "", "category": "other", "categories": [],
-            "icon": None, "screenshot": None, "verified": False, "installed": True,
+            "icon": record.get("icon"), "screenshot": None, "verified": False, "installed": True,
             "version": record.get("version") or None, "installed_version": record.get("version") or None,
             "update_available": False, "eol": False, "curated": False, "branding": None,
             "content_rating": None, "details": None, "origins": [],
