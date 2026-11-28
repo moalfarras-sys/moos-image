@@ -7,6 +7,14 @@ var groups = [
     ["uk.org.greenend.chiark.sgtatham.putty", "putty"],
     ["app.organicmaps.desktop", "app.organicmaps"],
     ["org.videolan.VLC", "org.videolan.vlc"],
+    ["com.github.ahrm.sioyek", "sioyek-windows"],
+    ["io.github.JakubMelka.Pdf4qt", "pdf4qt-windows"],
+    ["com.openutau.OpenUtau", "openutau-windows"],
+    ["com.github.hluk.copyq", "copyq-windows"],
+    ["org.upscayl.Upscayl", "upscayl-windows"],
+    ["org.shotcut.Shotcut", "shotcut-windows"],
+    ["org.godotengine.Godot", "godot-windows"],
+    ["net.supertuxkart.SuperTuxKart", "supertuxkart-windows", "org.supertuxkart.stk"],
     ["chatgpt", "native.chatgpt", "native.org.moos.vendor.chatgpt"]
 ]
 var identities = ({})

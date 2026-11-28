@@ -96,6 +96,7 @@ X86_ONLY_DOWNLOADS = {
     "krokiet-windows", "me.trion.whispertype", "naps2-windows",
     "openutau-windows", "org.documentfoundation.libreoffice", "org.venkado.relagent",
     "screentogif-windows", "shotcut-windows", "subtitleedit-windows",
+    "sioyek-windows", "pdf4qt-windows",
     "upscayl-windows", "whisperdesktop-windows",
 }
 X86_ONLY = NO_ARM_BUILD | X86_ONLY_DOWNLOADS

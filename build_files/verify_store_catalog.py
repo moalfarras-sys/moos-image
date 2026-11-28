@@ -259,6 +259,8 @@ DOWNLOAD_RULES = {
     'explorerplusplus-windows': ("github.com", r"/derceg/explorerplusplus/releases/download/version\-{v}/explorerpp_x64\.zip", {"x86_64": ("", "")}),
     'nomacs-windows': ("github.com", r"/nomacs/nomacs/releases/download/{v}/nomacs\-portable\-win\.zip", {"x86_64": ("", "")}),
     'xournalpp-windows': ("github.com", r"/xournalpp/xournalpp/releases/download/v{v}/xournalpp\-{v}\-windows\-portable\-AMD64\.zip", {"x86_64": ("", "")}),
+    'sioyek-windows': ("github.com", r"/ahrm/sioyek/releases/download/v{v}/sioyek-release-windows-portable\.zip", {"x86_64": ("", "")}),
+    'pdf4qt-windows': ("github.com", r"/JakubMelka/PDF4QT/releases/download/v{v}/PDF4QT-Windows-{v}\.zip", {"x86_64": ("", "")}),
     'whisperdesktop-windows': ("github.com", r"/Const-me/Whisper/releases/download/{v}/WhisperDesktop\.zip", {"x86_64": ("", "")}),
     'naps2-windows': ("github.com", r"/cyanfish/naps2/releases/download/v{v}/naps2-{v}-win-x64\.zip", {"x86_64": ("", "")}),
     'subtitleedit-windows': ("github.com", r"/SubtitleEdit/subtitleedit/releases/download/v{v}/SubtitleEdit-Windows-x64\.zip", {"x86_64": ("", "")}),

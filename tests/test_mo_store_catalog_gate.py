@@ -116,7 +116,7 @@ class TheShippedCatalogue(unittest.TestCase):
 
     def test_every_android_pin_records_its_signer_and_every_download_its_size(self):
         android = [a for a in SHIPPED["apps"] if (a.get("install") or {}).get("kind") == "android"]
-        self.assertEqual(len(android), 81)
+        self.assertEqual(len(android), 84)
         for entry in android:
             with self.subTest(app=entry["id"]):
                 self.assertRegex(entry["install"]["signer"], r"^[0-9a-f]{64}$")

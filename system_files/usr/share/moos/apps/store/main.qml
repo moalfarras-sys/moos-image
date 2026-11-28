@@ -217,7 +217,14 @@ ApplicationWindow {
     property var installedVariants: []
     property var libraryApps: []
     property string query: ""
-    property var searchResults: []
+    property string searchKind: "all"
+    property var searchMatches: []
+    readonly property var searchResults: {
+        if (win.searchMatches.length === 0) return []
+        var family = win.searchKind
+        var matches = family === "all" ? win.searchMatches : win.searchMatches.filter(app => app.family === family)
+        return win.uniqueProducts(matches, family)
+    }
     property var selectedApp: null
     property var selectedDetails: null
     property string detailsState: "none"
@@ -1994,8 +2001,13 @@ ApplicationWindow {
 
     function runSearch() {
         var q = win.foldSearch(win.query)
-        if (q === "") { win.searchResults = []; return }
+        if (q === "") { win.searchMatches = []; return }
         var tokens = q.split(" ")
+        // Keep names literal in the first tiers. At the last tier an Arabic noun
+        // with the definite article can also match the start of an unprefixed word.
+        var bare = tokens.map(t => /^ال[ء-ي]{3,}$/.test(t) ? t.substring(2) : "")
+        var hasArticle = bare.some(t => t !== "")
+        var wantsAI = tokens.indexOf("ai") >= 0
         var scored = []
         for (var i = 0; i < win.allApps.length; ++i) {
             var app = win.allApps[i]
@@ -2004,26 +2016,33 @@ ApplicationWindow {
                 app._fn = win.foldSearch(win.localName(app))
                 app._fe = win.foldSearch(app.name_en || "")
             }
-            var tier = -1
+            if (app._searchText === undefined) {
+                var curated = win.curatedMap[app.id] || app
+                var translation = win.rtl ? curated.desc_en : curated.desc_ar
+                var topic = app.cat === "ai" ? " ai ذكاء اصطناعي" : ""
+                app._searchText = " " + (app.search || "") + " " + app._fn + " " + app._fe
+                    + " " + win.foldSearch(win.localSummary(app) + " " + (translation || "")) + topic
+            }
+            if (wantsAI && !/\bai\b/.test(app._searchText)) continue
+            var tier
             if (app._fn === q || app._fe === q) tier = 0
             else if (app._fn.indexOf(q) === 0 || app._fe.indexOf(q) === 0) tier = 1
             else if (win.wordsStart(app._fn + " " + app._fe, tokens)) tier = 2
             else if (win.allIn(app.search || "", tokens)) tier = 3
-            else {
-                if (app._fs === undefined) app._fs = win.foldSearch(win.localSummary(app))
-                if (win.allIn(app._fs, tokens)) tier = 4
-            }
-            if (tier >= 0) scored.push({ app: app, tier: tier, rank: app._rank === undefined ? 1e9 : app._rank })
+            else if (win.allIn(app._searchText, tokens)) tier = 4
+            else if (hasArticle && tokens.every((t, j) => app._searchText.indexOf(t) >= 0
+                     || (bare[j] !== "" && app._searchText.indexOf(" " + bare[j]) >= 0))) tier = 5
+            else continue
+            scored.push({ app: app, tier: tier, rank: app._rank === undefined ? 1e9 : app._rank })
         }
         scored.sort(function(a, b) { return a.tier - b.tier || a.rank - b.rank })
-        var out = []
-        for (var k = 0; k < scored.length && k < 400; ++k) out.push(scored[k].app)
-        win.searchResults = win.uniqueProducts(out)
+        win.searchMatches = scored.map(hit => hit.app)
     }
 
     // The header's field types here. A first character takes the window to the search page; the
     // results follow ~120 ms after the last key, so typing never waits on 3,000 apps.
     function setQuery(text) {
+        if (text.trim() === "") win.searchKind = "all"
         win.query = text
         if (text.trim() !== "" && win.page !== "search") {
             win.pushHistory()
@@ -2053,7 +2072,8 @@ ApplicationWindow {
 
     function pushHistory() {
         var entry = { page: win.page, appId: win.page === "app" && win.selectedApp ? win.selectedApp.id : "",
-                      category: win.activeCategory, kind: win.activeKind, collection: win.activeCollection }
+                      category: win.activeCategory, kind: win.activeKind, collection: win.activeCollection,
+                      query: win.query, searchKind: win.searchKind }
         win.history = win.history.concat([entry])
     }
 
@@ -2076,6 +2096,10 @@ ApplicationWindow {
             if (app) { win.showApp(app); return }
         }
         win.page = last.page
+        if (last.page === "search") {
+            if (win.query !== last.query) storeHeader.setSearchText(last.query)
+            win.searchKind = last.searchKind
+        }
         win.recompute()
     }
 

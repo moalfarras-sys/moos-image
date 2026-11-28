@@ -9506,6 +9506,311 @@
       "keywords_ar": [
         "أدوات"
       ]
+    },
+    {
+      "id": "org.gnome.OCRFeeder",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "search",
+      "en": "OCRFeeder",
+      "ar": "قارئ الصفحات الممسوحة",
+      "desc_en": "Recognize the layout and text of scanned pages and export an editable document.",
+      "desc_ar": "تعرّف على تخطيط الصفحات الممسوحة ونصّها وصدّرها في مستند قابل للتحرير.",
+      "developer": "Joaquim Rocha",
+      "keywords_en": [
+        "OCR",
+        "scanned documents",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "مسح المستندات",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "com.github.ahrm.sioyek",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "document",
+      "en": "Sioyek",
+      "ar": "سيويك للأوراق البحثية",
+      "desc_en": "Read research papers and jump between references, figures and highlights.",
+      "desc_ar": "اقرأ الأوراق البحثية وانتقل بين المراجع والأشكال والمواضع التي ظلّلتها.",
+      "developer": "Ali Mostafavi",
+      "keywords_en": [
+        "PDF",
+        "research papers"
+      ],
+      "keywords_ar": [
+        "مستندات",
+        "أبحاث"
+      ]
+    },
+    {
+      "id": "app.drey.Dialect",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "globe",
+      "en": "Dialect",
+      "ar": "ديالكت للترجمة",
+      "desc_en": "Translate text between languages with your chosen translation service.",
+      "desc_ar": "ترجم النصوص بين اللغات عبر خدمة الترجمة التي تختارها.",
+      "developer": "The Dialect Authors",
+      "keywords_en": [
+        "translation",
+        "languages"
+      ],
+      "keywords_ar": [
+        "ترجمة",
+        "لغات"
+      ]
+    },
+    {
+      "id": "io.github.diegoivan.pdf_metadata_editor",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "document",
+      "en": "Paper Clip",
+      "ar": "بيبر كليب لبيانات المستندات",
+      "desc_en": "Edit the title, author and other metadata stored in a PDF document.",
+      "desc_ar": "حرّر العنوان واسم المؤلف والبيانات المحفوظة داخل مستند PDF.",
+      "developer": "Diego Iván",
+      "keywords_en": [
+        "PDF",
+        "research papers"
+      ],
+      "keywords_ar": [
+        "مستندات",
+        "أبحاث"
+      ]
+    },
+    {
+      "id": "io.github.JakubMelka.Pdf4qt",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "document",
+      "en": "PDF4QT",
+      "ar": "محرّر بي دي إف فور كيو تي",
+      "desc_en": "Read and edit PDF documents and annotate their pages.",
+      "desc_ar": "اقرأ ملفات PDF وحرّرها وأضف تعليقات إلى صفحاتها.",
+      "developer": "Jakub Melka",
+      "keywords_en": [
+        "PDF",
+        "research papers"
+      ],
+      "keywords_ar": [
+        "مستندات",
+        "أبحاث"
+      ]
+    },
+    {
+      "id": "org.kde.CrowTranslate",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "globe",
+      "en": "Crow Translate",
+      "ar": "كرو للترجمة",
+      "desc_en": "Translate selected text and listen to its pronunciation using a translation service.",
+      "desc_ar": "ترجم النص المحدّد واستمع إلى نطقه عبر خدمة الترجمة.",
+      "developer": "Crow Translate contributors",
+      "keywords_en": [
+        "translation",
+        "languages"
+      ],
+      "keywords_ar": [
+        "ترجمة",
+        "لغات"
+      ]
+    },
+    {
+      "id": "sioyek-windows",
+      "source": "moos",
+      "accent": "#435972",
+      "cat": "win",
+      "glyph": "document",
+      "en": "Sioyek · Windows",
+      "ar": "سيويك للأوراق البحثية · ويندوز",
+      "desc_en": "Navigate research papers and follow figures and references with the keyboard.",
+      "desc_ar": "تنقّل بين فقرات الأبحاث والمراجع والأشكال بلوحة المفاتيح.",
+      "developer": "Ali Mostafavi",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "2.0.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/ahrm/sioyek/releases/download/v2.0.0/sioyek-release-windows-portable.zip",
+            "sha256": "1f4fedbb38c0dc46bbba4bb95d0d6fab39fcf3525092ac26d92c891684d2bf8d",
+            "size": 77225291
+          }
+        },
+        "exe": "sioyek-release-windows/sioyek.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "PDF",
+        "references"
+      ],
+      "keywords_ar": [
+        "أبحاث",
+        "مراجع"
+      ]
+    },
+    {
+      "id": "pdf4qt-windows",
+      "source": "moos",
+      "accent": "#376469",
+      "cat": "win",
+      "glyph": "document",
+      "en": "PDF4QT · Windows",
+      "ar": "محرّر بي دي إف فور كيو تي · ويندوز",
+      "desc_en": "Open PDF files, add annotations and edit document contents.",
+      "desc_ar": "افتح مستندات PDF وأضف تعليقات وحرّر محتواها.",
+      "developer": "Jakub Melka",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.7.1.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/JakubMelka/PDF4QT/releases/download/v1.7.1.0/PDF4QT-Windows-1.7.1.0.zip",
+            "sha256": "5e0bd640289309987cf3aa25b2f35884f21e27d6bf272567b91014f4729c1f0b",
+            "size": 51807218
+          }
+        },
+        "exe": "Pdf4QtEditor.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "PDF",
+        "annotation"
+      ],
+      "keywords_ar": [
+        "تعليقات",
+        "مستندات"
+      ]
+    },
+    {
+      "id": "com.anxcye.anx_reader",
+      "source": "moos",
+      "accent": "#614574",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Anx Reader · Android",
+      "ar": "آنكس للقراءة · أندرويد",
+      "desc_en": "Read and annotate e-books and optionally connect an AI provider to discuss a passage.",
+      "desc_ar": "اقرأ الكتب ودوّن ملاحظاتك، ويمكنك ربط خدمة ذكاء اصطناعي لمناقشة مقطع منها.",
+      "developer": "Anxcye",
+      "engine": "android",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.anxcye.anx_reader_6321.apk",
+        "sha256": "284e05040c959dc54b43ce79d050487be57b9902b40e0b789b19a9b5f6fec82c",
+        "size": 54192395,
+        "version": "1.14.0",
+        "signer": "ebd89c2d87120e30f45dd778b9b7a50ad982eef419fe5b60b97d4070e80d3449",
+        "package": "com.anxcye.anx_reader",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "EPUB",
+        "AI"
+      ],
+      "keywords_ar": [
+        "كتب إلكترونية",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "com.chmouel.liseur",
+      "source": "moos",
+      "accent": "#435972",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Liseur · Android",
+      "ar": "ليزور لقراءة الكتب · أندرويد",
+      "desc_en": "Read EPUB books and organize your reading library.",
+      "desc_ar": "اقرأ كتب EPUB ونظّم مكتبة القراءة.",
+      "developer": "Chmouel Boudjnah",
+      "engine": "android",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.chmouel.liseur_92_394e041.apk",
+        "sha256": "76a14a279366547810f88f7186c6928a603a9b3c9bb440f0eaa66d6183be94ef",
+        "size": 15705541,
+        "version": "0.33.0",
+        "signer": "394e0413024451b8782c492fee203f9470871e63d6e41088e42af3f7c6650a94",
+        "package": "com.chmouel.liseur",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "EPUB",
+        "e-books"
+      ],
+      "keywords_ar": [
+        "كتب إلكترونية",
+        "قراءة"
+      ]
+    },
+    {
+      "id": "itkach.aard2",
+      "source": "moos",
+      "accent": "#615438",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Aard 2 · Android",
+      "ar": "آرد ٢ للقواميس · أندرويد",
+      "desc_en": "Look up words offline after importing a compatible dictionary.",
+      "desc_ar": "استورد قاموساً متوافقاً ثم ابحث عن الكلمات دون اتصال.",
+      "developer": "Igor Tkach",
+      "engine": "android",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/itkach.aard2_61.apk",
+        "sha256": "4d8fcfe337b8341fb30c4089a8ec4dad2f07002bb5407198edce26d85061a34c",
+        "size": 8970158,
+        "version": "0.61",
+        "signer": "0e19ec757a2115d4de0eba2b93ca952c369d77665a06b64da04fa1e419dafb80",
+        "package": "itkach.aard2",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "dictionary",
+        "offline"
+      ],
+      "keywords_ar": [
+        "قاموس",
+        "دون اتصال"
+      ]
     }
   ]
 }
