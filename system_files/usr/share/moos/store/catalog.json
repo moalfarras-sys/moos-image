@@ -98,6 +98,49 @@
       ]
     },
     {
+      "id": "installed-model-tools",
+      "en": "Chat and translate with models",
+      "ar": "المحادثة والترجمة بالنماذج",
+      "glyph": "chat",
+      "desc_en": "Choose a desktop or Android client for downloaded models or a model server.",
+      "desc_ar": "اختر برنامجاً لسطح المكتب أو لأندرويد يحاور نموذجاً محلياً أو يتصل بخادم نماذج.",
+      "apps": [
+        "io.gpt4all.gpt4all",
+        "com.danemadsen.maid",
+        "dev.ters.LocalTranslate",
+        "dev.ibrahimcetin.reins",
+        "org.venkado.relagent",
+        "com.cherry_ai.CherryStudio",
+        "io.github.stardomains3.oxproxion",
+        "io.github.pejuko.follamac"
+      ]
+    },
+    {
+      "id": "installed-audio-image-tools",
+      "en": "Transcribe, read and enhance",
+      "ar": "تفريغ الصوت وقراءة الصور",
+      "glyph": "microphone",
+      "desc_en": "Turn a recording into text, read a scanned page or enlarge an image.",
+      "desc_ar": "حوّل التسجيل إلى نص، واستخرج الكلمات من الصفحات الممسوحة، وكبّر الصور.",
+      "apps": [
+        "io.github.chidiwilliams.Buzz",
+        "whisperdesktop-windows",
+        "de.schliweb.makeacopy",
+        "io.github.juergenfleiss.aTrain",
+        "naps2-windows",
+        "org.schabi.parakeetype",
+        "io.gitlab.theevilskeleton.Upscaler",
+        "subtitleedit-windows",
+        "io.github.manisandro.gImageReader",
+        "app.seeneva.reader",
+        "io.github.ashbuk.dabri",
+        "upscayl-windows",
+        "br.com.jotdown",
+        "io.speedofsound.SpeedOfSound",
+        "io.github.subhamtyagi.ocr"
+      ]
+    },
+    {
       "id": "ai-assistants",
       "en": "AI assistants",
       "ar": "مساعدو الذكاء الاصطناعي",
@@ -7754,6 +7797,1714 @@
       ],
       "keywords_ar": [
         "تدريب سمعي"
+      ]
+    },
+    {
+      "id": "io.gpt4all.gpt4all",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "chat",
+      "en": "GPT4All",
+      "ar": "جي بي تي فور أول",
+      "desc_en": "Run a downloaded language model on your computer and chat with your documents.",
+      "desc_ar": "نزّل نموذجاً لغوياً على جهازك وحاوره حول مستنداتك.",
+      "developer": "Nomic-ai",
+      "keywords_en": [
+        "language models",
+        "AI"
+      ],
+      "keywords_ar": [
+        "نماذج لغوية",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "com.cherry_ai.CherryStudio",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "chat",
+      "en": "Cherry Studio",
+      "ar": "تشيري ستوديو",
+      "desc_en": "Organize conversations with local models or connect a provider using your own key.",
+      "desc_ar": "نظّم محادثاتك مع نماذج محلية أو اربط مزوّدك بمفتاحك الخاص.",
+      "developer": "CherryHQ",
+      "keywords_en": [
+        "language models",
+        "AI"
+      ],
+      "keywords_ar": [
+        "نماذج لغوية",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "dev.ibrahimcetin.reins",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "chat",
+      "en": "Reins",
+      "ar": "رينز للمحادثة",
+      "desc_en": "Connect to your Ollama server and keep separate conversations with its models.",
+      "desc_ar": "اتصل بخادم أولاما الخاص بك وافتح محادثة مستقلة مع كل نموذج.",
+      "developer": "İbrahim Çetin",
+      "keywords_en": [
+        "language models",
+        "AI"
+      ],
+      "keywords_ar": [
+        "نماذج لغوية",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.github.pejuko.follamac",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "chat",
+      "en": "Follamac",
+      "ar": "فولاماك",
+      "desc_en": "Manage models on an Ollama server and adjust settings for each conversation.",
+      "desc_ar": "أدر نماذج خادم أولاما واضبط إعدادات كل محادثة.",
+      "developer": "Petr Kovář",
+      "keywords_en": [
+        "language models",
+        "AI"
+      ],
+      "keywords_ar": [
+        "نماذج لغوية",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.github.juergenfleiss.aTrain",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "microphone",
+      "en": "aTrain",
+      "ar": "أي ترين للتفريغ",
+      "desc_en": "Transcribe recorded interviews locally and distinguish speakers with downloaded models.",
+      "desc_ar": "فرّغ المقابلات المسجّلة محلياً وميّز بين أصوات المتحدثين باستخدام نماذج تنزّلها.",
+      "developer": "Armin Haberl, Jürgen Fleiß",
+      "keywords_en": [
+        "transcription",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تفريغ صوتي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.github.chidiwilliams.Buzz",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "microphone",
+      "en": "Buzz",
+      "ar": "بَز لتفريغ الصوت",
+      "desc_en": "Turn audio and video into timestamped text with Whisper models.",
+      "desc_ar": "حوّل الصوت والفيديو إلى نص بتوقيت زمني باستخدام نماذج ويسبر.",
+      "developer": "Chidi Williams",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "transcription",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تفريغ صوتي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.github.ashbuk.dabri",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "microphone",
+      "en": "Dabri",
+      "ar": "دابري للإملاء",
+      "desc_en": "Dictate text privately on the desktop after downloading a speech model.",
+      "desc_ar": "أملِ النص على سطح المكتب محلياً بعد تنزيل نموذج التعرّف على الكلام.",
+      "developer": "Asher Buk",
+      "keywords_en": [
+        "transcription",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تفريغ صوتي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.speedofsound.SpeedOfSound",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "microphone",
+      "en": "Speed of Sound",
+      "ar": "سبيد أوف ساوند",
+      "desc_en": "Dictate into desktop applications with a local speech recognition model.",
+      "desc_ar": "أملِ نصوصك في تطبيقات سطح المكتب باستخدام نموذج محلي للتعرّف على الكلام.",
+      "developer": "Antonio Zugaldia",
+      "keywords_en": [
+        "transcription",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تفريغ صوتي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "dev.ters.LocalTranslate",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "globe",
+      "en": "LocalTranslate",
+      "ar": "المترجم المحلي",
+      "desc_en": "Download language pairs and translate text without a network connection.",
+      "desc_ar": "نزّل أزواج اللغات التي تحتاجها ثم ترجم النصوص من دون اتصال بالشبكة.",
+      "developer": "Shriram Ravindranathan",
+      "keywords_en": [
+        "translation",
+        "AI"
+      ],
+      "keywords_ar": [
+        "ترجمة",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.github.manisandro.gImageReader",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "search",
+      "en": "gImageReader",
+      "ar": "قارئ النص المصوّر",
+      "desc_en": "Recognize text in scanned pages with Tesseract and correct it beside the original.",
+      "desc_ar": "استخرج النص من الصفحات الممسوحة باستخدام تيسراكت وصحّحه بجانب الأصل.",
+      "developer": "Sandro Mani",
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "xyz.rescribe.rescribe",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "search",
+      "en": "Rescribe",
+      "ar": "ريسكرايب للكتب",
+      "desc_en": "Turn scanned books and page images into searchable text with OCR.",
+      "desc_ar": "استخرج نصاً قابلاً للبحث من الكتب الممسوحة وصور الصفحات.",
+      "developer": "Rescribe Ltd",
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "com.github.tenderowl.frog",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "search",
+      "en": "Frog",
+      "ar": "فروغ لقراءة الصور",
+      "desc_en": "Read text from an image and copy the recognized words into a document.",
+      "desc_ar": "استخرج الكلمات من صورة وانسخ النص المقروء إلى مستندك.",
+      "developer": "Tender Owl",
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.gitlab.theevilskeleton.Upscaler",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "image",
+      "en": "Upscaler",
+      "ar": "مكبّر الصور",
+      "desc_en": "Enlarge photographs and illustrations with local image upscaling models.",
+      "desc_ar": "كبّر الصور والرسوم باستخدام نماذج محلية لتحسين الدقة.",
+      "developer": "The Upscaler Contributors",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "image recognition",
+        "AI"
+      ],
+      "keywords_ar": [
+        "معالجة الصور",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "app.fotema.Fotema",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "image",
+      "en": "Fotema",
+      "ar": "فوتيما للصور",
+      "desc_en": "Browse your photo library and group pictures by face with local recognition.",
+      "desc_ar": "تصفّح مكتبة صورك واجمع صور الشخص نفسه بالتعرّف المحلي على الوجوه.",
+      "developer": "David Bliss",
+      "keywords_en": [
+        "image recognition",
+        "AI"
+      ],
+      "keywords_ar": [
+        "معالجة الصور",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "org.audiveris.audiveris",
+      "source": "flathub",
+      "cat": "ai",
+      "glyph": "search",
+      "en": "Audiveris",
+      "ar": "أوديفيريس للنوتة",
+      "desc_en": "Recognize printed sheet music and export notation for a score editor.",
+      "desc_ar": "اقرأ النوتة الموسيقية المطبوعة وصدّرها إلى محرّر النوتات.",
+      "developer": "Hervé Bitteur et al.",
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "com.openutau.OpenUtau",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "music",
+      "en": "OpenUtau",
+      "ar": "أوبن أوتاو",
+      "desc_en": "Write a melody and lyrics and synthesize singing with a compatible voicebank.",
+      "desc_ar": "اكتب اللحن والكلمات وولّد صوتاً غنائياً باستخدام مكتبة أصوات متوافقة.",
+      "developer": "StAkira",
+      "keywords_en": [
+        "singing synthesis",
+        "AI"
+      ],
+      "keywords_ar": [
+        "توليد الغناء",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "org.pencil2d.Pencil2D",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "pen",
+      "en": "Pencil2D",
+      "ar": "بنسل للرسم المتحرك",
+      "desc_en": "Sketch and animate drawings frame by frame with bitmap and vector layers.",
+      "desc_ar": "ارسم وحرّك المشاهد إطاراً بإطار بطبقات نقطية ومتجهية.",
+      "developer": "The Pencil2D Team",
+      "keywords_en": [
+        "drawing"
+      ],
+      "keywords_ar": [
+        "رسم"
+      ]
+    },
+    {
+      "id": "com.orama_interactive.Pixelorama",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "pen",
+      "en": "Pixelorama",
+      "ar": "بكسلوراما",
+      "desc_en": "Draw pixel art, organize layers and animate game sprites.",
+      "desc_ar": "ارسم بالبكسل ورتّب الطبقات وحرّك شخصيات ألعابك.",
+      "developer": "Orama Interactive",
+      "keywords_en": [
+        "drawing"
+      ],
+      "keywords_ar": [
+        "رسم"
+      ]
+    },
+    {
+      "id": "net.drawpile.drawpile",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "pen",
+      "en": "Drawpile",
+      "ar": "دروبايل للرسم المشترك",
+      "desc_en": "Invite collaborators to sketch together on a shared canvas.",
+      "desc_ar": "ادعُ الرسّامين للعمل معك على اللوحة نفسها.",
+      "developer": "askmeaboutloom, Calle Laakkonen and contributors",
+      "keywords_en": [
+        "drawing"
+      ],
+      "keywords_ar": [
+        "رسم"
+      ]
+    },
+    {
+      "id": "com.rawtherapee.RawTherapee",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "camera",
+      "en": "RawTherapee",
+      "ar": "رو ثيرابي للصور الخام",
+      "desc_en": "Develop raw camera files and adjust exposure, noise and color before export.",
+      "desc_ar": "عالج ملفات الكاميرا الخام واضبط التعريض والضوضاء والألوان قبل التصدير.",
+      "developer": "The RawTherapee Team",
+      "keywords_en": [
+        "photography"
+      ],
+      "keywords_ar": [
+        "تصوير"
+      ]
+    },
+    {
+      "id": "io.github.guillaumechereau.Goxel",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "cube",
+      "en": "Goxel",
+      "ar": "غوكسل للنحت بالمكعبات",
+      "desc_en": "Build three-dimensional voxel models and paint individual blocks.",
+      "desc_ar": "ابنِ مجسّمات ثلاثية الأبعاد من مكعبات صغيرة ولوّن كل قطعة.",
+      "developer": "Guillaume Chereau",
+      "keywords_en": [
+        "design"
+      ],
+      "keywords_ar": [
+        "تصميم"
+      ]
+    },
+    {
+      "id": "org.openscad.OpenSCAD",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "cube",
+      "en": "OpenSCAD",
+      "ar": "أوبن سكاد للتصميم",
+      "desc_en": "Describe solid models with code and export a mesh for printing.",
+      "desc_ar": "صِف المجسّمات بالبرمجة وصدّر شبكتها للطباعة ثلاثية الأبعاد.",
+      "developer": "The OpenSCAD Developers",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "design"
+      ],
+      "keywords_ar": [
+        "تصميم"
+      ]
+    },
+    {
+      "id": "org.jamovi.jamovi",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "flask",
+      "en": "jamovi",
+      "ar": "جاموفي للإحصاء",
+      "desc_en": "Explore a dataset, compare groups and create statistical reports.",
+      "desc_ar": "استكشف مجموعات البيانات وقارن المجموعات وأنشئ تقارير إحصائية.",
+      "developer": "the jamovi team",
+      "keywords_en": [
+        "statistics"
+      ],
+      "keywords_ar": [
+        "إحصاء"
+      ]
+    },
+    {
+      "id": "org.jaspstats.JASP",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "flask",
+      "en": "JASP",
+      "ar": "جاسب للإحصاء",
+      "desc_en": "Compare classical and Bayesian analyses using data tables and plots.",
+      "desc_ar": "قارن التحليلات التقليدية والبايزية باستخدام جداول البيانات والرسوم البيانية.",
+      "developer": "University of Amsterdam",
+      "keywords_en": [
+        "statistics"
+      ],
+      "keywords_ar": [
+        "إحصاء"
+      ]
+    },
+    {
+      "id": "org.kde.subtitlecomposer",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "video",
+      "en": "Subtitle Composer",
+      "ar": "مؤلّف الترجمة",
+      "desc_en": "Edit subtitle lines and align their timing against a video.",
+      "desc_ar": "حرّر أسطر الترجمة واضبط توقيتها أثناء مشاهدة الفيديو.",
+      "developer": "Subtitle Composer contributors",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "video editing"
+      ],
+      "keywords_ar": [
+        "مونتاج"
+      ]
+    },
+    {
+      "id": "app.seeneva.reader",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "search",
+      "en": "Seeneva · Android",
+      "ar": "سينيفا للقصص المصوّرة · أندرويد",
+      "desc_en": "Read comic books and recognize text inside speech balloons.",
+      "desc_ar": "اقرأ القصص المصوّرة واستخرج النصوص من فقاعات الحوار.",
+      "engine": "android",
+      "accent": "#615438",
+      "developer": "Sergei Solodovnikov",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/app.seeneva.reader_4.apk",
+        "sha256": "5fde146d4233fa5f1fd09c1e810a5dbd7792ed599adb691d78c6259d84bdd52e",
+        "size": 27173043,
+        "version": "0.1.2-fdroid",
+        "signer": "d89fc71792bef9c11457997db31a815895811d898c46a747375cfabec042c7a2",
+        "package": "app.seeneva.reader",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "br.com.jotdown",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "search",
+      "en": "Jotdown · Android",
+      "ar": "جوت داون للمستندات · أندرويد",
+      "desc_en": "Read and annotate PDFs offline and recognize text on scanned pages.",
+      "desc_ar": "اقرأ المستندات وعلّق عليها دون اتصال واستخرج النص من الصفحات الممسوحة.",
+      "engine": "android",
+      "accent": "#615438",
+      "developer": "Walter Rebouças",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/br.com.jotdown_45.apk",
+        "sha256": "f1969747fc304c31e6291b378ef08567862e6563c4567dd0c75e8a21fcb49366",
+        "size": 8211687,
+        "version": "3.2.1-FOSS",
+        "signer": "c371df0d8015db8d1fd5c81077df4acf0cde8f3772c06c381ea83a69f5cc7e9d",
+        "package": "br.com.jotdown",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "ca.fuwafuwa.kaku",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "search",
+      "en": "Kaku · Android",
+      "ar": "كاكو لقراءة اليابانية · أندرويد",
+      "desc_en": "Recognize printed Japanese characters and look them up in a dictionary.",
+      "desc_ar": "تعرّف على المحارف اليابانية المطبوعة وابحث عن معانيها في القاموس.",
+      "engine": "android",
+      "accent": "#615438",
+      "developer": "0xbad1d3a5",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/ca.fuwafuwa.kaku_78.apk",
+        "sha256": "e780cb76161a881a3f67aa3be231928397b1cf1f26980f9f2fcdd12f7b31beeb",
+        "size": 78247556,
+        "version": "1.3.78",
+        "signer": "0a7c268f1ca03fae3043c6a5ef521b0f53b9b21b11e28dd5a34fb84088938337",
+        "package": "ca.fuwafuwa.kaku",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "com.danemadsen.maid",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "chat",
+      "en": "Maid · Android",
+      "ar": "ميد للنماذج اللغوية · أندرويد",
+      "desc_en": "Chat with a local language model or connect to a model server.",
+      "desc_ar": "حاوِر نموذجاً لغوياً على جهازك أو اتصل بخادم نماذج.",
+      "engine": "android",
+      "accent": "#614574",
+      "developer": "Mobile Artificial Intelligence",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.danemadsen.maid_22531.apk",
+        "sha256": "99511159dcdc455aa823b7567a08ea8cbcbb8936e30fba8937070b365d7368e8",
+        "size": 25657231,
+        "version": "2.0.4",
+        "signer": "835ed22ed895c4c272d698aa6e4e48db0b4e36dccf7010d5de15034ac9e1b96f",
+        "package": "com.danemadsen.maid",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "language models",
+        "AI"
+      ],
+      "keywords_ar": [
+        "نماذج لغوية",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "de.schliweb.makeacopy",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "search",
+      "en": "MakeACopy · Android",
+      "ar": "ميك أ كوبي للمسح · أندرويد",
+      "desc_en": "Scan pages, recognize their text and export a searchable PDF on the device.",
+      "desc_ar": "امسح الصفحات واستخرج نصوصها وصدّر مستنداً قابلاً للبحث على الجهاز.",
+      "engine": "android",
+      "accent": "#615438",
+      "developer": "egdels",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/de.schliweb.makeacopy_409024.apk",
+        "sha256": "f301ad536e6b1b70a26bd8212480b26ba1ab9f8b72f26a3589fe978824bf1795",
+        "size": 108130938,
+        "version": "4.9.2",
+        "signer": "ae322d3fb71afe21df4727e37a5c6803511d5a2fe1fc3135430cee0699fa1b34",
+        "package": "de.schliweb.makeacopy",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.github.stardomains3.oxproxion",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "chat",
+      "en": "oxproxion · Android",
+      "ar": "أوكس بروكسيون · أندرويد",
+      "desc_en": "Connect to Ollama or a model provider and chat using your own endpoint.",
+      "desc_ar": "اتصل بأولاما أو بمزوّد نماذج وحاوِره عبر عنوان الخادم الذي تختاره.",
+      "engine": "android",
+      "accent": "#614574",
+      "developer": "Dave",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/io.github.stardomains3.oxproxion_253.apk",
+        "sha256": "7024673595a093d0df69b2102fe797411d117aa481d6aeae8b898c554fdb77a1",
+        "size": 9514958,
+        "version": "2.2.38",
+        "signer": "3f3af0c2b724c4918458c223508a61178e27d192caf942aa2d5825301bb1078e",
+        "package": "io.github.stardomains3.oxproxion",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "language models",
+        "AI"
+      ],
+      "keywords_ar": [
+        "نماذج لغوية",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "io.github.subhamtyagi.ocr",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "search",
+      "en": "OCR by Shubham · Android",
+      "ar": "قارئ النصوص بالصور · أندرويد",
+      "desc_en": "Extract text from images with Tesseract language data.",
+      "desc_ar": "استخرج النصوص من الصور باستخدام بيانات اللغات لمحرك تيسراكت.",
+      "engine": "android",
+      "accent": "#615438",
+      "developer": "Shubham",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/io.github.subhamtyagi.ocr_61.apk",
+        "sha256": "8fe496fbd91ad57bba697027f86f942d217687f98df63a20d3f3be8ff5aba79c",
+        "size": 34954598,
+        "version": "6.1",
+        "signer": "d9fffd0d32f4055d1088fe300cae79fc27c48ba05985e3d315a332232e87a51c",
+        "package": "io.github.subhamtyagi.ocr",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "me.trion.whispertype",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "microphone",
+      "en": "WhisperType · Android",
+      "ar": "ويسبر تايب · أندرويد",
+      "desc_en": "Dictate offline in Android fields using its voice keyboard and a local model.",
+      "desc_ar": "أملِ النص داخل حقول أندرويد باستخدام لوحة مفاتيحه الصوتية ونموذج محلي.",
+      "engine": "android",
+      "accent": "#365e79",
+      "developer": "Parminder Singh",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/me.trion.whispertype_144.apk",
+        "sha256": "62bb4e70b0693168c5a694d3164cca10d0f33d9d7886a2f71cbab07cd6b9e9ab",
+        "size": 42617272,
+        "version": "1.6.1",
+        "signer": "ffce344ae2ad9b43f33d22889628520cb20e9a6cef6b72e665b3a9baf779d4cc",
+        "package": "me.trion.whispertype",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "transcription",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تفريغ صوتي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "org.schabi.parakeetype",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "microphone",
+      "en": "Parakeetype · Android",
+      "ar": "باراكيت للإملاء · أندرويد",
+      "desc_en": "Use on-device speech recognition as an Android keyboard or voice input method.",
+      "desc_ar": "أملِ الكلام محلياً عبر لوحة مفاتيح أندرويد أو طريقة الإدخال الصوتي.",
+      "engine": "android",
+      "accent": "#365e79",
+      "developer": "Christian Schabesberger",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.schabi.parakeetype_1400.apk",
+        "sha256": "8a838655a80bb403fe4823b8d40730d5bdabee2847c63fb426ffb4590b940d22",
+        "size": 58817559,
+        "version": "0.6.0",
+        "signer": "2bbe35a932d87f8408bdb6e3ab86fc43f42d362c4093388825d82c81bb167bd6",
+        "package": "org.schabi.parakeetype",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "transcription",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تفريغ صوتي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "org.venkado.relagent",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "chat",
+      "en": "Relagent · Android",
+      "ar": "ريل إيجنت · أندرويد",
+      "desc_en": "Run a personal AI assistant on your device after setting up a local model.",
+      "desc_ar": "شغّل مساعد ذكاء اصطناعي على جهازك بعد إعداد نموذج محلي.",
+      "engine": "android",
+      "accent": "#614574",
+      "developer": "Venkado",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.venkado.relagent_324.apk",
+        "sha256": "60b22283a8fde258ab01e0bb2f687eeb29fa1e53c7b32b2fa970ec088033f7fb",
+        "size": 53220300,
+        "version": "0.1.34",
+        "signer": "1b2dda7f510fa0996a18cc31c728526362cbf932b424f6eff72bc7bbbce33031",
+        "package": "org.venkado.relagent",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "language models",
+        "AI"
+      ],
+      "keywords_ar": [
+        "نماذج لغوية",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "com.swordfish.lemuroid",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "gaming",
+      "en": "Lemuroid · Android",
+      "ar": "ليمورُويد للألعاب · أندرويد",
+      "desc_en": "Play supported retro games from your own game files.",
+      "desc_ar": "شغّل الألعاب الكلاسيكية المدعومة من ملفات الألعاب التي تملكها.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "Filippo Scognamiglio",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.swordfish.lemuroid_252.apk",
+        "sha256": "f83912a5c276f3616833fcf1b44a8e40c61d5a20f76db3f4297d6c1f63805c42",
+        "size": 11970354,
+        "version": "1.17.0",
+        "signer": "36e9853f4884e55c35803dbf671e1493e8b0b4d33e635ed84dbaa83bcad8303c",
+        "package": "com.swordfish.lemuroid",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "games"
+      ],
+      "keywords_ar": [
+        "ألعاب"
+      ]
+    },
+    {
+      "id": "com.manichord.mgit",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "code",
+      "en": "MGit · Android",
+      "ar": "إم غيت · أندرويد",
+      "desc_en": "Browse Git history, edit files and synchronize your repositories.",
+      "desc_ar": "تصفّح سجل غيت وعدّل الملفات وزامن مستودعاتك.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "Manichord Pty Ltd",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.manichord.mgit_240.apk",
+        "sha256": "39120843da48bb63ac665eefa3020ea85c4a5b7826f403295be49f97e57e00ba",
+        "size": 10936001,
+        "version": "1.7.0",
+        "signer": "c96d51524159b0cbfc371eeefdaa4514fa409bc1a7da0d433e11f64d5aece2bf",
+        "package": "com.manichord.mgit",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "development"
+      ],
+      "keywords_ar": [
+        "برمجة"
+      ]
+    },
+    {
+      "id": "org.secuso.privacyfriendlysudoku",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "gaming",
+      "en": "Privacy Friendly Sudoku · Android",
+      "ar": "سودوكو · أندرويد",
+      "desc_en": "Solve Sudoku puzzles at different difficulty levels without advertising.",
+      "desc_ar": "حلّ ألغاز سودوكو بمستويات صعوبة مختلفة من دون إعلانات.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "SECUSO - Security Usability Society",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.secuso.privacyfriendlysudoku_101.apk",
+        "sha256": "1aff917f4ac9952bd956f2b19589787b015decc23b4c13268d19f1437c68b5b3",
+        "size": 5192839,
+        "version": "3.2.6",
+        "signer": "2715af26961bf27383ac5efcd3aa7203c1004d189e9b2d7d5f6d7386cd8095d8",
+        "package": "org.secuso.privacyfriendlysudoku",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "games"
+      ],
+      "keywords_ar": [
+        "ألعاب"
+      ]
+    },
+    {
+      "id": "org.gateshipone.odyssey",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "audio",
+      "en": "Odyssey Music Player · Android",
+      "ar": "مشغّل أوديسي · أندرويد",
+      "desc_en": "Browse albums and play music files stored on your device.",
+      "desc_ar": "تصفّح الألبومات واستمع إلى ملفات الموسيقى المحفوظة على جهازك.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "Gateship-One",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.gateshipone.odyssey_42.apk",
+        "sha256": "783026c58d84673c95731517caa93be45d302ca2f33afd0ca53b0a12221efc87",
+        "size": 6105056,
+        "version": "1.4.0",
+        "signer": "d7c66fbda0b7a7c3da8c7589bde12ce55cb77e4976f8787e9d0bc058028ba36d",
+        "package": "org.gateshipone.odyssey",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "audio"
+      ],
+      "keywords_ar": [
+        "صوت"
+      ]
+    },
+    {
+      "id": "org.oxycblt.auxio",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "audio",
+      "en": "Auxio · Android",
+      "ar": "أوكسيو للموسيقى · أندرويد",
+      "desc_en": "Play local music and organize your library by artist or album.",
+      "desc_ar": "شغّل الموسيقى المحلية ورتّب مكتبتك بحسب الفنان أو الألبوم.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "Alexander Capehart",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.oxycblt.auxio_75.apk",
+        "sha256": "c2053d36c28dbe74de40eadcd8978ec874c465ed3352bba655d4b2b364780b45",
+        "size": 11229630,
+        "version": "4.1.5",
+        "signer": "65b3e62a2b57bf73235be6d2d42ae546fcb02fd17f62cd14500d1c412a285972",
+        "package": "org.oxycblt.auxio",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "audio"
+      ],
+      "keywords_ar": [
+        "صوت"
+      ]
+    },
+    {
+      "id": "org.supertuxkart.stk",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "gaming",
+      "en": "SuperTuxKart · Android",
+      "ar": "سوبر تكس كارت · أندرويد",
+      "desc_en": "Race karts on three-dimensional tracks and compete in championships.",
+      "desc_ar": "تسابق بسيارات الكارت على حلبات ثلاثية الأبعاد وشارك في البطولات.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "SuperTuxKart Team",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.supertuxkart.stk_312.apk",
+        "sha256": "b6469d2888970b0c87df0c9eb472ea7d12f331f57f7623c6769986209e830a2f",
+        "size": 165323629,
+        "version": "1.4",
+        "signer": "e9147d446f9133a2be900b30d0a7fbec5f702deffff3de07933b6ba90a2ec0f7",
+        "package": "org.supertuxkart.stk",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "games"
+      ],
+      "keywords_ar": [
+        "ألعاب"
+      ]
+    },
+    {
+      "id": "org.documentfoundation.libreoffice",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "LibreOffice Viewer · Android",
+      "ar": "عارض ليبر أوفيس · أندرويد",
+      "desc_en": "Read office documents, spreadsheets and presentations on Android.",
+      "desc_ar": "اقرأ المستندات المكتبية والجداول والعروض التقديمية داخل أندرويد.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "The Document Foundation",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.documentfoundation.libreoffice_133.apk",
+        "sha256": "4c1162398ce8d96ff9dad91165945892f7f57428f3a59a08085d9dd39c125469",
+        "size": 94637807,
+        "version": "26.2.7.3",
+        "signer": "af71ba344cab259fa625f079ff520f511d17a372bb2e8fa27532791bd5fea8cb",
+        "package": "org.documentfoundation.libreoffice",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "documents"
+      ],
+      "keywords_ar": [
+        "مستندات"
+      ]
+    },
+    {
+      "id": "org.connectbot",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "code",
+      "en": "ConnectBot · Android",
+      "ar": "كونكت بوت · أندرويد",
+      "desc_en": "Open SSH terminal sessions and connect to servers you manage.",
+      "desc_ar": "افتح جلسات طرفية آمنة واتصل بالخوادم التي تديرها.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "Kenny Root",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.connectbot_11101000.apk",
+        "sha256": "96cf501a83e89284ff3ec93ac06e7a6a6aa8a35c0c02486b865945fe59ac8223",
+        "size": 13092258,
+        "version": "1.11.1-oss",
+        "signer": "08789bad18ce8ec7b6637b5e70245a763ae5024f4d49ac85324047fb06b5da8a",
+        "package": "org.connectbot",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "development"
+      ],
+      "keywords_ar": [
+        "برمجة"
+      ]
+    },
+    {
+      "id": "org.billthefarmer.editor",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Editor · Android",
+      "ar": "محرّر النصوص · أندرويد",
+      "desc_en": "Open plain text files, edit them and save them back to storage.",
+      "desc_ar": "افتح الملفات النصية وحرّرها ثم احفظها على جهازك.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "Bill Farmer",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.billthefarmer.editor_198.apk",
+        "sha256": "343d17e11d0914e1a7708df2781580a0413e52501c0a41d91f7ef725d9615fe9",
+        "size": 269122,
+        "version": "1.98",
+        "signer": "dc44ca63efa2980355d9bc4e90897f6b66e0c26ee30b0190c89a6f6b2b13cc09",
+        "package": "org.billthefarmer.editor",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "documents"
+      ],
+      "keywords_ar": [
+        "مستندات"
+      ]
+    },
+    {
+      "id": "com.gelakinetic.mtgfam",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "gaming",
+      "en": "MTG Familiar · Android",
+      "ar": "دليل بطاقات ماجيك · أندرويد",
+      "desc_en": "Look up Magic cards and keep track of life totals during a game.",
+      "desc_ar": "ابحث عن بطاقات ماجيك وسجّل نقاط اللاعبين أثناء المباراة.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "gelakinetic",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.gelakinetic.mtgfam_100.apk",
+        "sha256": "69491572a60a91b3b608f23d742f5ebcd35382491283c19e2051f52fe3cdbcbb",
+        "size": 36105585,
+        "version": "3.9.17",
+        "signer": "b42fa6a3fb4bae0dc014633bc7d7fc95d2c2640cb135e257cd71924149f8d64b",
+        "package": "com.gelakinetic.mtgfam",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "games"
+      ],
+      "keywords_ar": [
+        "ألعاب"
+      ]
+    },
+    {
+      "id": "com.nononsenseapps.notepad",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "NoNonsense Notes · Android",
+      "ar": "مفكّرة المهام · أندرويد",
+      "desc_en": "Write notes and organize tasks into lists with reminders.",
+      "desc_ar": "دوّن الملاحظات ونظّم المهام في قوائم مع تذكيرات.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "Space Cowboy, CampelloManuel",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.nononsenseapps.notepad_72700.apk",
+        "sha256": "0d79884020f2a09e0787282e345d7e8808826e0fb09135f620007015b30630b0",
+        "size": 3296437,
+        "version": "7.2.7",
+        "signer": "5e15c9c2e52b246364372b4ef9cd08605528f69a4bc7a82a50cd6809097273c7",
+        "package": "com.nononsenseapps.notepad",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "documents"
+      ],
+      "keywords_ar": [
+        "مستندات"
+      ]
+    },
+    {
+      "id": "org.billthefarmer.tuner",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "audio",
+      "en": "Instrument Tuner · Android",
+      "ar": "ضابط الآلات الموسيقية · أندرويد",
+      "desc_en": "Tune an instrument by measuring the frequency captured by the microphone.",
+      "desc_ar": "اضبط الآلة الموسيقية بقياس التردد الذي يلتقطه الميكروفون.",
+      "engine": "android",
+      "accent": "#435972",
+      "developer": "Bill Farmer",
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.billthefarmer.tuner_158.apk",
+        "sha256": "7fbfaee87f3402f7c4b269ac42a36a2ff2c91b382655647efad23d631caff944",
+        "size": 181149,
+        "version": "1.58",
+        "signer": "f551947f71f12769fe27db76d39f919ab3e93477cfee4a0aac80d0fd9e606f22",
+        "package": "org.billthefarmer.tuner",
+        "risk": "external-download",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "audio"
+      ],
+      "keywords_ar": [
+        "صوت"
+      ]
+    },
+    {
+      "id": "whisperdesktop-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "microphone",
+      "en": "Whisper Desktop · Windows",
+      "ar": "ويسبر لسطح المكتب · ويندوز",
+      "desc_en": "Transcribe recordings with a downloaded Whisper model on a compatible graphics processor.",
+      "desc_ar": "فرّغ التسجيلات بنموذج ويسبر تنزّله على جهازك باستخدام تسريع رسومي متوافق.",
+      "engine": "windows",
+      "accent": "#365e79",
+      "developer": "Const-me",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.12.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/Const-me/Whisper/releases/download/1.12.0/WhisperDesktop.zip",
+            "sha256": "483a82cc93e89c7e8a0187e4809a026d7b797e051bf4f9e54b6268e1fc574c62",
+            "size": 476830
+          }
+        },
+        "exe": "WhisperDesktop.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "transcription",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تفريغ صوتي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "naps2-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "search",
+      "en": "NAPS2 · Windows",
+      "ar": "نابس للمستندات · ويندوز",
+      "desc_en": "Import page images and make searchable PDFs with downloaded OCR languages.",
+      "desc_ar": "استورد صور الصفحات وحوّلها إلى مستندات قابلة للبحث بعد تنزيل لغة التعرّف.",
+      "engine": "windows",
+      "accent": "#615438",
+      "developer": "cyanfish",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "8.6.1",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/cyanfish/naps2/releases/download/v8.6.1/naps2-8.6.1-win-x64.zip",
+            "sha256": "62edd2b2a833dc097a0c8395de37757702ed19be2ade95921749a804a68927ae",
+            "size": 67353616
+          }
+        },
+        "exe": "App/NAPS2.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "OCR",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تعرّف ضوئي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "subtitleedit-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "microphone",
+      "en": "Subtitle Edit · Windows",
+      "ar": "محرّر الترجمة · ويندوز",
+      "desc_en": "Edit subtitles and generate timed text using optional speech recognition models.",
+      "desc_ar": "حرّر الترجمة وولّد نصاً مضبوط التوقيت باستخدام نماذج التعرّف على الكلام الاختيارية.",
+      "engine": "windows",
+      "accent": "#365e79",
+      "developer": "SubtitleEdit",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "5.4.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/SubtitleEdit/subtitleedit/releases/download/v5.4.0/SubtitleEdit-Windows-x64.zip",
+            "sha256": "88015b354332a3028d83ce4b992ec5325d03411df190769c8a87fcd459c6b920",
+            "size": 116450758
+          }
+        },
+        "exe": "SubtitleEdit.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "transcription",
+        "AI"
+      ],
+      "keywords_ar": [
+        "تفريغ صوتي",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "openutau-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "music",
+      "en": "OpenUtau · Windows",
+      "ar": "أوبن أوتاو · ويندوز",
+      "desc_en": "Edit notes and lyrics and render singing after adding a compatible voicebank.",
+      "desc_ar": "حرّر النوتات والكلمات وولّد الغناء بعد إضافة مكتبة أصوات متوافقة.",
+      "engine": "windows",
+      "accent": "#734858",
+      "developer": "OpenUtau contributors",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "0.1.576",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/openutau/OpenUtau/releases/download/0.1.576/OpenUtau-win-x64.zip",
+            "sha256": "475c577f8f42061abc8eef0d6648d772bef87fecd1e81cbf4e82e8a651669c56",
+            "size": 168465334
+          }
+        },
+        "exe": "OpenUtau.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "singing synthesis",
+        "AI"
+      ],
+      "keywords_ar": [
+        "توليد الغناء",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "upscayl-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "image",
+      "en": "Upscayl · Windows",
+      "ar": "أبسكيل لتكبير الصور · ويندوز",
+      "desc_en": "Enlarge images with local AI models on a compatible Vulkan graphics processor.",
+      "desc_ar": "كبّر تفاصيل الصور بنماذج محلية باستخدام معالج رسومي يدعم فولكان.",
+      "engine": "windows",
+      "accent": "#405b67",
+      "developer": "upscayl",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "2.15.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/upscayl/upscayl/releases/download/v2.15.0/upscayl-2.15.0-win.zip",
+            "sha256": "6aa2f137ce45bac3877c5634bb0829f398ed757cbf4a72ccdef12b7473407823",
+            "size": 304247780
+          }
+        },
+        "exe": "Upscayl.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "image recognition",
+        "AI"
+      ],
+      "keywords_ar": [
+        "معالجة الصور",
+        "ذكاء اصطناعي"
+      ]
+    },
+    {
+      "id": "godot-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "code",
+      "en": "Godot Engine · Windows",
+      "ar": "محرّك غودو · ويندوز",
+      "desc_en": "Create scenes, write scripts and build two-dimensional or three-dimensional games.",
+      "desc_ar": "ابنِ المشاهد واكتب الشيفرة وطوّر ألعاباً ثنائية أو ثلاثية الأبعاد.",
+      "engine": "windows",
+      "accent": "#435972",
+      "developer": "godotengine",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "4.7.2-stable",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win64.exe.zip",
+            "sha256": "731980f9608d61333e5baf54a2ef17210acc7a538446c0cb9969f002aca1e953",
+            "size": 86013866
+          }
+        },
+        "exe": "Godot_v4.7.2-stable_win64.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "development"
+      ],
+      "keywords_ar": [
+        "برمجة"
+      ]
+    },
+    {
+      "id": "gyroflow-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "video",
+      "en": "Gyroflow · Windows",
+      "ar": "جايروفلو لتثبيت الفيديو · ويندوز",
+      "desc_en": "Stabilize footage by matching camera motion to gyroscope data.",
+      "desc_ar": "ثبّت مقاطع الفيديو بمطابقة حركة الكاميرا مع بيانات الجيروسكوب.",
+      "engine": "windows",
+      "accent": "#435972",
+      "developer": "gyroflow",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.7.1",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/gyroflow/gyroflow/releases/download/v1.7.1/Gyroflow-windows64.zip",
+            "sha256": "e882319e0455c452dd7c4dd69433d32bfd8271ba20fcf7f01ec9af669487b3d9",
+            "size": 84144696
+          }
+        },
+        "exe": "Gyroflow.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "video editing"
+      ],
+      "keywords_ar": [
+        "مونتاج"
+      ]
+    },
+    {
+      "id": "copyq-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "folder",
+      "en": "CopyQ · Windows",
+      "ar": "كوبي كيو للحافظة · ويندوز",
+      "desc_en": "Organize copied text and images into searchable clipboard history.",
+      "desc_ar": "نظّم النصوص والصور المنسوخة وابحث داخل سجلّ الحافظة.",
+      "engine": "windows",
+      "accent": "#435972",
+      "developer": "hluk",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "17.0.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/hluk/CopyQ/releases/download/v17.0.0/copyq-17.0.0.zip",
+            "sha256": "1601e47339d4eda19b6f4890a00cbbe7fd00a7e5d5c3b613b9b2c8d3eeb04d19",
+            "size": 25129743
+          }
+        },
+        "exe": "copyq-17.0.0/copyq.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "tools"
+      ],
+      "keywords_ar": [
+        "أدوات"
+      ]
+    },
+    {
+      "id": "screentogif-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "video",
+      "en": "ScreenToGif · Windows",
+      "ar": "سكرين تو غيف · ويندوز",
+      "desc_en": "Edit animation frames and export a recording as an animated GIF.",
+      "desc_ar": "حرّر إطارات الحركة وصدّر تسجيلاً بصيغة صورة متحرّكة.",
+      "engine": "windows",
+      "accent": "#435972",
+      "developer": "NickeManarin",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "2.43.2",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/NickeManarin/ScreenToGif/releases/download/2.43.2/ScreenToGif.2.43.2.Portable.x64.zip",
+            "sha256": "42a0b53d67ecae22698b4881ffb2c9c7a9049663f5fbdd2edb779e1971000664",
+            "size": 73035883
+          }
+        },
+        "exe": "ScreenToGif.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "video editing"
+      ],
+      "keywords_ar": [
+        "مونتاج"
+      ]
+    },
+    {
+      "id": "drawio-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "cube",
+      "en": "draw.io Desktop · Windows",
+      "ar": "درو آي أو للمخططات · ويندوز",
+      "desc_en": "Draw diagrams, connect shapes and save project files on your computer.",
+      "desc_ar": "ارسم المخططات واربط الأشكال واحفظ ملفات المشروع على جهازك.",
+      "engine": "windows",
+      "accent": "#435972",
+      "developer": "jgraph",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "32.7.4",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/jgraph/drawio-desktop/releases/download/v32.7.4/draw.io-32.7.4-windows.zip",
+            "sha256": "0d29e3481bfcf933ed6d297e561b32b427bf6c91aaf3ab3fdfc2929e50f0a318",
+            "size": 181546624
+          }
+        },
+        "exe": "draw.io.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "design"
+      ],
+      "keywords_ar": [
+        "تصميم"
+      ]
+    },
+    {
+      "id": "shotcut-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "video",
+      "en": "Shotcut · Windows",
+      "ar": "شوت كت للمونتاج · ويندوز",
+      "desc_en": "Cut video and combine audio tracks, transitions and color filters.",
+      "desc_ar": "اقطع الفيديو واجمع مسارات الصوت والانتقالات ومرشّحات الألوان.",
+      "engine": "windows",
+      "accent": "#435972",
+      "developer": "mltframework",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "26.11.15",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/mltframework/shotcut/releases/download/v26.11.15/shotcut-win64-26.11.15.zip",
+            "sha256": "d704c12a8ce6d1fbe1a13155578ee5cf36b749a26503500cce38d8e68f900b0d",
+            "size": 196097953
+          }
+        },
+        "exe": "Shotcut/shotcut.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "video editing"
+      ],
+      "keywords_ar": [
+        "مونتاج"
+      ]
+    },
+    {
+      "id": "krokiet-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "folder",
+      "en": "Krokiet · Windows",
+      "ar": "كروكيت للملفات · ويندوز",
+      "desc_en": "Find duplicate files and visually similar images in folders you choose.",
+      "desc_ar": "اعثر على الملفات المكرّرة والصور المتشابهة داخل مجلدات تختارها.",
+      "engine": "windows",
+      "accent": "#435972",
+      "developer": "qarmin",
+      "arch": [
+        "x86_64"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "12.0.2",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/qarmin/czkawka/releases/download/12.0.2/windows_krokiet_on_windows_skia_opengl.exe",
+            "sha256": "102d97dd4bd8ffe798136c45137a4986f0e31f355a593fc64dcfd415e705554f",
+            "size": 66189312
+          }
+        },
+        "exe": "windows_krokiet_on_windows_skia_opengl.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      },
+      "keywords_en": [
+        "tools"
+      ],
+      "keywords_ar": [
+        "أدوات"
       ]
     }
   ]

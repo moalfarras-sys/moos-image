@@ -69,6 +69,9 @@ NO_ARM_BUILD = {
     "net.lutris.Lutris", "org.altaqwaa.Altaqwaa", "org.blender.Blender",
     "org.geogebra.GeoGebra", "org.mozilla.thunderbird", "org.torproject.torbrowser-launcher",
     "org.upscayl.Upscayl", "us.zoom.Zoom",
+    # Stable Flathub refs checked on both architectures in the native AI batch.
+    "io.github.chidiwilliams.Buzz", "io.gitlab.theevilskeleton.Upscaler", "org.kde.subtitlecomposer",
+    "org.openscad.OpenSCAD",
 }
 
 # Pinned downloads that exist for x86_64 only: every Windows program (64-bit PE32+ builds;
@@ -87,6 +90,13 @@ X86_ONLY_DOWNLOADS = {
     # The executable selected by each Nov27 Store recipe is AMD64 PE32+.
     "notepadnext-windows", "qview-windows", "supertuxkart-windows",
     "endless-sky-windows", "libresprite-windows", "powder-toy-windows",
+    # Exact x64 publisher archives and x86-only APK splits.
+    "com.danemadsen.maid", "copyq-windows", "de.schliweb.makeacopy",
+    "drawio-windows", "godot-windows", "gyroflow-windows",
+    "krokiet-windows", "me.trion.whispertype", "naps2-windows",
+    "openutau-windows", "org.documentfoundation.libreoffice", "org.venkado.relagent",
+    "screentogif-windows", "shotcut-windows", "subtitleedit-windows",
+    "upscayl-windows", "whisperdesktop-windows",
 }
 X86_ONLY = NO_ARM_BUILD | X86_ONLY_DOWNLOADS
 
