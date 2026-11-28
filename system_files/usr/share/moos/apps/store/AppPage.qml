@@ -36,6 +36,20 @@ Item {
         if (!archive || !archive.sha256 || archive.sha256 !== curated.v3_test.sha256) return ""
         return win.local(curated.v3_test.ar, curated.v3_test.en)
     }
+    readonly property string updateSource: {
+        if (!installed || !app || win.systemManagedOnly(app)) return ""
+        if (app.management === "external")
+            return win.local("ثُبّت خارج المتجر. استخدم طريقة التثبيت الأصلية لتحديثه أو إزالته.", "Installed outside the Store. Use its original installer to update or remove it.")
+        if (kind === "windows" && app.listed === false)
+            return win.local("خرج هذا الإصدار من الكتالوج. يمكنك فتحه أو إزالته من هنا.",
+                             "This app left the catalogue. You can still open or remove it here.")
+        if (kind === "dropped" || (kind === "android" && app.listed === false) || app.adopted === true)
+            return win.local("ثُبّت من ملف. لتحديثه، اختر ملف الإصدار الجديد.", "Installed from a file. Choose a newer file to update it.")
+        if (pinnedApp)
+            return win.local("يظهر التحديث هنا عند إضافة إصدار أحدث إلى كتالوج MoOS.",
+                             "Updates appear here when a newer release reaches the MoOS catalogue.")
+        return ""
+    }
     readonly property color brand: win.appColour(appPage.app)
     readonly property color base: win.plateColour(appPage.brand)
     readonly property color ink: win.inkOn(appPage.base)
@@ -348,6 +362,17 @@ Item {
                             font.family: appPage.win.uiFont
                             font.pixelSize: appPage.win.typePx(13)
                             elide: Text.ElideRight
+                        }
+                        Text {
+                            objectName: "storeUpdateSource"
+                            Layout.fillWidth: true
+                            visible: text.length > 0
+                            text: appPage.updateSource
+                            textFormat: Text.PlainText
+                            color: appPage.ink
+                            font.family: appPage.win.uiFont
+                            font.pixelSize: appPage.win.typePx(13)
+                            wrapMode: Text.WordWrap
                         }
                         RowLayout {
                             Layout.topMargin: appPage.design.space2

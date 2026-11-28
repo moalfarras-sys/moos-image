@@ -93,8 +93,8 @@ class TheShippedCatalogue(unittest.TestCase):
 
     def test_it_has_the_v2_shape(self):
         self.assertEqual({c["id"] for c in SHIPPED["categories"]}, gate.CATEGORY_IDS)
-        self.assertTrue(8 <= len(SHIPPED["collections"]) <= 14)
-        self.assertLessEqual({"craft-family", "instead-of-adobe"},
+        self.assertEqual(len(SHIPPED["collections"]), 16)
+        self.assertLessEqual({"craft-family", "instead-of-adobe", "music-workbench", "study-toolkit"},
                              {row["id"] for row in SHIPPED["collections"]})
         self.assertTrue(5 <= len(SHIPPED["featured"]) <= 7)
         self.assertEqual(len(SHIPPED["bundles"]), 5)
@@ -104,7 +104,7 @@ class TheShippedCatalogue(unittest.TestCase):
 
     def test_every_android_pin_records_its_signer_and_every_download_its_size(self):
         android = [a for a in SHIPPED["apps"] if (a.get("install") or {}).get("kind") == "android"]
-        self.assertEqual(len(android), 51)
+        self.assertEqual(len(android), 59)
         for entry in android:
             with self.subTest(app=entry["id"]):
                 self.assertRegex(entry["install"]["signer"], r"^[0-9a-f]{64}$")

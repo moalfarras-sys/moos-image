@@ -3346,15 +3346,18 @@ class Controller:
             return
         self._removed_untracked(job, app_id, delete_data)
 
-    def _remove_vendor_record(self, app_id: str, delete_data: bool) -> tuple[int, dict[str, Any]]:
-        """A vendor app the catalogue no longer offers stays removable by its id."""
+    def _unlisted_windows(self, app_id: str) -> bool:
+        return bool(self._library("moos_windows_portable").installed_record(data_home(), app_id, unlisted=True))
+
+    def _remove_unlisted(self, app_id: str, delete_data: bool, remove: Callable) -> tuple[int, dict[str, Any]]:
+        """Use the installation's normal remover when its catalogue entry is retired."""
         try:
             lock, job = self._begin("remove", [app_id])
         except BusyError:
             return self._refuse_busy("remove", [app_id])
         with lock:
             try:
-                self._remove_vendor(job, app_id, delete_data)
+                remove(job, app_id, delete_data)
                 job.finish_from_items("App removed", "app_removed")
             except CancelledError:
                 job.cancelled()
@@ -3958,7 +3961,9 @@ class Controller:
             return self._remove_dropped(app_id, delete_data, slug)
         # So is a publisher's app the catalogue stopped offering: MoOS's record still names it.
         if self._vendor_record(app_id):
-            return self._remove_vendor_record(app_id, delete_data)
+            return self._remove_unlisted(app_id, delete_data, self._remove_vendor)
+        if recipe is None and self._unlisted_windows(app_id):
+            return self._remove_unlisted(app_id, delete_data, self._remove_windows)
         package = self._dropped_android_package(app_id)
         if package:
             return self._remove_android_record(package, delete_data, app_id=app_id)
@@ -4249,7 +4254,8 @@ class Controller:
                 return None
         return entry
 
-    def _run_installed(self, app_id: str, kind: str, slug: str | None = None) -> tuple[int, dict[str, Any]]:
+    def _run_installed(self, app_id: str, kind: str, slug: str | None = None, *,
+                       unlisted_windows: bool = False) -> tuple[int, dict[str, Any]]:
         """Open a web app, an App Drop app, a Windows program or a publisher's own app the way
         its launcher would."""
         try:
@@ -4262,6 +4268,10 @@ class Controller:
                     if not self._webapp_policy().is_installed(app_id):
                         raise StoreError("App is not installed", message_key="not_installed")
                     argv = [WEBAPP_RUNTIME, app_id]
+                elif unlisted_windows:
+                    if not self._unlisted_windows(app_id):
+                        raise StoreError("App is not installed", message_key="not_installed")
+                    argv = [RUN_FOREIGN, "--app", app_id]
                 else:
                     argv = [GTK_LAUNCH, self._launcher_for(app_id, kind, slug)]
                 job.update_item(app_id, state="running", progress=None, message="Opening app",
@@ -4338,6 +4348,8 @@ class Controller:
             return self._run_installed(app_id, "appdrop", slug)
         if self._vendor_record(app_id):
             return self._run_installed(app_id, "vendor")
+        if recipe is None and self._unlisted_windows(app_id):
+            return self._run_installed(app_id, "windows", unlisted_windows=True)
         package = self._dropped_android_package(app_id)
         if package:
             return self._run_android(app_id, None, start_android=start_android, package=package)
@@ -4397,8 +4409,7 @@ class Controller:
             record = self._appdrop().read_record(app_id)
             return record if record.get("catalog_id") == app_id else {}
         if kind == "windows-portable":
-            paths = windows_paths(app_id)
-            return _read_json(paths.record) if paths.app.is_dir() else {}
+            return self._library("moos_windows_portable").installed_record(data_home(), app_id)
         if kind == "android":
             if not (data_home() / "waydroid" / "data" / "data" / app_id).is_dir():
                 return {}
@@ -4749,7 +4760,7 @@ class Controller:
             if self._dropped_slug(app_id) is not None:
                 raise StoreError("This app was installed from a file; install a newer file of it to update it",
                                  message_key="update_by_file")
-            if self._vendor_record(app_id):
+            if self._vendor_record(app_id) or (recipe is None and self._unlisted_windows(app_id)):
                 # Without its catalogue entry there is no reviewed repository to ask.
                 raise StoreError("Mo Store no longer offers this app, so it cannot update it; it can be removed",
                                  message_key="unsupported_kind")

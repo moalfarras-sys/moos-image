@@ -461,6 +461,37 @@ class EveryKindIsSeen(unittest.TestCase):
                          sum(bool(app["installed"]) for app in self.data["apps"]))
 
 
+class WindowsReceiptVisibility(unittest.TestCase):
+    def test_large_receipt_survives_catalogue_retirement_and_link_refusal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            machine = Machine(Path(tmp))
+            populate(machine)
+            folder = machine.data / "moos/windows-apps"
+            ident = "offline-writer"
+            app = folder / ident
+            (app / "app").mkdir(parents=True)
+            (app / "app/editor.exe").write_bytes(b"program")
+            (app / "prefix").mkdir()
+            (app / "prefix/system.reg").touch()
+            launcher = machine.data / "applications" / f"org.moos.windows.{ident}.desktop"
+            launcher.parent.mkdir(parents=True, exist_ok=True)
+            launcher.write_text(f"[Desktop Entry]\nX-MoOS-WindowsApp={ident}\n")
+            record = folder / f"{ident}.json"
+            record.write_text(json.dumps({"schema": 1, "id": ident, "name": "Offline Writer", "version": "2",
+                                         "launcher": launcher.name, "exe": "editor.exe",
+                                         "publisher_files": {"entry": "x" * 70000}}))
+            rows = [row for row in machine.run()["apps"] if row["id"] == ident]
+            self.assertEqual(len(rows), 1)
+            row = rows[0]
+            self.assertTrue(row["installed"])
+            self.assertEqual((row["kind"], row["installed_version"]), ("windows", "2"))
+            self.assertFalse(row["listed"] or row["installable"] or row["update_available"])
+            moved = record.with_suffix(".saved")
+            record.rename(moved)
+            record.symlink_to(moved.name)
+            self.assertNotIn(ident, {row["id"] for row in machine.run()["apps"]})
+
+
 class UnlistedAndroidApps(unittest.TestCase):
     PACKAGE = "org.example.local"
 

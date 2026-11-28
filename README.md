@@ -29,6 +29,9 @@ Read these files in order before changing the system:
 5. [`RELEASE.md`](RELEASE.md) — the signed candidate, boot-proof and promotion
    contract.
 
+For application sources, compatibility evidence and Store maintenance, see the
+[Arabic Mo Store handoff](docs/README-MO-STORE.ar.md).
+
 Historical session logs, rejected mockups and screenshots do not live on
 `main`. Git history is the archive. A fact enters `PROJECT_STATE.md` only when a
 command, test, built artifact or physical-device check proves it.
