@@ -1097,8 +1097,8 @@ class RunForeignApp(Isolated):
 class RealRuntimeProof(Isolated):
     """Install and remove a real portable program with the image's own runtime, headless.
 
-    The program is never started: only its prefix is created, its icon read in the sandbox, and
-    everything removed again. Run on a MoOS host inside a private HOME; see the report for the
+    The program is never started: its prefix is created, its icon read in the sandbox, and a saved
+    file survives ordinary removal and reinstall until explicit data removal. Run on a MoOS host inside a private HOME; see the report for the
     measured times and sizes.
     """
 
@@ -1137,9 +1137,21 @@ class RealRuntimeProof(Isolated):
         if icon.is_file():
             self.assertEqual(icon.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
             self.assertIn(f"Icon={icon}", launcher)
+        saved = base / "prefix/drive_c/MoOS-proof.txt"
+        saved.write_text("اختبار حفظ البيانات", encoding="utf-8")
+        desktop = self.home / f".local/share/applications/org.moos.windows.{APP}.desktop"
         with mock.patch.object(appdrop, "_refresh_menu", lambda: None):
             code, result = controller.remove(APP)
-        self.assertEqual(result["state"], "success", result)
+            self.assertEqual((code, result["state"]), (0, "success"), result)
+            self.assertFalse(desktop.exists())
+            self.assertFalse((self.windows / f"{APP}.json").exists())
+            self.assertFalse((base / "app" / exe.name).exists())
+            self.assertEqual(saved.read_text(encoding="utf-8"), "اختبار حفظ البيانات")
+            code, result = controller.install([APP])
+            self.assertEqual((code, result["state"]), (0, "success"), result)
+            self.assertEqual(saved.read_text(encoding="utf-8"), "اختبار حفظ البيانات")
+            code, result = controller.remove(APP, delete_data=True)
+            self.assertEqual((code, result["state"]), (0, "success"), result)
         self.assertFalse(base.exists())
         leftovers = subprocess.run(["pgrep", "-f", str(base)], capture_output=True, text=True).stdout
         self.assertEqual(leftovers.strip(), "", "a runtime process outlived the removal")
